@@ -50,6 +50,11 @@ import {
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
+import { pointInGeometry } from '../utils/geo'
+
+// 缩放下钻阈值: 放大进入下一级 / 缩小退回上级(差 0.5 级防抖滞后)
+const ENTER_ZOOM: Partial<Record<string, number>> = { province: 9.5, city: 11.5, county: 13.5 }
+const EXIT_ZOOM: Partial<Record<string, number>> = { city: 9.0, county: 11.0, township: 13.0, village: 13.0 }
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
@@ -72,6 +77,7 @@ let rsLayer: L.TileLayer | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
+let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
 let basemaps: Basemaps
 
 /** 切换底图(图层顺序由 zIndex 保证: 底图1 < 高分叠加3 < 注记4) */
@@ -122,13 +128,13 @@ function renderOutline(crumb: Crumb) {
   ).addTo(map)
 }
 
-async function render() {
+async function render(noFly = false) {
   const crumb = store.current
   const seq = ++flySeq
   clearLayers()
   renderOutline(crumb)
 
-  // 视野: flyTo 当前区域 (决策#4 动效)
+  // 视野: flyTo 当前区域 (决策#4 动效); 自动切换层级时不动视野
   let bounds: L.LatLngBounds | null = null
   if (crumb.geometry) {
     bounds = L.geoJSON(toFeature(crumb.geometry)).getBounds()
@@ -137,7 +143,7 @@ async function render() {
     if (seq !== flySeq) return
     bounds = L.geoJSON(prov).getBounds()
   }
-  if (bounds.isValid()) {
+  if (!noFly && bounds.isValid()) {
     if (firstRender) {
       // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
       map.fitBounds(bounds.pad(0.02))
@@ -148,13 +154,15 @@ async function render() {
     }
   }
 
-  // 等飞行结束再插入子级图层(动画期间插图层会掉帧); 超时兑底 1.2s
-  const flyDone = new Promise<void>((resolve) => {
-    let done = false
-    const finish = () => { if (!done) { done = true; resolve() } }
-    map.once('moveend', finish)
-    setTimeout(finish, 1200)
-  })
+  // 等飞行结束再插入子级图层(动画期间插图层会掉帧); 自动切换无飞行则立即
+  const flyDone = noFly
+    ? Promise.resolve()
+    : new Promise<void>((resolve) => {
+        let done = false
+        const finish = () => { if (!done) { done = true; resolve() } }
+        map.once('moveend', finish)
+        setTimeout(finish, 1200)
+      })
 
   // 子级边界(部分中心城区街道无村界文件 -> 404 时静默按空处理)
   const url = childrenUrl(crumb)
@@ -217,7 +225,44 @@ async function render() {
   }
 }
 
-watch(() => store.path.length, render)
+watch(() => store.path.length, () => {
+  const nf = pendingNoFly
+  pendingNoFly = false
+  render(nf)
+})
+
+/** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
+function onAutoLevel() {
+  const crumb = store.current
+  const z = map.getZoom()
+
+  // 放大: 进入中心点所在子区域(村级不自动进入, 需点击)
+  const enterZ = ENTER_ZOOM[crumb.level]
+  if (enterZ !== undefined && z >= enterZ && childLayer) {
+    const c = map.getCenter()
+    for (const layer of childLayer.getLayers() as L.GeoJSON[]) {
+      const f = layer.feature as Feature | undefined
+      if (f && pointInGeometry([c.lng, c.lat], f.geometry)) {
+        pendingNoFly = true
+        store.drill({
+          level: NEXT_LEVEL[crumb.level]!,
+          code: f.properties?.code ?? '',
+          name: f.properties?.name ?? '',
+          geometry: f.geometry,
+        })
+        return
+      }
+    }
+    return
+  }
+
+  // 缩小: 退回上级
+  const exitZ = EXIT_ZOOM[crumb.level]
+  if (exitZ !== undefined && z <= exitZ && store.path.length > 1) {
+    pendingNoFly = true
+    store.back()
+  }
+}
 
 onMounted(() => {
   map = L.map(mapEl.value!, {
@@ -231,6 +276,7 @@ onMounted(() => {
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
+  map.on('zoomend', onAutoLevel)
   render()
 })
 
