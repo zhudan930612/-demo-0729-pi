@@ -46,6 +46,7 @@ let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
+let firstRender = true
 
 const toFeature = (geometry: Geometry | null | undefined): Feature<Geometry | null> => ({
   type: 'Feature',
@@ -96,7 +97,14 @@ async function render() {
     bounds = L.geoJSON(prov).getBounds()
   }
   if (bounds.isValid()) {
-    map.flyToBounds(bounds.pad(0.08), { duration: 1.0 })
+    if (firstRender) {
+      // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
+      map.fitBounds(bounds.pad(0.02))
+      firstRender = false
+    } else {
+      // 下钻/返回: 同样的紧贴边距, 飞行动画
+      map.flyToBounds(bounds.pad(0.02), { duration: 1.0 })
+    }
   }
 
   // 等飞行结束再插入子级图层(动画期间插图层会掉帧); 超时兑底 1.2s
