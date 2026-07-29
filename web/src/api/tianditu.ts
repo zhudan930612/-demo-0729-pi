@@ -11,7 +11,8 @@ function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
       maxNativeZoom: 18, // 天地图瓦片最高 z18; z19 由 Leaflet 自动放大 z18 瓦片
       maxZoom: 19,
       keepBuffer: 3,     // 多留缓存瓦片, 回退缩放不白屏
-      zIndex,            // 显式分层: 底图1 < 高分叠加3 < 注记4(文字不被影像盖住)
+      zIndex,
+      pane: type === 'cia_w' || type === 'cva_w' ? 'annotationPane' : 'tilePane',
       attribution: '天地图',
     },
   )

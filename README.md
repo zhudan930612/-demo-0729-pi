@@ -1,7 +1,8 @@
 # 农险双精准地图 Demo
 
 以天地图卫星影像为底图，浙江省 **省→市→县→乡→村** 五级下钻 + 分级行政边界展示；
-村级叠加吉林一号 0.5m 高分影像（覆盖上虞章镇镇、嵊州三界镇共 17 村）。
+村级叠加吉林一号 0.5m 高分影像（覆盖上虞章镇镇、嵊州三界镇共 17 村）；
+龙江村试点展示 Delineate Anything v2 自动识别的演示地块。
 
 详细需求与决策记录见 [docs/需求文档.md](docs/需求文档.md)。
 
@@ -9,6 +10,7 @@
 
 - 前端：`web/` —— Vue 3 + Vite + TypeScript + Leaflet + Pinia
 - 数据预处理：`scripts/` —— Python（pyshp / shapely / rasterio / Pillow）
+- 地块识别：仓库外运行 [Delineate Anything v2](https://github.com/Lavreniuk/Delineate-Anything)，结果裁界后导出静态 GeoJSON
 
 ## 复现步骤
 
@@ -26,6 +28,7 @@ pip install pyshp shapely rasterio pillow numpy
 python scripts/prepare-boundaries.py     # 边界拆分 -> web/public/data/
 python scripts/prepare-rs-tiles.py       # 影像切片 -> web/public/tiles/
 python scripts/validate-data.py          # 数据链路校验(13 项)
+python scripts/prepare-parcel-pilot.py prepare  # 龙江村试点裁片（模型推理需独立 Python 3.11 环境）
 
 cd web
 cp .env.local.example .env.local         # 填入 VITE_TIANDITU_TOKEN
@@ -36,4 +39,6 @@ pnpm dev
 ## 版权说明
 
 - 锐多宝行政区划数据仅限学术研究/内部验证，未取得商业授权前不得对外发布
-- 吉林一号影像为商业数据，派生瓦片同样不得公开分发
+- 吉林一号影像为商业数据，派生瓦片及 AI 识别地块 GeoJSON 同样不得公开分发
+- Delineate Anything 采用 AGPL-3.0；本项目仅将其作为仓库外离线预处理工具，模型源码和权重不入库
+- AI 地块为零样本演示结果，不是确权、承保或测绘成果

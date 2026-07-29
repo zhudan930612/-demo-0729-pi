@@ -23,7 +23,7 @@
         v-if="rsVisible"
         class="icon-btn"
         :class="{ off: !rsOn }"
-        :title="rsOn ? '高分影像：开（点击关闭）' : '高分影像：关（点击打开）'"
+        :title="rsOn ? '高分影像与AI地块：开（点击关闭）' : '高分影像与AI地块：关（点击打开）'"
         @click="toggleRs"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -58,6 +58,13 @@ const EXIT_ZOOM: Partial<Record<string, number>> = { city: 9.0, county: 11.0, to
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
+const PARCEL_STYLE: L.PathOptions = {
+  color: '#93c5fd',
+  weight: 1,
+  opacity: 0.95,
+  fillColor: '#60a5fa',
+  fillOpacity: 0.26,
+}
 
 const mapEl = ref<HTMLDivElement>()
 const store = useDrilldownStore()
@@ -74,13 +81,14 @@ let map: L.Map
 let childLayer: L.GeoJSON | null = null
 let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
+let parcelLayer: L.GeoJSON | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
 let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
 let basemaps: Basemaps
 
-/** 切换底图(图层顺序由 zIndex 保证: 底图1 < 高分叠加3 < 注记4) */
+/** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
   if (type === basemap.value || !basemaps) return
   map.removeLayer(basemaps[basemap.value])
@@ -105,6 +113,7 @@ function clearLayers() {
   if (childLayer) { childLayer.remove(); childLayer = null }
   if (outlineLayer) { outlineLayer.remove(); outlineLayer = null }
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
+  if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
   rsVisible.value = false
   rsHint.value = ''
   rsOn.value = true
@@ -114,6 +123,9 @@ function clearLayers() {
 function toggleRs() {
   rsOn.value = !rsOn.value
   rsLayer?.setOpacity(rsOn.value ? RS_OPACITY : 0)
+  parcelLayer?.setStyle(rsOn.value
+    ? PARCEL_STYLE
+    : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 })
 }
 
 /** 当前区域轮廓(下钻时被点击的要素) */
@@ -213,10 +225,23 @@ async function render(noFly = false) {
         minZoom: rsInfo.minZoom,
         maxZoom: rsInfo.maxZoom,
         opacity: RS_OPACITY,
-        zIndex: 3, // 高于底图与注记
+        zIndex: 3, // 高于底图；文字注记在独立 annotationPane 中置顶
       }).addTo(map)
       rsVisible.value = true
       rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
+
+      // AI 识别地块: 按村按需加载；没有地块产物的村静默跳过
+      const parcels = await fetchJSON<FeatureCollection>(`/data/parcels/${crumb.code}.geojson`).catch(() => null)
+      if (seq !== flySeq) return
+      if (parcels?.features.length) {
+        parcelLayer = L.geoJSON(parcels, {
+          style: rsOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 },
+          interactive: false,
+        }).addTo(map)
+        outlineLayer?.bringToFront()
+        rsHint.value = `吉林一号 0.5m 影像 · AI 识别地块 ${parcels.features.length.toLocaleString()} 个（演示）`
+      }
+
       // 视野缩放低于瓦片最低级别时抬到最低级, 避免整层不显示
       if (map.getZoom() < rsInfo.minZoom) map.setZoom(rsInfo.minZoom)
     } else {
@@ -275,6 +300,10 @@ onMounted(() => {
   })
   L.control.zoom({ position: 'bottomright' }).addTo(map)
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
+  // 注记独立置顶: 高于高分影像、AI 地块和行政边界
+  map.createPane('annotationPane')
+  map.getPane('annotationPane')!.style.zIndex = '450'
+  map.getPane('annotationPane')!.style.pointerEvents = 'none'
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   map.on('zoomend', onAutoLevel)
