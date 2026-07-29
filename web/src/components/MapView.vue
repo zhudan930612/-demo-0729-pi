@@ -164,7 +164,13 @@ async function render() {
 
   // 村级: 高分影像叠加(仅当村范围与影像范围相交)
   if (crumb.level === 'village') {
-    rsInfo ??= await fetchRsInfo().catch(() => null)
+    // 等飞行结束再加影像层: 中途缩放低于 minZoom 时插入, 瓦片可能被清空不恢复
+    const [info] = await Promise.all([
+      rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
+      flyDone,
+    ])
+    if (seq !== flySeq) return
+    rsInfo = info
     if (!rsInfo || !crumb.geometry) return
     const [w, s, e, n] = rsInfo.bounds
     const vb = L.geoJSON(toFeature(crumb.geometry)).getBounds()
@@ -174,15 +180,12 @@ async function render() {
         minZoom: rsInfo.minZoom,
         maxZoom: rsInfo.maxZoom,
         opacity: rsOpacity.value / 100,
-        bounds: rsBounds,
         zIndex: 3, // 高于底图与注记
       }).addTo(map)
       rsVisible.value = true
       rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
       // 视野缩放低于瓦片最低级别时抬到最低级, 避免整层不显示
-      flyDone.then(() => {
-        if (seq === flySeq && map.getZoom() < rsInfo!.minZoom) map.setZoom(rsInfo!.minZoom)
-      })
+      if (map.getZoom() < rsInfo.minZoom) map.setZoom(rsInfo.minZoom)
     } else {
       rsHint.value = '该村不在高分影像覆盖范围内'
     }
