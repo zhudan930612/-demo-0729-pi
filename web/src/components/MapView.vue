@@ -270,6 +270,7 @@ onMounted(() => {
     maxZoom: 19,
     zoomControl: false,
     zoomSnap: 0.25, // 允许小数级缩放, fitBounds 才能精确贴合(整数级会被迫放松最多1级)
+    wheelPxPerZoomLevel: 120, // 滚轮步幅放缓(默认60, 一次滚动跳~1.7级导致瓦片爆发重载)
     renderer: canvasRenderer, // 矢量图层默认走 Canvas
   })
   L.control.zoom({ position: 'bottomright' }).addTo(map)
