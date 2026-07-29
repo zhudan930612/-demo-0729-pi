@@ -11,6 +11,12 @@
 
     <!-- 村级: 影像状态角标(无弹窗, 仅文字) -->
     <div v-if="rsHint" class="rs-hint" :class="{ off: !rsVisible }">{{ rsHint }}</div>
+
+    <!-- 底图切换: 卫星/矢量 -->
+    <div class="basemap-switch">
+      <button :class="{ on: basemap === 'img' }" @click="switchBasemap('img')">卫星</button>
+      <button :class="{ on: basemap === 'vec' }" @click="switchBasemap('vec')">矢量</button>
+    </div>
   </div>
 </template>
 
@@ -25,7 +31,7 @@ import {
   LEVEL_WEIGHT,
   type Crumb,
 } from '../stores/drilldown'
-import { addTiandituLayers } from '../api/tianditu'
+import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
@@ -36,6 +42,7 @@ const store = useDrilldownStore()
 const rsVisible = ref(false)
 const rsOpacity = ref(70)
 const rsHint = ref('')
+const basemap = ref<'img' | 'vec'>('img')
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
@@ -47,6 +54,16 @@ let rsLayer: L.TileLayer | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
+let basemaps: Basemaps
+
+/** 切换底图; 新底图置于底层, 避免盖住高分影像叠加层 */
+function switchBasemap(type: 'img' | 'vec') {
+  if (type === basemap.value || !basemaps) return
+  map.removeLayer(basemaps[basemap.value])
+  basemaps[type].addTo(map)
+  basemaps[type].eachLayer((l) => (l as L.GridLayer).bringToBack())
+  basemap.value = type
+}
 
 const toFeature = (geometry: Geometry | null | undefined): Feature<Geometry | null> => ({
   type: 'Feature',
@@ -179,12 +196,14 @@ onMounted(() => {
   map = L.map(mapEl.value!, {
     minZoom: 7,
     maxZoom: 19,
-    zoomControl: true,
+    zoomControl: false,
     zoomSnap: 0.25, // 允许小数级缩放, fitBounds 才能精确贴合(整数级会被迫放松最多1级)
     renderer: canvasRenderer, // 矢量图层默认走 Canvas
   })
+  L.control.zoom({ position: 'bottomright' }).addTo(map)
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
-  addTiandituLayers(map)
+  basemaps = createBasemaps()
+  basemaps.img.addTo(map)
   render()
 })
 
@@ -194,6 +213,29 @@ onBeforeUnmount(() => map?.remove())
 <style scoped>
 .map-wrap { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; }
+.basemap-switch {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.basemap-switch button {
+  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  color: #374151;
+}
+.basemap-switch button.on {
+  background: #2563eb;
+  color: #fff;
+}
+
 .rs-hint {
   position: absolute;
   left: 16px;
@@ -211,7 +253,7 @@ onBeforeUnmount(() => map?.remove())
 .rs-panel {
   position: absolute;
   right: 16px;
-  bottom: 24px;
+  bottom: 100px;
   z-index: 1000;
   display: flex;
   align-items: center;
