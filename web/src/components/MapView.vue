@@ -180,6 +180,7 @@ onMounted(() => {
     minZoom: 7,
     maxZoom: 19,
     zoomControl: true,
+    zoomSnap: 0.25, // 允许小数级缩放, fitBounds 才能精确贴合(整数级会被迫放松最多1级)
     renderer: canvasRenderer, // 矢量图层默认走 Canvas
   })
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
