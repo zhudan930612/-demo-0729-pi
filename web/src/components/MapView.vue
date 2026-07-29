@@ -5,13 +5,33 @@
     <!-- 村级: 影像状态角标(无弹窗, 仅文字) -->
     <div v-if="rsHint" class="rs-hint" :class="{ off: !rsVisible }">{{ rsHint }}</div>
 
-    <!-- 右下角竖排控制按钮 -->
+    <!-- 右下角竖排图标按钮 -->
     <div class="ctrl-stack">
-      <button @click="switchBasemap(basemap === 'img' ? 'vec' : 'img')">
-        底图：{{ basemap === 'img' ? '卫星' : '矢量' }}
+      <button
+        class="icon-btn"
+        :title="basemap === 'img' ? '底图：卫星（点击切换矢量）' : '底图：矢量（点击切换卫星）'"
+        @click="switchBasemap(basemap === 'img' ? 'vec' : 'img')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 2 7l10 5 10-5-10-5z" />
+          <path d="m2 17 10 5 10-5" />
+          <path d="m2 12 10 5 10-5" />
+        </svg>
       </button>
-      <button v-if="rsVisible" @click="toggleRs">
-        高分影像：{{ rsOn ? '开' : '关' }}
+      <button
+        v-if="rsVisible"
+        class="icon-btn"
+        :class="{ off: !rsOn }"
+        :title="rsOn ? '高分影像：开（点击关闭）' : '高分影像：关（点击打开）'"
+        @click="toggleRs"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+          <line v-if="!rsOn" x1="3" y1="3" x2="21" y2="21" />
+        </svg>
       </button>
     </div>
   </div>
@@ -222,25 +242,29 @@ onBeforeUnmount(() => map?.remove())
 .map { width: 100%; height: 100%; }
 .ctrl-stack {
   position: absolute;
-  right: 16px;
+  right: 10px;
   bottom: 100px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
-.ctrl-stack button {
-  border: none;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #374151;
-  font-size: 13px;
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
-.ctrl-stack button:hover { background: #fff; }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { background: #f4f4f4; }
+.icon-btn.off { color: #9ca3af; }
 
 .rs-hint {
   position: absolute;
