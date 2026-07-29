@@ -1,0 +1,21 @@
+# ---- 凭证(严禁提交) ----
+.env.local
+**/.env.local
+
+# ---- 源数据(体积超限 + 版权限制, 不入库) ----
+01-行政区划/
+05-遥感数据/
+浙江太保双精准平台截图/
+
+# ---- 预处理产物(可由 scripts/ 重新生成, 不入库) ----
+web/public/data/
+web/public/tiles/
+
+# ---- 前端 ----
+node_modules/
+dist/
+*.local
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
