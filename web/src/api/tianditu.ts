@@ -8,11 +8,10 @@ function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
     `https://t{s}.tianditu.gov.cn/DataServer?T=${type}&x={x}&y={y}&l={z}&tk=${TOKEN}`,
     {
       subdomains: SUBDOMAINS,
-      maxZoom: 18, // 天地图最高 z18; z19 由前端放大(决策#16)
-      updateWhenIdle: true,      // 缩放结束后再加载新瓦片, 动画期间不卡
-      updateWhenZooming: false,
-      keepBuffer: 3,             // 多留缓存瓦片, 回退缩放不白屏
-      zIndex,                    // 显式分层: 底图1 < 高分叠加3 < 注记4(文字不被影像盖住)
+      maxNativeZoom: 18, // 天地图瓦片最高 z18; z19 由 Leaflet 自动放大 z18 瓦片
+      maxZoom: 19,
+      keepBuffer: 3,     // 多留缓存瓦片, 回退缩放不白屏
+      zIndex,            // 显式分层: 底图1 < 高分叠加3 < 注记4(文字不被影像盖住)
       attribution: '天地图',
     },
   )
