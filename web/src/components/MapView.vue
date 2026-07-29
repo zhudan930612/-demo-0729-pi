@@ -2,20 +2,17 @@
   <div class="map-wrap">
     <div ref="mapEl" class="map"></div>
 
-    <!-- 村级: 高分影像透明度滑块 -->
-    <div v-if="rsVisible" class="rs-panel">
-      <span>高分影像</span>
-      <input type="range" min="0" max="100" v-model.number="rsOpacity" />
-      <span>{{ rsOpacity }}%</span>
-    </div>
-
     <!-- 村级: 影像状态角标(无弹窗, 仅文字) -->
     <div v-if="rsHint" class="rs-hint" :class="{ off: !rsVisible }">{{ rsHint }}</div>
 
-    <!-- 底图切换: 卫星/矢量 -->
-    <div class="basemap-switch">
-      <button :class="{ on: basemap === 'img' }" @click="switchBasemap('img')">卫星</button>
-      <button :class="{ on: basemap === 'vec' }" @click="switchBasemap('vec')">矢量</button>
+    <!-- 右下角竖排控制按钮 -->
+    <div class="ctrl-stack">
+      <button @click="switchBasemap(basemap === 'img' ? 'vec' : 'img')">
+        底图：{{ basemap === 'img' ? '卫星' : '矢量' }}
+      </button>
+      <button v-if="rsVisible" @click="toggleRs">
+        高分影像：{{ rsOn ? '开' : '关' }}
+      </button>
     </div>
   </div>
 </template>
@@ -40,8 +37,9 @@ const HOVER = '#facc15'
 const mapEl = ref<HTMLDivElement>()
 const store = useDrilldownStore()
 const rsVisible = ref(false)
-const rsOpacity = ref(70)
 const rsHint = ref('')
+const rsOn = ref(true)
+const RS_OPACITY = 0.7
 const basemap = ref<'img' | 'vec'>('img')
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
@@ -83,6 +81,13 @@ function clearLayers() {
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   rsVisible.value = false
   rsHint.value = ''
+  rsOn.value = true
+}
+
+/** 高分影像 开/关 */
+function toggleRs() {
+  rsOn.value = !rsOn.value
+  rsLayer?.setOpacity(rsOn.value ? RS_OPACITY : 0)
 }
 
 /** 当前区域轮廓(下钻时被点击的要素) */
@@ -179,7 +184,7 @@ async function render() {
       rsLayer = L.tileLayer('/tiles/rs/{z}/{x}/{y}.png', {
         minZoom: rsInfo.minZoom,
         maxZoom: rsInfo.maxZoom,
-        opacity: rsOpacity.value / 100,
+        opacity: RS_OPACITY,
         zIndex: 3, // 高于底图与注记
       }).addTo(map)
       rsVisible.value = true
@@ -193,7 +198,6 @@ async function render() {
 }
 
 watch(() => store.path.length, render)
-watch(rsOpacity, (v) => rsLayer?.setOpacity(v / 100))
 
 onMounted(() => {
   map = L.map(mapEl.value!, {
@@ -216,28 +220,27 @@ onBeforeUnmount(() => map?.remove())
 <style scoped>
 .map-wrap { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; }
-.basemap-switch {
+.ctrl-stack {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  right: 16px;
+  bottom: 100px;
   z-index: 1000;
   display: flex;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  flex-direction: column;
+  gap: 8px;
 }
-.basemap-switch button {
+.ctrl-stack button {
   border: none;
   padding: 6px 14px;
-  font-size: 13px;
-  cursor: pointer;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
 }
-.basemap-switch button.on {
-  background: #2563eb;
-  color: #fff;
-}
+.ctrl-stack button:hover { background: #fff; }
 
 .rs-hint {
   position: absolute;
@@ -252,19 +255,4 @@ onBeforeUnmount(() => map?.remove())
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 .rs-hint.off { color: #6b7280; }
-
-.rs-panel {
-  position: absolute;
-  right: 16px;
-  bottom: 100px;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  font-size: 13px;
-}
 </style>
