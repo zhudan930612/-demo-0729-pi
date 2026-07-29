@@ -56,12 +56,11 @@ let flySeq = 0
 let firstRender = true
 let basemaps: Basemaps
 
-/** 切换底图; 新底图置于底层, 避免盖住高分影像叠加层 */
+/** 切换底图(图层顺序由 zIndex 保证: 底图1 < 注记2 < 高分叠加3) */
 function switchBasemap(type: 'img' | 'vec') {
   if (type === basemap.value || !basemaps) return
   map.removeLayer(basemaps[basemap.value])
   basemaps[type].addTo(map)
-  basemaps[type].eachLayer((l) => (l as L.GridLayer).bringToBack())
   basemap.value = type
 }
 
@@ -176,6 +175,7 @@ async function render() {
         maxZoom: rsInfo.maxZoom,
         opacity: rsOpacity.value / 100,
         bounds: rsBounds,
+        zIndex: 3, // 高于底图与注记
       }).addTo(map)
       rsVisible.value = true
       rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
