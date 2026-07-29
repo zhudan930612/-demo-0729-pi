@@ -74,7 +74,7 @@ let flySeq = 0
 let firstRender = true
 let basemaps: Basemaps
 
-/** 切换底图(图层顺序由 zIndex 保证: 底图1 < 注记2 < 高分叠加3) */
+/** 切换底图(图层顺序由 zIndex 保证: 底图1 < 高分叠加3 < 注记4) */
 function switchBasemap(type: 'img' | 'vec') {
   if (type === basemap.value || !basemaps) return
   map.removeLayer(basemaps[basemap.value])

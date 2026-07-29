@@ -12,7 +12,7 @@ function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
       updateWhenIdle: true,      // 缩放结束后再加载新瓦片, 动画期间不卡
       updateWhenZooming: false,
       keepBuffer: 3,             // 多留缓存瓦片, 回退缩放不白屏
-      zIndex,                    // 显式分层: 底图1 < 注记2 < 高分叠加3
+      zIndex,                    // 显式分层: 底图1 < 高分叠加3 < 注记4(文字不被影像盖住)
       attribution: '天地图',
     },
   )
@@ -27,7 +27,7 @@ export interface Basemaps {
 
 export function createBasemaps(): Basemaps {
   return {
-    img: L.layerGroup([tdtLayer('img_w', 1), tdtLayer('cia_w', 2)]),
-    vec: L.layerGroup([tdtLayer('vec_w', 1), tdtLayer('cva_w', 2)]),
+    img: L.layerGroup([tdtLayer('img_w', 1), tdtLayer('cia_w', 4)]),
+    vec: L.layerGroup([tdtLayer('vec_w', 1), tdtLayer('cva_w', 4)]),
   }
 }
