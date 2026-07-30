@@ -130,6 +130,18 @@ import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
+import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
+import {
+  MANUAL_DRAFT_STYLE,
+  MANUAL_PARCEL_STYLE,
+  MANUAL_PENDING_STYLE,
+  PARCEL_EDIT_STYLE,
+  PARCEL_HIDDEN_STYLE,
+  PARCEL_HOVER_STYLE,
+  PARCEL_PENDING_HIDE_STYLE,
+  PARCEL_PENDING_RESTORE_STYLE,
+  PARCEL_STYLE,
+} from '../features/parcels/parcelStyles'
 import {
   useDrilldownStore,
   childrenUrl,
@@ -165,72 +177,6 @@ const EXIT_ZOOM: Partial<Record<string, number>> = {
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
-const PARCEL_STYLE: L.PathOptions = {
-  color: '#93c5fd',
-  weight: 1,
-  opacity: 0.95,
-  fillColor: '#60a5fa',
-  fillOpacity: 0.26,
-}
-const PARCEL_EDIT_STYLE: L.PathOptions = {
-  color: '#38bdf8',
-  weight: 2,
-  opacity: 1,
-  fillColor: '#0ea5e9',
-  fillOpacity: 0.13,
-}
-const PARCEL_HOVER_STYLE: L.PathOptions = {
-  color: '#f8fafc',
-  weight: 4,
-  opacity: 1,
-  fillColor: '#22d3ee',
-  fillOpacity: 0.34,
-}
-const PARCEL_PENDING_HIDE_STYLE: L.PathOptions = {
-  color: '#fb2c36',
-  weight: 3.5,
-  opacity: 1,
-  fillColor: '#f97316',
-  fillOpacity: 0.46,
-}
-const PARCEL_HIDDEN_STYLE: L.PathOptions = {
-  color: '#fde047',
-  weight: 3.5,
-  opacity: 1,
-  fillColor: '#facc15',
-  fillOpacity: 0.18,
-  dashArray: '8 4',
-}
-const PARCEL_PENDING_RESTORE_STYLE: L.PathOptions = {
-  color: '#22c55e',
-  weight: 3.5,
-  opacity: 1,
-  fillColor: '#16a34a',
-  fillOpacity: 0.34,
-}
-const MANUAL_PARCEL_STYLE: L.PathOptions = {
-  color: '#a855f7',
-  weight: 2.4,
-  opacity: 1,
-  fillColor: '#c084fc',
-  fillOpacity: 0.24,
-}
-const MANUAL_DRAFT_STYLE: L.PathOptions = {
-  color: '#e879f9',
-  weight: 3,
-  opacity: 1,
-  fillColor: '#c026d3',
-  fillOpacity: 0.25,
-  dashArray: '8 5',
-}
-const MANUAL_PENDING_STYLE: L.PathOptions = {
-  color: '#e879f9',
-  weight: 2.6,
-  opacity: 1,
-  fillColor: '#c026d3',
-  fillOpacity: 0.18,
-  dashArray: '7 5',
-}
 const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
@@ -238,8 +184,6 @@ const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
 const M2_PER_MU = 2000 / 3
 
-type ParcelId = string
-type ParcelMode = 'idle' | 'filter' | 'batch' | 'drawing' | 'editing'
 interface ParcelEditRecord {
   datasetVersion: string
   hiddenIds: ParcelId[]

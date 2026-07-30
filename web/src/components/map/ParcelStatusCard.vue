@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-type ParcelMode = 'idle' | 'filter' | 'batch' | 'drawing' | 'editing'
+import type { ParcelMode } from '../../features/parcels/parcelTypes'
 
 defineProps<{
   mode: ParcelMode
