@@ -668,9 +668,7 @@ function renderParcelLayer() {
         if (!parcelOn.value) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
         const id = feature ? parcelId(feature as Feature) : null
         if (parcelMode.value === 'filter') return parcelEditStyle(id)
-        if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') {
-          return id && hiddenParcelIds.has(id) ? PARCEL_HIDDEN_STYLE : MANUAL_PARCEL_STYLE
-        }
+        if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') return MANUAL_PARCEL_STYLE
         return PARCEL_STYLE
       },
       onEachFeature: (feature: Feature, layer: L.Layer) => {
@@ -1266,19 +1264,19 @@ function onManualKeydown(event: KeyboardEvent) {
     return
   }
   if (manualDialog.value.open) return
-  if (event.key === 'Escape' && parcelMode.value === 'drawing') {
+  if (event.key === 'Escape' && (parcelMode.value === 'batch' || parcelMode.value === 'drawing')) {
     event.preventDefault()
-    exitBatchDrawing()
-    return
-  }
-  if (event.key === 'Escape' && parcelMode.value === 'batch') {
-    event.preventDefault()
-    void cancelManualBatch(true)
+    void cancelManualBatch()
     return
   }
   if (event.key === 'Escape' && parcelMode.value === 'editing') {
     event.preventDefault()
     cancelManualSession()
+    return
+  }
+  if (event.key === 'Delete' && parcelMode.value === 'batch' && editingPendingManualId) {
+    event.preventDefault()
+    removeBatchManualParcel(editingPendingManualId)
     return
   }
   if ((parcelMode.value === 'batch' || parcelMode.value === 'drawing') && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
