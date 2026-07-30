@@ -25,10 +25,16 @@ describe('parcelFilterState', () => {
     expect(state.pendingRestoreIds.size).toBe(0)
   })
 
-  it('marks every hidden parcel for restore without changing pending hides', () => {
+  it('marks every hidden parcel for restore without changing pending hides or Set references', () => {
     const state = createParcelFilterState(['ai-1', 'manual-1'])
+    const hiddenRef = state.hiddenIds
+    const pendingHideRef = state.pendingHideIds
+    const pendingRestoreRef = state.pendingRestoreIds
     toggleParcelFilterSelection(state, 'ai-2')
     restoreAllParcels(state)
+    expect(state.hiddenIds).toBe(hiddenRef)
+    expect(state.pendingHideIds).toBe(pendingHideRef)
+    expect(state.pendingRestoreIds).toBe(pendingRestoreRef)
     expect([...state.pendingRestoreIds]).toEqual(['ai-1', 'manual-1'])
     expect([...state.pendingHideIds]).toEqual(['ai-2'])
   })

@@ -1,3 +1,4 @@
+import { computed, reactive, toRef } from 'vue'
 import { describe, expect, it } from 'vitest'
 import type { ManualParcelFeature } from '../../utils/manualParcelStorage'
 import {
@@ -86,5 +87,28 @@ describe('manualBatchState', () => {
     resetManualBatch(state)
     expect(hasManualBatchChanges(state)).toBe(false)
     expect(current.map((item) => item.properties.id)).toEqual(['manual-1'])
+  })
+
+  it('keeps Vue toRef and computed bindings reactive when helper functions replace arrays', () => {
+    const state = reactive(createManualBatchState())
+    const pendingParcels = toRef(state, 'pendingParcels')
+    const pendingEdits = toRef(state, 'pendingEdits')
+    const removedIds = toRef(state, 'removedIds')
+    const savedCount = computed(() => pendingParcels.value.length)
+    const hasChanges = computed(() => hasManualBatchChanges(state))
+
+    addPendingManualParcel(state, feature('new-1'))
+    updateManualParcel(state, feature('manual-1', 2), 'existing')
+    removeManualParcel(state, 'manual-2', 'existing')
+    expect(savedCount.value).toBe(1)
+    expect(pendingEdits.value).toHaveLength(1)
+    expect(removedIds.value).toEqual(['manual-2'])
+    expect(hasChanges.value).toBe(true)
+
+    resetManualBatch(state)
+    expect(savedCount.value).toBe(0)
+    expect(pendingEdits.value).toEqual([])
+    expect(removedIds.value).toEqual([])
+    expect(hasChanges.value).toBe(false)
   })
 })
