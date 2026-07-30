@@ -23,7 +23,7 @@
         v-if="rsVisible"
         class="icon-btn"
         :class="{ off: !rsOn }"
-        :title="rsOn ? '高分影像与AI地块：开（点击关闭）' : '高分影像与AI地块：关（点击打开）'"
+        :title="rsOn ? '高分影像：开（点击关闭）' : '高分影像：关（点击打开）'"
         @click="toggleRs"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -31,6 +31,21 @@
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
           <line v-if="!rsOn" x1="3" y1="3" x2="21" y2="21" />
+        </svg>
+      </button>
+      <button
+        v-if="parcelVisible"
+        class="icon-btn parcel-btn"
+        :class="{ off: !parcelOn }"
+        :title="parcelOn ? 'AI地块：开（点击关闭）' : 'AI地块：关（点击打开）'"
+        @click="toggleParcels"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="m3 4 7-1 3 6-2 11-8 1z" />
+          <path d="m10 3 8 2 3 6-4 9-6-1" />
+          <path d="m13 9 8 2" />
+          <path d="m4 14 8-2" />
         </svg>
       </button>
     </div>
@@ -71,6 +86,8 @@ const store = useDrilldownStore()
 const rsVisible = ref(false)
 const rsHint = ref('')
 const rsOn = ref(true)
+const parcelVisible = ref(false)
+const parcelOn = ref(true)
 const RS_OPACITY = 0.7
 const basemap = ref<'img' | 'vec'>('img')
 
@@ -116,15 +133,22 @@ function clearLayers() {
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
   rsVisible.value = false
+  parcelVisible.value = false
   rsHint.value = ''
   rsOn.value = true
+  parcelOn.value = true
 }
 
 /** 高分影像 开/关 */
 function toggleRs() {
   rsOn.value = !rsOn.value
   rsLayer?.setOpacity(rsOn.value ? RS_OPACITY : 0)
-  parcelLayer?.setStyle(rsOn.value
+}
+
+/** AI 地块独立开/关 */
+function toggleParcels() {
+  parcelOn.value = !parcelOn.value
+  parcelLayer?.setStyle(parcelOn.value
     ? PARCEL_STYLE
     : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 })
 }
@@ -240,9 +264,10 @@ async function render(noFly = false) {
       if (seq !== flySeq) return
       if (parcels?.features.length) {
         parcelLayer = L.geoJSON(parcels, {
-          style: rsOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 },
+          style: parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 },
           interactive: false,
         }).addTo(map)
+        parcelVisible.value = true
         outlineLayer?.bringToFront()
         rsHint.value = `吉林一号 0.5m 影像 · AI 识别地块 ${parcels.features.length.toLocaleString()} 个（演示）`
       }
@@ -352,6 +377,7 @@ onBeforeUnmount(() => map?.remove())
 .icon-btn svg { width: 18px; height: 18px; }
 .icon-btn:hover { background: #f4f4f4; }
 .icon-btn.off { color: #9ca3af; }
+.parcel-btn:not(.off) { color: #2563eb; }
 
 .rs-hint {
   position: absolute;
