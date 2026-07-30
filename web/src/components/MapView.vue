@@ -211,6 +211,7 @@ const PARCEL_HIDDEN_STYLE: L.PathOptions = {
 const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
+const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 
 type ParcelId = string
 interface ParcelEditRecord {
@@ -254,7 +255,6 @@ let parcelSource: FeatureCollection | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
 let selectedParcelIds = new Set<ParcelId>()
-let parcelEditMinZoom = DEFAULT_MIN_ZOOM
 let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
@@ -420,9 +420,8 @@ function startParcelEditing() {
   selectedParcelIds.clear()
   selectedParcelCount.value = 0
   parcelEditing.value = true
-  parcelEditMinZoom = map.getZoom()
-  map.setMinZoom(parcelEditMinZoom)
-  mapMinZoom.value = parcelEditMinZoom
+  map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
+  mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
   renderParcelLayer()
 }
 
