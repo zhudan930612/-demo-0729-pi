@@ -132,6 +132,13 @@ import ParcelStatusCard from './map/ParcelStatusCard.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import {
+  calculateNextHiddenIds,
+  clearPendingParcelFilterState,
+  createParcelFilterState,
+  restoreAllParcels,
+  toggleParcelFilterSelection as toggleFilterSelection,
+} from '../features/parcels/parcelFilterState'
+import {
   MANUAL_DRAFT_STYLE,
   MANUAL_PARCEL_STYLE,
   MANUAL_PENDING_STYLE,
@@ -262,9 +269,10 @@ let editingManualOriginal: ManualParcelFeature | null = null
 let editingPendingManualId: string | null = null
 let editingBatchManualKind: 'new' | 'existing' | null = null
 let parcelVillageCode = ''
-let hiddenParcelIds = new Set<ParcelId>()
-let pendingHideParcelIds = new Set<ParcelId>()
-let pendingRestoreParcelIds = new Set<ParcelId>()
+const parcelFilterState = createParcelFilterState()
+const hiddenParcelIds = parcelFilterState.hiddenIds
+const pendingHideParcelIds = parcelFilterState.pendingHideIds
+const pendingRestoreParcelIds = parcelFilterState.pendingRestoreIds
 let saveNoticeTimer: ReturnType<typeof setTimeout> | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
@@ -453,11 +461,7 @@ function syncPendingParcelCounts() {
 }
 
 function toggleParcelFilterSelection(id: ParcelId) {
-  if (hiddenParcelIds.has(id)) {
-    if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
-    else pendingRestoreParcelIds.add(id)
-  } else if (pendingHideParcelIds.has(id)) pendingHideParcelIds.delete(id)
-  else pendingHideParcelIds.add(id)
+  toggleFilterSelection(parcelFilterState, id)
   syncPendingParcelCounts()
 }
 
@@ -635,8 +639,7 @@ function leaveParcelWorkMode() {
 
 function startParcelEditing() {
   if (!parcelOn.value || !hasFilterableParcels.value) return
-  pendingHideParcelIds.clear()
-  pendingRestoreParcelIds.clear()
+  clearPendingParcelFilterState(parcelFilterState)
   syncPendingParcelCounts()
   enterParcelWorkMode('filter')
   renderParcelLayer()
@@ -644,8 +647,7 @@ function startParcelEditing() {
 
 function finishParcelEditing() {
   leaveParcelWorkMode()
-  pendingHideParcelIds.clear()
-  pendingRestoreParcelIds.clear()
+  clearPendingParcelFilterState(parcelFilterState)
   syncPendingParcelCounts()
   renderParcelLayer()
 }
@@ -658,13 +660,13 @@ function saveParcelEdits() {
   if (!pendingChangeCount.value || !parcelVillageCode) return
   const hiddenCount = pendingHideParcelIds.size
   const restoredCount = pendingRestoreParcelIds.size
-  const nextHidden = new Set([...hiddenParcelIds, ...pendingHideParcelIds])
-  for (const id of pendingRestoreParcelIds) nextHidden.delete(id)
+  const nextHidden = calculateNextHiddenIds(parcelFilterState)
   if (!persistHiddenParcelIds(parcelVillageCode, nextHidden)) {
     window.alert('保存失败，本次修改尚未生效。请检查浏览器是否允许本地存储。')
     return
   }
-  hiddenParcelIds = nextHidden
+  hiddenParcelIds.clear()
+  for (const id of nextHidden) hiddenParcelIds.add(id)
   finishParcelEditing()
   showSaveNotice(hiddenCount, restoredCount)
 }
@@ -675,7 +677,7 @@ function cancelParcelEditing() {
 
 function restoreAllHiddenParcels() {
   if (!hiddenParcelIds.size) return
-  pendingRestoreParcelIds = new Set(hiddenParcelIds)
+  restoreAllParcels(parcelFilterState)
   syncPendingParcelCounts()
   renderParcelLayer()
 }
@@ -1229,7 +1231,8 @@ async function render(noFly = false) {
     const manualResult = readManualParcels(crumb.code)
     manualParcels = manualResult.features
     hasManualParcels.value = manualParcels.length > 0
-    hiddenParcelIds = loadHiddenParcelIds(crumb.code)
+    hiddenParcelIds.clear()
+    for (const id of loadHiddenParcelIds(crumb.code)) hiddenParcelIds.add(id)
     if (manualResult.error) showNotice(manualResult.error, true)
     renderParcelLayer()
   }
@@ -1267,7 +1270,9 @@ async function render(noFly = false) {
               ...parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null),
               ...manualParcels.map((feature) => feature.properties.id),
             ])
-            hiddenParcelIds = new Set([...hiddenParcelIds].filter((id) => validIds.has(id)))
+            for (const id of [...hiddenParcelIds]) {
+              if (!validIds.has(id)) hiddenParcelIds.delete(id)
+            }
             renderParcelLayer()
           }
         }
@@ -1321,8 +1326,7 @@ watch(() => store.path.length, () => {
   pendingNoFly = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
   if (parcelMode.value === 'filter') {
-    pendingHideParcelIds.clear()
-    pendingRestoreParcelIds.clear()
+    clearPendingParcelFilterState(parcelFilterState)
     syncPendingParcelCounts()
   }
   map.off('click', onManualMapClick)
