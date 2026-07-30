@@ -134,6 +134,7 @@ import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
+import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
 import {
   addPendingManualParcel,
   commitManualBatch,
@@ -144,6 +145,7 @@ import {
   undoLatestPendingManualParcel,
   updateManualParcel,
 } from '../features/parcels/manualBatchState'
+import { loadHiddenParcelIds, persistHiddenParcelIds } from '../features/parcels/parcelHiddenStorage'
 import {
   calculateNextHiddenIds,
   clearPendingParcelFilterState,
@@ -185,19 +187,8 @@ const EXIT_ZOOM: Partial<Record<string, number>> = {
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
-const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
-const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
 const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
-
-interface ParcelEditRecord {
-  datasetVersion: string
-  hiddenIds: ParcelId[]
-}
-interface ParcelEditStorage {
-  version: 1
-  villages: Record<string, ParcelEditRecord>
-}
 
 const mapEl = ref<HTMLDivElement>()
 const store = useDrilldownStore()
@@ -252,7 +243,7 @@ let map: L.Map
 let navigationController: MapNavigationController
 let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
-let editDimLayer: L.Rectangle | null = null
+let workModeController: ParcelWorkModeController
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
 
@@ -353,42 +344,6 @@ function parcelId(feature: Feature): ParcelId | null {
   return id === null || id === undefined ? null : String(id)
 }
 
-function readParcelStorage(): ParcelEditStorage {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PARCEL_STORAGE_KEY) ?? '') as ParcelEditStorage
-    if (parsed.version === 1 && parsed.villages && typeof parsed.villages === 'object') return parsed
-  } catch {
-    // localStorage 不可用或旧数据损坏时按空记录处理，不影响地图展示。
-  }
-  return { version: 1, villages: {} }
-}
-
-function loadHiddenParcelIds(villageCode: string): Set<ParcelId> {
-  const record = readParcelStorage().villages[villageCode]
-  if (!record || record.datasetVersion !== PARCEL_DATASET_VERSION || !Array.isArray(record.hiddenIds)) {
-    return new Set()
-  }
-  return new Set(record.hiddenIds.map(String))
-}
-
-function persistHiddenParcelIds(villageCode: string, ids: Set<ParcelId>): boolean {
-  try {
-    const storage = readParcelStorage()
-    if (ids.size) {
-      storage.villages[villageCode] = {
-        datasetVersion: PARCEL_DATASET_VERSION,
-        hiddenIds: [...ids].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
-      }
-    } else {
-      delete storage.villages[villageCode]
-    }
-    localStorage.setItem(PARCEL_STORAGE_KEY, JSON.stringify(storage))
-    return true
-  } catch {
-    return false
-  }
-}
-
 function syncPendingParcelCounts() {
   pendingHideCount.value = pendingHideParcelIds.size
   pendingRestoreCount.value = pendingRestoreParcelIds.size
@@ -410,28 +365,11 @@ function renderParcelLayer() {
 }
 
 function enterParcelWorkMode(mode: ParcelMode, dim = true) {
-  parcelMode.value = mode
-  map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
-  mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
-  if (dim && !editDimLayer) {
-    editDimLayer = L.rectangle([[-85, -180], [85, 180]], {
-      pane: 'editDimmingPane',
-      stroke: false,
-      fillColor: '#0f172a',
-      fillOpacity: 0.34,
-      interactive: false,
-    }).addTo(map)
-  }
+  workModeController.enter(mode, dim)
 }
 
 function leaveParcelWorkMode() {
-  parcelMode.value = 'idle'
-  if (map) {
-    manualDrawingController?.setInteraction('none')
-    map.setMinZoom(DEFAULT_MIN_ZOOM)
-  }
-  mapMinZoom.value = DEFAULT_MIN_ZOOM
-  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
+  workModeController?.leave()
 }
 
 function startParcelEditing() {
@@ -1057,6 +995,13 @@ onMounted(() => {
       onRemoveRequested: removeBatchManualParcel,
     },
   )
+  workModeController = createParcelWorkModeController(map, {
+    defaultMinZoom: DEFAULT_MIN_ZOOM,
+    editMinZoom: PARCEL_EDIT_MIN_ZOOM,
+    onModeChange: (mode) => { parcelMode.value = mode },
+    onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
+    stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
+  })
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   map.on('zoomend', () => {
@@ -1083,6 +1028,7 @@ onBeforeUnmount(() => {
   if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
   window.removeEventListener('keydown', onManualKeydown)
   store.setNavigationGuard(null)
+  workModeController?.destroy()
   manualDrawingController?.destroy()
   parcelLayerController?.destroy()
   navigationController?.destroy()
