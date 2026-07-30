@@ -64,8 +64,8 @@
         <button
           type="button"
           class="edit-launch"
-          :disabled="!parcelOn || !hasAiParcels"
-          :title="hasAiParcels ? '筛选地块' : '当前村没有可筛选的地块'"
+          :disabled="!parcelOn || !hasFilterableParcels"
+          :title="hasFilterableParcels ? '筛选地块' : '当前村没有可筛选的地块'"
           @click="startParcelEditing"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -321,6 +321,8 @@ const parcelVisible = ref(false)
 const parcelOn = ref(true)
 const parcelMode = ref<ParcelMode>('idle')
 const hasAiParcels = ref(false)
+const hasManualParcels = ref(false)
+const hasFilterableParcels = computed(() => hasAiParcels.value || hasManualParcels.value)
 const manualDraftPoints = ref<Position[]>([])
 const manualDraftDirty = ref(false)
 const pendingManualParcels = ref<ManualParcelFeature[]>([])
@@ -422,6 +424,7 @@ function clearLayers() {
   pendingRestoreCount.value = 0
   parcelSource = null
   hasAiParcels.value = false
+  hasManualParcels.value = false
   manualParcels = []
   editingManualOriginal = null
   manualDraftPoints.value = []
@@ -526,7 +529,9 @@ function updateParcelAreaLabels() {
       const id = parcelId(feature)
       return parcelMode.value === 'filter' || parcelMode.value === 'batch' || parcelMode.value === 'drawing' || id === null || !hiddenParcelIds.has(id)
     }) ?? []),
-    ...((parcelMode.value === 'batch' || parcelMode.value === 'drawing') ? [] : manualParcels),
+    ...((parcelMode.value === 'batch' || parcelMode.value === 'drawing')
+      ? []
+      : manualParcels.filter((feature) => parcelMode.value === 'filter' || !hiddenParcelIds.has(feature.properties.id))),
   ]
   for (const feature of displayedFeatures) {
     const properties = feature.properties ?? {}
@@ -567,6 +572,15 @@ function syncPendingParcelCounts() {
   pendingRestoreCount.value = pendingRestoreParcelIds.size
 }
 
+function toggleParcelFilterSelection(id: ParcelId) {
+  if (hiddenParcelIds.has(id)) {
+    if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
+    else pendingRestoreParcelIds.add(id)
+  } else if (pendingHideParcelIds.has(id)) pendingHideParcelIds.delete(id)
+  else pendingHideParcelIds.add(id)
+  syncPendingParcelCounts()
+}
+
 function renderParcelLayer() {
   parcelLayer?.remove()
   manualParcelLayer?.remove()
@@ -587,8 +601,9 @@ function renderParcelLayer() {
     const id = parcelId(feature)
     return id === null || !hiddenParcelIds.has(id)
   })
+  const displayedManual = manualParcels.filter((feature) => !hiddenParcelIds.has(feature.properties.id))
   hiddenParcelCount.value = hiddenParcelIds.size
-  const displayedFeatures: Feature[] = [...displayedAi, ...manualParcels]
+  const displayedFeatures: Feature[] = [...displayedAi, ...displayedManual]
   parcelDisplayCount.value = displayedFeatures.length
   parcelDisplayAreaMu.value = displayedFeatures.reduce((total, feature) => {
     const areaM2 = Number(feature.properties?.area_m2)
@@ -629,12 +644,7 @@ function renderParcelLayer() {
         layer.on('click', (event) => {
           if (parcelMode.value !== 'filter' || !id) return
           L.DomEvent.stopPropagation(event)
-          if (hiddenParcelIds.has(id)) {
-            if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
-            else pendingRestoreParcelIds.add(id)
-          } else if (pendingHideParcelIds.has(id)) pendingHideParcelIds.delete(id)
-          else pendingHideParcelIds.add(id)
-          syncPendingParcelCounts()
+          toggleParcelFilterSelection(id)
           path.setStyle(parcelEditStyle(id))
           path.setTooltipContent(parcelEditActionLabel(id))
         })
@@ -643,7 +653,9 @@ function renderParcelLayer() {
   }
 
   const batchManualById = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
+  const showHiddenManualParcels = parcelMode.value === 'filter' || parcelMode.value === 'batch' || parcelMode.value === 'drawing'
   const visibleManualParcels = manualParcels
+    .filter((feature) => showHiddenManualParcels || !hiddenParcelIds.has(feature.properties.id))
     .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
     .map((feature) => batchManualById.get(feature.properties.id) ?? feature)
     .filter((feature) => parcelMode.value !== 'editing' || feature.properties.id !== editingManualOriginal?.properties.id)
@@ -651,15 +663,36 @@ function renderParcelLayer() {
   if (visibleManualParcels.length) {
     const manualCollection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
     manualParcelLayer = L.geoJSON(manualCollection, {
-      interactive: parcelOn.value && parcelMode.value === 'batch',
-      style: () => {
+      interactive: parcelOn.value && (parcelMode.value === 'batch' || parcelMode.value === 'filter'),
+      style: (feature) => {
         if (!parcelOn.value) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
-        if (parcelMode.value === 'batch') return MANUAL_PARCEL_STYLE
+        const id = feature ? parcelId(feature as Feature) : null
+        if (parcelMode.value === 'filter') return parcelEditStyle(id)
+        if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') {
+          return id && hiddenParcelIds.has(id) ? PARCEL_HIDDEN_STYLE : MANUAL_PARCEL_STYLE
+        }
         return PARCEL_STYLE
       },
       onEachFeature: (feature: Feature, layer: L.Layer) => {
         const manual = feature as ManualParcelFeature
-        if (parcelMode.value === 'batch') {
+        const path = layer as L.Path
+        const id = manual.properties.id
+        if (parcelMode.value === 'filter') {
+          const actionClass = hiddenParcelIds.has(id) ? 'restore' : 'hide'
+          layer.bindTooltip(parcelEditActionLabel(id), { sticky: true, direction: 'top', className: `parcel-edit-tooltip ${actionClass}` })
+          layer.on('mouseover', () => {
+            const unchanged = !hiddenParcelIds.has(id) && !pendingHideParcelIds.has(id)
+            path.setStyle(unchanged ? PARCEL_HOVER_STYLE : { ...parcelEditStyle(id), color: PARCEL_HOVER_STYLE.color, weight: PARCEL_HOVER_STYLE.weight })
+            path.bringToFront()
+          })
+          layer.on('mouseout', () => path.setStyle(parcelEditStyle(id)))
+          layer.on('click', (event) => {
+            L.DomEvent.stopPropagation(event)
+            toggleParcelFilterSelection(id)
+            path.setStyle(parcelEditStyle(id))
+            path.setTooltipContent(parcelEditActionLabel(id))
+          })
+        } else if (parcelMode.value === 'batch') {
           layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
           layer.on('click', (event) => {
             if (!parcelOn.value) return
@@ -723,7 +756,7 @@ function leaveParcelWorkMode() {
 }
 
 function startParcelEditing() {
-  if (!parcelOn.value || !parcelSource?.features.length) return
+  if (!parcelOn.value || !hasFilterableParcels.value) return
   pendingHideParcelIds.clear()
   pendingRestoreParcelIds.clear()
   syncPendingParcelCounts()
@@ -1125,6 +1158,13 @@ async function saveManualBatch() {
   const changedCount = pendingManualEdits.value.length
   const removedCount = pendingRemovedManualIds.value.length
   manualParcels = nextFeatures
+  hasManualParcels.value = manualParcels.length > 0
+  for (const id of pendingRemovedManualIds.value) {
+    hiddenParcelIds.delete(id)
+    pendingHideParcelIds.delete(id)
+    pendingRestoreParcelIds.delete(id)
+  }
+  persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
   pendingManualParcels.value = []
   pendingManualEdits.value = []
   pendingRemovedManualIds.value = []
@@ -1198,6 +1238,7 @@ async function saveManualDraft() {
     return
   }
   manualParcels = nextFeatures
+  hasManualParcels.value = manualParcels.length > 0
   clearManualDraftLayers()
   manualDraftPoints.value = []
   manualDraftDirty.value = false
@@ -1310,6 +1351,8 @@ async function render(noFly = false) {
     parcelVillageCode = crumb.code
     const manualResult = readManualParcels(crumb.code)
     manualParcels = manualResult.features
+    hasManualParcels.value = manualParcels.length > 0
+    hiddenParcelIds = loadHiddenParcelIds(crumb.code)
     if (manualResult.error) showNotice(manualResult.error, true)
     renderParcelLayer()
   }
@@ -1343,8 +1386,11 @@ async function render(noFly = false) {
           if (parcels?.features.length) {
             parcelSource = parcels
             hasAiParcels.value = true
-            const validIds = new Set(parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null))
-            hiddenParcelIds = new Set([...loadHiddenParcelIds(crumb.code)].filter((id) => validIds.has(id)))
+            const validIds = new Set([
+              ...parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null),
+              ...manualParcels.map((feature) => feature.properties.id),
+            ])
+            hiddenParcelIds = new Set([...hiddenParcelIds].filter((id) => validIds.has(id)))
             renderParcelLayer()
           }
         }
