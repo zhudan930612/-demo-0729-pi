@@ -38,10 +38,10 @@
       </template>
 
       <template v-else-if="parcelMode === 'drawing'">
-        <div class="draw-guide"><strong>正在绘制</strong><span>单击地图添加顶点</span><small>{{ manualDraftPoints.length }} 点</small></div>
+        <div class="draw-guide"><strong>正在绘制</strong><span>单击地图添加顶点</span><small>{{ manualDraftPoints.length }} 点</small><small v-if="batchSavedCount > 0" class="batch-saved">已保存 {{ batchSavedCount }} 个</small></div>
         <button type="button" class="edit-action" :disabled="manualDraftPoints.length === 0" @click="undoManualPoint">撤销一点</button>
         <button type="button" class="edit-action primary" :disabled="manualDistinctPointCount < 3" @click="finishManualDrawing">完成绘制</button>
-        <button type="button" class="edit-action cancel" @click="cancelManualSession">取消</button>
+        <button type="button" class="edit-action cancel" @click="cancelManualSession">{{ batchSavedCount > 0 ? '退出' : '取消' }}</button>
       </template>
 
       <template v-else-if="parcelMode === 'review' || parcelMode === 'editing'">
@@ -299,6 +299,7 @@ const parcelMode = ref<ParcelMode>('idle')
 const hasAiParcels = ref(false)
 const manualDraftPoints = ref<Position[]>([])
 const manualDraftDirty = ref(false)
+const batchSavedCount = ref(0)
 const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
 const manualDraftAreaText = computed(() => {
   const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
@@ -736,8 +737,12 @@ function renderManualDraft(editable: boolean) {
       marker.addTo(manualVertexLayer!)
     })
   } else {
-    // 绘制阶段仅显示开放折线；顶点 marker 只在 review/editing 阶段显示。
     manualDraftLayer = L.polyline(toLatLngs(manualDraftPoints.value), { ...MANUAL_DRAFT_STYLE, fill: false }).addTo(map)
+    const vertexIcon = L.divIcon({ className: 'manual-vertex-icon', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] })
+    manualVertexLayer = L.layerGroup().addTo(map)
+    manualDraftPoints.value.forEach(([lng, lat]) => {
+      L.marker([lat, lng], { icon: vertexIcon, interactive: false, keyboard: false }).addTo(manualVertexLayer!)
+    })
   }
 }
 
@@ -756,6 +761,7 @@ function startManualDrawing() {
   editingManualOriginal = null
   manualDraftPoints.value = []
   manualDraftDirty.value = false
+  batchSavedCount.value = 0
   enterParcelWorkMode('drawing')
   map.on('click', onManualMapClick)
   renderParcelLayer()
@@ -786,8 +792,15 @@ function cancelManualSession() {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   selectedManualParcel = null
+  const wasNewParcelReview = !editingManualOriginal && parcelMode.value === 'review'
   editingManualOriginal = null
-  leaveParcelWorkMode()
+  if (wasNewParcelReview && batchSavedCount.value > 0) {
+    parcelMode.value = 'drawing'
+    map.on('click', onManualMapClick)
+  } else {
+    batchSavedCount.value = 0
+    leaveParcelWorkMode()
+  }
   renderParcelLayer()
 }
 
@@ -846,11 +859,18 @@ function saveManualDraft() {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   selectedManualParcel = null
+  const wasNewParcel = !editingManualOriginal
   editingManualOriginal = null
-  // V1 单块流程：保存后退出，不连续进入下一块绘制。
-  leaveParcelWorkMode()
+  if (wasNewParcel) {
+    batchSavedCount.value++
+    parcelMode.value = 'drawing'
+    map.on('click', onManualMapClick)
+    showNotice(`已保存 ${batchSavedCount.value} 个人工地块`)
+  } else {
+    leaveParcelWorkMode()
+    showNotice('人工地块已保存到当前浏览器')
+  }
   renderParcelLayer()
-  showNotice('人工地块已保存到当前浏览器')
 }
 
 function deleteSelectedManualParcel() {
