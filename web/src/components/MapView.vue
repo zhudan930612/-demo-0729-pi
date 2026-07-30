@@ -124,13 +124,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 import L from 'leaflet'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
+import {
+  addPendingManualParcel,
+  commitManualBatch,
+  createManualBatchState,
+  hasManualBatchChanges,
+  removeManualParcel,
+  resetManualBatch,
+  undoLatestPendingManualParcel,
+  updateManualParcel,
+} from '../features/parcels/manualBatchState'
 import {
   calculateNextHiddenIds,
   clearPendingParcelFilterState,
@@ -213,11 +223,12 @@ const hasManualParcels = ref(false)
 const hasFilterableParcels = computed(() => hasAiParcels.value || hasManualParcels.value)
 const manualDraftPoints = ref<Position[]>([])
 const manualDraftDirty = ref(false)
-const pendingManualParcels = ref<ManualParcelFeature[]>([])
-const pendingManualEdits = ref<ManualParcelFeature[]>([])
-const pendingRemovedManualIds = ref<string[]>([])
+const manualBatchState = reactive(createManualBatchState())
+const pendingManualParcels = toRef(manualBatchState, 'pendingParcels')
+const pendingManualEdits = toRef(manualBatchState, 'pendingEdits')
+const pendingRemovedManualIds = toRef(manualBatchState, 'removedIds')
 const batchSavedCount = computed(() => pendingManualParcels.value.length)
-const batchHasChanges = computed(() => batchSavedCount.value > 0 || pendingManualEdits.value.length > 0 || pendingRemovedManualIds.value.length > 0)
+const batchHasChanges = computed(() => hasManualBatchChanges(manualBatchState))
 const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
 const manualDraftAreaText = computed(() => {
   const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
@@ -317,9 +328,7 @@ function clearLayers() {
   editingManualOriginal = null
   manualDraftPoints.value = []
   manualDraftDirty.value = false
-  pendingManualParcels.value = []
-  pendingManualEdits.value = []
-  pendingRemovedManualIds.value = []
+  resetManualBatch(manualBatchState)
   editingPendingManualId = null
   editingBatchManualKind = null
   parcelVillageCode = ''
@@ -847,9 +856,7 @@ function startManualDrawing() {
   editingManualOriginal = null
   editingPendingManualId = null
   manualDraftPoints.value = []
-  pendingManualParcels.value = []
-  pendingManualEdits.value = []
-  pendingRemovedManualIds.value = []
+  resetManualBatch(manualBatchState)
   manualDraftDirty.value = false
   enterParcelWorkMode('batch')
   map.off('click', onManualMapClick)
@@ -898,7 +905,7 @@ function undoManualPoint() {
     manualDraftPoints.value = manualDraftPoints.value.slice(0, -1)
     renderManualDraft(false)
   } else if (pendingManualParcels.value.length) {
-    pendingManualParcels.value = pendingManualParcels.value.slice(0, -1)
+    undoLatestPendingManualParcel(manualBatchState)
     renderParcelLayer()
   }
   manualDraftDirty.value = manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0
@@ -912,10 +919,7 @@ async function finishManualDrawing() {
     return
   }
   if (!await confirmManualWarnings(checked.prepared.geometry)) return
-  pendingManualParcels.value = [
-    ...pendingManualParcels.value,
-    makeManualParcel(parcelVillageCode, checked.prepared),
-  ]
+  addPendingManualParcel(manualBatchState, makeManualParcel(parcelVillageCode, checked.prepared))
   manualDraftPoints.value = []
   manualDraftDirty.value = true
   clearManualDraftLayers()
@@ -960,14 +964,7 @@ async function finishPendingManualEditing(): Promise<boolean> {
   const original = source.find((feature) => feature.properties.id === editingPendingManualId)
   if (!original) return false
   const updated = makeManualParcel(parcelVillageCode, checked.prepared, original)
-  if (editingBatchManualKind === 'existing') {
-    pendingManualEdits.value = [
-      ...pendingManualEdits.value.filter((feature) => feature.properties.id !== editingPendingManualId),
-      updated,
-    ]
-  } else {
-    pendingManualParcels.value = pendingManualParcels.value.map((feature) => feature.properties.id === editingPendingManualId ? updated : feature)
-  }
+  updateManualParcel(manualBatchState, updated, editingBatchManualKind === 'existing' ? 'existing' : 'new')
   editingPendingManualId = null
   editingBatchManualKind = null
   manualDraftPoints.value = []
@@ -997,12 +994,8 @@ function renderPendingRemoveAction() {
 }
 
 function removeBatchManualParcel(id: string) {
-  if (editingBatchManualKind === 'existing' || manualParcels.some((feature) => feature.properties.id === id)) {
-    pendingRemovedManualIds.value = [...new Set([...pendingRemovedManualIds.value, id])]
-    pendingManualEdits.value = pendingManualEdits.value.filter((feature) => feature.properties.id !== id)
-  } else {
-    pendingManualParcels.value = pendingManualParcels.value.filter((feature) => feature.properties.id !== id)
-  }
+  const kind = editingBatchManualKind === 'existing' || manualParcels.some((feature) => feature.properties.id === id) ? 'existing' : 'new'
+  removeManualParcel(manualBatchState, id, kind)
   if (editingPendingManualId === id) {
     editingPendingManualId = null
     editingBatchManualKind = null
@@ -1021,13 +1014,7 @@ async function saveManualBatch() {
     return
   }
   if (!batchHasChanges.value) return
-  const editedById = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
-  const nextFeatures = [
-    ...manualParcels
-      .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
-      .map((feature) => editedById.get(feature.properties.id) ?? feature),
-    ...pendingManualParcels.value,
-  ]
+  const nextFeatures = commitManualBatch(manualParcels, manualBatchState)
   const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
   if (!persisted.ok) {
     showNotice(persisted.error, true)
@@ -1044,9 +1031,7 @@ async function saveManualBatch() {
     pendingRestoreParcelIds.delete(id)
   }
   persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
-  pendingManualParcels.value = []
-  pendingManualEdits.value = []
-  pendingRemovedManualIds.value = []
+  resetManualBatch(manualBatchState)
   manualDraftDirty.value = false
   leaveParcelWorkMode()
   clearManualDraftLayers()
@@ -1060,9 +1045,7 @@ async function cancelManualBatch(silent = false) {
   const hasContent = pendingManualParcels.value.length > 0 || pendingManualEdits.value.length > 0 || pendingRemovedManualIds.value.length > 0 || hasOpenDraft || hasPendingEdit
   if (!silent && hasContent
       && !await openManualDialog('取消新增地块', '当前有未保存的操作，是否确认放弃？', '确认放弃')) return
-  pendingManualParcels.value = []
-  pendingManualEdits.value = []
-  pendingRemovedManualIds.value = []
+  resetManualBatch(manualBatchState)
   editingPendingManualId = null
   editingBatchManualKind = null
   manualDraftPoints.value = []
