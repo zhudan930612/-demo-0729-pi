@@ -1,0 +1,145 @@
+.map-wrap { position: absolute; inset: 0; }
+.map { width: 100%; height: 100%; }
+.parcel-editing .map { cursor: grab; }
+.parcel-editing .map:active { cursor: grabbing; }
+.parcel-drawing .map,
+.parcel-drawing .map:active { cursor: crosshair; }
+.draw-shortcut-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 7px 11px;
+  border: 1px solid rgba(192, 132, 252, 0.48);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.draw-shortcut-hint kbd {
+  min-width: 24px;
+  padding: 3px 6px;
+  border: 1px solid #d8b4fe;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #faf5ff;
+  color: #7e22ce;
+  font: inherit;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+}
+.save-notice {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  z-index: 1100;
+  transform: translateX(-50%);
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: #166534;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22), 0 2px 5px rgba(15, 23, 42, 0.16);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: notice-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.save-notice.error { background: #b91c1c; }
+@keyframes notice-in {
+  from { opacity: 0.4; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.map-wrap .leaflet-tooltip.parcel-edit-tooltip {
+  padding: 6px 9px;
+  border-width: 1px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.map-wrap .leaflet-tooltip.parcel-edit-tooltip.hide { border-color: #fdba74; background: #c2410c; }
+.map-wrap .leaflet-tooltip-top.parcel-edit-tooltip.hide::before { border-top-color: #c2410c; }
+.map-wrap .leaflet-tooltip.parcel-edit-tooltip.restore { border-color: #86efac; background: #15803d; }
+.map-wrap .leaflet-tooltip-top.parcel-edit-tooltip.restore::before { border-top-color: #15803d; }
+.map-wrap .leaflet-tooltip.manual-parcel-tooltip {
+  padding: 6px 9px;
+  border: 1px solid #d8b4fe;
+  border-radius: 6px;
+  background: #6b21a8;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.map-wrap .leaflet-tooltip-top.manual-parcel-tooltip::before { border-top-color: #6b21a8; }
+.map-wrap .manual-vertex-icon { border: 0; background: transparent; }
+.map-wrap .manual-vertex-icon span {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 3px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #a21caf;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.5);
+}
+.map-wrap .manual-vertex-icon:focus-visible span { outline: 3px solid rgba(250, 204, 21, 0.65); outline-offset: 2px; }
+.map-wrap .manual-vertex-icon.first { cursor: pointer; }
+.map-wrap .manual-vertex-icon.first span {
+  background: #7e22ce;
+  box-shadow: 0 0 0 4px rgba(232, 121, 249, 0.35), 0 2px 7px rgba(15, 23, 42, 0.5);
+  transform: scale(1.08);
+}
+.map-wrap .manual-vertex-icon.first:hover span { background: #581c87; }
+.map-wrap .pending-remove-icon { border: 0; background: transparent; }
+.map-wrap .pending-remove-icon button {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #b91c1c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.map-wrap .pending-remove-icon button:hover { background: #fef2f2; }
+.map-wrap .pending-remove-icon button:focus-visible { outline: 3px solid rgba(239, 68, 68, 0.28); outline-offset: 2px; }
+.map-wrap .parcel-area-label-wrap {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
+}
+.map-wrap .parcel-area-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow:
+    -1px -1px 0 rgba(15, 23, 42, 0.9),
+    1px -1px 0 rgba(15, 23, 42, 0.9),
+    -1px 1px 0 rgba(15, 23, 42, 0.9),
+    1px 1px 0 rgba(15, 23, 42, 0.9),
+    0 1px 2px rgba(15, 23, 42, 0.85);
+  font-variant-numeric: tabular-nums;
+}
