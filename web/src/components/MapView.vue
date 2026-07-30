@@ -193,12 +193,26 @@ const PARCEL_STYLE: L.PathOptions = {
   fillColor: '#60a5fa',
   fillOpacity: 0.26,
 }
+const PARCEL_EDIT_STYLE: L.PathOptions = {
+  color: '#38bdf8',
+  weight: 2,
+  opacity: 1,
+  fillColor: '#0ea5e9',
+  fillOpacity: 0.13,
+}
+const PARCEL_HOVER_STYLE: L.PathOptions = {
+  color: '#f8fafc',
+  weight: 4,
+  opacity: 1,
+  fillColor: '#22d3ee',
+  fillOpacity: 0.34,
+}
 const PARCEL_SELECTED_STYLE: L.PathOptions = {
-  color: '#dc2626',
-  weight: 2.5,
+  color: '#fb2c36',
+  weight: 3.5,
   opacity: 1,
   fillColor: '#f97316',
-  fillOpacity: 0.42,
+  fillOpacity: 0.46,
 }
 const PARCEL_HIDDEN_STYLE: L.PathOptions = {
   color: '#fde047',
@@ -251,6 +265,7 @@ let childLayer: L.GeoJSON | null = null
 let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
 let parcelLayer: L.GeoJSON | null = null
+let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
@@ -301,6 +316,7 @@ function clearLayers() {
   if (outlineLayer) { outlineLayer.remove(); outlineLayer = null }
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
+  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   rsVisible.value = false
   parcelVisible.value = false
   rsHint.value = ''
@@ -396,18 +412,29 @@ function renderParcelLayer() {
       const id = feature ? parcelId(feature as Feature) : null
       if (id && selectedParcelIds.has(id)) return PARCEL_SELECTED_STYLE
       if (parcelEditing.value && id && hiddenParcelIds.has(id)) return PARCEL_HIDDEN_STYLE
+      if (parcelEditing.value) return PARCEL_EDIT_STYLE
       return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
     },
     onEachFeature: (feature: Feature, layer: L.Layer) => {
+      const path = layer as L.Path
+      const id = parcelId(feature)
+      layer.on('mouseover', () => {
+        if (!parcelEditing.value || !id || hiddenParcelIds.has(id) || selectedParcelIds.has(id)) return
+        path.setStyle(PARCEL_HOVER_STYLE)
+        path.bringToFront()
+      })
+      layer.on('mouseout', () => {
+        if (!parcelEditing.value || !id || hiddenParcelIds.has(id)) return
+        path.setStyle(selectedParcelIds.has(id) ? PARCEL_SELECTED_STYLE : PARCEL_EDIT_STYLE)
+      })
       layer.on('click', (event) => {
         if (!parcelEditing.value) return
         L.DomEvent.stopPropagation(event)
-        const id = parcelId(feature)
         if (!id || hiddenParcelIds.has(id)) return
         if (selectedParcelIds.has(id)) selectedParcelIds.delete(id)
         else selectedParcelIds.add(id)
         selectedParcelCount.value = selectedParcelIds.size
-        ;(layer as L.Path).setStyle(selectedParcelIds.has(id) ? PARCEL_SELECTED_STYLE : PARCEL_STYLE)
+        path.setStyle(selectedParcelIds.has(id) ? PARCEL_SELECTED_STYLE : PARCEL_EDIT_STYLE)
       })
     },
   }).addTo(map)
@@ -422,6 +449,13 @@ function startParcelEditing() {
   parcelEditing.value = true
   map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
   mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
+  editDimLayer = L.rectangle([[-85, -180], [85, 180]], {
+    pane: 'editDimmingPane',
+    stroke: false,
+    fillColor: '#0f172a',
+    fillOpacity: 0.34,
+    interactive: false,
+  }).addTo(map)
   renderParcelLayer()
 }
 
@@ -431,6 +465,7 @@ function finishParcelEditing() {
   selectedParcelCount.value = 0
   map.setMinZoom(DEFAULT_MIN_ZOOM)
   mapMinZoom.value = DEFAULT_MIN_ZOOM
+  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   renderParcelLayer()
 }
 
@@ -659,6 +694,9 @@ onMounted(() => {
   })
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
   // 注记独立置顶: 高于高分影像、AI 地块和行政边界
+  map.createPane('editDimmingPane')
+  map.getPane('editDimmingPane')!.style.zIndex = '350'
+  map.getPane('editDimmingPane')!.style.pointerEvents = 'none'
   map.createPane('annotationPane')
   map.getPane('annotationPane')!.style.zIndex = '450'
   map.getPane('annotationPane')!.style.pointerEvents = 'none'
