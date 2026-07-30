@@ -68,8 +68,18 @@ import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
 import { pointInGeometry } from '../utils/geo'
 
 // 缩放下钻阈值: 放大进入下一级 / 缩小退回上级(差 0.5 级防抖滞后)
-const ENTER_ZOOM: Partial<Record<string, number>> = { province: 9.5, city: 11.5, county: 13.5 }
-const EXIT_ZOOM: Partial<Record<string, number>> = { city: 9.0, county: 11.0, township: 13.0, village: 13.0 }
+const ENTER_ZOOM: Partial<Record<string, number>> = {
+  province: 9.5,
+  city: 11.5,
+  county: 13.5,
+  township: 15.5,
+}
+const EXIT_ZOOM: Partial<Record<string, number>> = {
+  city: 9.0,
+  county: 11.0,
+  township: 13.0,
+  village: 15.0,
+}
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
@@ -297,7 +307,7 @@ function onAutoLevel() {
   const crumb = store.current
   const z = map.getZoom()
 
-  // 放大: 进入中心点所在子区域(村级不自动进入, 需点击)
+  // 放大: 进入中心点所在子区域，乡级继续自动进入村级
   const enterZ = ENTER_ZOOM[crumb.level]
   if (enterZ !== undefined && z >= enterZ && childLayer) {
     const c = map.getCenter()
