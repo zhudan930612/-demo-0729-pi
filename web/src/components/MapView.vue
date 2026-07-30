@@ -1,5 +1,5 @@
 <template>
-  <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle' && parcelMode !== 'selected', 'parcel-drawing': parcelMode === 'drawing' }">
+  <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle', 'parcel-drawing': parcelMode === 'drawing' }">
     <div ref="mapEl" class="map"></div>
 
     <!-- 村级地块业务操作：新增与 AI 筛选保持同组常驻，进入模式后原位替换。 -->
@@ -52,12 +52,7 @@
         <button type="button" class="edit-action cancel" @click="cancelManualSession">取消</button>
       </template>
 
-      <template v-else-if="parcelMode === 'selected'">
-        <div class="draw-guide selected"><strong>人工绘制</strong><small>{{ selectedManualAreaText }}</small></div>
-        <button type="button" class="edit-action" @click="editSelectedManualParcel">编辑边界</button>
-        <button type="button" class="edit-action danger" @click="deleteSelectedManualParcel">删除地块</button>
-        <button type="button" class="edit-action cancel" @click="clearManualSelection">取消选择</button>
-      </template>
+
 
       <template v-else>
         <button type="button" class="edit-launch primary-launch" @click="startManualDrawing">
@@ -163,8 +158,8 @@
         v-if="parcelVisible"
         class="icon-btn parcel-btn"
         :class="{ off: !parcelOn }"
-        :disabled="parcelMode !== 'idle' && parcelMode !== 'selected'"
-        :title="parcelMode !== 'idle' && parcelMode !== 'selected' ? '操作地块时不能关闭图层' : (parcelOn ? '地块：开（点击关闭）' : '地块：关（点击打开）')"
+        :disabled="parcelMode !== 'idle'"
+        :title="parcelMode !== 'idle' ? '操作地块时不能关闭图层' : (parcelOn ? '地块：开（点击关闭）' : '地块：关（点击打开）')"
         @click="toggleParcels"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -283,13 +278,6 @@ const MANUAL_PARCEL_STYLE: L.PathOptions = {
   fillColor: '#c084fc',
   fillOpacity: 0.24,
 }
-const MANUAL_PARCEL_SELECTED_STYLE: L.PathOptions = {
-  color: '#f8fafc',
-  weight: 4,
-  opacity: 1,
-  fillColor: '#a855f7',
-  fillOpacity: 0.42,
-}
 const MANUAL_DRAFT_STYLE: L.PathOptions = {
   color: '#e879f9',
   weight: 3,
@@ -314,7 +302,7 @@ const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
 const M2_PER_MU = 2000 / 3
 
 type ParcelId = string
-type ParcelMode = 'idle' | 'filter' | 'batch' | 'drawing' | 'selected' | 'editing'
+type ParcelMode = 'idle' | 'filter' | 'batch' | 'drawing' | 'editing'
 interface ParcelEditRecord {
   datasetVersion: string
   hiddenIds: ParcelId[]
@@ -345,7 +333,7 @@ const manualDraftAreaText = computed(() => {
   const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
   return prepared ? `${prepared.areaMu.toFixed(2)} 亩` : '边界待校验'
 })
-const selectedManualAreaText = ref('')
+
 const pendingHideCount = ref(0)
 const pendingRestoreCount = ref(0)
 const pendingChangeCount = computed(() => pendingHideCount.value + pendingRestoreCount.value)
@@ -387,7 +375,7 @@ let parcelAreaLabelLayer: L.LayerGroup | null = null
 let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
-let selectedManualParcel: ManualParcelFeature | null = null
+
 let editingManualOriginal: ManualParcelFeature | null = null
 let editingPendingManualId: string | null = null
 let editingBatchManualKind: 'new' | 'existing' | null = null
@@ -435,7 +423,6 @@ function clearLayers() {
   parcelSource = null
   hasAiParcels.value = false
   manualParcels = []
-  selectedManualParcel = null
   editingManualOriginal = null
   manualDraftPoints.value = []
   manualDraftDirty.value = false
@@ -444,7 +431,6 @@ function clearLayers() {
   pendingRemovedManualIds.value = []
   editingPendingManualId = null
   editingBatchManualKind = null
-  selectedManualAreaText.value = ''
   parcelVillageCode = ''
   hiddenParcelIds.clear()
   hiddenParcelCount.value = 0
@@ -475,8 +461,7 @@ function toggleRs() {
 
 /** AI 地块独立开/关 */
 function toggleParcels() {
-  if (parcelMode.value !== 'idle' && parcelMode.value !== 'selected') return
-  if (parcelMode.value === 'selected') clearManualSelection()
+  if (parcelMode.value !== 'idle') return
   parcelOn.value = !parcelOn.value
   renderParcelLayer()
 }
@@ -666,29 +651,22 @@ function renderParcelLayer() {
   if (visibleManualParcels.length) {
     const manualCollection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
     manualParcelLayer = L.geoJSON(manualCollection, {
-      interactive: parcelOn.value && (parcelMode.value === 'idle' || parcelMode.value === 'selected' || parcelMode.value === 'batch'),
-      style: (feature) => {
-        const selected = feature?.properties?.id === selectedManualParcel?.properties.id
-        if (!parcelOn.value) return { ...MANUAL_PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
-        return selected ? MANUAL_PARCEL_SELECTED_STYLE : MANUAL_PARCEL_STYLE
+      interactive: parcelOn.value && parcelMode.value === 'batch',
+      style: () => {
+        if (!parcelOn.value) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
+        if (parcelMode.value === 'batch') return MANUAL_PARCEL_STYLE
+        return PARCEL_STYLE
       },
       onEachFeature: (feature: Feature, layer: L.Layer) => {
         const manual = feature as ManualParcelFeature
-        layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
-        layer.on('click', (event) => {
-          if (!parcelOn.value) return
-          if (parcelMode.value === 'batch') {
+        if (parcelMode.value === 'batch') {
+          layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
+          layer.on('click', (event) => {
+            if (!parcelOn.value) return
             L.DomEvent.stopPropagation(event)
             void startBatchExistingManualEditing(manual)
-            return
-          }
-          if (parcelMode.value !== 'idle' && parcelMode.value !== 'selected') return
-          L.DomEvent.stopPropagation(event)
-          selectedManualParcel = manual
-          selectedManualAreaText.value = `${manual.properties.area_mu.toFixed(2)} 亩`
-          parcelMode.value = 'selected'
-          renderParcelLayer()
-        })
+          })
+        }
       },
     }).addTo(map)
   }
@@ -954,7 +932,6 @@ function startManualDrawing() {
   if (store.current.level !== 'village') return
   showManualStorageNoticeOnce()
   parcelOn.value = true
-  selectedManualParcel = null
   editingManualOriginal = null
   editingPendingManualId = null
   manualDraftPoints.value = []
@@ -1184,26 +1161,8 @@ function cancelManualSession() {
   clearManualDraftLayers()
   manualDraftPoints.value = []
   manualDraftDirty.value = false
-  selectedManualParcel = null
   editingManualOriginal = null
   leaveParcelWorkMode()
-  renderParcelLayer()
-}
-
-function clearManualSelection() {
-  selectedManualParcel = null
-  selectedManualAreaText.value = ''
-  parcelMode.value = 'idle'
-  renderParcelLayer()
-}
-
-function editSelectedManualParcel() {
-  if (!selectedManualParcel) return
-  editingManualOriginal = selectedManualParcel
-  manualDraftPoints.value = selectedManualParcel.geometry.coordinates[0].slice(0, -1).map(([lng, lat]) => [lng, lat])
-  manualDraftDirty.value = false
-  enterParcelWorkMode('editing')
-  renderManualDraft(true)
   renderParcelLayer()
 }
 
@@ -1244,27 +1203,10 @@ async function saveManualDraft() {
   clearManualDraftLayers()
   manualDraftPoints.value = []
   manualDraftDirty.value = false
-  selectedManualParcel = null
   editingManualOriginal = null
   leaveParcelWorkMode()
   renderParcelLayer()
   showNotice('人工地块已保存到当前浏览器')
-}
-
-async function deleteSelectedManualParcel() {
-  if (!selectedManualParcel || !parcelVillageCode) return
-  if (!await openManualDialog('删除人工地块', `确定删除这块 ${selectedManualParcel.properties.area_mu.toFixed(2)} 亩的人工地块吗？此操作只删除本机记录。`, '确认删除')) return
-  const next = manualParcels.filter((feature) => feature.properties.id !== selectedManualParcel!.properties.id)
-  const persisted = writeManualParcels(parcelVillageCode, next)
-  if (!persisted.ok) {
-    showNotice(persisted.error, true)
-    return
-  }
-  manualParcels = next
-  selectedManualParcel = null
-  parcelMode.value = 'idle'
-  renderParcelLayer()
-  showNotice('人工地块已删除')
 }
 
 function hasUnsavedParcelWork(): boolean {
@@ -1471,7 +1413,7 @@ watch(() => store.path.length, () => {
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
-  if (suppressAutoZoom || !['idle', 'selected'].includes(parcelMode.value)) return
+  if (suppressAutoZoom || parcelMode.value !== 'idle') return
   const crumb = store.current
   const z = map.getZoom()
 
