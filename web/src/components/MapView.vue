@@ -17,23 +17,28 @@
         </div>
         <button
           type="button"
-          class="edit-action reset"
-          :disabled="hiddenParcelCount === 0"
-          title="恢复当前村全部隐藏地块"
-          @click="resetHiddenParcels"
-        >重置</button>
+          class="edit-action restore-all"
+          :disabled="hiddenParcelCount === 0 || pendingRestoreCount === hiddenParcelCount"
+          title="将当前村全部隐藏地块标记为待恢复"
+          @click="restoreAllHiddenParcels"
+        >全部恢复</button>
         <span class="toolbar-divider" aria-hidden="true"></span>
         <div class="edit-stat">
-          <span class="stat-dot selected" aria-hidden="true"></span>
-          <span>已选</span>
-          <strong>{{ selectedParcelCount }}</strong>
+          <span class="stat-dot pending-hide" aria-hidden="true"></span>
+          <span>待隐藏</span>
+          <strong>{{ pendingHideCount }}</strong>
+        </div>
+        <div class="edit-stat">
+          <span class="stat-dot pending-restore" aria-hidden="true"></span>
+          <span>待恢复</span>
+          <strong>{{ pendingRestoreCount }}</strong>
         </div>
         <button
           type="button"
           class="edit-action primary"
-          :disabled="selectedParcelCount === 0"
+          :disabled="pendingChangeCount === 0"
           @click="saveParcelEdits"
-        >保存</button>
+        >保存更改</button>
         <button type="button" class="edit-action cancel" @click="cancelParcelEditing">取消</button>
       </template>
       <button
@@ -51,42 +56,8 @@
       </button>
     </div>
 
-    <div
-      v-if="resetDialogOpen"
-      class="dialog-backdrop"
-      role="presentation"
-      @click.self="closeResetDialog"
-    >
-      <section
-        ref="resetDialogEl"
-        class="confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="reset-dialog-title"
-        aria-describedby="reset-dialog-description"
-        tabindex="-1"
-        @keydown.esc="closeResetDialog"
-      >
-        <div class="dialog-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18" />
-            <path d="M8 6V4h8v2" />
-            <path d="m19 6-1 14H6L5 6" />
-            <path d="M10 11v5M14 11v5" />
-          </svg>
-        </div>
-        <div class="dialog-copy">
-          <h2 id="reset-dialog-title">恢复隐藏地块</h2>
-          <p id="reset-dialog-description">
-            将恢复当前村已隐藏的 <strong>{{ hiddenParcelCount }}</strong> 个地块。本机保存的隐藏记录会被清除。
-          </p>
-        </div>
-        <div class="dialog-actions">
-          <button type="button" class="dialog-button secondary" @click="closeResetDialog">取消</button>
-          <button type="button" class="dialog-button danger" @click="confirmResetHiddenParcels">确认重置</button>
-        </div>
-      </section>
+    <div v-if="saveNotice" class="save-notice" role="status" aria-live="polite">
+      {{ saveNotice }}
     </div>
 
     <section v-if="parcelVisible && parcelOn" class="parcel-summary" aria-label="地块统计">
@@ -173,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import {
@@ -224,7 +195,7 @@ const PARCEL_HOVER_STYLE: L.PathOptions = {
   fillColor: '#22d3ee',
   fillOpacity: 0.34,
 }
-const PARCEL_SELECTED_STYLE: L.PathOptions = {
+const PARCEL_PENDING_HIDE_STYLE: L.PathOptions = {
   color: '#fb2c36',
   weight: 3.5,
   opacity: 1,
@@ -238,6 +209,13 @@ const PARCEL_HIDDEN_STYLE: L.PathOptions = {
   fillColor: '#facc15',
   fillOpacity: 0.18,
   dashArray: '8 4',
+}
+const PARCEL_PENDING_RESTORE_STYLE: L.PathOptions = {
+  color: '#22c55e',
+  weight: 3.5,
+  opacity: 1,
+  fillColor: '#16a34a',
+  fillOpacity: 0.34,
 }
 const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
@@ -257,7 +235,6 @@ interface ParcelEditStorage {
 }
 
 const mapEl = ref<HTMLDivElement>()
-const resetDialogEl = ref<HTMLElement>()
 const store = useDrilldownStore()
 const rsVisible = ref(false)
 const rsHint = ref('')
@@ -265,9 +242,11 @@ const rsOn = ref(true)
 const parcelVisible = ref(false)
 const parcelOn = ref(true)
 const parcelEditing = ref(false)
-const resetDialogOpen = ref(false)
-const selectedParcelCount = ref(0)
+const pendingHideCount = ref(0)
+const pendingRestoreCount = ref(0)
+const pendingChangeCount = computed(() => pendingHideCount.value + pendingRestoreCount.value)
 const hiddenParcelCount = ref(0)
+const saveNotice = ref('')
 const parcelDisplayCount = ref(0)
 const parcelDisplayAreaMu = ref(0)
 const parcelDisplayAreaText = computed(() => parcelDisplayAreaMu.value.toLocaleString('zh-CN', {
@@ -294,7 +273,9 @@ let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
-let selectedParcelIds = new Set<ParcelId>()
+let pendingHideParcelIds = new Set<ParcelId>()
+let pendingRestoreParcelIds = new Set<ParcelId>()
+let saveNoticeTimer: ReturnType<typeof setTimeout> | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
@@ -329,9 +310,10 @@ function clearLayers() {
     mapMinZoom.value = DEFAULT_MIN_ZOOM
   }
   parcelEditing.value = false
-  resetDialogOpen.value = false
-  selectedParcelIds.clear()
-  selectedParcelCount.value = 0
+  pendingHideParcelIds.clear()
+  pendingRestoreParcelIds.clear()
+  pendingHideCount.value = 0
+  pendingRestoreCount.value = 0
   parcelSource = null
   parcelVillageCode = ''
   hiddenParcelIds.clear()
@@ -450,6 +432,26 @@ function updateParcelAreaLabels() {
   }
 }
 
+function parcelEditStyle(id: ParcelId | null): L.PathOptions {
+  if (!id) return PARCEL_EDIT_STYLE
+  if (pendingRestoreParcelIds.has(id)) return PARCEL_PENDING_RESTORE_STYLE
+  if (pendingHideParcelIds.has(id)) return PARCEL_PENDING_HIDE_STYLE
+  if (hiddenParcelIds.has(id)) return PARCEL_HIDDEN_STYLE
+  return PARCEL_EDIT_STYLE
+}
+
+function parcelEditActionLabel(id: ParcelId): string {
+  if (hiddenParcelIds.has(id)) {
+    return pendingRestoreParcelIds.has(id) ? '再次点击取消恢复' : '点击恢复此地块'
+  }
+  return pendingHideParcelIds.has(id) ? '再次点击取消隐藏' : '点击隐藏此地块'
+}
+
+function syncPendingParcelCounts() {
+  pendingHideCount.value = pendingHideParcelIds.size
+  pendingRestoreCount.value = pendingRestoreParcelIds.size
+}
+
 function renderParcelLayer() {
   parcelLayer?.remove()
   parcelLayer = null
@@ -477,31 +479,48 @@ function renderParcelLayer() {
     interactive: parcelEditing.value && parcelOn.value,
     style: (feature) => {
       const id = feature ? parcelId(feature as Feature) : null
-      if (id && selectedParcelIds.has(id)) return PARCEL_SELECTED_STYLE
-      if (parcelEditing.value && id && hiddenParcelIds.has(id)) return PARCEL_HIDDEN_STYLE
-      if (parcelEditing.value) return PARCEL_EDIT_STYLE
+      if (parcelEditing.value) return parcelEditStyle(id)
       return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
     },
     onEachFeature: (feature: Feature, layer: L.Layer) => {
       const path = layer as L.Path
       const id = parcelId(feature)
+      if (id) {
+        const actionClass = hiddenParcelIds.has(id) ? 'restore' : 'hide'
+        layer.bindTooltip(parcelEditActionLabel(id), {
+          sticky: true,
+          direction: 'top',
+          className: `parcel-edit-tooltip ${actionClass}`,
+        })
+      }
       layer.on('mouseover', () => {
-        if (!parcelEditing.value || !id || hiddenParcelIds.has(id) || selectedParcelIds.has(id)) return
-        path.setStyle(PARCEL_HOVER_STYLE)
+        if (!parcelEditing.value || !id) return
+        const isUnchangedVisible = !hiddenParcelIds.has(id) && !pendingHideParcelIds.has(id)
+        const style = isUnchangedVisible
+          ? PARCEL_HOVER_STYLE
+          : { ...parcelEditStyle(id), color: PARCEL_HOVER_STYLE.color, weight: PARCEL_HOVER_STYLE.weight }
+        path.setStyle(style)
         path.bringToFront()
       })
       layer.on('mouseout', () => {
-        if (!parcelEditing.value || !id || hiddenParcelIds.has(id)) return
-        path.setStyle(selectedParcelIds.has(id) ? PARCEL_SELECTED_STYLE : PARCEL_EDIT_STYLE)
+        if (!parcelEditing.value || !id) return
+        path.setStyle(parcelEditStyle(id))
       })
       layer.on('click', (event) => {
         if (!parcelEditing.value) return
         L.DomEvent.stopPropagation(event)
-        if (!id || hiddenParcelIds.has(id)) return
-        if (selectedParcelIds.has(id)) selectedParcelIds.delete(id)
-        else selectedParcelIds.add(id)
-        selectedParcelCount.value = selectedParcelIds.size
-        path.setStyle(selectedParcelIds.has(id) ? PARCEL_SELECTED_STYLE : PARCEL_EDIT_STYLE)
+        if (!id) return
+        if (hiddenParcelIds.has(id)) {
+          if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
+          else pendingRestoreParcelIds.add(id)
+        } else if (pendingHideParcelIds.has(id)) {
+          pendingHideParcelIds.delete(id)
+        } else {
+          pendingHideParcelIds.add(id)
+        }
+        syncPendingParcelCounts()
+        path.setStyle(parcelEditStyle(id))
+        path.setTooltipContent(parcelEditActionLabel(id))
       })
     },
   }).addTo(map)
@@ -511,8 +530,9 @@ function renderParcelLayer() {
 
 function startParcelEditing() {
   if (!parcelOn.value || !parcelSource?.features.length) return
-  selectedParcelIds.clear()
-  selectedParcelCount.value = 0
+  pendingHideParcelIds.clear()
+  pendingRestoreParcelIds.clear()
+  syncPendingParcelCounts()
   parcelEditing.value = true
   map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
   mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
@@ -528,54 +548,44 @@ function startParcelEditing() {
 
 function finishParcelEditing() {
   parcelEditing.value = false
-  selectedParcelIds.clear()
-  selectedParcelCount.value = 0
+  pendingHideParcelIds.clear()
+  pendingRestoreParcelIds.clear()
+  syncPendingParcelCounts()
   map.setMinZoom(DEFAULT_MIN_ZOOM)
   mapMinZoom.value = DEFAULT_MIN_ZOOM
   if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   renderParcelLayer()
 }
 
+function showSaveNotice(hiddenCount: number, restoredCount: number) {
+  if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
+  saveNotice.value = `已隐藏 ${hiddenCount} 个地块，恢复 ${restoredCount} 个地块`
+  saveNoticeTimer = setTimeout(() => { saveNotice.value = '' }, 3000)
+}
+
 function saveParcelEdits() {
-  if (!selectedParcelIds.size || !parcelVillageCode) return
-  const nextHidden = new Set([...hiddenParcelIds, ...selectedParcelIds])
+  if (!pendingChangeCount.value || !parcelVillageCode) return
+  const hiddenCount = pendingHideParcelIds.size
+  const restoredCount = pendingRestoreParcelIds.size
+  const nextHidden = new Set([...hiddenParcelIds, ...pendingHideParcelIds])
+  for (const id of pendingRestoreParcelIds) nextHidden.delete(id)
   if (!persistHiddenParcelIds(parcelVillageCode, nextHidden)) {
-    window.alert('本机保存失败，请检查浏览器是否允许本地存储后重试。')
+    window.alert('保存失败，本次修改尚未生效。请检查浏览器是否允许本地存储。')
     return
   }
   hiddenParcelIds = nextHidden
   finishParcelEditing()
+  showSaveNotice(hiddenCount, restoredCount)
 }
 
 function cancelParcelEditing() {
   finishParcelEditing()
 }
 
-async function resetHiddenParcels() {
-  if (!hiddenParcelIds.size || !parcelVillageCode) return
-  resetDialogOpen.value = true
-  await nextTick()
-  resetDialogEl.value?.focus()
-}
-
-function closeResetDialog() {
-  resetDialogOpen.value = false
-}
-
-function confirmResetHiddenParcels() {
-  if (!hiddenParcelIds.size || !parcelVillageCode) {
-    closeResetDialog()
-    return
-  }
-  if (!persistHiddenParcelIds(parcelVillageCode, new Set())) {
-    closeResetDialog()
-    window.alert('重置失败，请检查浏览器是否允许本地存储后重试。')
-    return
-  }
-  hiddenParcelIds.clear()
-  selectedParcelIds.clear()
-  selectedParcelCount.value = 0
-  closeResetDialog()
+function restoreAllHiddenParcels() {
+  if (!hiddenParcelIds.size) return
+  pendingRestoreParcelIds = new Set(hiddenParcelIds)
+  syncPendingParcelCounts()
   renderParcelLayer()
 }
 
@@ -783,76 +793,36 @@ onMounted(() => {
   render()
 })
 
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => {
+  if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
+  map?.remove()
+})
 </script>
 
 <style scoped>
 .map-wrap { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; }
-.parcel-editing .map { cursor: crosshair; }
-.dialog-backdrop {
+.parcel-editing .map { cursor: grab; }
+.parcel-editing .map:active { cursor: grabbing; }
+.save-notice {
   position: absolute;
-  inset: 0;
-  z-index: 2000;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.42);
-  animation: backdrop-in 160ms ease-out;
-}
-.confirm-dialog {
-  width: min(390px, calc(100vw - 40px));
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  column-gap: 14px;
-  padding: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28), 0 4px 12px rgba(15, 23, 42, 0.12);
-  color: #0f172a;
-  animation: dialog-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.confirm-dialog:focus { outline: none; }
-.dialog-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: #fff7ed;
-  color: #c2410c;
-}
-.dialog-icon svg { width: 21px; height: 21px; }
-.dialog-copy h2 { margin: 1px 0 7px; font-size: 17px; line-height: 1.35; }
-.dialog-copy p { margin: 0; color: #475569; font-size: 14px; line-height: 1.65; }
-.dialog-copy strong { color: #0f172a; font-variant-numeric: tabular-nums; }
-.dialog-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-.dialog-button {
-  height: 36px;
-  padding: 0 15px;
-  border: 0;
-  border-radius: 7px;
-  font: inherit;
-  font-size: 14px;
+  top: 64px;
+  left: 50%;
+  z-index: 1100;
+  transform: translateX(-50%);
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: #166534;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22), 0 2px 5px rgba(15, 23, 42, 0.16);
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
+  white-space: nowrap;
+  animation: notice-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.dialog-button.secondary { background: #f1f5f9; color: #334155; }
-.dialog-button.secondary:hover { background: #e2e8f0; }
-.dialog-button.danger { background: #c2410c; color: #fff; box-shadow: 0 1px 2px rgba(154, 52, 18, 0.25); }
-.dialog-button.danger:hover { background: #9a3412; }
-.dialog-button:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: 2px; }
-@keyframes backdrop-in { from { background: rgba(15, 23, 42, 0); } }
-@keyframes dialog-in {
-  from { opacity: 0.4; transform: translateY(8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes notice-in {
+  from { opacity: 0.4; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 .parcel-edit-toolbar {
   position: absolute;
@@ -898,8 +868,8 @@ onBeforeUnmount(() => map?.remove())
 .edit-action:disabled { cursor: not-allowed; opacity: 0.38; }
 .edit-action.primary { background: #2563eb; color: #fff; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25); }
 .edit-action.primary:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
-.edit-action.reset { color: #b45309; }
-.edit-action.reset:hover:not(:disabled) { background: #fff7ed; color: #92400e; }
+.edit-action.restore-all { color: #166534; }
+.edit-action.restore-all:hover:not(:disabled) { background: #f0fdf4; color: #14532d; }
 .edit-action.cancel { color: #475569; }
 .edit-stat {
   height: 34px;
@@ -913,7 +883,8 @@ onBeforeUnmount(() => map?.remove())
 .edit-stat strong { min-width: 1.2em; color: #0f172a; font-variant-numeric: tabular-nums; }
 .stat-dot { width: 7px; height: 7px; border-radius: 50%; }
 .stat-dot.hidden { background: #eab308; box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.16); }
-.stat-dot.selected { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14); }
+.stat-dot.pending-hide { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14); }
+.stat-dot.pending-restore { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }
 .toolbar-divider { width: 1px; height: 22px; margin: 0 2px; background: #cbd5e1; }
 .ctrl-stack,
 .zoom-stack {
@@ -964,6 +935,30 @@ onBeforeUnmount(() => map?.remove())
 .icon-btn.off:hover:not(:disabled) { background: #f1f5f9; color: #64748b; }
 .parcel-btn:not(.off) { background: #eff6ff; color: #2563eb; }
 .parcel-btn:not(.off):hover:not(:disabled) { background: #dbeafe; color: #1d4ed8; }
+
+.map-wrap :deep(.leaflet-tooltip.parcel-edit-tooltip) {
+  padding: 6px 9px;
+  border-width: 1px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.map-wrap :deep(.leaflet-tooltip.parcel-edit-tooltip.hide) {
+  border-color: #fdba74;
+  background: #c2410c;
+}
+.map-wrap :deep(.leaflet-tooltip-top.parcel-edit-tooltip.hide)::before {
+  border-top-color: #c2410c;
+}
+.map-wrap :deep(.leaflet-tooltip.parcel-edit-tooltip.restore) {
+  border-color: #86efac;
+  background: #15803d;
+}
+.map-wrap :deep(.leaflet-tooltip-top.parcel-edit-tooltip.restore)::before {
+  border-top-color: #15803d;
+}
 
 .map-wrap :deep(.parcel-area-label-wrap) {
   width: 0 !important;
