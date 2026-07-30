@@ -89,8 +89,25 @@
       </section>
     </div>
 
-    <!-- 村级: 影像状态角标(无弹窗, 仅文字) -->
-    <div v-if="rsHint" class="rs-hint" :class="{ off: !rsVisible }">{{ rsHint }}</div>
+    <section v-if="parcelVisible && parcelOn" class="parcel-summary" aria-label="地块统计">
+      <div class="summary-metrics">
+        <div class="summary-metric">
+          <span>当前地块</span>
+          <strong>{{ parcelDisplayCount.toLocaleString() }}</strong>
+          <small>块</small>
+        </div>
+        <span class="summary-divider" aria-hidden="true"></span>
+        <div class="summary-metric area">
+          <span>合计面积</span>
+          <strong>{{ parcelDisplayAreaText }}</strong>
+          <small>亩</small>
+        </div>
+      </div>
+      <div v-if="rsHint" class="summary-imagery" :class="{ off: !rsVisible }">{{ rsHint }}</div>
+    </section>
+
+    <!-- 无地块数据时仍单独展示影像状态 -->
+    <div v-else-if="rsHint" class="rs-hint" :class="{ off: !rsVisible }">{{ rsHint }}</div>
 
     <!-- 右下角竖排图标按钮 -->
     <div class="ctrl-stack">
@@ -125,7 +142,7 @@
         class="icon-btn parcel-btn"
         :class="{ off: !parcelOn }"
         :disabled="parcelEditing"
-        :title="parcelEditing ? '编辑地块时不能关闭图层' : (parcelOn ? 'AI地块：开（点击关闭）' : 'AI地块：关（点击打开）')"
+        :title="parcelEditing ? '编辑地块时不能关闭图层' : (parcelOn ? '地块：开（点击关闭）' : '地块：关（点击打开）')"
         @click="toggleParcels"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -226,6 +243,8 @@ const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
 const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
+const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
+const M2_PER_MU = 2000 / 3
 
 type ParcelId = string
 interface ParcelEditRecord {
@@ -250,6 +269,11 @@ const resetDialogOpen = ref(false)
 const selectedParcelCount = ref(0)
 const hiddenParcelCount = ref(0)
 const parcelDisplayCount = ref(0)
+const parcelDisplayAreaMu = ref(0)
+const parcelDisplayAreaText = computed(() => parcelDisplayAreaMu.value.toLocaleString('zh-CN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}))
 const currentZoom = ref(DEFAULT_MIN_ZOOM)
 const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
 const canZoomIn = computed(() => currentZoom.value < 19)
@@ -265,6 +289,7 @@ let childLayer: L.GeoJSON | null = null
 let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
 let parcelLayer: L.GeoJSON | null = null
+let parcelAreaLabelLayer: L.LayerGroup | null = null
 let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
 let parcelVillageCode = ''
@@ -312,10 +337,12 @@ function clearLayers() {
   hiddenParcelIds.clear()
   hiddenParcelCount.value = 0
   parcelDisplayCount.value = 0
+  parcelDisplayAreaMu.value = 0
   if (childLayer) { childLayer.remove(); childLayer = null }
   if (outlineLayer) { outlineLayer.remove(); outlineLayer = null }
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
+  if (parcelAreaLabelLayer) { parcelAreaLabelLayer.remove(); parcelAreaLabelLayer = null }
   if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   rsVisible.value = false
   parcelVisible.value = false
@@ -337,6 +364,7 @@ function toggleParcels() {
   parcelLayer?.setStyle(parcelOn.value
     ? PARCEL_STYLE
     : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 })
+  updateParcelAreaLabels()
 }
 
 function zoomIn() {
@@ -388,9 +416,38 @@ function persistHiddenParcelIds(villageCode: string, ids: Set<ParcelId>): boolea
   }
 }
 
-function updateParcelHint() {
-  if (!parcelSource) return
-  rsHint.value = `吉林一号 0.5m 影像 · 当前地块 ${parcelDisplayCount.value.toLocaleString()} `
+function updateParcelAreaLabels() {
+  parcelAreaLabelLayer?.clearLayers()
+  if (!parcelSource || !parcelVisible.value || !parcelOn.value || map.getZoom() < PARCEL_AREA_LABEL_MIN_ZOOM) return
+
+  if (!parcelAreaLabelLayer) {
+    parcelAreaLabelLayer = L.layerGroup().addTo(map)
+  }
+  const view = map.getBounds().pad(0.05)
+  for (const feature of parcelSource.features) {
+    const properties = feature.properties ?? {}
+    const id = parcelId(feature)
+    if (!parcelEditing.value && id && hiddenParcelIds.has(id)) continue
+    const lng = Number(properties.label_lng)
+    const lat = Number(properties.label_lat)
+    const areaMu = Number(properties.area_mu)
+    if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(areaMu)) continue
+    const point = L.latLng(lat, lng)
+    if (!view.contains(point)) continue
+
+    const icon = L.divIcon({
+      className: 'parcel-area-label-wrap',
+      html: `<span class="parcel-area-label">${areaMu.toFixed(2)} 亩</span>`,
+      iconSize: undefined,
+      iconAnchor: [0, 0],
+    })
+    L.marker(point, {
+      pane: 'parcelLabelPane',
+      icon,
+      interactive: false,
+      keyboard: false,
+    }).addTo(parcelAreaLabelLayer)
+  }
 }
 
 function renderParcelLayer() {
@@ -403,7 +460,17 @@ function renderParcelLayer() {
     return parcelEditing.value || id === null || !hiddenParcelIds.has(id)
   })
   hiddenParcelCount.value = hiddenParcelIds.size
-  parcelDisplayCount.value = parcelSource.features.length - hiddenParcelIds.size
+  const displayedFeatures = parcelSource.features.filter((feature) => {
+    const id = parcelId(feature)
+    return id === null || !hiddenParcelIds.has(id)
+  })
+  parcelDisplayCount.value = displayedFeatures.length
+  parcelDisplayAreaMu.value = displayedFeatures.reduce((total, feature) => {
+    const areaM2 = Number(feature.properties?.area_m2)
+    if (Number.isFinite(areaM2)) return total + areaM2 / M2_PER_MU
+    const areaMu = Number(feature.properties?.area_mu)
+    return Number.isFinite(areaMu) ? total + areaMu : total
+  }, 0)
 
   const visibleParcels: FeatureCollection = { type: 'FeatureCollection', features: visibleFeatures }
   parcelLayer = L.geoJSON(visibleParcels, {
@@ -439,7 +506,7 @@ function renderParcelLayer() {
     },
   }).addTo(map)
   outlineLayer?.bringToFront()
-  updateParcelHint()
+  updateParcelAreaLabels()
 }
 
 function startParcelEditing() {
@@ -564,6 +631,56 @@ async function render(noFly = false) {
         setTimeout(finish, 1200)
       })
 
+  // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
+  if (crumb.level === 'township' || crumb.level === 'village') {
+    // 等飞行结束再插入影像，避免动画中途因低于 minZoom 导致瓦片不恢复。
+    const [info] = await Promise.all([
+      rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
+      flyDone,
+    ])
+    if (seq !== flySeq) return
+    rsInfo = info
+    if (rsInfo && crumb.geometry) {
+      const [w, s, e, n] = rsInfo.bounds
+      const currentBounds = L.geoJSON(toFeature(crumb.geometry)).getBounds()
+      const rsBounds = L.latLngBounds([s, w], [n, e])
+      if (currentBounds.intersects(rsBounds)) {
+        rsLayer = L.tileLayer('/tiles/rs/{z}/{x}/{y}.png', {
+          minZoom: rsInfo.minZoom,
+          maxZoom: rsInfo.maxZoom,
+          opacity: RS_OPACITY,
+          zIndex: 3, // 高于底图；文字注记在独立 annotationPane 中置顶
+        }).addTo(map)
+        rsVisible.value = true
+        rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
+
+        if (crumb.level === 'village') {
+          const parcels = await fetchJSON<FeatureCollection>(`/data/parcels/${crumb.code}.geojson`).catch(() => null)
+          if (seq !== flySeq) return
+          if (parcels?.features.length) {
+            parcelSource = parcels
+            parcelVillageCode = crumb.code
+            const validIds = new Set(parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null))
+            hiddenParcelIds = new Set([...loadHiddenParcelIds(crumb.code)].filter((id) => validIds.has(id)))
+            renderParcelLayer()
+            parcelVisible.value = true
+            updateParcelAreaLabels()
+          }
+        }
+
+        // 乡镇/村级低于影像最低级别时抬升，保证进入层级后影像实际可见。
+        if (map.getZoom() < rsInfo.minZoom) {
+          suppressAutoZoom = true
+          map.once('zoomend', () => { suppressAutoZoom = false })
+          setTimeout(() => { suppressAutoZoom = false }, 500)
+          map.setZoom(rsInfo.minZoom)
+        }
+      } else if (crumb.level === 'village') {
+        rsHint.value = '该村不在高分影像覆盖范围内'
+      }
+    }
+  }
+
   // 子级边界(部分中心城区街道无村界文件 -> 404 时静默按空处理)
   const url = childrenUrl(crumb)
   if (url) {
@@ -592,54 +709,6 @@ async function render(noFly = false) {
         })
       },
     }).addTo(map)
-    return
-  }
-
-  // 村级: 高分影像叠加(仅当村范围与影像范围相交)
-  if (crumb.level === 'village') {
-    // 等飞行结束再加影像层: 中途缩放低于 minZoom 时插入, 瓦片可能被清空不恢复
-    const [info] = await Promise.all([
-      rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
-      flyDone,
-    ])
-    if (seq !== flySeq) return
-    rsInfo = info
-    if (!rsInfo || !crumb.geometry) return
-    const [w, s, e, n] = rsInfo.bounds
-    const vb = L.geoJSON(toFeature(crumb.geometry)).getBounds()
-    const rsBounds = L.latLngBounds([s, w], [n, e])
-    if (vb.intersects(rsBounds)) {
-      rsLayer = L.tileLayer('/tiles/rs/{z}/{x}/{y}.png', {
-        minZoom: rsInfo.minZoom,
-        maxZoom: rsInfo.maxZoom,
-        opacity: RS_OPACITY,
-        zIndex: 3, // 高于底图；文字注记在独立 annotationPane 中置顶
-      }).addTo(map)
-      rsVisible.value = true
-      rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
-
-      // AI 识别地块: 按村按需加载；没有地块产物的村静默跳过
-      const parcels = await fetchJSON<FeatureCollection>(`/data/parcels/${crumb.code}.geojson`).catch(() => null)
-      if (seq !== flySeq) return
-      if (parcels?.features.length) {
-        parcelSource = parcels
-        parcelVillageCode = crumb.code
-        const validIds = new Set(parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null))
-        hiddenParcelIds = new Set([...loadHiddenParcelIds(crumb.code)].filter((id) => validIds.has(id)))
-        renderParcelLayer()
-        parcelVisible.value = true
-      }
-
-      // 程序化抬升到影像最低级别时也禁止触发自动退出村级。
-      if (map.getZoom() < rsInfo.minZoom) {
-        suppressAutoZoom = true
-        map.once('zoomend', () => { suppressAutoZoom = false })
-        setTimeout(() => { suppressAutoZoom = false }, 500)
-        map.setZoom(rsInfo.minZoom)
-      }
-    } else {
-      rsHint.value = '该村不在高分影像覆盖范围内'
-    }
   }
 }
 
@@ -697,6 +766,9 @@ onMounted(() => {
   map.createPane('editDimmingPane')
   map.getPane('editDimmingPane')!.style.zIndex = '350'
   map.getPane('editDimmingPane')!.style.pointerEvents = 'none'
+  map.createPane('parcelLabelPane')
+  map.getPane('parcelLabelPane')!.style.zIndex = '440'
+  map.getPane('parcelLabelPane')!.style.pointerEvents = 'none'
   map.createPane('annotationPane')
   map.getPane('annotationPane')!.style.zIndex = '450'
   map.getPane('annotationPane')!.style.pointerEvents = 'none'
@@ -704,8 +776,10 @@ onMounted(() => {
   basemaps.img.addTo(map)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
+    updateParcelAreaLabels()
     onAutoLevel()
   })
+  map.on('moveend', updateParcelAreaLabels)
   render()
 })
 
@@ -856,8 +930,8 @@ onBeforeUnmount(() => map?.remove())
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(8px);
 }
-.ctrl-stack { bottom: 122px; }
-.zoom-stack { bottom: 30px; }
+.ctrl-stack { bottom: 116px; }
+.zoom-stack { bottom: 24px; }
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -891,6 +965,68 @@ onBeforeUnmount(() => map?.remove())
 .parcel-btn:not(.off) { background: #eff6ff; color: #2563eb; }
 .parcel-btn:not(.off):hover:not(:disabled) { background: #dbeafe; color: #1d4ed8; }
 
+.map-wrap :deep(.parcel-area-label-wrap) {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
+}
+.map-wrap :deep(.parcel-area-label) {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow:
+    -1px -1px 0 rgba(15, 23, 42, 0.9),
+    1px -1px 0 rgba(15, 23, 42, 0.9),
+    -1px 1px 0 rgba(15, 23, 42, 0.9),
+    1px 1px 0 rgba(15, 23, 42, 0.9),
+    0 1px 2px rgba(15, 23, 42, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.parcel-summary {
+  position: absolute;
+  left: 12px;
+  bottom: 24px;
+  z-index: 1000;
+  width: max-content;
+  padding: 9px 11px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 9px;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+  backdrop-filter: blur(8px);
+}
+.summary-metrics { display: flex; align-items: flex-end; gap: 9px; }
+.summary-metric { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 3px; }
+.summary-metric > span { grid-column: 1 / -1; margin-bottom: 2px; color: #64748b; font-size: 10px; }
+.summary-metric strong {
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.summary-metric small { color: #64748b; font-size: 10px; }
+.summary-metric.area { min-width: 88px; }
+.summary-divider { width: 1px; height: 32px; background: #dbe3ed; }
+.summary-imagery {
+  margin: 8px -2px 0;
+  padding-top: 7px;
+  border-top: 1px solid #e2e8f0;
+  color: #166534;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.summary-imagery.off { color: #6b7280; }
 .rs-hint {
   position: absolute;
   left: 16px;
@@ -907,6 +1043,8 @@ onBeforeUnmount(() => map?.remove())
 
 @media (max-width: 720px) {
   .parcel-edit-toolbar { top: 64px; max-width: calc(100vw - 24px); }
+  .parcel-summary { padding: 8px 10px; }
+  .summary-metric strong { font-size: 17px; }
   .parcel-edit-toolbar.active { gap: 2px; }
   .edit-stat { padding-inline: 4px; }
   .edit-stat span:not(.stat-dot) { display: none; }
