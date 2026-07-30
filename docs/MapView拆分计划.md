@@ -1,287 +1,416 @@
-# MapView.vue 拆分计划
+# MapView.vue 分阶段拆分计划
 
-> 版本：v1（2026-07-30）
-> 状态：计划
+> 状态：待执行
+>
+> 目标文件：`web/src/components/MapView.vue`
+>
+> 原则：只做结构重构，不改变任何用户可见行为、空间数据口径或本机存储格式。
 
----
+## 1. 背景与基线
 
-## 1. 现状
+截至制定本计划时，`MapView.vue` 实测：
 
-| 指标 | 当前值 | 健康阈值 |
-|---|---:|---:|
-| 总行数 | **2,049 行** | <600 |
-| 文件大小 | 79.8 KB | <30 KB |
-| `<script setup>` | **1,349 行** | <400 |
-| `<template>` | 213 行 | <200 |
-| `<style scoped>` | 486 行 | <300 |
-| 函数 | **62 个** | <20 |
-| `ref` / `computed` | **35 个** | <15 |
-| 可变 `let` 状态 | **32 个** | <10 |
-| 第二大源码文件 | 145 行 | — |
-| 近 25 个相关提交 churn | **3,183 行** | — |
+| 指标 | 当前值 |
+|---|---:|
+| 总行数 | 2,049 行 |
+| 文件大小 | 79.8 KB |
+| Template | 213 行 |
+| Script | 1,349 行 |
+| Style | 486 行 |
+| 函数 | 62 个 |
+| `ref` / `computed` | 35 个 |
+| 可变 `let` 状态 | 32 个 |
+| 最近 25 个相关提交 churn | 3,183 行 |
 
-**根因**：地图、下钻、影像、AI 地块筛选、人工地块新增/编辑/移除/存储、图例、快捷键、弹窗全部塞在一个文件里，层层耦合。
+主要耦合点：
 
----
+- `renderParcelLayer()` 约 146 行，读取约 30 个共享绑定，同时渲染普通地块、人工地块、待保存地块和面积标签。
+- `clearLayers()` 读取或重置约 34 个共享绑定，地图生命周期与业务编辑状态混合。
+- 新增、筛选、编辑、图例、快捷键、弹窗和 Leaflet 图层都集中在同一 SFC。
+- 现有 13 项单元测试覆盖几何与本机存储，但不覆盖 `MapView` 的交互状态转换。
 
-## 2. 拆分原则
+## 2. 目标与非目标
 
-1. **不做大规模重写。** 每一阶段只提取一个高内聚职责到独立文件，提取后立即验证构建、测试和功能正常。
-2. **每阶段一个独立提交。** 方便用 `git log --oneline -- MapView.vue` 回溯。
-3. **共享状态通过 composable 回传。** 不新建 Pinia store 也不抽 Pinia 模块——当前的 `drilldown.ts` 已经承担了下钻路径状态，地块逻辑是纯地图交互状态，更适合 composable。
-4. **保留回滚路径。** 每阶段开始前标记当前提交哈希，如果该阶段发现不可行则 `git checkout -- <文件>` 回退。
+### 2.1 目标
 
----
+1. 将纯展示 UI、纯业务状态、Leaflet 图层控制按职责分开。
+2. 让按钮与快捷键复用同一业务动作，减少分支漂移。
+3. 为隐藏/恢复和人工地块批次状态补充可独立运行的单元测试。
+4. 将 `MapView.vue` 最终控制在约 500～800 行，保留地图装配与跨模块协调职责。
+5. 每个阶段可独立构建、提交和回滚，不允许跨阶段积压未验证修改。
 
-## 3. 三阶段计划
+### 2.2 非目标
 
-### 第一阶段：提取地块常量与样式（零耦合，无风险）
+- 不修改 `localStorage` key、版本或数据结构。
+- 不修改普通地块、人工地块、隐藏地块的颜色和交互语义。
+- 不修改行政区划下钻、影像加载、缩放阈值或 pane 层级。
+- 不引入新的全局状态库、UI 组件库或 Leaflet 替代方案。
+- 不顺带增加导入导出、后端同步、切割合并等新功能。
 
-**目标**：将 11 个 `const XXX_STYLE` + 地块主题色常量从 `<script setup>` 移到独立文件，连 `<style scoped>` 中的重复颜色值一起提取。
+## 3. 目标目录
 
-**提取文件**：`web/src/utils/parcelStyle.ts`
-
-**提取内容**：
-
+```text
+web/src/
+├── components/
+│   ├── MapView.vue
+│   └── map/
+│       ├── ParcelEditToolbar.vue
+│       ├── ParcelStatusCard.vue
+│       └── ManualConfirmDialog.vue
+├── features/
+│   └── parcels/
+│       ├── parcelTypes.ts
+│       ├── parcelStyles.ts
+│       ├── parcelFilterState.ts
+│       ├── parcelFilterState.spec.ts
+│       ├── manualBatchState.ts
+│       └── manualBatchState.spec.ts
+└── map/
+    ├── parcelLayerController.ts
+    ├── manualDrawingController.ts
+    └── mapNavigationController.ts
 ```
-- PARCEL_STYLE, PARCEL_EDIT_STYLE, PARCEL_HOVER_STYLE,
-  PARCEL_PENDING_HIDE_STYLE, PARCEL_HIDDEN_STYLE,
-  PARCEL_PENDING_RESTORE_STYLE,
-  MANUAL_PARCEL_STYLE, MANUAL_PARCEL_SELECTED_STYLE,
-  MANUAL_DRAFT_STYLE, MANUAL_PENDING_STYLE,
-  THEME, HOVER, PARCEL_EDIT_MIN_ZOOM, PARCEL_AREA_LABEL_MIN_ZOOM
-```
 
-**改动范围**：`MapView.vue` 删 30 行 + 1 行 `import`；新建 `parcelStyle.ts` 约 55 行。
+目录是目标形态，不要求一次创建。只有当前阶段实际需要的文件才落盘。
 
-**验证**：
+## 4. 阶段一：拆纯 UI 组件
 
-```bash
-cd web && pnpm build
-```
+### 4.1 范围
 
-**风险**：无。纯常量提取，运行时零 diff。
+仅移动模板、组件内交互外壳和对应样式。业务状态、Leaflet 实例、图层引用、保存逻辑和快捷键继续留在 `MapView.vue`。
 
-**预计**：10 分钟。
+按以下顺序执行，每一步完成后单独构建：
 
----
+1. `ParcelStatusCard.vue`
+2. `ManualConfirmDialog.vue`
+3. `ParcelEditToolbar.vue`
 
-### 第二阶段：提取 ParcelFilter composable（中等耦合，封闭边界）
+### 4.2 `ParcelStatusCard.vue`
 
-**目标**：将 AI 地块筛选相关状态和函数提取为 `useParcelFilter` composable，保留 `renderParcelLayer` 中对筛选状态的消费在 MapView 中。
+职责：
 
-**提取文件**：`web/src/composables/useParcelFilter.ts`
+- 正常查看态显示“当前地块 / 合计面积”。
+- 新增模式显示普通、隐藏普通、人工、本批新增图例。
+- 筛选模式显示可见、待隐藏、已隐藏、待恢复图例。
+- 无地块时显示独立影像说明。
 
-**提取内容**：
-
-| 类别 | 当前 in MapView |
-|---|---|
-| 类型 | `ParcelMode`, `ParcelId`, `ParcelEditRecord`, `ParcelEditStorage` |
-| 常量 | `PARCEL_STORAGE_KEY`, `PARCEL_DATASET_VERSION` |
-| 状态 | `hiddenParcelIds`, `pendingHideParcelIds`, `pendingRestoreParcelIds`, `hiddenParcelCount`, `pendingHideCount`, `pendingRestoreCount`, `pendingChangeCount` |
-| 函数 | `parcelId()`, `readParcelStorage()`, `persistHiddenParcelIds()`, `loadHiddenParcelIds()`, `toggleParcelFilterSelection()`, `startParcelEditing()`, `saveParcelEdits()`, `cancelParcelEditing()`, `resetHiddenParcels()` |
-| 交互 | `parcelEditStyle()`, `parcelEditActionLabel()`, `parcelEditTooltipClassName()` |
-
-**输入接口**：
+建议接口：
 
 ```ts
-interface UseParcelFilterOptions {
-  villageCode: ComputedRef<string>
-  parcelSource: ComputedRef<FeatureCollection | null>
-  manualParcels: ComputedRef<ManualParcelFeature[]>
-  map: ShallowRef<L.Map | null>
-  parcelMode: Ref<ParcelMode>
-  parcelOn: Ref<boolean>
-  // 渲染触发回调——composable 不持有渲染函数
-  onSave: (finalHidden: Set<ParcelId>) => void
-}
-```
-
-**输出接口**：
-
-```ts
-interface UseParcelFilterReturn {
-  hiddenParcelIds: Ref<Set<ParcelId>>
-  hasFilterableParcels: ComputedRef<boolean>
-  hiddenParcelCount: Ref<number>
-  pendingHideCount: Ref<number>
-  pendingRestoreCount: Ref<number>
-  pendingChangeCount: ComputedRef<number>
-  parcelEditStyle: (id: ParcelId) => L.PathOptions
-  toggleParcelFilterSelection: (id: ParcelId) => void
-  startParcelEditing: () => void
-  saveParcelEdits: () => void
-  cancelParcelEditing: () => void
-  resetHiddenParcels: () => void
-}
-```
-
-**MapView 保留不变**：`renderParcelLayer()`（约 146 行）、`render()`、地块点击选择、选中高亮。这些函数依赖 `renderParcelLayer` 内的局部闭包状态（如 `layer.on('click', ...)`），提取代价大于收益，等第三阶段用子组件解决。
-
-**验证**：
-
-```bash
-cd web && pnpm test
-cd web && pnpm build
-# 手动：进入村级 → 筛选地块 → 隐藏/恢复/保存 → 确认数据正确
-```
-
-**风险**：中等。`parcelEditStyle` 和 `toggleParcelFilterSelection` 在 `renderParcelLayer` 中被多层闭包引用。需要确保 composable 初始化时机在 `renderParcelLayer` 首次调用之前。
-
-**预计**：45 分钟。
-
----
-
-### 第三阶段：提取 ManualParcel composable + Legend 子组件（高风险，需冻结需求后执行）
-
-**子阶段 3A — ManualParcel composable**
-
-**目标**：将人工地块的新增、编辑、移除、保存、快捷键和状态管理提取为 `useManualParcel` composable。
-
-**提取文件**：`web/src/composables/useManualParcel.ts`
-
-**提取内容**（约 600 行，当前 MapView 中人工地块相关代码）：
-
-| 分组 | 包含 |
-|---|---|
-| 常量 | `MANUAL_PARCEL_NOTICE_KEY`（复用） |
-| 状态 | `manualDraftPoints`, `manualDraftDirty`, `pendingManualParcels`, `pendingManualEdits`, `pendingRemovedManualIds`, `editingManualOriginal`, `editingPendingManualId`, `editingBatchManualKind` |
-| 计算 | `batchSavedCount`, `batchHasChanges`, `manualDistinctPointCount`, `manualDraftAreaText` |
-| 图层 | `manualParcelLayer`, `pendingManualLayer`, `manualDraftLayer`, `manualVertexLayer`, `manualDraftAreaMarker`, `pendingActionMarker`, `batchAreaLabelLayer` |
-| 函数 | `startManualDrawing`, `startBatchDrawing`, `exitBatchDrawing`, `cancelManualBatch`, `onManualMapClick`, `onBatchMapClick`, `undoManualPoint`, `finishManualDrawing`, `startPendingManualEditing`, `finishPendingManualEditing`, `saveManualBatch`, `removeBatchManualParcel`, `renderManualDraft`, `renderPendingManualParcels`, `clearManualDraftLayers` |
-| 弹窗 | `manualDialog` 相关状态与键盘阻断 |
-
-**输入接口**：
-
-```ts
-interface UseManualParcelOptions {
-  villageCode: ComputedRef<string>
-  manualParcels: Ref<ManualParcelFeature[]>
-  parcelMode: Ref<ParcelMode>
-  parcelOn: Ref<boolean>
-  map: ShallowRef<L.Map | null>
-  beforeUnloadHandler: Ref<((e: BeforeUnloadEvent) => void) | null>
-  onSave: (nextFeatures: ManualParcelFeature[]) => void
-  onRefresh: () => void  // 保存成功后刷新地图
-}
-```
-
-**子阶段 3B — Legend 子组件**
-
-**目标**：将左下角的图例 / 统计卡片提取为独立组件，由 `MapView.vue` 根据 `parcelMode` 传入必要数据渲染。
-
-**提取文件**：`web/src/components/ParcelLegend.vue`
-
-**接口**：
-
-```ts
-interface Props {
-  mode: 'idle' | 'filter' | 'batch' | 'drawing'
+type Props = {
+  mode: ParcelMode
   parcelVisible: boolean
   parcelOn: boolean
-  count: number
-  areaMu: number
+  displayCount: number
+  displayAreaText: string
   rsHint: string
+  rsVisible: boolean
 }
 ```
 
-**子阶段 3C — Dialog 子组件**
+硬约束：
 
-**目标**：将自定义确认弹窗提取为 `ManualConfirmDialog.vue`，由 composable 通过回调控制打开/关闭。
+- 组件只决定卡片展示，不读取 store，不操作地图。
+- 将 `.parcel-summary`、`.parcel-legend`、`.legend-*`、`.summary-*`、`.rs-hint` 样式原样迁入。
+- DOM 文案、ARIA 标签和模式优先级保持不变。
 
-**提取文件**：`web/src/components/ManualConfirmDialog.vue`
+### 4.3 `ManualConfirmDialog.vue`
 
-**接口**：
+职责：
+
+- 展示统一确认弹窗。
+- 处理遮罩点击、取消、确认和打开后的焦点定位。
+
+建议接口：
 
 ```ts
-interface Props {
+type Props = {
   open: boolean
   title: string
   message: string
-  confirmLabel?: string
+  confirmLabel: string
 }
-interface Emits {
-  confirm: []
-  cancel: []
+
+type Emits = {
+  close: [confirmed: boolean]
 }
 ```
 
-**验证（全阶段）**：
+硬约束：
 
-```bash
-cd web && pnpm test && pnpm build
-# 完整手动验证：
-# 1. 进入村级 → 新增地块 → 绘制 → 闭合 → 修形 → 移除 → 保存 → 刷新后确认
-# 2. 筛选地块 → 隐藏/恢复 AI 和人工地块 → 保存 → 确认
-# 3. 取消 / Esc → 确认
-# 4. 返回上级 → 确认导航守卫
+- Promise 的创建与 resolve 仍由 `MapView.vue` 中的 `openManualDialog()` / `closeManualDialog()` 管理。
+- 全局 `Esc` 规则仍由 `MapView.vue` 管理；弹窗组件只通过 `close(false)` 关闭。
+- 保持 `role="alertdialog"`、`aria-modal`、标题与描述关联、打开后聚焦。
+
+### 4.4 `ParcelEditToolbar.vue`
+
+职责：
+
+- 根据 `ParcelMode` 渲染启动、筛选、新增查看、绘制和历史编辑工具栏。
+- 只发出动作事件，不调用存储、几何校验或 Leaflet API。
+
+建议 props：
+
+```ts
+type Props = {
+  mode: ParcelMode
+  parcelOn: boolean
+  hasFilterableParcels: boolean
+  hiddenCount: number
+  pendingHideCount: number
+  pendingRestoreCount: number
+  pendingChangeCount: number
+  batchSavedCount: number
+  draftPointCount: number
+  batchHasChanges: boolean
+  draftAreaText: string
+}
 ```
 
-**风险**：高。`renderParcelLayer` 同时渲染 AI 和人工地块，且通过闭包共享 `toggleParcelFilterSelection`、`hiddenParcelIds`、`parcelEditStyle` 等。需要确保 composable 之间状态一致，或者将 `renderParcelLayer` 也一并提取。
+建议 emits：
 
-**子阶段 3D（可选）— RenderParcel 分离**
+```ts
+'start-manual' | 'start-filter' | 'restore-all' |
+'save-filter' | 'cancel-filter' |
+'start-drawing' | 'exit-drawing' | 'undo-manual' |
+'save-batch' | 'cancel-batch' |
+'save-manual-edit' | 'cancel-manual-edit'
+```
 
-如果 3A 后发现 `renderParcelLayer` 依然太复杂（>150 行），可将其拆为独立的 `renderParcels.ts` 工具函数，接收 composable 回传的筛选状态纯参数化调用。
+硬约束：
 
----
+- 保持按钮顺序、禁用条件、title、文案和 SVG 不变。
+- 保持工具栏在村级才显示；是否处于村级仍由父组件决定。
+- 对 `saveManualBatch()`、`cancelManualBatch()` 等异步函数，父组件用事件处理器承接，不在子组件吞掉 Promise。
 
-## 4. 提交计划
+### 4.5 阶段一完成标准
 
-| 阶段 | 提交信息 | 变更行数估计 |
-|---|---|---|
-| 1 | `refactor(parcel): 提取地块常量与样式定义` | ~85 行 |
-| 2 | `refactor(parcel): 提取 AI 地块筛选为 useParcelFilter composable` | ~180 行 |
-| 3A | `refactor(parcel): 提取人工地块逻辑为 useManualParcel composable` | ~600 行 |
-| 3B | `refactor(parcel): 提取左下角图例为 ParcelLegend 子组件` | ~120 行 |
-| 3C | `refactor(parcel): 提取确认弹窗为 ManualConfirmDialog 子组件` | ~80 行 |
-| 3D | `refactor(parcel): 拆分 renderParcelLayer 为可测试函数` | ~150 行 |
+- 三个组件全部落盘，`MapView.vue` 不再包含其完整 DOM 和私有样式。
+- `MapView.vue` 中所有业务函数签名、Leaflet 图层变量和存储 key 未改变。
+- `MapView.vue` 总行数应下降到约 1,500 行以内；若未下降，检查是否遗留重复样式或模板。
+- 桌面宽屏和窄屏下的工具栏、图例、统计、弹窗位置与拆分前一致。
 
-每阶段提交前运行完整验证：
+### 4.6 阶段一提交边界
+
+建议拆成三个独立提交：
+
+```text
+refactor(map): 拆分地块统计与图例组件
+refactor(map): 拆分人工地块确认弹窗
+refactor(map): 拆分地块操作工具栏
+```
+
+每个提交必须可单独构建和回滚。
+
+## 5. 阶段二：抽取纯业务状态
+
+### 5.1 前置条件
+
+- 阶段一已完成并通过浏览器冒烟。
+- 不存在待合并的用户可见功能修改。
+- 先记录当前人工地块和隐藏记录的 `localStorage` 样例，重构后格式必须完全一致。
+
+### 5.2 公共类型与样式
+
+创建：
+
+- `parcelTypes.ts`：`ParcelMode`、`ParcelId`、筛选与批次状态类型。
+- `parcelStyles.ts`：`PARCEL_*`、`MANUAL_*` 的 `L.PathOptions` 常量。
+
+要求：
+
+- 只移动定义，不改变任何数值。
+- 样式常量仍是唯一事实来源，图例 CSS 暂不强行由 TS 生成。
+
+### 5.3 筛选状态模块
+
+`parcelFilterState.ts` 使用纯函数，不读写 `localStorage`：
+
+```ts
+createParcelFilterState(hiddenIds)
+toggleParcelFilterSelection(state, id)
+restoreAllParcels(state)
+calculateNextHiddenIds(state)
+getParcelFilterCounts(state)
+```
+
+必须覆盖：
+
+- 可见地块点击后进入/取消待隐藏。
+- 已隐藏地块点击后进入/取消待恢复。
+- 全部恢复不会覆盖待隐藏集合。
+- 保存结果严格满足“原隐藏 + 待隐藏 - 待恢复”。
+- 普通与人工地块 ID 使用同一集合时行为一致。
+
+### 5.4 人工批次状态模块
+
+`manualBatchState.ts` 只负责内存批次，不处理 Leaflet 或弹窗：
+
+```ts
+createManualBatchState()
+addPendingManualParcel(state, feature)
+updateManualParcel(state, feature, kind)
+removeManualParcel(state, id, kind)
+undoManualBatch(state)
+commitManualBatch(currentFeatures, state)
+resetManualBatch()
+```
+
+必须覆盖：
+
+- 新地块移除后从待保存集合消失。
+- 历史人工地块移除后进入待移除集合。
+- 历史地块修改后再移除，不残留待修改记录。
+- 取消批次恢复空状态，不修改正式人工地块。
+- 提交结果同时正确合并新增、修改、移除。
+
+### 5.5 阶段二完成标准
+
+- 新增纯状态测试，`pnpm test` 测试数明显增加。
+- 按钮、`N`、`Esc`、`Delete` 和地图点击最终调用相同状态动作。
+- `MapView.vue` 不再直接散布对三个批次数组的重复增删逻辑。
+- 存储模块 `manualParcelStorage.ts` 的数据结构和读写接口保持不变。
+
+### 5.6 阶段二提交边界
+
+```text
+refactor(parcel): 提取地块类型与样式定义
+refactor(parcel): 提取筛选状态与单元测试
+refactor(parcel): 提取人工批次状态与单元测试
+```
+
+## 6. 阶段三：拆 Leaflet 控制器
+
+### 6.1 前置条件
+
+- 阶段二测试覆盖筛选和人工批次核心转换。
+- 已完成新增、筛选、保存、取消、导航离开的浏览器冒烟。
+- 不与新的地图功能开发并行进行。
+
+### 6.2 `parcelLayerController.ts`
+
+拥有：
+
+- 普通地块、人工地块、待保存地块的 `L.GeoJSON` 引用。
+- 正常、筛选、新增模式的样式与交互绑定。
+- 面积标签和新增模式面积标签图层。
+- `render()`、`clear()`、`updateAreaLabels()`。
+
+不拥有：
+
+- `localStorage` 写入。
+- Vue 路由/行政下钻。
+- 批次保存与确认弹窗。
+
+### 6.3 `manualDrawingController.ts`
+
+拥有：
+
+- 开放折线/闭合编辑面的 Leaflet 图层。
+- 顶点 marker、拖动反馈、面积 marker、地块下方移除 marker。
+- 地图 click 事件注册与注销。
+
+通过回调上报：
+
+- 新增点。
+- 点击首点闭合。
+- 顶点拖动后的坐标。
+- 点击移除。
+- 点击地图空白失焦。
+
+控制器不得直接修改业务批次数组。
+
+### 6.4 `mapNavigationController.ts`
+
+最后拆分，负责：
+
+- 当前行政区域轮廓和子级边界。
+- 高分影像加载与开关。
+- 点击/缩放下钻、`flyToBounds`、自动层级切换。
+- 地图基础清理与销毁。
+
+地块业务拆分完成前不要先抽此模块，以免同时改变地图生命周期和业务状态。
+
+### 6.5 阶段三完成标准
+
+- 每个控制器明确拥有并清理自己的 Leaflet 图层与事件。
+- 不允许同一图层引用同时由 `MapView.vue` 和控制器写入。
+- `MapView.vue` 只保留地图创建、状态组合、控制器协调、store watch 和生命周期入口。
+- `MapView.vue` 目标规模 500～800 行；若为保持清晰略超出，不为达成行数强行拆碎。
+
+### 6.6 阶段三提交边界
+
+```text
+refactor(map): 提取地块图层控制器
+refactor(map): 提取人工绘制控制器
+refactor(map): 提取地图导航控制器
+```
+
+## 7. 每阶段验证
+
+### 7.1 自动验证
+
+每个提交前运行：
 
 ```bash
-cd web && pnpm test && pnpm build
+cd web
+pnpm test
+pnpm build
+```
+
+阶段末额外运行：
+
+```bash
 python scripts/validate-data.py
 git diff --check
+node C:/Users/zhudan/.agents/skills/impeccable/scripts/detect.mjs --json web/src/components/MapView.vue web/src/components/map
 ```
 
----
-
-## 5. 拆分后预期
-
-| 文件 | 职责 | 预估行数 |
-|---|---:|---:|
-| `MapView.vue` | 地图初始化、下钻、影像、布局编排、状态组合 | ~700 |
-| `composables/useParcelFilter.ts` | AI 地块筛选状态与操作 | ~200 |
-| `composables/useManualParcel.ts` | 人工地块新增/编辑/移除/存储 | ~450 |
-| `components/ParcelLegend.vue` | 左下角图例与统计卡片 | ~80 |
-| `components/ManualConfirmDialog.vue` | 自定义确认弹窗 | ~60 |
-| `utils/parcelStyle.ts` | 地块样式常量与主题色 | ~55 |
-
-`MapView.vue` 从 **2,049 行 → 约 700 行**（-65%），单一函数不超过 60 行。
-
----
-
-## 6. 不做的事（范围外）
-
-- 不新建 Pinia store。
-- 不改动 `drilldown.ts` store 结构。
-- 不改动路由、`main.ts`、`App.vue`。
-- 不改动测试文件（composable 提取后仅添加集成测试）。
-- 不改动 Python 数据脚本。
-- 不改动已有 git 历史。
-
----
-
-## 7. 回滚方案
-
-每阶段开始前：
+若改动涉及行政编码，再运行：
 
 ```bash
-git tag refactor-checkpoint-<阶段名>
+python scripts/check-codes.py
 ```
 
-阶段验证不通过则：
+### 7.2 浏览器冒烟矩阵
 
-```bash
-git checkout refactor-checkpoint-<阶段名> -- web/src/components/MapView.vue <新建文件>
-```
+| 场景 | 必验行为 |
+|---|---|
+| 正常查看 | 行政下钻、影像开关、地块开关、统计和面积标签正常 |
+| 筛选模式 | 普通/人工地块可隐藏与恢复；全部恢复、保存、取消和图例正确 |
+| 新增查看态 | 历史人工地块与待保存地块可选择、修形、移除；紫色样式正确 |
+| 新增绘制态 | `N` 状态机、点击首点闭合、退出绘制、面积反馈正确 |
+| 键盘操作 | `Esc` 等同取消；`Delete` 等同移除；`Ctrl/Cmd+Z` 等同撤销 |
+| 持久化 | 保存后刷新结果保留；取消不改变正式记录；隐藏 ID 无残留 |
+| 导航保护 | 有未保存操作时返回、面包屑、刷新和关闭页面仍提示 |
+| 响应式 | 720px 与 520px 断点下工具栏、图例和弹窗不溢出 |
+
+## 8. 防回归规则
+
+- 不允许在同一提交中同时重构和修改产品行为。
+- 不允许通过复制函数到新文件后保留旧实现；每个职责只能有一个事实来源。
+- 不允许为了减少 props 把瞬时编辑状态直接放进全局 Pinia。
+- 不允许控制器自行访问 `localStorage`；持久化继续通过现有存储函数完成。
+- 不允许用整文件 `git checkout` / `restore` 回滚，以免覆盖并行或既有修改。
+
+## 9. 停止与回滚条件
+
+任一条件出现时停止当前阶段，不继续下一阶段：
+
+- `pnpm test` 或 `pnpm build` 失败。
+- 浏览器冒烟中出现图层重复、点击执行两次、地图自动退级或保存结果丢失。
+- 新模块需要传入超过约 15 个独立参数且无法组合成清晰状态对象。
+- 为抽离一个函数必须让两个模块相互导入。
+- 无法明确某个 Leaflet 图层或事件由谁创建、更新、注销。
+
+回滚方式：仅回滚当前阶段最近的独立提交，保留此前已验收阶段。
+
+## 10. 完成定义
+
+全部阶段完成需同时满足：
+
+1. `MapView.vue` 只承担地图装配、状态组合和跨模块协调。
+2. UI 子组件不读取地图实例或业务存储。
+3. 筛选与人工批次核心状态转换有单元测试。
+4. Leaflet 图层和事件均有唯一 owner，并在切村和卸载时清理。
+5. 自动验证和浏览器冒烟矩阵全部通过，需求文档无需因重构改变产品规格。
