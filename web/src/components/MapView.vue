@@ -86,6 +86,7 @@ let rsInfo: RsInfo | null = null
 let flySeq = 0
 let firstRender = true
 let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
+let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
 let basemaps: Basemaps
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
@@ -156,6 +157,10 @@ async function render(noFly = false) {
     bounds = L.geoJSON(prov).getBounds()
   }
   if (!noFly && bounds.isValid()) {
+    // zoomend 早于 moveend：保持抑制到本次程序化移动完全结束，防止点击下钻后被自动退出逻辑撤销。
+    suppressAutoZoom = true
+    map.once('moveend', () => { suppressAutoZoom = false })
+    setTimeout(() => { suppressAutoZoom = false }, 1500)
     if (firstRender) {
       // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
       map.fitBounds(bounds.pad(0.02))
@@ -242,8 +247,13 @@ async function render(noFly = false) {
         rsHint.value = `吉林一号 0.5m 影像 · AI 识别地块 ${parcels.features.length.toLocaleString()} 个（演示）`
       }
 
-      // 视野缩放低于瓦片最低级别时抬到最低级, 避免整层不显示
-      if (map.getZoom() < rsInfo.minZoom) map.setZoom(rsInfo.minZoom)
+      // 程序化抬升到影像最低级别时也禁止触发自动退出村级。
+      if (map.getZoom() < rsInfo.minZoom) {
+        suppressAutoZoom = true
+        map.once('zoomend', () => { suppressAutoZoom = false })
+        setTimeout(() => { suppressAutoZoom = false }, 500)
+        map.setZoom(rsInfo.minZoom)
+      }
     } else {
       rsHint.value = '该村不在高分影像覆盖范围内'
     }
@@ -258,6 +268,7 @@ watch(() => store.path.length, () => {
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
+  if (suppressAutoZoom) return
   const crumb = store.current
   const z = map.getZoom()
 
