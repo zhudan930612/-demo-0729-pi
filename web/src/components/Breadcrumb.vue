@@ -1,7 +1,11 @@
 <template>
   <div class="crumb-bar">
-    <button v-if="store.path.length > 1" class="back-btn" @click="store.back()">
-      ← 回到上级
+    <button v-if="store.path.length > 1" type="button" class="back-btn" @click="store.back()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m15 18-6-6 6-6" />
+      </svg>
+      返回上级
     </button>
     <nav class="crumbs">
       <template v-for="(c, i) in store.path" :key="c.code + c.level">
@@ -27,28 +31,58 @@ const store = useDrilldownStore()
   top: 12px;
   left: 12px;
   z-index: 1000;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  font-size: 14px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  backdrop-filter: blur(8px);
 }
 .back-btn {
-  border: none;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px 0 8px;
+  border: 0;
+  border-radius: 7px;
   background: #2563eb;
   color: #fff;
-  padding: 4px 10px;
-  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font: inherit;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25);
+  transition: background-color 160ms ease;
 }
+.back-btn svg { width: 16px; height: 16px; }
 .back-btn:hover { background: #1d4ed8; }
-.crumbs { display: flex; align-items: center; gap: 6px; }
-.crumb.active { font-weight: 600; color: #111827; }
+.back-btn:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: 2px; }
+.crumbs {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+.crumb {
+  padding: 5px 4px;
+  border-radius: 5px;
+  color: #475569;
+  line-height: 1.3;
+}
+.crumb.active { font-weight: 650; color: #0f172a; }
 .crumb.clickable { color: #2563eb; cursor: pointer; }
-.crumb.clickable:hover { text-decoration: underline; }
-.sep { color: #9ca3af; }
+.crumb.clickable:hover { background: #eff6ff; color: #1d4ed8; }
+.sep { color: #94a3b8; }
+
+@media (max-width: 720px) {
+  .crumb-bar { right: 12px; overflow: hidden; }
+  .crumbs { overflow-x: auto; }
+}
 </style>
