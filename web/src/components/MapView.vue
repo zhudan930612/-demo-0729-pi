@@ -1136,14 +1136,11 @@ async function saveManualBatch() {
 }
 
 async function cancelManualBatch(silent = false) {
-  const pendingCount = pendingManualParcels.value.length
-  const changedCount = pendingManualEdits.value.length
-  const removedCount = pendingRemovedManualIds.value.length
   const hasOpenDraft = manualDraftPoints.value.length > 0 && !editingPendingManualId
   const hasPendingEdit = Boolean(editingPendingManualId)
-  const hasContent = pendingCount > 0 || changedCount > 0 || removedCount > 0 || hasOpenDraft || hasPendingEdit
+  const hasContent = pendingManualParcels.value.length > 0 || pendingManualEdits.value.length > 0 || pendingRemovedManualIds.value.length > 0 || hasOpenDraft || hasPendingEdit
   if (!silent && hasContent
-      && !await openManualDialog('取消新增地块', `将放弃本批次 ${pendingCount} 个待保存地块、${changedCount} 个修改和 ${removedCount} 个移除${hasOpenDraft ? '，以及当前未闭合地块' : ''}，是否继续？`, '放弃本批次')) return
+      && !await openManualDialog('取消新增地块', '当前有未保存的操作，是否确认放弃？', '确认放弃')) return
   pendingManualParcels.value = []
   pendingManualEdits.value = []
   pendingRemovedManualIds.value = []
