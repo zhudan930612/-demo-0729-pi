@@ -1,15 +1,15 @@
 <template>
-  <div class="map-wrap" :class="{ 'parcel-editing': parcelEditing }">
+  <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle' && parcelMode !== 'selected', 'parcel-drawing': parcelMode === 'drawing' }">
     <div ref="mapEl" class="map"></div>
 
-    <!-- 仅在地块图层显示时出现；编辑中替换为保存/取消 -->
+    <!-- 村级地块业务操作：新增与 AI 筛选保持同组常驻，进入模式后原位替换。 -->
     <div
-      v-if="parcelVisible && parcelOn && (parcelDisplayCount > 0 || hiddenParcelCount > 0)"
+      v-if="store.current.level === 'village'"
       class="parcel-edit-toolbar"
-      :class="{ active: parcelEditing }"
-      aria-label="地块编辑工具"
+      :class="{ active: parcelMode !== 'idle' }"
+      aria-label="地块操作工具"
     >
-      <template v-if="parcelEditing">
+      <template v-if="parcelMode === 'filter'">
         <div class="edit-stat">
           <span class="stat-dot hidden" aria-hidden="true"></span>
           <span>已隐藏</span>
@@ -33,30 +33,53 @@
           <span>待恢复</span>
           <strong>{{ pendingRestoreCount }}</strong>
         </div>
-        <button
-          type="button"
-          class="edit-action primary"
-          :disabled="pendingChangeCount === 0"
-          @click="saveParcelEdits"
-        >保存更改</button>
+        <button type="button" class="edit-action primary" :disabled="pendingChangeCount === 0" @click="saveParcelEdits">保存更改</button>
         <button type="button" class="edit-action cancel" @click="cancelParcelEditing">取消</button>
       </template>
-      <button
-        v-else
-        type="button"
-        class="edit-launch"
-        @click="startParcelEditing"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-        </svg>
-        编辑地块
-      </button>
+
+      <template v-else-if="parcelMode === 'drawing'">
+        <div class="draw-guide"><strong>正在绘制</strong><span>单击地图添加顶点</span><small>{{ manualDraftPoints.length }} 点</small></div>
+        <button type="button" class="edit-action" :disabled="manualDraftPoints.length === 0" @click="undoManualPoint">撤销一点</button>
+        <button type="button" class="edit-action primary" :disabled="manualDistinctPointCount < 3" @click="finishManualDrawing">完成绘制</button>
+        <button type="button" class="edit-action cancel" @click="cancelManualSession">取消</button>
+      </template>
+
+      <template v-else-if="parcelMode === 'review' || parcelMode === 'editing'">
+        <div class="draw-guide"><strong>{{ parcelMode === 'review' ? '调整新地块' : '编辑人工地块' }}</strong><span>拖动顶点修正边界</span><small>{{ manualDraftAreaText }}</small></div>
+        <button type="button" class="edit-action primary" @click="saveManualDraft">保存</button>
+        <button type="button" class="edit-action cancel" @click="cancelManualSession">取消</button>
+      </template>
+
+      <template v-else-if="parcelMode === 'selected'">
+        <div class="draw-guide selected"><strong>人工绘制</strong><small>{{ selectedManualAreaText }}</small></div>
+        <button type="button" class="edit-action" @click="editSelectedManualParcel">编辑边界</button>
+        <button type="button" class="edit-action danger" @click="deleteSelectedManualParcel">删除地块</button>
+        <button type="button" class="edit-action cancel" @click="clearManualSelection">取消选择</button>
+      </template>
+
+      <template v-else>
+        <button type="button" class="edit-launch primary-launch" @click="startManualDrawing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m4 5 7-2 5 5-2 10-9 2-2-8Z" /><path d="M18 13v8M14 17h8" />
+          </svg>
+          新增地块
+        </button>
+        <button
+          type="button"
+          class="edit-launch"
+          :disabled="!parcelOn || !hasAiParcels"
+          :title="hasAiParcels ? '筛选地块' : '当前村没有可筛选的地块'"
+          @click="startParcelEditing"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 5h16l-6.5 7.2V19l-3 1.5v-8.3Z" />
+          </svg>
+          筛选地块
+        </button>
+      </template>
     </div>
 
-    <div v-if="saveNotice" class="save-notice" role="status" aria-live="polite">
+    <div v-if="saveNotice" class="save-notice" :class="{ error: saveNoticeError }" role="status" aria-live="polite">
       {{ saveNotice }}
     </div>
 
@@ -112,8 +135,8 @@
         v-if="parcelVisible"
         class="icon-btn parcel-btn"
         :class="{ off: !parcelOn }"
-        :disabled="parcelEditing"
-        :title="parcelEditing ? '编辑地块时不能关闭图层' : (parcelOn ? '地块：开（点击关闭）' : '地块：关（点击打开）')"
+        :disabled="parcelMode !== 'idle' && parcelMode !== 'selected'"
+        :title="parcelMode !== 'idle' && parcelMode !== 'selected' ? '操作地块时不能关闭图层' : (parcelOn ? '地块：开（点击关闭）' : '地块：关（点击打开）')"
         @click="toggleParcels"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -146,7 +169,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
-import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import {
   useDrilldownStore,
   childrenUrl,
@@ -157,6 +180,14 @@ import {
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
 import { pointInGeometry } from '../utils/geo'
+import { inspectManualGeometry, prepareManualGeometry } from '../utils/parcelGeometry'
+import {
+  MANUAL_PARCEL_NOTICE_KEY,
+  makeManualParcel,
+  readManualParcels,
+  writeManualParcels,
+  type ManualParcelFeature,
+} from '../utils/manualParcelStorage'
 
 // 缩放下钻阈值: 放大进入下一级 / 缩小退回上级(差 0.5 级防抖滞后)
 const ENTER_ZOOM: Partial<Record<string, number>> = {
@@ -217,6 +248,28 @@ const PARCEL_PENDING_RESTORE_STYLE: L.PathOptions = {
   fillColor: '#16a34a',
   fillOpacity: 0.34,
 }
+const MANUAL_PARCEL_STYLE: L.PathOptions = {
+  color: '#a855f7',
+  weight: 2.4,
+  opacity: 1,
+  fillColor: '#c084fc',
+  fillOpacity: 0.24,
+}
+const MANUAL_PARCEL_SELECTED_STYLE: L.PathOptions = {
+  color: '#f8fafc',
+  weight: 4,
+  opacity: 1,
+  fillColor: '#a855f7',
+  fillOpacity: 0.42,
+}
+const MANUAL_DRAFT_STYLE: L.PathOptions = {
+  color: '#e879f9',
+  weight: 3,
+  opacity: 1,
+  fillColor: '#c026d3',
+  fillOpacity: 0.25,
+  dashArray: '8 5',
+}
 const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
@@ -225,6 +278,7 @@ const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
 const M2_PER_MU = 2000 / 3
 
 type ParcelId = string
+type ParcelMode = 'idle' | 'filter' | 'drawing' | 'review' | 'selected' | 'editing'
 interface ParcelEditRecord {
   datasetVersion: string
   hiddenIds: ParcelId[]
@@ -241,12 +295,22 @@ const rsHint = ref('')
 const rsOn = ref(true)
 const parcelVisible = ref(false)
 const parcelOn = ref(true)
-const parcelEditing = ref(false)
+const parcelMode = ref<ParcelMode>('idle')
+const hasAiParcels = ref(false)
+const manualDraftPoints = ref<Position[]>([])
+const manualDraftDirty = ref(false)
+const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
+const manualDraftAreaText = computed(() => {
+  const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
+  return prepared ? `${prepared.areaMu.toFixed(2)} 亩` : '边界待校验'
+})
+const selectedManualAreaText = ref('')
 const pendingHideCount = ref(0)
 const pendingRestoreCount = ref(0)
 const pendingChangeCount = computed(() => pendingHideCount.value + pendingRestoreCount.value)
 const hiddenParcelCount = ref(0)
 const saveNotice = ref('')
+const saveNoticeError = ref(false)
 const parcelDisplayCount = ref(0)
 const parcelDisplayAreaMu = ref(0)
 const parcelDisplayAreaText = computed(() => parcelDisplayAreaMu.value.toLocaleString('zh-CN', {
@@ -268,9 +332,15 @@ let childLayer: L.GeoJSON | null = null
 let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
 let parcelLayer: L.GeoJSON | null = null
+let manualParcelLayer: L.GeoJSON | null = null
+let manualDraftLayer: L.Polygon | L.Polyline | null = null
+let manualVertexLayer: L.LayerGroup | null = null
 let parcelAreaLabelLayer: L.LayerGroup | null = null
 let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
+let manualParcels: ManualParcelFeature[] = []
+let selectedManualParcel: ManualParcelFeature | null = null
+let editingManualOriginal: ManualParcelFeature | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
 let pendingHideParcelIds = new Set<ParcelId>()
@@ -282,6 +352,7 @@ let firstRender = true
 let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
 let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
 let basemaps: Basemaps
+let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
@@ -305,16 +376,19 @@ const baseStyle = (level: keyof typeof LEVEL_WEIGHT): L.PathOptions => ({
 })
 
 function clearLayers() {
-  if (parcelEditing.value && map) {
-    map.setMinZoom(DEFAULT_MIN_ZOOM)
-    mapMinZoom.value = DEFAULT_MIN_ZOOM
-  }
-  parcelEditing.value = false
+  leaveParcelWorkMode()
   pendingHideParcelIds.clear()
   pendingRestoreParcelIds.clear()
   pendingHideCount.value = 0
   pendingRestoreCount.value = 0
   parcelSource = null
+  hasAiParcels.value = false
+  manualParcels = []
+  selectedManualParcel = null
+  editingManualOriginal = null
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
+  selectedManualAreaText.value = ''
   parcelVillageCode = ''
   hiddenParcelIds.clear()
   hiddenParcelCount.value = 0
@@ -324,8 +398,9 @@ function clearLayers() {
   if (outlineLayer) { outlineLayer.remove(); outlineLayer = null }
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
+  if (manualParcelLayer) { manualParcelLayer.remove(); manualParcelLayer = null }
+  clearManualDraftLayers()
   if (parcelAreaLabelLayer) { parcelAreaLabelLayer.remove(); parcelAreaLabelLayer = null }
-  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   rsVisible.value = false
   parcelVisible.value = false
   rsHint.value = ''
@@ -341,12 +416,10 @@ function toggleRs() {
 
 /** AI 地块独立开/关 */
 function toggleParcels() {
-  if (parcelEditing.value) return
+  if (parcelMode.value !== 'idle' && parcelMode.value !== 'selected') return
+  if (parcelMode.value === 'selected') clearManualSelection()
   parcelOn.value = !parcelOn.value
-  parcelLayer?.setStyle(parcelOn.value
-    ? PARCEL_STYLE
-    : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 })
-  updateParcelAreaLabels()
+  renderParcelLayer()
 }
 
 function zoomIn() {
@@ -400,16 +473,19 @@ function persistHiddenParcelIds(villageCode: string, ids: Set<ParcelId>): boolea
 
 function updateParcelAreaLabels() {
   parcelAreaLabelLayer?.clearLayers()
-  if (!parcelSource || !parcelVisible.value || !parcelOn.value || map.getZoom() < PARCEL_AREA_LABEL_MIN_ZOOM) return
+  if (!parcelVisible.value || !parcelOn.value || map.getZoom() < PARCEL_AREA_LABEL_MIN_ZOOM) return
 
-  if (!parcelAreaLabelLayer) {
-    parcelAreaLabelLayer = L.layerGroup().addTo(map)
-  }
+  if (!parcelAreaLabelLayer) parcelAreaLabelLayer = L.layerGroup().addTo(map)
   const view = map.getBounds().pad(0.05)
-  for (const feature of parcelSource.features) {
+  const displayedFeatures: Feature[] = [
+    ...(parcelSource?.features.filter((feature) => {
+      const id = parcelId(feature)
+      return parcelMode.value === 'filter' || id === null || !hiddenParcelIds.has(id)
+    }) ?? []),
+    ...manualParcels,
+  ]
+  for (const feature of displayedFeatures) {
     const properties = feature.properties ?? {}
-    const id = parcelId(feature)
-    if (!parcelEditing.value && id && hiddenParcelIds.has(id)) continue
     const lng = Number(properties.label_lng)
     const lat = Number(properties.label_lat)
     const areaMu = Number(properties.area_mu)
@@ -423,12 +499,7 @@ function updateParcelAreaLabels() {
       iconSize: undefined,
       iconAnchor: [0, 0],
     })
-    L.marker(point, {
-      pane: 'parcelLabelPane',
-      icon,
-      interactive: false,
-      keyboard: false,
-    }).addTo(parcelAreaLabelLayer)
+    L.marker(point, { pane: 'parcelLabelPane', icon, interactive: false, keyboard: false }).addTo(parcelAreaLabelLayer)
   }
 }
 
@@ -454,18 +525,21 @@ function syncPendingParcelCounts() {
 
 function renderParcelLayer() {
   parcelLayer?.remove()
+  manualParcelLayer?.remove()
   parcelLayer = null
-  if (!parcelSource) return
+  manualParcelLayer = null
 
-  const visibleFeatures = parcelSource.features.filter((feature) => {
+  const aiFeatures = parcelSource?.features ?? []
+  const visibleAiFeatures = aiFeatures.filter((feature) => {
     const id = parcelId(feature)
-    return parcelEditing.value || id === null || !hiddenParcelIds.has(id)
+    return parcelMode.value === 'filter' || id === null || !hiddenParcelIds.has(id)
   })
-  hiddenParcelCount.value = hiddenParcelIds.size
-  const displayedFeatures = parcelSource.features.filter((feature) => {
+  const displayedAi = aiFeatures.filter((feature) => {
     const id = parcelId(feature)
     return id === null || !hiddenParcelIds.has(id)
   })
+  hiddenParcelCount.value = hiddenParcelIds.size
+  const displayedFeatures: Feature[] = [...displayedAi, ...manualParcels]
   parcelDisplayCount.value = displayedFeatures.length
   parcelDisplayAreaMu.value = displayedFeatures.reduce((total, feature) => {
     const areaM2 = Number(feature.properties?.area_m2)
@@ -473,59 +547,102 @@ function renderParcelLayer() {
     const areaMu = Number(feature.properties?.area_mu)
     return Number.isFinite(areaMu) ? total + areaMu : total
   }, 0)
+  parcelVisible.value = aiFeatures.length > 0 || manualParcels.length > 0
 
-  const visibleParcels: FeatureCollection = { type: 'FeatureCollection', features: visibleFeatures }
-  parcelLayer = L.geoJSON(visibleParcels, {
-    interactive: parcelEditing.value && parcelOn.value,
-    style: (feature) => {
-      const id = feature ? parcelId(feature as Feature) : null
-      if (parcelEditing.value) return parcelEditStyle(id)
-      return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
-    },
-    onEachFeature: (feature: Feature, layer: L.Layer) => {
-      const path = layer as L.Path
-      const id = parcelId(feature)
-      if (id) {
-        const actionClass = hiddenParcelIds.has(id) ? 'restore' : 'hide'
-        layer.bindTooltip(parcelEditActionLabel(id), {
-          sticky: true,
-          direction: 'top',
-          className: `parcel-edit-tooltip ${actionClass}`,
-        })
-      }
-      layer.on('mouseover', () => {
-        if (!parcelEditing.value || !id) return
-        const isUnchangedVisible = !hiddenParcelIds.has(id) && !pendingHideParcelIds.has(id)
-        const style = isUnchangedVisible
-          ? PARCEL_HOVER_STYLE
-          : { ...parcelEditStyle(id), color: PARCEL_HOVER_STYLE.color, weight: PARCEL_HOVER_STYLE.weight }
-        path.setStyle(style)
-        path.bringToFront()
-      })
-      layer.on('mouseout', () => {
-        if (!parcelEditing.value || !id) return
-        path.setStyle(parcelEditStyle(id))
-      })
-      layer.on('click', (event) => {
-        if (!parcelEditing.value) return
-        L.DomEvent.stopPropagation(event)
-        if (!id) return
-        if (hiddenParcelIds.has(id)) {
-          if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
-          else pendingRestoreParcelIds.add(id)
-        } else if (pendingHideParcelIds.has(id)) {
-          pendingHideParcelIds.delete(id)
-        } else {
-          pendingHideParcelIds.add(id)
+  if (visibleAiFeatures.length) {
+    const visibleParcels: FeatureCollection = { type: 'FeatureCollection', features: visibleAiFeatures }
+    parcelLayer = L.geoJSON(visibleParcels, {
+      interactive: parcelMode.value === 'filter' && parcelOn.value,
+      style: (feature) => {
+        const id = feature ? parcelId(feature as Feature) : null
+        if (parcelMode.value === 'filter') return parcelEditStyle(id)
+        return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
+      },
+      onEachFeature: (feature: Feature, layer: L.Layer) => {
+        const path = layer as L.Path
+        const id = parcelId(feature)
+        if (parcelMode.value === 'filter' && id) {
+          const actionClass = hiddenParcelIds.has(id) ? 'restore' : 'hide'
+          layer.bindTooltip(parcelEditActionLabel(id), { sticky: true, direction: 'top', className: `parcel-edit-tooltip ${actionClass}` })
         }
-        syncPendingParcelCounts()
-        path.setStyle(parcelEditStyle(id))
-        path.setTooltipContent(parcelEditActionLabel(id))
-      })
-    },
-  }).addTo(map)
+        layer.on('mouseover', () => {
+          if (parcelMode.value !== 'filter' || !id) return
+          const unchanged = !hiddenParcelIds.has(id) && !pendingHideParcelIds.has(id)
+          path.setStyle(unchanged ? PARCEL_HOVER_STYLE : { ...parcelEditStyle(id), color: PARCEL_HOVER_STYLE.color, weight: PARCEL_HOVER_STYLE.weight })
+          path.bringToFront()
+        })
+        layer.on('mouseout', () => {
+          if (parcelMode.value === 'filter' && id) path.setStyle(parcelEditStyle(id))
+        })
+        layer.on('click', (event) => {
+          if (parcelMode.value !== 'filter' || !id) return
+          L.DomEvent.stopPropagation(event)
+          if (hiddenParcelIds.has(id)) {
+            if (pendingRestoreParcelIds.has(id)) pendingRestoreParcelIds.delete(id)
+            else pendingRestoreParcelIds.add(id)
+          } else if (pendingHideParcelIds.has(id)) pendingHideParcelIds.delete(id)
+          else pendingHideParcelIds.add(id)
+          syncPendingParcelCounts()
+          path.setStyle(parcelEditStyle(id))
+          path.setTooltipContent(parcelEditActionLabel(id))
+        })
+      },
+    }).addTo(map)
+  }
+
+  const visibleManualParcels = parcelMode.value === 'editing'
+    ? manualParcels.filter((feature) => feature.properties.id !== editingManualOriginal?.properties.id)
+    : manualParcels
+  if (visibleManualParcels.length) {
+    const manualCollection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
+    manualParcelLayer = L.geoJSON(manualCollection, {
+      interactive: parcelOn.value && (parcelMode.value === 'idle' || parcelMode.value === 'selected'),
+      style: (feature) => {
+        const selected = feature?.properties?.id === selectedManualParcel?.properties.id
+        if (!parcelOn.value) return { ...MANUAL_PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
+        return selected ? MANUAL_PARCEL_SELECTED_STYLE : MANUAL_PARCEL_STYLE
+      },
+      onEachFeature: (feature: Feature, layer: L.Layer) => {
+        const manual = feature as ManualParcelFeature
+        layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
+        layer.on('click', (event) => {
+          if (!parcelOn.value || (parcelMode.value !== 'idle' && parcelMode.value !== 'selected')) return
+          L.DomEvent.stopPropagation(event)
+          selectedManualParcel = manual
+          selectedManualAreaText.value = `${manual.properties.area_mu.toFixed(2)} 亩`
+          parcelMode.value = 'selected'
+          renderParcelLayer()
+        })
+      },
+    }).addTo(map)
+  }
   outlineLayer?.bringToFront()
   updateParcelAreaLabels()
+}
+
+function enterParcelWorkMode(mode: ParcelMode, dim = true) {
+  parcelMode.value = mode
+  map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
+  mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
+  if (dim && !editDimLayer) {
+    editDimLayer = L.rectangle([[-85, -180], [85, 180]], {
+      pane: 'editDimmingPane',
+      stroke: false,
+      fillColor: '#0f172a',
+      fillOpacity: 0.34,
+      interactive: false,
+    }).addTo(map)
+  }
+}
+
+function leaveParcelWorkMode() {
+  parcelMode.value = 'idle'
+  if (map) {
+    map.off('click', onManualMapClick)
+    map.setMinZoom(DEFAULT_MIN_ZOOM)
+  }
+  mapMinZoom.value = DEFAULT_MIN_ZOOM
+  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
 }
 
 function startParcelEditing() {
@@ -533,34 +650,20 @@ function startParcelEditing() {
   pendingHideParcelIds.clear()
   pendingRestoreParcelIds.clear()
   syncPendingParcelCounts()
-  parcelEditing.value = true
-  map.setMinZoom(PARCEL_EDIT_MIN_ZOOM)
-  mapMinZoom.value = PARCEL_EDIT_MIN_ZOOM
-  editDimLayer = L.rectangle([[-85, -180], [85, 180]], {
-    pane: 'editDimmingPane',
-    stroke: false,
-    fillColor: '#0f172a',
-    fillOpacity: 0.34,
-    interactive: false,
-  }).addTo(map)
+  enterParcelWorkMode('filter')
   renderParcelLayer()
 }
 
 function finishParcelEditing() {
-  parcelEditing.value = false
+  leaveParcelWorkMode()
   pendingHideParcelIds.clear()
   pendingRestoreParcelIds.clear()
   syncPendingParcelCounts()
-  map.setMinZoom(DEFAULT_MIN_ZOOM)
-  mapMinZoom.value = DEFAULT_MIN_ZOOM
-  if (editDimLayer) { editDimLayer.remove(); editDimLayer = null }
   renderParcelLayer()
 }
 
 function showSaveNotice(hiddenCount: number, restoredCount: number) {
-  if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
-  saveNotice.value = `已隐藏 ${hiddenCount} 个地块，恢复 ${restoredCount} 个地块`
-  saveNoticeTimer = setTimeout(() => { saveNotice.value = '' }, 3000)
+  showNotice(`已隐藏 ${hiddenCount} 个地块，恢复 ${restoredCount} 个地块`)
 }
 
 function saveParcelEdits() {
@@ -587,6 +690,200 @@ function restoreAllHiddenParcels() {
   pendingRestoreParcelIds = new Set(hiddenParcelIds)
   syncPendingParcelCounts()
   renderParcelLayer()
+}
+
+function showNotice(message: string, error = false) {
+  if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
+  saveNoticeError.value = error
+  saveNotice.value = message
+  saveNoticeTimer = setTimeout(() => { saveNotice.value = ''; saveNoticeError.value = false }, error ? 5000 : 3000)
+}
+
+function showManualStorageNoticeOnce() {
+  try {
+    if (localStorage.getItem(MANUAL_PARCEL_NOTICE_KEY)) return
+    window.alert('人工地块仅保存在当前浏览器。清理浏览器数据、更换浏览器或设备后将无法恢复。')
+    localStorage.setItem(MANUAL_PARCEL_NOTICE_KEY, 'shown')
+  } catch {
+    // 存储不可用会在实际保存时给出明确错误，不阻塞绘制。
+  }
+}
+
+function clearManualDraftLayers() {
+  if (manualDraftLayer) { manualDraftLayer.remove(); manualDraftLayer = null }
+  if (manualVertexLayer) { manualVertexLayer.remove(); manualVertexLayer = null }
+}
+
+function toLatLngs(points: Position[]): L.LatLngExpression[] {
+  return points.map(([lng, lat]) => L.latLng(lat, lng))
+}
+
+function renderManualDraft(editable: boolean) {
+  clearManualDraftLayers()
+  if (!manualDraftPoints.value.length) return
+  if (editable) {
+    manualDraftLayer = L.polygon(toLatLngs(manualDraftPoints.value), MANUAL_DRAFT_STYLE).addTo(map)
+    const vertexIcon = L.divIcon({ className: 'manual-vertex-icon', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] })
+    manualVertexLayer = L.layerGroup().addTo(map)
+    manualDraftPoints.value.forEach(([lng, lat], index) => {
+      const marker = L.marker([lat, lng], { icon: vertexIcon, draggable: true, keyboard: true, title: `顶点 ${index + 1}` })
+      marker.on('drag', () => {
+        const point = marker.getLatLng()
+        manualDraftPoints.value[index] = [point.lng, point.lat]
+        manualDraftDirty.value = true
+        ;(manualDraftLayer as L.Polygon | null)?.setLatLngs(toLatLngs(manualDraftPoints.value))
+      })
+      marker.addTo(manualVertexLayer!)
+    })
+  } else {
+    // 绘制阶段仅显示开放折线；顶点 marker 只在 review/editing 阶段显示。
+    manualDraftLayer = L.polyline(toLatLngs(manualDraftPoints.value), { ...MANUAL_DRAFT_STYLE, fill: false }).addTo(map)
+  }
+}
+
+function onManualMapClick(event: L.LeafletMouseEvent) {
+  if (parcelMode.value !== 'drawing') return
+  manualDraftPoints.value = [...manualDraftPoints.value, [event.latlng.lng, event.latlng.lat]]
+  manualDraftDirty.value = true
+  renderManualDraft(false)
+}
+
+function startManualDrawing() {
+  if (store.current.level !== 'village') return
+  showManualStorageNoticeOnce()
+  parcelOn.value = true
+  selectedManualParcel = null
+  editingManualOriginal = null
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
+  enterParcelWorkMode('drawing')
+  map.on('click', onManualMapClick)
+  renderParcelLayer()
+}
+
+function undoManualPoint() {
+  if (parcelMode.value !== 'drawing' || !manualDraftPoints.value.length) return
+  manualDraftPoints.value = manualDraftPoints.value.slice(0, -1)
+  manualDraftDirty.value = manualDraftPoints.value.length > 0
+  renderManualDraft(false)
+}
+
+function finishManualDrawing() {
+  const checked = prepareManualGeometry(manualDraftPoints.value)
+  if (!checked.prepared) {
+    showNotice(checked.error ?? '无法完成地块边界。', true)
+    return
+  }
+  map.off('click', onManualMapClick)
+  parcelMode.value = 'review'
+  manualDraftPoints.value = checked.prepared.geometry.coordinates[0].slice(0, -1)
+  renderManualDraft(true)
+}
+
+function cancelManualSession() {
+  map.off('click', onManualMapClick)
+  clearManualDraftLayers()
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
+  selectedManualParcel = null
+  editingManualOriginal = null
+  leaveParcelWorkMode()
+  renderParcelLayer()
+}
+
+function clearManualSelection() {
+  selectedManualParcel = null
+  selectedManualAreaText.value = ''
+  parcelMode.value = 'idle'
+  renderParcelLayer()
+}
+
+function editSelectedManualParcel() {
+  if (!selectedManualParcel) return
+  editingManualOriginal = selectedManualParcel
+  manualDraftPoints.value = selectedManualParcel.geometry.coordinates[0].slice(0, -1).map(([lng, lat]) => [lng, lat])
+  manualDraftDirty.value = false
+  enterParcelWorkMode('editing')
+  renderManualDraft(true)
+  renderParcelLayer()
+}
+
+function manualWarningMessage(overlapCount: number, outsideVillage: boolean, incompleteChecks: number): string {
+  const parts: string[] = []
+  if (overlapCount) parts.push(`与 ${overlapCount} 个已有地块重叠`)
+  if (outsideVillage) parts.push('部分范围越过当前村界')
+  if (incompleteChecks) parts.push(`${incompleteChecks} 项空间关系无法完整校验`)
+  return `当前地块${parts.join('，')}。是否仍要保存？`
+}
+
+function saveManualDraft() {
+  if (!parcelVillageCode) return
+  const checked = prepareManualGeometry(manualDraftPoints.value)
+  if (!checked.prepared) {
+    showNotice(checked.error ?? '地块几何无效。', true)
+    return
+  }
+  const editingId = editingManualOriginal?.properties.id
+  const otherFeatures: Feature[] = [
+    ...(parcelSource?.features ?? []),
+    ...manualParcels.filter((feature) => feature.properties.id !== editingId),
+  ]
+  const warnings = inspectManualGeometry(checked.prepared.geometry, store.current.geometry, otherFeatures)
+  if ((warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)
+      && !window.confirm(manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks))) return
+
+  const next = makeManualParcel(parcelVillageCode, checked.prepared, editingManualOriginal ?? undefined)
+  const nextFeatures = editingManualOriginal
+    ? manualParcels.map((feature) => feature.properties.id === editingManualOriginal!.properties.id ? next : feature)
+    : [...manualParcels, next]
+  const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
+  if (!persisted.ok) {
+    showNotice(persisted.error, true)
+    return
+  }
+  manualParcels = nextFeatures
+  clearManualDraftLayers()
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
+  selectedManualParcel = null
+  editingManualOriginal = null
+  // V1 单块流程：保存后退出，不连续进入下一块绘制。
+  leaveParcelWorkMode()
+  renderParcelLayer()
+  showNotice('人工地块已保存到当前浏览器')
+}
+
+function deleteSelectedManualParcel() {
+  if (!selectedManualParcel || !parcelVillageCode) return
+  if (!window.confirm(`确定删除这块 ${selectedManualParcel.properties.area_mu.toFixed(2)} 亩的人工地块吗？此操作只删除本机记录。`)) return
+  const next = manualParcels.filter((feature) => feature.properties.id !== selectedManualParcel!.properties.id)
+  const persisted = writeManualParcels(parcelVillageCode, next)
+  if (!persisted.ok) {
+    showNotice(persisted.error, true)
+    return
+  }
+  manualParcels = next
+  selectedManualParcel = null
+  parcelMode.value = 'idle'
+  renderParcelLayer()
+  showNotice('人工地块已删除')
+}
+
+function hasUnsavedParcelWork(): boolean {
+  if (parcelMode.value === 'drawing' || parcelMode.value === 'review' || parcelMode.value === 'editing') return manualDraftDirty.value
+  return pendingChangeCount.value > 0
+}
+
+function onManualKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && ['drawing', 'review', 'editing'].includes(parcelMode.value)) {
+    event.preventDefault()
+    cancelManualSession()
+    return
+  }
+  if (parcelMode.value === 'drawing' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    event.preventDefault()
+    undoManualPoint()
+  }
 }
 
 /** 当前区域轮廓(下钻时被点击的要素) */
@@ -641,6 +938,15 @@ async function render(noFly = false) {
         setTimeout(finish, 1200)
       })
 
+  // 人工地块不依赖高分影像或 AI 产物：进入任意村时先建立当前村上下文并读取本机记录。
+  if (crumb.level === 'village') {
+    parcelVillageCode = crumb.code
+    const manualResult = readManualParcels(crumb.code)
+    manualParcels = manualResult.features
+    if (manualResult.error) showNotice(manualResult.error, true)
+    renderParcelLayer()
+  }
+
   // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
   if (crumb.level === 'township' || crumb.level === 'village') {
     // 等飞行结束再插入影像，避免动画中途因低于 minZoom 导致瓦片不恢复。
@@ -669,12 +975,10 @@ async function render(noFly = false) {
           if (seq !== flySeq) return
           if (parcels?.features.length) {
             parcelSource = parcels
-            parcelVillageCode = crumb.code
+            hasAiParcels.value = true
             const validIds = new Set(parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null))
             hiddenParcelIds = new Set([...loadHiddenParcelIds(crumb.code)].filter((id) => validIds.has(id)))
             renderParcelLayer()
-            parcelVisible.value = true
-            updateParcelAreaLabels()
           }
         }
 
@@ -725,12 +1029,22 @@ async function render(noFly = false) {
 watch(() => store.path.length, () => {
   const nf = pendingNoFly
   pendingNoFly = false
+  // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
+  if (parcelMode.value === 'filter') {
+    pendingHideParcelIds.clear()
+    pendingRestoreParcelIds.clear()
+    syncPendingParcelCounts()
+  }
+  map.off('click', onManualMapClick)
+  clearManualDraftLayers()
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
   render(nf)
 })
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
-  if (suppressAutoZoom || parcelEditing.value) return
+  if (suppressAutoZoom || !['idle', 'selected'].includes(parcelMode.value)) return
   const crumb = store.current
   const z = map.getZoom()
 
@@ -776,6 +1090,8 @@ onMounted(() => {
   map.createPane('editDimmingPane')
   map.getPane('editDimmingPane')!.style.zIndex = '350'
   map.getPane('editDimmingPane')!.style.pointerEvents = 'none'
+  map.createPane('parcelPane')
+  map.getPane('parcelPane')!.style.zIndex = '400'
   map.createPane('parcelLabelPane')
   map.getPane('parcelLabelPane')!.style.zIndex = '440'
   map.getPane('parcelLabelPane')!.style.pointerEvents = 'none'
@@ -790,11 +1106,24 @@ onMounted(() => {
     onAutoLevel()
   })
   map.on('moveend', updateParcelAreaLabels)
+  store.setNavigationGuard(() => {
+    if (!hasUnsavedParcelWork()) return true
+    return window.confirm('当前地块修改尚未保存，离开后将丢失。确定离开吗？')
+  })
+  beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+    if (!hasUnsavedParcelWork()) return
+    event.preventDefault()
+  }
+  window.addEventListener('beforeunload', beforeUnloadHandler)
+  window.addEventListener('keydown', onManualKeydown)
   render()
 })
 
 onBeforeUnmount(() => {
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
+  if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
+  window.removeEventListener('keydown', onManualKeydown)
+  store.setNavigationGuard(null)
   map?.remove()
 })
 </script>
@@ -804,6 +1133,8 @@ onBeforeUnmount(() => {
 .map { width: 100%; height: 100%; }
 .parcel-editing .map { cursor: grab; }
 .parcel-editing .map:active { cursor: grabbing; }
+.parcel-drawing .map,
+.parcel-drawing .map:active { cursor: crosshair; }
 .save-notice {
   position: absolute;
   top: 64px;
@@ -820,6 +1151,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   animation: notice-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.save-notice.error { background: #b91c1c; }
 @keyframes notice-in {
   from { opacity: 0.4; transform: translate(-50%, -6px); }
   to { opacity: 1; transform: translate(-50%, 0); }
@@ -860,7 +1192,10 @@ onBeforeUnmount(() => {
   color: #1d4ed8;
 }
 .edit-launch svg { width: 16px; height: 16px; }
-.edit-launch:hover { background: #eff6ff; color: #1e40af; }
+.edit-launch:hover:not(:disabled) { background: #eff6ff; color: #1e40af; }
+.edit-launch.primary-launch { background: #2563eb; color: #fff; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25); }
+.edit-launch.primary-launch:hover { background: #1d4ed8; color: #fff; }
+.edit-launch:disabled { cursor: not-allowed; color: #94a3b8; opacity: 0.7; }
 .edit-action { padding: 0 12px; background: transparent; color: #475569; }
 .edit-action:hover:not(:disabled) { background: #e2e8f0; color: #0f172a; }
 .edit-launch:focus-visible,
@@ -871,6 +1206,22 @@ onBeforeUnmount(() => {
 .edit-action.restore-all { color: #166534; }
 .edit-action.restore-all:hover:not(:disabled) { background: #f0fdf4; color: #14532d; }
 .edit-action.cancel { color: #475569; }
+.edit-action.danger { color: #b91c1c; }
+.edit-action.danger:hover { background: #fef2f2; color: #991b1b; }
+.draw-guide {
+  min-width: 166px;
+  height: 34px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-content: center;
+  column-gap: 8px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.draw-guide strong { color: #581c87; font-size: 12px; }
+.draw-guide span { color: #475569; font-size: 12px; }
+.draw-guide small { grid-column: 1 / -1; color: #7e22ce; font-size: 10px; font-variant-numeric: tabular-nums; }
+.draw-guide.selected { min-width: 112px; }
 .edit-stat {
   height: 34px;
   display: inline-flex;
@@ -959,6 +1310,32 @@ onBeforeUnmount(() => {
 .map-wrap :deep(.leaflet-tooltip-top.parcel-edit-tooltip.restore)::before {
   border-top-color: #15803d;
 }
+.map-wrap :deep(.leaflet-tooltip.manual-parcel-tooltip) {
+  padding: 6px 9px;
+  border: 1px solid #d8b4fe;
+  border-radius: 6px;
+  background: #6b21a8;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.map-wrap :deep(.leaflet-tooltip-top.manual-parcel-tooltip)::before { border-top-color: #6b21a8; }
+.map-wrap :deep(.manual-vertex-icon) {
+  border: 0;
+  background: transparent;
+}
+.map-wrap :deep(.manual-vertex-icon span) {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 3px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #a21caf;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.5);
+}
+.map-wrap :deep(.manual-vertex-icon:focus-visible span) { outline: 3px solid rgba(250, 204, 21, 0.65); outline-offset: 2px; }
 
 .map-wrap :deep(.parcel-area-label-wrap) {
   width: 0 !important;
@@ -1044,5 +1421,13 @@ onBeforeUnmount(() => {
   .edit-stat { padding-inline: 4px; }
   .edit-stat span:not(.stat-dot) { display: none; }
   .edit-action { padding-inline: 9px; }
+  .draw-guide span { display: none; }
+  .draw-guide { min-width: 96px; }
+}
+
+@media (max-width: 520px) {
+  .parcel-edit-toolbar { left: 12px; right: 12px; overflow-x: auto; }
+  .parcel-edit-toolbar .edit-action,
+  .parcel-edit-toolbar .edit-launch { flex: 0 0 auto; }
 }
 </style>

@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import type { Feature } from 'geojson'
 
+export type NavigationGuard = () => boolean
+let navigationGuard: NavigationGuard | null = null
+
 export type Level = 'province' | 'city' | 'county' | 'township' | 'village'
 
 export interface Crumb {
@@ -52,16 +55,22 @@ export const useDrilldownStore = defineStore('drilldown', {
     current: (s) => s.path[s.path.length - 1],
   },
   actions: {
+    setNavigationGuard(guard: NavigationGuard | null) {
+      navigationGuard = guard
+    },
+    canNavigate() {
+      return navigationGuard?.() ?? true
+    },
     drill(crumb: Crumb) {
-      this.path.push(crumb)
+      if (this.canNavigate()) this.path.push(crumb)
     },
     backTo(index: number) {
-      if (index >= 0 && index < this.path.length - 1) {
+      if (index >= 0 && index < this.path.length - 1 && this.canNavigate()) {
         this.path = this.path.slice(0, index + 1)
       }
     },
     back() {
-      if (this.path.length > 1) this.path.pop()
+      if (this.path.length > 1 && this.canNavigate()) this.path.pop()
     },
   },
 })
