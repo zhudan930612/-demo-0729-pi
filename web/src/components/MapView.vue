@@ -37,10 +37,12 @@
         <button type="button" class="edit-action cancel" @click="cancelParcelEditing">取消</button>
       </template>
 
-      <template v-else-if="parcelMode === 'drawing'">
+      <template v-else-if="parcelMode === 'batch' || parcelMode === 'drawing'">
         <div class="batch-draw-count"><span>已绘制</span><strong>{{ batchSavedCount }}</strong><span>地块</span></div>
+        <button v-if="parcelMode === 'batch'" type="button" class="edit-action draw-action" @click="startBatchDrawing">绘制</button>
+        <button v-else type="button" class="edit-action draw-action active" @click="exitBatchDrawing">退出绘制</button>
         <button type="button" class="edit-action" :disabled="manualDraftPoints.length === 0 && batchSavedCount === 0" @click="undoManualPoint">撤销</button>
-        <button type="button" class="edit-action primary" :disabled="batchSavedCount === 0 && manualDraftPoints.length === 0" @click="saveManualBatch">保存</button>
+        <button type="button" class="edit-action primary" :disabled="!batchHasChanges && manualDraftPoints.length === 0" @click="saveManualBatch">保存</button>
         <button type="button" class="edit-action cancel" @click="cancelManualBatch()">取消</button>
       </template>
 
@@ -79,10 +81,12 @@
       </template>
     </div>
 
-    <div v-if="parcelMode === 'drawing'" class="draw-shortcut-hint" role="status">
-	  <span>按</span>
+    <div v-if="parcelMode === 'batch' || parcelMode === 'drawing'" class="draw-shortcut-hint" role="status">
+      <span>按</span>
       <kbd>N</kbd>
-      <span>完成当前地块绘制</span>
+      <span>开始绘制，再次按</span>
+      <kbd>N</kbd>
+      <span>完成操作</span>
     </div>
 
     <div v-if="saveNotice" class="save-notice" :class="{ error: saveNoticeError }" role="status" aria-live="polite">
@@ -310,7 +314,7 @@ const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
 const M2_PER_MU = 2000 / 3
 
 type ParcelId = string
-type ParcelMode = 'idle' | 'filter' | 'drawing' | 'selected' | 'editing'
+type ParcelMode = 'idle' | 'filter' | 'batch' | 'drawing' | 'selected' | 'editing'
 interface ParcelEditRecord {
   datasetVersion: string
   hiddenIds: ParcelId[]
@@ -332,7 +336,10 @@ const hasAiParcels = ref(false)
 const manualDraftPoints = ref<Position[]>([])
 const manualDraftDirty = ref(false)
 const pendingManualParcels = ref<ManualParcelFeature[]>([])
+const pendingManualEdits = ref<ManualParcelFeature[]>([])
+const pendingRemovedManualIds = ref<string[]>([])
 const batchSavedCount = computed(() => pendingManualParcels.value.length)
+const batchHasChanges = computed(() => batchSavedCount.value > 0 || pendingManualEdits.value.length > 0 || pendingRemovedManualIds.value.length > 0)
 const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
 const manualDraftAreaText = computed(() => {
   const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
@@ -373,7 +380,9 @@ let manualParcelLayer: L.GeoJSON | null = null
 let pendingManualLayer: L.GeoJSON | null = null
 let manualDraftLayer: L.Polygon | L.Polyline | null = null
 let manualVertexLayer: L.LayerGroup | null = null
+let manualDraftAreaMarker: L.Marker | null = null
 let pendingActionMarker: L.Marker | null = null
+let batchAreaLabelLayer: L.LayerGroup | null = null
 let parcelAreaLabelLayer: L.LayerGroup | null = null
 let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
@@ -381,6 +390,7 @@ let manualParcels: ManualParcelFeature[] = []
 let selectedManualParcel: ManualParcelFeature | null = null
 let editingManualOriginal: ManualParcelFeature | null = null
 let editingPendingManualId: string | null = null
+let editingBatchManualKind: 'new' | 'existing' | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
 let pendingHideParcelIds = new Set<ParcelId>()
@@ -430,7 +440,10 @@ function clearLayers() {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   pendingManualParcels.value = []
+  pendingManualEdits.value = []
+  pendingRemovedManualIds.value = []
   editingPendingManualId = null
+  editingBatchManualKind = null
   selectedManualAreaText.value = ''
   parcelVillageCode = ''
   hiddenParcelIds.clear()
@@ -444,6 +457,7 @@ function clearLayers() {
   if (manualParcelLayer) { manualParcelLayer.remove(); manualParcelLayer = null }
   if (pendingManualLayer) { pendingManualLayer.remove(); pendingManualLayer = null }
   if (pendingActionMarker) { pendingActionMarker.remove(); pendingActionMarker = null }
+  if (batchAreaLabelLayer) { batchAreaLabelLayer.remove(); batchAreaLabelLayer = null }
   clearManualDraftLayers()
   if (parcelAreaLabelLayer) { parcelAreaLabelLayer.remove(); parcelAreaLabelLayer = null }
   rsVisible.value = false
@@ -525,9 +539,9 @@ function updateParcelAreaLabels() {
   const displayedFeatures: Feature[] = [
     ...(parcelSource?.features.filter((feature) => {
       const id = parcelId(feature)
-      return parcelMode.value === 'filter' || parcelMode.value === 'drawing' || id === null || !hiddenParcelIds.has(id)
+      return parcelMode.value === 'filter' || parcelMode.value === 'batch' || parcelMode.value === 'drawing' || id === null || !hiddenParcelIds.has(id)
     }) ?? []),
-    ...manualParcels,
+    ...((parcelMode.value === 'batch' || parcelMode.value === 'drawing') ? [] : manualParcels),
   ]
   for (const feature of displayedFeatures) {
     const properties = feature.properties ?? {}
@@ -573,12 +587,13 @@ function renderParcelLayer() {
   manualParcelLayer?.remove()
   pendingManualLayer?.remove()
   if (pendingActionMarker) { pendingActionMarker.remove(); pendingActionMarker = null }
+  if (batchAreaLabelLayer) { batchAreaLabelLayer.remove(); batchAreaLabelLayer = null }
   parcelLayer = null
   manualParcelLayer = null
   pendingManualLayer = null
 
   const aiFeatures = parcelSource?.features ?? []
-  const showHiddenParcels = parcelMode.value === 'filter' || parcelMode.value === 'drawing'
+  const showHiddenParcels = parcelMode.value === 'filter' || parcelMode.value === 'batch' || parcelMode.value === 'drawing'
   const visibleAiFeatures = aiFeatures.filter((feature) => {
     const id = parcelId(feature)
     return showHiddenParcels || id === null || !hiddenParcelIds.has(id)
@@ -605,7 +620,9 @@ function renderParcelLayer() {
       style: (feature) => {
         const id = feature ? parcelId(feature as Feature) : null
         if (parcelMode.value === 'filter') return parcelEditStyle(id)
-        if (parcelMode.value === 'drawing' && id && hiddenParcelIds.has(id)) return PARCEL_HIDDEN_STYLE
+        if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') {
+          return id && hiddenParcelIds.has(id) ? PARCEL_HIDDEN_STYLE : PARCEL_EDIT_STYLE
+        }
         return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
       },
       onEachFeature: (feature: Feature, layer: L.Layer) => {
@@ -640,13 +657,16 @@ function renderParcelLayer() {
     }).addTo(map)
   }
 
-  const visibleManualParcels = parcelMode.value === 'editing'
-    ? manualParcels.filter((feature) => feature.properties.id !== editingManualOriginal?.properties.id)
-    : manualParcels
+  const batchManualById = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
+  const visibleManualParcels = manualParcels
+    .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
+    .map((feature) => batchManualById.get(feature.properties.id) ?? feature)
+    .filter((feature) => parcelMode.value !== 'editing' || feature.properties.id !== editingManualOriginal?.properties.id)
+    .filter((feature) => editingBatchManualKind !== 'existing' || feature.properties.id !== editingPendingManualId)
   if (visibleManualParcels.length) {
     const manualCollection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
     manualParcelLayer = L.geoJSON(manualCollection, {
-      interactive: parcelOn.value && (parcelMode.value === 'idle' || parcelMode.value === 'selected'),
+      interactive: parcelOn.value && (parcelMode.value === 'idle' || parcelMode.value === 'selected' || parcelMode.value === 'batch'),
       style: (feature) => {
         const selected = feature?.properties?.id === selectedManualParcel?.properties.id
         if (!parcelOn.value) return { ...MANUAL_PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
@@ -656,7 +676,13 @@ function renderParcelLayer() {
         const manual = feature as ManualParcelFeature
         layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
         layer.on('click', (event) => {
-          if (!parcelOn.value || (parcelMode.value !== 'idle' && parcelMode.value !== 'selected')) return
+          if (!parcelOn.value) return
+          if (parcelMode.value === 'batch') {
+            L.DomEvent.stopPropagation(event)
+            void startBatchExistingManualEditing(manual)
+            return
+          }
+          if (parcelMode.value !== 'idle' && parcelMode.value !== 'selected') return
           L.DomEvent.stopPropagation(event)
           selectedManualParcel = manual
           selectedManualAreaText.value = `${manual.properties.area_mu.toFixed(2)} 亩`
@@ -667,25 +693,27 @@ function renderParcelLayer() {
     }).addTo(map)
   }
 
-  if (parcelMode.value === 'drawing' && pendingManualParcels.value.length) {
+  if ((parcelMode.value === 'batch' || parcelMode.value === 'drawing') && pendingManualParcels.value.length) {
     const visiblePending = pendingManualParcels.value.filter((feature) => feature.properties.id !== editingPendingManualId)
     if (visiblePending.length) {
       const pendingCollection: FeatureCollection = { type: 'FeatureCollection', features: visiblePending }
       pendingManualLayer = L.geoJSON(pendingCollection, {
-        interactive: true,
+        interactive: parcelMode.value === 'batch',
         style: MANUAL_PENDING_STYLE,
         onEachFeature: (feature: Feature, layer: L.Layer) => {
           const pending = feature as ManualParcelFeature
           layer.bindTooltip(`待保存 · ${pending.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
           layer.on('click', (event) => {
+            if (parcelMode.value !== 'batch') return
             L.DomEvent.stopPropagation(event)
-            startPendingManualEditing(pending)
+            void startPendingManualEditing(pending)
           })
         },
       }).addTo(map)
     }
-    if (editingPendingManualId) renderPendingRemoveAction()
   }
+  if (parcelMode.value === 'batch' && editingPendingManualId) renderPendingRemoveAction()
+  if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') renderBatchAreaLabels(visibleManualParcels)
   outlineLayer?.bringToFront()
   updateParcelAreaLabels()
 }
@@ -709,6 +737,7 @@ function leaveParcelWorkMode() {
   parcelMode.value = 'idle'
   if (map) {
     map.off('click', onManualMapClick)
+    map.off('click', onBatchMapClick)
     map.setMinZoom(DEFAULT_MIN_ZOOM)
   }
   mapMinZoom.value = DEFAULT_MIN_ZOOM
@@ -782,6 +811,7 @@ function showManualStorageNoticeOnce() {
 function clearManualDraftLayers() {
   if (manualDraftLayer) { manualDraftLayer.remove(); manualDraftLayer = null }
   if (manualVertexLayer) { manualVertexLayer.remove(); manualVertexLayer = null }
+  if (manualDraftAreaMarker) { manualDraftAreaMarker.remove(); manualDraftAreaMarker = null }
 }
 
 function toLatLngs(points: Position[]): L.LatLngExpression[] {
@@ -824,16 +854,65 @@ function renderManualDraft(editable: boolean) {
         manualDraftPoints.value[index] = [point.lng, point.lat]
         manualDraftDirty.value = true
         ;(manualDraftLayer as L.Polygon | null)?.setLatLngs(toLatLngs(manualDraftPoints.value))
+        renderManualDraftArea()
+        renderPendingRemoveAction()
       })
     }
     marker.addTo(manualVertexLayer!)
   })
+  if (editable) renderManualDraftArea()
+}
+
+function areaLabelIcon(areaMu: number, className = '') {
+  return L.divIcon({
+    className: `parcel-area-label-wrap ${className}`,
+    html: `<span class="parcel-area-label">${areaMu.toFixed(2)} 亩</span>`,
+    iconSize: undefined,
+    iconAnchor: [0, 0],
+  })
+}
+
+function renderManualDraftArea() {
+  if (manualDraftAreaMarker) { manualDraftAreaMarker.remove(); manualDraftAreaMarker = null }
+  const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
+  if (!prepared) return
+  manualDraftAreaMarker = L.marker([prepared.labelLat, prepared.labelLng], {
+    pane: 'parcelLabelPane',
+    icon: areaLabelIcon(prepared.areaMu, 'batch-area-label'),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 1100,
+  }).addTo(map)
+}
+
+function renderBatchAreaLabels(existingManualFeatures: ManualParcelFeature[]) {
+  if (batchAreaLabelLayer) { batchAreaLabelLayer.remove(); batchAreaLabelLayer = null }
+  batchAreaLabelLayer = L.layerGroup().addTo(map)
+  const features = [
+    ...existingManualFeatures,
+    ...pendingManualParcels.value.filter((feature) => feature.properties.id !== editingPendingManualId),
+  ]
+  for (const feature of features) {
+    L.marker([feature.properties.label_lat, feature.properties.label_lng], {
+      pane: 'parcelLabelPane',
+      icon: areaLabelIcon(feature.properties.area_mu, 'batch-area-label'),
+      interactive: false,
+      keyboard: false,
+    }).addTo(batchAreaLabelLayer)
+  }
+}
+
+function effectiveBatchManualParcels(): ManualParcelFeature[] {
+  const edits = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
+  return manualParcels
+    .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
+    .map((feature) => edits.get(feature.properties.id) ?? feature)
 }
 
 function manualGeometryWarnings(preparedGeometry: ManualParcelFeature['geometry'], excludedPendingId?: string) {
   const otherFeatures: Feature[] = [
     ...(parcelSource?.features ?? []),
-    ...manualParcels,
+    ...effectiveBatchManualParcels().filter((feature) => feature.properties.id !== excludedPendingId),
     ...pendingManualParcels.value.filter((feature) => feature.properties.id !== excludedPendingId),
   ]
   return inspectManualGeometry(preparedGeometry, store.current.geometry, otherFeatures)
@@ -861,13 +940,14 @@ async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geom
 
 function onManualMapClick(event: L.LeafletMouseEvent) {
   if (parcelMode.value !== 'drawing') return
-  if (editingPendingManualId) {
-    finishPendingManualEditing()
-    return
-  }
   manualDraftPoints.value = [...manualDraftPoints.value, [event.latlng.lng, event.latlng.lat]]
   manualDraftDirty.value = true
   renderManualDraft(false)
+}
+
+function onBatchMapClick() {
+  if (parcelMode.value !== 'batch' || !editingPendingManualId) return
+  void finishPendingManualEditing()
 }
 
 function startManualDrawing() {
@@ -879,17 +959,47 @@ function startManualDrawing() {
   editingPendingManualId = null
   manualDraftPoints.value = []
   pendingManualParcels.value = []
+  pendingManualEdits.value = []
+  pendingRemovedManualIds.value = []
   manualDraftDirty.value = false
-  enterParcelWorkMode('drawing')
+  enterParcelWorkMode('batch')
+  map.off('click', onManualMapClick)
+  map.off('click', onBatchMapClick)
+  map.on('click', onBatchMapClick)
+  renderParcelLayer()
+}
+
+async function startBatchDrawing() {
+  if (parcelMode.value !== 'batch') return
+  if (editingPendingManualId && !await finishPendingManualEditing()) return
+  editingPendingManualId = null
+  editingBatchManualKind = null
+  manualDraftPoints.value = []
+  clearManualDraftLayers()
+  parcelMode.value = 'drawing'
+  map.off('click', onBatchMapClick)
   map.off('click', onManualMapClick)
   map.on('click', onManualMapClick)
   renderParcelLayer()
 }
 
-function undoManualPoint() {
+function exitBatchDrawing() {
   if (parcelMode.value !== 'drawing') return
+  manualDraftPoints.value = []
+  clearManualDraftLayers()
+  parcelMode.value = 'batch'
+  map.off('click', onManualMapClick)
+  map.off('click', onBatchMapClick)
+  map.on('click', onBatchMapClick)
+  manualDraftDirty.value = batchHasChanges.value
+  renderParcelLayer()
+}
+
+function undoManualPoint() {
+  if (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing') return
   if (editingPendingManualId) {
     editingPendingManualId = null
+    editingBatchManualKind = null
     manualDraftPoints.value = []
     clearManualDraftLayers()
     renderParcelLayer()
@@ -920,17 +1030,30 @@ async function finishManualDrawing() {
   manualDraftPoints.value = []
   manualDraftDirty.value = true
   clearManualDraftLayers()
+  parcelMode.value = 'batch'
+  map.off('click', onManualMapClick)
+  map.off('click', onBatchMapClick)
+  map.on('click', onBatchMapClick)
   renderParcelLayer()
 }
 
 async function startPendingManualEditing(feature: ManualParcelFeature) {
+  await startBatchManualEditing(feature, 'new')
+}
+
+async function startBatchExistingManualEditing(feature: ManualParcelFeature) {
+  await startBatchManualEditing(feature, 'existing')
+}
+
+async function startBatchManualEditing(feature: ManualParcelFeature, kind: 'new' | 'existing') {
   if (manualDraftPoints.value.length && !editingPendingManualId) {
     showNotice('请先点击第一个顶点或按 N 闭合当前地块，或撤销当前顶点。', true)
     return
   }
-  if (editingPendingManualId === feature.properties.id) return
+  if (editingPendingManualId === feature.properties.id && editingBatchManualKind === kind) return
   if (editingPendingManualId && !await finishPendingManualEditing()) return
   editingPendingManualId = feature.properties.id
+  editingBatchManualKind = kind
   manualDraftPoints.value = feature.geometry.coordinates[0].slice(0, -1).map(([lng, lat]) => [lng, lat])
   renderParcelLayer()
   renderManualDraft(true)
@@ -944,11 +1067,20 @@ async function finishPendingManualEditing(): Promise<boolean> {
     return false
   }
   if (!await confirmManualWarnings(checked.prepared.geometry, editingPendingManualId)) return false
-  const original = pendingManualParcels.value.find((feature) => feature.properties.id === editingPendingManualId)
+  const source = editingBatchManualKind === 'existing' ? effectiveBatchManualParcels() : pendingManualParcels.value
+  const original = source.find((feature) => feature.properties.id === editingPendingManualId)
   if (!original) return false
   const updated = makeManualParcel(parcelVillageCode, checked.prepared, original)
-  pendingManualParcels.value = pendingManualParcels.value.map((feature) => feature.properties.id === editingPendingManualId ? updated : feature)
+  if (editingBatchManualKind === 'existing') {
+    pendingManualEdits.value = [
+      ...pendingManualEdits.value.filter((feature) => feature.properties.id !== editingPendingManualId),
+      updated,
+    ]
+  } else {
+    pendingManualParcels.value = pendingManualParcels.value.map((feature) => feature.properties.id === editingPendingManualId ? updated : feature)
+  }
   editingPendingManualId = null
+  editingBatchManualKind = null
   manualDraftPoints.value = []
   clearManualDraftLayers()
   renderParcelLayer()
@@ -956,64 +1088,89 @@ async function finishPendingManualEditing(): Promise<boolean> {
 }
 
 function renderPendingRemoveAction() {
-  const selected = pendingManualParcels.value.find((feature) => feature.properties.id === editingPendingManualId)
-  if (!selected) return
+  if (pendingActionMarker) { pendingActionMarker.remove(); pendingActionMarker = null }
+  if (!editingPendingManualId) return
+  const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
+  if (!prepared) return
+  const geometry = prepared.geometry.coordinates[0].slice(0, -1)
+  const bottom = geometry.reduce((current, point) => point[1] < current[1] ? point : current, geometry[0])
   const icon = L.divIcon({
     className: 'pending-remove-icon',
-    html: '<button type="button" title="移除此地块" aria-label="移除此待保存地块">移除</button>',
+    html: '<button type="button" title="移除此地块" aria-label="移除此人工地块">移除</button>',
     iconSize: [48, 28],
-    iconAnchor: [24, 42],
+    iconAnchor: [24, -10],
   })
-  pendingActionMarker = L.marker([selected.properties.label_lat, selected.properties.label_lng], { icon, keyboard: true, zIndexOffset: 1200 }).addTo(map)
+  pendingActionMarker = L.marker([bottom[1], bottom[0]], { icon, keyboard: true, zIndexOffset: 1200 }).addTo(map)
   pendingActionMarker.on('click', (event) => {
     L.DomEvent.stopPropagation(event)
-    removePendingManualParcel(selected.properties.id)
+    removeBatchManualParcel(editingPendingManualId!)
   })
 }
 
-function removePendingManualParcel(id: string) {
-  pendingManualParcels.value = pendingManualParcels.value.filter((feature) => feature.properties.id !== id)
+function removeBatchManualParcel(id: string) {
+  if (editingBatchManualKind === 'existing' || manualParcels.some((feature) => feature.properties.id === id)) {
+    pendingRemovedManualIds.value = [...new Set([...pendingRemovedManualIds.value, id])]
+    pendingManualEdits.value = pendingManualEdits.value.filter((feature) => feature.properties.id !== id)
+  } else {
+    pendingManualParcels.value = pendingManualParcels.value.filter((feature) => feature.properties.id !== id)
+  }
   if (editingPendingManualId === id) {
     editingPendingManualId = null
+    editingBatchManualKind = null
     manualDraftPoints.value = []
     clearManualDraftLayers()
   }
-  manualDraftDirty.value = manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0
+  manualDraftDirty.value = batchHasChanges.value
   renderParcelLayer()
 }
 
 async function saveManualBatch() {
-  if (!parcelVillageCode || parcelMode.value !== 'drawing') return
+  if (!parcelVillageCode || (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing')) return
   if (editingPendingManualId && !await finishPendingManualEditing()) return
   if (manualDraftPoints.value.length) {
     showNotice('当前地块尚未闭合，请点击第一个顶点或按 N 完成绘制。', true)
     return
   }
-  if (!pendingManualParcels.value.length) return
-  const nextFeatures = [...manualParcels, ...pendingManualParcels.value]
+  if (!batchHasChanges.value) return
+  const editedById = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
+  const nextFeatures = [
+    ...manualParcels
+      .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
+      .map((feature) => editedById.get(feature.properties.id) ?? feature),
+    ...pendingManualParcels.value,
+  ]
   const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
   if (!persisted.ok) {
     showNotice(persisted.error, true)
     return
   }
-  const savedCount = pendingManualParcels.value.length
+  const addedCount = pendingManualParcels.value.length
+  const changedCount = pendingManualEdits.value.length
+  const removedCount = pendingRemovedManualIds.value.length
   manualParcels = nextFeatures
   pendingManualParcels.value = []
+  pendingManualEdits.value = []
+  pendingRemovedManualIds.value = []
   manualDraftDirty.value = false
   leaveParcelWorkMode()
   clearManualDraftLayers()
   renderParcelLayer()
-  showNotice(`已保存 ${savedCount} 个人工地块`)
+  showNotice(`已保存：新增 ${addedCount} 个，修改 ${changedCount} 个，移除 ${removedCount} 个`)
 }
 
 async function cancelManualBatch(silent = false) {
   const pendingCount = pendingManualParcels.value.length
+  const changedCount = pendingManualEdits.value.length
+  const removedCount = pendingRemovedManualIds.value.length
   const hasOpenDraft = manualDraftPoints.value.length > 0 && !editingPendingManualId
   const hasPendingEdit = Boolean(editingPendingManualId)
-  if (!silent && (pendingCount || hasOpenDraft || hasPendingEdit)
-      && !await openManualDialog('取消新增地块', `将放弃本批次 ${pendingCount} 个待保存地块${hasOpenDraft ? '及当前未闭合地块' : ''}，是否继续？`, '放弃本批次')) return
+  if (!silent && (batchHasChanges.value || hasOpenDraft || hasPendingEdit)
+      && !await openManualDialog('取消新增地块', `将放弃本批次 ${pendingCount} 个待保存地块、${changedCount} 个修改和 ${removedCount} 个移除${hasOpenDraft ? '，以及当前未闭合地块' : ''}，是否继续？`, '放弃本批次')) return
   pendingManualParcels.value = []
+  pendingManualEdits.value = []
+  pendingRemovedManualIds.value = []
   editingPendingManualId = null
+  editingBatchManualKind = null
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   clearManualDraftLayers()
@@ -1023,6 +1180,7 @@ async function cancelManualBatch(silent = false) {
 
 function cancelManualSession() {
   map.off('click', onManualMapClick)
+  map.off('click', onBatchMapClick)
   clearManualDraftLayers()
   manualDraftPoints.value = []
   manualDraftDirty.value = false
@@ -1110,7 +1268,7 @@ async function deleteSelectedManualParcel() {
 }
 
 function hasUnsavedParcelWork(): boolean {
-  if (parcelMode.value === 'drawing') return manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0 || Boolean(editingPendingManualId)
+  if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') return manualDraftPoints.value.length > 0 || batchHasChanges.value || Boolean(editingPendingManualId)
   if (parcelMode.value === 'editing') return manualDraftDirty.value
   return pendingChangeCount.value > 0
 }
@@ -1129,6 +1287,11 @@ function onManualKeydown(event: KeyboardEvent) {
   if (manualDialog.value.open) return
   if (event.key === 'Escape' && parcelMode.value === 'drawing') {
     event.preventDefault()
+    exitBatchDrawing()
+    return
+  }
+  if (event.key === 'Escape' && parcelMode.value === 'batch') {
+    event.preventDefault()
     void cancelManualBatch(true)
     return
   }
@@ -1137,13 +1300,14 @@ function onManualKeydown(event: KeyboardEvent) {
     cancelManualSession()
     return
   }
-  if (parcelMode.value === 'drawing' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
+  if ((parcelMode.value === 'batch' || parcelMode.value === 'drawing') && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
     event.preventDefault()
-    if (editingPendingManualId) finishPendingManualEditing()
-    else finishManualDrawing()
+    if (parcelMode.value === 'batch') void startBatchDrawing()
+    else if (manualDraftPoints.value.length === 0) exitBatchDrawing()
+    else void finishManualDrawing()
     return
   }
-  if (parcelMode.value === 'drawing' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+  if ((parcelMode.value === 'batch' || parcelMode.value === 'drawing') && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
     event.preventDefault()
     undoManualPoint()
   }
@@ -1554,6 +1718,9 @@ onBeforeUnmount(() => {
 .edit-action:disabled { cursor: not-allowed; opacity: 0.38; }
 .edit-action.primary { background: #2563eb; color: #fff; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25); }
 .edit-action.primary:hover:not(:disabled) { background: #1d4ed8; color: #fff; }
+.edit-action.draw-action { color: #7e22ce; }
+.edit-action.draw-action:hover { background: #faf5ff; color: #6b21a8; }
+.edit-action.draw-action.active { background: #faf5ff; color: #6b21a8; }
 .edit-action.restore-all { color: #166534; }
 .edit-action.restore-all:hover:not(:disabled) { background: #f0fdf4; color: #14532d; }
 .edit-action.cancel { color: #475569; }
