@@ -284,7 +284,12 @@ export function createParcelLayerController(
     return metrics
   }
 
+  map.on('zoomend', updateAreaLabels)
+  map.on('moveend', updateAreaLabels)
+
   function destroy() {
+    map.off('zoomend', updateAreaLabels)
+    map.off('moveend', updateAreaLabels)
     clear()
   }
 

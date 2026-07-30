@@ -267,6 +267,7 @@ const pendingRestoreParcelIds = parcelFilterState.pendingRestoreIds
 let saveNoticeTimer: ReturnType<typeof setTimeout> | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
+let disposed = false
 let firstRender = true
 let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
 let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
@@ -810,8 +811,10 @@ function onManualKeydown(event: KeyboardEvent) {
 
 /** 当前区域轮廓(下钻时被点击的要素) */
 async function render(noFly = false) {
+  if (disposed) return
   const crumb = store.current
   const seq = ++flySeq
+  const isCurrent = () => !disposed && seq === flySeq
   clearLayers()
   navigationController.renderOutline(crumb, { color: HOVER, weight: 3, fill: false, dashArray: '6 4' })
 
@@ -821,14 +824,14 @@ async function render(noFly = false) {
     bounds = L.geoJSON(toFeature(crumb.geometry)).getBounds()
   } else {
     const prov = await fetchJSON<FeatureCollection>('/data/boundary/province.geojson')
-    if (seq !== flySeq) return
+    if (!isCurrent()) return
     bounds = L.geoJSON(prov).getBounds()
   }
   if (!noFly && bounds.isValid()) {
     // zoomend 早于 moveend：保持抑制到本次程序化移动完全结束，防止点击下钻后被自动退出逻辑撤销。
     suppressAutoZoom = true
-    map.once('moveend', () => { suppressAutoZoom = false })
-    setTimeout(() => { suppressAutoZoom = false }, 1500)
+    map.once('moveend', () => { if (isCurrent()) suppressAutoZoom = false })
+    setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 1500)
     if (firstRender) {
       // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
       map.fitBounds(bounds.pad(0.02))
@@ -868,7 +871,7 @@ async function render(noFly = false) {
       rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
       flyDone,
     ])
-    if (seq !== flySeq) return
+    if (!isCurrent()) return
     rsInfo = info
     if (rsInfo && crumb.geometry) {
       const [w, s, e, n] = rsInfo.bounds
@@ -881,7 +884,7 @@ async function render(noFly = false) {
 
         if (crumb.level === 'village') {
           const parcels = await fetchJSON<FeatureCollection>(`/data/parcels/${crumb.code}.geojson`).catch(() => null)
-          if (seq !== flySeq) return
+          if (!isCurrent()) return
           if (parcels?.features.length) {
             parcelSource = parcels
             hasAiParcels.value = true
@@ -899,8 +902,8 @@ async function render(noFly = false) {
         // 乡镇/村级低于影像最低级别时抬升，保证进入层级后影像实际可见。
         if (map.getZoom() < rsInfo.minZoom) {
           suppressAutoZoom = true
-          map.once('zoomend', () => { suppressAutoZoom = false })
-          setTimeout(() => { suppressAutoZoom = false }, 500)
+          map.once('zoomend', () => { if (isCurrent()) suppressAutoZoom = false })
+          setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 500)
           map.setZoom(rsInfo.minZoom)
         }
       } else if (crumb.level === 'village') {
@@ -918,7 +921,7 @@ async function render(noFly = false) {
       ),
       flyDone,
     ])
-    if (seq !== flySeq) return
+    if (!isCurrent()) return
     const next = NEXT_LEVEL[crumb.level]!
     navigationController.renderChildren({
       collection: fc,
@@ -1058,10 +1061,8 @@ onMounted(() => {
   basemaps.img.addTo(map)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
-    parcelLayerController.updateAreaLabels()
     onAutoLevel()
   })
-  map.on('moveend', parcelLayerController.updateAreaLabels)
   store.setNavigationGuard(() => {
     if (!hasUnsavedParcelWork()) return true
     return window.confirm('当前地块修改尚未保存，离开后将丢失。确定离开吗？')
@@ -1076,6 +1077,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
+  flySeq += 1
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
   if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
   window.removeEventListener('keydown', onManualKeydown)
