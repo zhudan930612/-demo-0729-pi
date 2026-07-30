@@ -1,6 +1,8 @@
 # MapView.vue 分阶段拆分计划
 
-> 状态：待执行
+> 状态：代码拆分完成，自动验证通过；真实浏览器冒烟待人工执行
+>
+> 实施结果：`MapView.vue` 从 2,049 行 / 79.8 KB 降至 996 行 / 38.9 KB；纯状态测试从 13 项增至 28 项
 >
 > 目标文件：`web/src/components/MapView.vue`
 >
@@ -405,7 +407,23 @@ python scripts/check-codes.py
 
 回滚方式：仅回滚当前阶段最近的独立提交，保留此前已验收阶段。
 
-## 10. 完成定义
+## 10. 实施结果与完成定义
+
+### 10.1 实施结果
+
+已完成：
+
+- 三个计划 UI 组件，以及右侧 `MapControlStack.vue` 和外部 `MapView.css`。
+- 地块类型/样式、筛选状态、人工批次状态、隐藏存储和对应测试。
+- `manualDrawingController`、`parcelLayerController`、`mapNavigationController`、`parcelWorkModeController`。
+- 异步 `render()` 卸载失效、导航 generation 隔离和面积标签事件 owner 收口。
+- 自动验证：28 项前端测试、生产构建、13 项数据链路、编码检查、`git diff --check`、Impeccable UI 检测全部通过。
+
+实际停止在 996 行，高于 500～800 行理想值。继续抽取人工工作流实测需要 23 个共享绑定，触发本计划“超过约 15 个独立参数且无法形成清晰状态对象”的停止条件；异步行政/影像 `render()` 继续留在父组件，避免将业务存储与导航控制器重新耦合。清晰的 owner 边界优先于强行达到行数。
+
+待完成：按 7.2 浏览器冒烟矩阵进行真实 Leaflet 点击、拖动、快速连续导航和响应式视觉验收。
+
+### 10.2 完成定义
 
 全部阶段完成需同时满足：
 
