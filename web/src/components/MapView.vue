@@ -133,6 +133,7 @@ import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
+import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import {
   addPendingManualParcel,
   commitManualBatch,
@@ -155,7 +156,6 @@ import {
   childrenUrl,
   NEXT_LEVEL,
   LEVEL_WEIGHT,
-  type Crumb,
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
@@ -249,9 +249,7 @@ const basemap = ref<'img' | 'vec'>('img')
 const canvasRenderer = L.canvas({ padding: 0.5 })
 
 let map: L.Map
-let childLayer: L.GeoJSON | null = null
-let outlineLayer: L.GeoJSON | null = null
-let rsLayer: L.TileLayer | null = null
+let navigationController: MapNavigationController
 let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
 let editDimLayer: L.Rectangle | null = null
@@ -318,9 +316,7 @@ function clearLayers() {
   hiddenParcelCount.value = 0
   parcelDisplayCount.value = 0
   parcelDisplayAreaMu.value = 0
-  if (childLayer) { childLayer.remove(); childLayer = null }
-  if (outlineLayer) { outlineLayer.remove(); outlineLayer = null }
-  if (rsLayer) { rsLayer.remove(); rsLayer = null }
+  navigationController?.clear()
   parcelLayerController?.clear()
   manualDrawingController?.clear()
   rsVisible.value = false
@@ -333,7 +329,7 @@ function clearLayers() {
 /** 高分影像 开/关 */
 function toggleRs() {
   rsOn.value = !rsOn.value
-  rsLayer?.setOpacity(rsOn.value ? RS_OPACITY : 0)
+  navigationController.setImageryOpacity(rsOn.value ? RS_OPACITY : 0)
 }
 
 /** AI 地块独立开/关 */
@@ -813,22 +809,11 @@ function onManualKeydown(event: KeyboardEvent) {
 }
 
 /** 当前区域轮廓(下钻时被点击的要素) */
-function renderOutline(crumb: Crumb) {
-  if (!crumb.geometry) return
-  outlineLayer = L.geoJSON(
-    toFeature(crumb.geometry),
-    {
-      style: { color: HOVER, weight: 3, fill: false, dashArray: '6 4' },
-      interactive: false,
-    },
-  ).addTo(map)
-}
-
 async function render(noFly = false) {
   const crumb = store.current
   const seq = ++flySeq
   clearLayers()
-  renderOutline(crumb)
+  navigationController.renderOutline(crumb, { color: HOVER, weight: 3, fill: false, dashArray: '6 4' })
 
   // 视野: flyTo 当前区域 (决策#4 动效); 自动切换层级时不动视野
   let bounds: L.LatLngBounds | null = null
@@ -890,12 +875,7 @@ async function render(noFly = false) {
       const currentBounds = L.geoJSON(toFeature(crumb.geometry)).getBounds()
       const rsBounds = L.latLngBounds([s, w], [n, e])
       if (currentBounds.intersects(rsBounds)) {
-        rsLayer = L.tileLayer('/tiles/rs/{z}/{x}/{y}.png', {
-          minZoom: rsInfo.minZoom,
-          maxZoom: rsInfo.maxZoom,
-          opacity: RS_OPACITY,
-          zIndex: 3, // 高于底图；文字注记在独立 annotationPane 中置顶
-        }).addTo(map)
+        navigationController.setImagery(rsInfo, RS_OPACITY)
         rsVisible.value = true
         rsHint.value = `吉林一号 0.5m 影像（${rsInfo.minZoom}~${rsInfo.maxZoom} 级）`
 
@@ -940,23 +920,19 @@ async function render(noFly = false) {
     ])
     if (seq !== flySeq) return
     const next = NEXT_LEVEL[crumb.level]!
-    childLayer = L.geoJSON(fc, {
+    navigationController.renderChildren({
+      collection: fc,
       style: () => baseStyle(crumb.level),
-      onEachFeature: (feature: Feature, layer: L.Layer) => {
-        const name = feature.properties?.name ?? ''
-        const code = feature.properties?.code ?? ''
-        const path = layer as L.Path
-        layer.bindTooltip(name, { sticky: true, direction: 'top' })
-        layer.on('mouseover', () => {
-          path.setStyle({ color: HOVER, weight: LEVEL_WEIGHT[crumb.level] + 1.5, fillOpacity: 0.2 })
-          path.bringToFront()
-        })
-        layer.on('mouseout', () => childLayer?.resetStyle(path))
-        layer.on('click', () => {
-          store.drill({ level: next, code, name, geometry: feature.geometry })
+      hoverStyle: { color: HOVER, weight: LEVEL_WEIGHT[crumb.level] + 1.5, fillOpacity: 0.2 },
+      onSelect: (feature) => {
+        store.drill({
+          level: next,
+          code: feature.properties?.code ?? '',
+          name: feature.properties?.name ?? '',
+          geometry: feature.geometry,
         })
       },
-    }).addTo(map)
+    })
   }
 }
 
@@ -983,20 +959,18 @@ function onAutoLevel() {
 
   // 放大: 进入中心点所在子区域，乡级继续自动进入村级
   const enterZ = ENTER_ZOOM[crumb.level]
-  if (enterZ !== undefined && z >= enterZ && childLayer) {
+  if (enterZ !== undefined && z >= enterZ) {
     const c = map.getCenter()
-    for (const layer of childLayer.getLayers() as L.GeoJSON[]) {
-      const f = layer.feature as Feature | undefined
-      if (f && pointInGeometry([c.lng, c.lat], f.geometry)) {
-        pendingNoFly = true
-        store.drill({
-          level: NEXT_LEVEL[crumb.level]!,
-          code: f.properties?.code ?? '',
-          name: f.properties?.name ?? '',
-          geometry: f.geometry,
-        })
-        return
-      }
+    const feature = navigationController.findChildAt([c.lng, c.lat], pointInGeometry)
+    if (feature) {
+      pendingNoFly = true
+      store.drill({
+        level: NEXT_LEVEL[crumb.level]!,
+        code: feature.properties?.code ?? '',
+        name: feature.properties?.name ?? '',
+        geometry: feature.geometry,
+      })
+      return
     }
     return
   }
@@ -1031,6 +1005,7 @@ onMounted(() => {
   map.createPane('annotationPane')
   map.getPane('annotationPane')!.style.zIndex = '450'
   map.getPane('annotationPane')!.style.pointerEvents = 'none'
+  navigationController = createMapNavigationController(map)
   parcelLayerController = createParcelLayerController(
     map,
     () => ({
@@ -1053,7 +1028,7 @@ onMounted(() => {
       onFilterToggle: toggleParcelFilterSelection,
       onEditExisting: (feature) => { void startBatchExistingManualEditing(feature) },
       onEditPending: (feature) => { void startPendingManualEditing(feature) },
-      onAfterRender: () => { outlineLayer?.bringToFront() },
+      onAfterRender: navigationController.bringOutlineToFront,
     },
   )
   manualDrawingController = createManualDrawingController(
@@ -1107,6 +1082,7 @@ onBeforeUnmount(() => {
   store.setNavigationGuard(null)
   manualDrawingController?.destroy()
   parcelLayerController?.destroy()
+  navigationController?.destroy()
   map?.remove()
 })
 </script>
