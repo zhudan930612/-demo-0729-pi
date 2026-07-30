@@ -38,14 +38,14 @@
       </template>
 
       <template v-else-if="parcelMode === 'drawing'">
-        <div class="draw-guide"><strong>正在绘制</strong><span>单击地图添加顶点</span><small>{{ manualDraftPoints.length }} 点</small><small v-if="batchSavedCount > 0" class="batch-saved">已保存 {{ batchSavedCount }} 个</small></div>
-        <button type="button" class="edit-action" :disabled="manualDraftPoints.length === 0" @click="undoManualPoint">撤销一点</button>
-        <button type="button" class="edit-action primary" :disabled="manualDistinctPointCount < 3" @click="finishManualDrawing">完成绘制</button>
-        <button type="button" class="edit-action cancel" @click="cancelManualSession">{{ batchSavedCount > 0 ? '退出' : '取消' }}</button>
+        <div class="batch-draw-count"><span>已绘制</span><strong>{{ batchSavedCount }}</strong><span>地块</span></div>
+        <button type="button" class="edit-action" :disabled="manualDraftPoints.length === 0 && batchSavedCount === 0" @click="undoManualPoint">撤销</button>
+        <button type="button" class="edit-action primary" :disabled="batchSavedCount === 0 && manualDraftPoints.length === 0" @click="saveManualBatch">保存</button>
+        <button type="button" class="edit-action cancel" @click="cancelManualBatch()">取消</button>
       </template>
 
-      <template v-else-if="parcelMode === 'review' || parcelMode === 'editing'">
-        <div class="draw-guide"><strong>{{ parcelMode === 'review' ? '调整新地块' : '编辑人工地块' }}</strong><span>拖动顶点修正边界</span><small>{{ manualDraftAreaText }}</small></div>
+      <template v-else-if="parcelMode === 'editing'">
+        <div class="draw-guide"><strong>编辑人工地块</strong><span>拖动顶点修正边界</span><small>{{ manualDraftAreaText }}</small></div>
         <button type="button" class="edit-action primary" @click="saveManualDraft">保存</button>
         <button type="button" class="edit-action cancel" @click="cancelManualSession">取消</button>
       </template>
@@ -79,8 +79,32 @@
       </template>
     </div>
 
+    <div v-if="parcelMode === 'drawing'" class="draw-shortcut-hint" role="status">
+	  <span>按</span>
+      <kbd>N</kbd>
+      <span>完成当前地块绘制</span>
+    </div>
+
     <div v-if="saveNotice" class="save-notice" :class="{ error: saveNoticeError }" role="status" aria-live="polite">
       {{ saveNotice }}
+    </div>
+
+    <div v-if="manualDialog.open" class="dialog-backdrop" role="presentation" @click.self="closeManualDialog(false)">
+      <section ref="manualDialogEl" class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="manual-dialog-title" aria-describedby="manual-dialog-description" tabindex="-1">
+        <div class="dialog-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 2.8 19h18.4Z" /><path d="M12 9v4" /><path d="M12 17h.01" />
+          </svg>
+        </div>
+        <div class="dialog-copy">
+          <h2 id="manual-dialog-title">{{ manualDialog.title }}</h2>
+          <p id="manual-dialog-description">{{ manualDialog.message }}</p>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="dialog-button secondary" @click="closeManualDialog(false)">取消</button>
+          <button type="button" class="dialog-button primary" @click="closeManualDialog(true)">{{ manualDialog.confirmLabel }}</button>
+        </div>
+      </section>
     </div>
 
     <section v-if="parcelVisible && parcelOn" class="parcel-summary" aria-label="地块统计">
@@ -270,6 +294,14 @@ const MANUAL_DRAFT_STYLE: L.PathOptions = {
   fillOpacity: 0.25,
   dashArray: '8 5',
 }
+const MANUAL_PENDING_STYLE: L.PathOptions = {
+  color: '#e879f9',
+  weight: 2.6,
+  opacity: 1,
+  fillColor: '#c026d3',
+  fillOpacity: 0.18,
+  dashArray: '7 5',
+}
 const PARCEL_STORAGE_KEY = 'agri-map:parcel-edits:v1'
 const PARCEL_DATASET_VERSION = '2025-04-02-v1'
 const DEFAULT_MIN_ZOOM = 7
@@ -278,7 +310,7 @@ const PARCEL_AREA_LABEL_MIN_ZOOM = 18.5
 const M2_PER_MU = 2000 / 3
 
 type ParcelId = string
-type ParcelMode = 'idle' | 'filter' | 'drawing' | 'review' | 'selected' | 'editing'
+type ParcelMode = 'idle' | 'filter' | 'drawing' | 'selected' | 'editing'
 interface ParcelEditRecord {
   datasetVersion: string
   hiddenIds: ParcelId[]
@@ -299,7 +331,8 @@ const parcelMode = ref<ParcelMode>('idle')
 const hasAiParcels = ref(false)
 const manualDraftPoints = ref<Position[]>([])
 const manualDraftDirty = ref(false)
-const batchSavedCount = ref(0)
+const pendingManualParcels = ref<ManualParcelFeature[]>([])
+const batchSavedCount = computed(() => pendingManualParcels.value.length)
 const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
 const manualDraftAreaText = computed(() => {
   const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
@@ -312,6 +345,9 @@ const pendingChangeCount = computed(() => pendingHideCount.value + pendingRestor
 const hiddenParcelCount = ref(0)
 const saveNotice = ref('')
 const saveNoticeError = ref(false)
+type ManualDialogState = { open: boolean; title: string; message: string; confirmLabel: string }
+const manualDialog = ref<ManualDialogState>({ open: false, title: '', message: '', confirmLabel: '确定' })
+const manualDialogEl = ref<HTMLElement>()
 const parcelDisplayCount = ref(0)
 const parcelDisplayAreaMu = ref(0)
 const parcelDisplayAreaText = computed(() => parcelDisplayAreaMu.value.toLocaleString('zh-CN', {
@@ -334,14 +370,17 @@ let outlineLayer: L.GeoJSON | null = null
 let rsLayer: L.TileLayer | null = null
 let parcelLayer: L.GeoJSON | null = null
 let manualParcelLayer: L.GeoJSON | null = null
+let pendingManualLayer: L.GeoJSON | null = null
 let manualDraftLayer: L.Polygon | L.Polyline | null = null
 let manualVertexLayer: L.LayerGroup | null = null
+let pendingActionMarker: L.Marker | null = null
 let parcelAreaLabelLayer: L.LayerGroup | null = null
 let editDimLayer: L.Rectangle | null = null
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
 let selectedManualParcel: ManualParcelFeature | null = null
 let editingManualOriginal: ManualParcelFeature | null = null
+let editingPendingManualId: string | null = null
 let parcelVillageCode = ''
 let hiddenParcelIds = new Set<ParcelId>()
 let pendingHideParcelIds = new Set<ParcelId>()
@@ -354,6 +393,7 @@ let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动�
 let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
+let manualDialogResolve: ((confirmed: boolean) => void) | null = null
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
@@ -389,6 +429,8 @@ function clearLayers() {
   editingManualOriginal = null
   manualDraftPoints.value = []
   manualDraftDirty.value = false
+  pendingManualParcels.value = []
+  editingPendingManualId = null
   selectedManualAreaText.value = ''
   parcelVillageCode = ''
   hiddenParcelIds.clear()
@@ -400,6 +442,8 @@ function clearLayers() {
   if (rsLayer) { rsLayer.remove(); rsLayer = null }
   if (parcelLayer) { parcelLayer.remove(); parcelLayer = null }
   if (manualParcelLayer) { manualParcelLayer.remove(); manualParcelLayer = null }
+  if (pendingManualLayer) { pendingManualLayer.remove(); pendingManualLayer = null }
+  if (pendingActionMarker) { pendingActionMarker.remove(); pendingActionMarker = null }
   clearManualDraftLayers()
   if (parcelAreaLabelLayer) { parcelAreaLabelLayer.remove(); parcelAreaLabelLayer = null }
   rsVisible.value = false
@@ -481,7 +525,7 @@ function updateParcelAreaLabels() {
   const displayedFeatures: Feature[] = [
     ...(parcelSource?.features.filter((feature) => {
       const id = parcelId(feature)
-      return parcelMode.value === 'filter' || id === null || !hiddenParcelIds.has(id)
+      return parcelMode.value === 'filter' || parcelMode.value === 'drawing' || id === null || !hiddenParcelIds.has(id)
     }) ?? []),
     ...manualParcels,
   ]
@@ -527,13 +571,17 @@ function syncPendingParcelCounts() {
 function renderParcelLayer() {
   parcelLayer?.remove()
   manualParcelLayer?.remove()
+  pendingManualLayer?.remove()
+  if (pendingActionMarker) { pendingActionMarker.remove(); pendingActionMarker = null }
   parcelLayer = null
   manualParcelLayer = null
+  pendingManualLayer = null
 
   const aiFeatures = parcelSource?.features ?? []
+  const showHiddenParcels = parcelMode.value === 'filter' || parcelMode.value === 'drawing'
   const visibleAiFeatures = aiFeatures.filter((feature) => {
     const id = parcelId(feature)
-    return parcelMode.value === 'filter' || id === null || !hiddenParcelIds.has(id)
+    return showHiddenParcels || id === null || !hiddenParcelIds.has(id)
   })
   const displayedAi = aiFeatures.filter((feature) => {
     const id = parcelId(feature)
@@ -557,6 +605,7 @@ function renderParcelLayer() {
       style: (feature) => {
         const id = feature ? parcelId(feature as Feature) : null
         if (parcelMode.value === 'filter') return parcelEditStyle(id)
+        if (parcelMode.value === 'drawing' && id && hiddenParcelIds.has(id)) return PARCEL_HIDDEN_STYLE
         return parcelOn.value ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
       },
       onEachFeature: (feature: Feature, layer: L.Layer) => {
@@ -616,6 +665,26 @@ function renderParcelLayer() {
         })
       },
     }).addTo(map)
+  }
+
+  if (parcelMode.value === 'drawing' && pendingManualParcels.value.length) {
+    const visiblePending = pendingManualParcels.value.filter((feature) => feature.properties.id !== editingPendingManualId)
+    if (visiblePending.length) {
+      const pendingCollection: FeatureCollection = { type: 'FeatureCollection', features: visiblePending }
+      pendingManualLayer = L.geoJSON(pendingCollection, {
+        interactive: true,
+        style: MANUAL_PENDING_STYLE,
+        onEachFeature: (feature: Feature, layer: L.Layer) => {
+          const pending = feature as ManualParcelFeature
+          layer.bindTooltip(`待保存 · ${pending.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
+          layer.on('click', (event) => {
+            L.DomEvent.stopPropagation(event)
+            startPendingManualEditing(pending)
+          })
+        },
+      }).addTo(map)
+    }
+    if (editingPendingManualId) renderPendingRemoveAction()
   }
   outlineLayer?.bringToFront()
   updateParcelAreaLabels()
@@ -719,35 +788,83 @@ function toLatLngs(points: Position[]): L.LatLngExpression[] {
   return points.map(([lng, lat]) => L.latLng(lat, lng))
 }
 
+function manualVertexIcon(first = false) {
+  return L.divIcon({
+    className: `manual-vertex-icon${first ? ' first' : ''}`,
+    html: '<span></span>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  })
+}
+
 function renderManualDraft(editable: boolean) {
   clearManualDraftLayers()
   if (!manualDraftPoints.value.length) return
-  if (editable) {
-    manualDraftLayer = L.polygon(toLatLngs(manualDraftPoints.value), MANUAL_DRAFT_STYLE).addTo(map)
-    const vertexIcon = L.divIcon({ className: 'manual-vertex-icon', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] })
-    manualVertexLayer = L.layerGroup().addTo(map)
-    manualDraftPoints.value.forEach(([lng, lat], index) => {
-      const marker = L.marker([lat, lng], { icon: vertexIcon, draggable: true, keyboard: true, title: `顶点 ${index + 1}` })
+  manualDraftLayer = editable
+    ? L.polygon(toLatLngs(manualDraftPoints.value), MANUAL_DRAFT_STYLE).addTo(map)
+    : L.polyline(toLatLngs(manualDraftPoints.value), { ...MANUAL_DRAFT_STYLE, fill: false }).addTo(map)
+  manualVertexLayer = L.layerGroup().addTo(map)
+  manualDraftPoints.value.forEach(([lng, lat], index) => {
+    const canClose = !editable && index === 0 && manualDistinctPointCount.value >= 3
+    const marker = L.marker([lat, lng], {
+      icon: manualVertexIcon(canClose),
+      draggable: editable,
+      keyboard: editable || canClose,
+      title: canClose ? '点击闭合地块' : `顶点 ${index + 1}`,
+      interactive: true,
+      zIndexOffset: canClose ? 1000 : 0,
+    })
+    marker.on('click', (event) => {
+      L.DomEvent.stopPropagation(event)
+      if (canClose) finishManualDrawing()
+    })
+    if (editable) {
       marker.on('drag', () => {
         const point = marker.getLatLng()
         manualDraftPoints.value[index] = [point.lng, point.lat]
         manualDraftDirty.value = true
         ;(manualDraftLayer as L.Polygon | null)?.setLatLngs(toLatLngs(manualDraftPoints.value))
       })
-      marker.addTo(manualVertexLayer!)
-    })
-  } else {
-    manualDraftLayer = L.polyline(toLatLngs(manualDraftPoints.value), { ...MANUAL_DRAFT_STYLE, fill: false }).addTo(map)
-    const vertexIcon = L.divIcon({ className: 'manual-vertex-icon', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] })
-    manualVertexLayer = L.layerGroup().addTo(map)
-    manualDraftPoints.value.forEach(([lng, lat]) => {
-      L.marker([lat, lng], { icon: vertexIcon, interactive: false, keyboard: false }).addTo(manualVertexLayer!)
-    })
-  }
+    }
+    marker.addTo(manualVertexLayer!)
+  })
+}
+
+function manualGeometryWarnings(preparedGeometry: ManualParcelFeature['geometry'], excludedPendingId?: string) {
+  const otherFeatures: Feature[] = [
+    ...(parcelSource?.features ?? []),
+    ...manualParcels,
+    ...pendingManualParcels.value.filter((feature) => feature.properties.id !== excludedPendingId),
+  ]
+  return inspectManualGeometry(preparedGeometry, store.current.geometry, otherFeatures)
+}
+
+function openManualDialog(title: string, message: string, confirmLabel = '确定'): Promise<boolean> {
+  if (manualDialogResolve) manualDialogResolve(false)
+  manualDialog.value = { open: true, title, message, confirmLabel }
+  requestAnimationFrame(() => manualDialogEl.value?.focus())
+  return new Promise((resolve) => { manualDialogResolve = resolve })
+}
+
+function closeManualDialog(confirmed: boolean) {
+  manualDialog.value.open = false
+  const resolve = manualDialogResolve
+  manualDialogResolve = null
+  resolve?.(confirmed)
+}
+
+async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geometry'], excludedPendingId?: string) {
+  const warnings = manualGeometryWarnings(preparedGeometry, excludedPendingId)
+  if (!(warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)) return true
+  return openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要继续')
 }
 
 function onManualMapClick(event: L.LeafletMouseEvent) {
   if (parcelMode.value !== 'drawing') return
+  if (editingPendingManualId) {
+    finishPendingManualEditing()
+    return
+  }
   manualDraftPoints.value = [...manualDraftPoints.value, [event.latlng.lng, event.latlng.lat]]
   manualDraftDirty.value = true
   renderManualDraft(false)
@@ -759,31 +876,149 @@ function startManualDrawing() {
   parcelOn.value = true
   selectedManualParcel = null
   editingManualOriginal = null
+  editingPendingManualId = null
   manualDraftPoints.value = []
+  pendingManualParcels.value = []
   manualDraftDirty.value = false
-  batchSavedCount.value = 0
   enterParcelWorkMode('drawing')
+  map.off('click', onManualMapClick)
   map.on('click', onManualMapClick)
   renderParcelLayer()
 }
 
 function undoManualPoint() {
-  if (parcelMode.value !== 'drawing' || !manualDraftPoints.value.length) return
-  manualDraftPoints.value = manualDraftPoints.value.slice(0, -1)
-  manualDraftDirty.value = manualDraftPoints.value.length > 0
-  renderManualDraft(false)
-}
-
-function finishManualDrawing() {
-  const checked = prepareManualGeometry(manualDraftPoints.value)
-  if (!checked.prepared) {
-    showNotice(checked.error ?? '无法完成地块边界。', true)
+  if (parcelMode.value !== 'drawing') return
+  if (editingPendingManualId) {
+    editingPendingManualId = null
+    manualDraftPoints.value = []
+    clearManualDraftLayers()
+    renderParcelLayer()
     return
   }
-  map.off('click', onManualMapClick)
-  parcelMode.value = 'review'
-  manualDraftPoints.value = checked.prepared.geometry.coordinates[0].slice(0, -1)
+  if (manualDraftPoints.value.length) {
+    manualDraftPoints.value = manualDraftPoints.value.slice(0, -1)
+    renderManualDraft(false)
+  } else if (pendingManualParcels.value.length) {
+    pendingManualParcels.value = pendingManualParcels.value.slice(0, -1)
+    renderParcelLayer()
+  }
+  manualDraftDirty.value = manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0
+}
+
+async function finishManualDrawing() {
+  if (parcelMode.value !== 'drawing' || editingPendingManualId) return
+  const checked = prepareManualGeometry(manualDraftPoints.value)
+  if (!checked.prepared) {
+    showNotice(checked.error ?? '至少需要 3 个不同顶点才能闭合地块。', true)
+    return
+  }
+  if (!await confirmManualWarnings(checked.prepared.geometry)) return
+  pendingManualParcels.value = [
+    ...pendingManualParcels.value,
+    makeManualParcel(parcelVillageCode, checked.prepared),
+  ]
+  manualDraftPoints.value = []
+  manualDraftDirty.value = true
+  clearManualDraftLayers()
+  renderParcelLayer()
+}
+
+async function startPendingManualEditing(feature: ManualParcelFeature) {
+  if (manualDraftPoints.value.length && !editingPendingManualId) {
+    showNotice('请先点击第一个顶点或按 N 闭合当前地块，或撤销当前顶点。', true)
+    return
+  }
+  if (editingPendingManualId === feature.properties.id) return
+  if (editingPendingManualId && !await finishPendingManualEditing()) return
+  editingPendingManualId = feature.properties.id
+  manualDraftPoints.value = feature.geometry.coordinates[0].slice(0, -1).map(([lng, lat]) => [lng, lat])
+  renderParcelLayer()
   renderManualDraft(true)
+}
+
+async function finishPendingManualEditing(): Promise<boolean> {
+  if (!editingPendingManualId) return true
+  const checked = prepareManualGeometry(manualDraftPoints.value)
+  if (!checked.prepared) {
+    showNotice(checked.error ?? '地块几何无效。', true)
+    return false
+  }
+  if (!await confirmManualWarnings(checked.prepared.geometry, editingPendingManualId)) return false
+  const original = pendingManualParcels.value.find((feature) => feature.properties.id === editingPendingManualId)
+  if (!original) return false
+  const updated = makeManualParcel(parcelVillageCode, checked.prepared, original)
+  pendingManualParcels.value = pendingManualParcels.value.map((feature) => feature.properties.id === editingPendingManualId ? updated : feature)
+  editingPendingManualId = null
+  manualDraftPoints.value = []
+  clearManualDraftLayers()
+  renderParcelLayer()
+  return true
+}
+
+function renderPendingRemoveAction() {
+  const selected = pendingManualParcels.value.find((feature) => feature.properties.id === editingPendingManualId)
+  if (!selected) return
+  const icon = L.divIcon({
+    className: 'pending-remove-icon',
+    html: '<button type="button" title="移除此地块" aria-label="移除此待保存地块">移除</button>',
+    iconSize: [48, 28],
+    iconAnchor: [24, 42],
+  })
+  pendingActionMarker = L.marker([selected.properties.label_lat, selected.properties.label_lng], { icon, keyboard: true, zIndexOffset: 1200 }).addTo(map)
+  pendingActionMarker.on('click', (event) => {
+    L.DomEvent.stopPropagation(event)
+    removePendingManualParcel(selected.properties.id)
+  })
+}
+
+function removePendingManualParcel(id: string) {
+  pendingManualParcels.value = pendingManualParcels.value.filter((feature) => feature.properties.id !== id)
+  if (editingPendingManualId === id) {
+    editingPendingManualId = null
+    manualDraftPoints.value = []
+    clearManualDraftLayers()
+  }
+  manualDraftDirty.value = manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0
+  renderParcelLayer()
+}
+
+async function saveManualBatch() {
+  if (!parcelVillageCode || parcelMode.value !== 'drawing') return
+  if (editingPendingManualId && !await finishPendingManualEditing()) return
+  if (manualDraftPoints.value.length) {
+    showNotice('当前地块尚未闭合，请点击第一个顶点或按 N 完成绘制。', true)
+    return
+  }
+  if (!pendingManualParcels.value.length) return
+  const nextFeatures = [...manualParcels, ...pendingManualParcels.value]
+  const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
+  if (!persisted.ok) {
+    showNotice(persisted.error, true)
+    return
+  }
+  const savedCount = pendingManualParcels.value.length
+  manualParcels = nextFeatures
+  pendingManualParcels.value = []
+  manualDraftDirty.value = false
+  leaveParcelWorkMode()
+  clearManualDraftLayers()
+  renderParcelLayer()
+  showNotice(`已保存 ${savedCount} 个人工地块`)
+}
+
+async function cancelManualBatch(silent = false) {
+  const pendingCount = pendingManualParcels.value.length
+  const hasOpenDraft = manualDraftPoints.value.length > 0 && !editingPendingManualId
+  const hasPendingEdit = Boolean(editingPendingManualId)
+  if (!silent && (pendingCount || hasOpenDraft || hasPendingEdit)
+      && !await openManualDialog('取消新增地块', `将放弃本批次 ${pendingCount} 个待保存地块${hasOpenDraft ? '及当前未闭合地块' : ''}，是否继续？`, '放弃本批次')) return
+  pendingManualParcels.value = []
+  editingPendingManualId = null
+  manualDraftPoints.value = []
+  manualDraftDirty.value = false
+  clearManualDraftLayers()
+  leaveParcelWorkMode()
+  renderParcelLayer()
 }
 
 function cancelManualSession() {
@@ -792,15 +1027,8 @@ function cancelManualSession() {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   selectedManualParcel = null
-  const wasNewParcelReview = !editingManualOriginal && parcelMode.value === 'review'
   editingManualOriginal = null
-  if (wasNewParcelReview && batchSavedCount.value > 0) {
-    parcelMode.value = 'drawing'
-    map.on('click', onManualMapClick)
-  } else {
-    batchSavedCount.value = 0
-    leaveParcelWorkMode()
-  }
+  leaveParcelWorkMode()
   renderParcelLayer()
 }
 
@@ -829,7 +1057,7 @@ function manualWarningMessage(overlapCount: number, outsideVillage: boolean, inc
   return `当前地块${parts.join('，')}。是否仍要保存？`
 }
 
-function saveManualDraft() {
+async function saveManualDraft() {
   if (!parcelVillageCode) return
   const checked = prepareManualGeometry(manualDraftPoints.value)
   if (!checked.prepared) {
@@ -843,7 +1071,7 @@ function saveManualDraft() {
   ]
   const warnings = inspectManualGeometry(checked.prepared.geometry, store.current.geometry, otherFeatures)
   if ((warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)
-      && !window.confirm(manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks))) return
+      && !await openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要保存')) return
 
   const next = makeManualParcel(parcelVillageCode, checked.prepared, editingManualOriginal ?? undefined)
   const nextFeatures = editingManualOriginal
@@ -859,23 +1087,15 @@ function saveManualDraft() {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   selectedManualParcel = null
-  const wasNewParcel = !editingManualOriginal
   editingManualOriginal = null
-  if (wasNewParcel) {
-    batchSavedCount.value++
-    parcelMode.value = 'drawing'
-    map.on('click', onManualMapClick)
-    showNotice(`已保存 ${batchSavedCount.value} 个人工地块`)
-  } else {
-    leaveParcelWorkMode()
-    showNotice('人工地块已保存到当前浏览器')
-  }
+  leaveParcelWorkMode()
   renderParcelLayer()
+  showNotice('人工地块已保存到当前浏览器')
 }
 
-function deleteSelectedManualParcel() {
+async function deleteSelectedManualParcel() {
   if (!selectedManualParcel || !parcelVillageCode) return
-  if (!window.confirm(`确定删除这块 ${selectedManualParcel.properties.area_mu.toFixed(2)} 亩的人工地块吗？此操作只删除本机记录。`)) return
+  if (!await openManualDialog('删除人工地块', `确定删除这块 ${selectedManualParcel.properties.area_mu.toFixed(2)} 亩的人工地块吗？此操作只删除本机记录。`, '确认删除')) return
   const next = manualParcels.filter((feature) => feature.properties.id !== selectedManualParcel!.properties.id)
   const persisted = writeManualParcels(parcelVillageCode, next)
   if (!persisted.ok) {
@@ -890,14 +1110,37 @@ function deleteSelectedManualParcel() {
 }
 
 function hasUnsavedParcelWork(): boolean {
-  if (parcelMode.value === 'drawing' || parcelMode.value === 'review' || parcelMode.value === 'editing') return manualDraftDirty.value
+  if (parcelMode.value === 'drawing') return manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0 || Boolean(editingPendingManualId)
+  if (parcelMode.value === 'editing') return manualDraftDirty.value
   return pendingChangeCount.value > 0
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+}
+
 function onManualKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && ['drawing', 'review', 'editing'].includes(parcelMode.value)) {
+  if (isTypingTarget(event.target)) return
+  if (event.key === 'Escape' && manualDialog.value.open) {
+    event.preventDefault()
+    closeManualDialog(false)
+    return
+  }
+  if (manualDialog.value.open) return
+  if (event.key === 'Escape' && parcelMode.value === 'drawing') {
+    event.preventDefault()
+    void cancelManualBatch(true)
+    return
+  }
+  if (event.key === 'Escape' && parcelMode.value === 'editing') {
     event.preventDefault()
     cancelManualSession()
+    return
+  }
+  if (parcelMode.value === 'drawing' && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
+    event.preventDefault()
+    if (editingPendingManualId) finishPendingManualEditing()
+    else finishManualDrawing()
     return
   }
   if (parcelMode.value === 'drawing' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
@@ -1155,6 +1398,39 @@ onBeforeUnmount(() => {
 .parcel-editing .map:active { cursor: grabbing; }
 .parcel-drawing .map,
 .parcel-drawing .map:active { cursor: crosshair; }
+.draw-shortcut-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 7px 11px;
+  border: 1px solid rgba(192, 132, 252, 0.48);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.draw-shortcut-hint kbd {
+  min-width: 24px;
+  padding: 3px 6px;
+  border: 1px solid #d8b4fe;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #faf5ff;
+  color: #7e22ce;
+  font: inherit;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+}
 .save-notice {
   position: absolute;
   top: 64px;
@@ -1176,6 +1452,61 @@ onBeforeUnmount(() => {
   from { opacity: 0.4; transform: translate(-50%, -6px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+.dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+}
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.3);
+  color: #0f172a;
+}
+.confirm-dialog:focus { outline: none; }
+.dialog-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #faf5ff;
+  color: #9333ea;
+}
+.dialog-icon svg { width: 22px; height: 22px; }
+.dialog-copy h2 { margin: 1px 0 7px; font-size: 16px; line-height: 1.25; }
+.dialog-copy p { margin: 0; color: #475569; font-size: 13px; line-height: 1.65; }
+.dialog-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dialog-button {
+  height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.dialog-button.secondary { background: #f1f5f9; color: #475569; }
+.dialog-button.secondary:hover { background: #e2e8f0; color: #0f172a; }
+.dialog-button.primary { background: #7e22ce; color: #fff; }
+.dialog-button.primary:hover { background: #6b21a8; }
+.dialog-button:focus-visible { outline: 3px solid rgba(126, 34, 206, 0.28); outline-offset: 2px; }
 .parcel-edit-toolbar {
   position: absolute;
   top: 12px;
@@ -1242,6 +1573,16 @@ onBeforeUnmount(() => {
 .draw-guide span { color: #475569; font-size: 12px; }
 .draw-guide small { grid-column: 1 / -1; color: #7e22ce; font-size: 10px; font-variant-numeric: tabular-nums; }
 .draw-guide.selected { min-width: 112px; }
+.batch-draw-count {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  color: #475569;
+  white-space: nowrap;
+}
+.batch-draw-count strong { color: #7e22ce; font-size: 15px; font-variant-numeric: tabular-nums; }
 .edit-stat {
   height: 34px;
   display: inline-flex;
@@ -1356,6 +1697,30 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 7px rgba(15, 23, 42, 0.5);
 }
 .map-wrap :deep(.manual-vertex-icon:focus-visible span) { outline: 3px solid rgba(250, 204, 21, 0.65); outline-offset: 2px; }
+.map-wrap :deep(.manual-vertex-icon.first) { cursor: pointer; }
+.map-wrap :deep(.manual-vertex-icon.first span) {
+  background: #7e22ce;
+  box-shadow: 0 0 0 4px rgba(232, 121, 249, 0.35), 0 2px 7px rgba(15, 23, 42, 0.5);
+  transform: scale(1.08);
+}
+.map-wrap :deep(.manual-vertex-icon.first:hover span) { background: #581c87; }
+.map-wrap :deep(.pending-remove-icon) { border: 0; background: transparent; }
+.map-wrap :deep(.pending-remove-icon button) {
+  min-width: 48px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+  color: #b91c1c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.map-wrap :deep(.pending-remove-icon button:hover) { background: #fef2f2; }
+.map-wrap :deep(.pending-remove-icon button:focus-visible) { outline: 3px solid rgba(239, 68, 68, 0.28); outline-offset: 2px; }
 
 .map-wrap :deep(.parcel-area-label-wrap) {
   width: 0 !important;
