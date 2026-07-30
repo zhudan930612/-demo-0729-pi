@@ -1,7 +1,7 @@
 # 农险双精准地图 Demo
 
 以天地图卫星影像为底图，浙江省 **省→市→县→乡→村** 五级下钻 + 分级行政边界展示；
-村级叠加吉林一号 0.5m 高分影像（覆盖上虞章镇镇、嵊州三界镇共 17 村）；
+乡镇级和村级叠加吉林一号 0.5m 高分影像（影像覆盖上虞章镇镇、嵊州三界镇共 17 村）；
 龙江村试点展示 Delineate Anything v2 自动识别的演示地块。
 
 详细需求与决策记录见 [docs/需求文档.md](docs/需求文档.md)。
@@ -121,6 +121,7 @@ python scripts/prepare-boundaries.py     # 边界拆分 -> web/public/data/
 python scripts/prepare-rs-tiles.py       # 影像切片 -> web/public/tiles/
 python scripts/validate-data.py          # 数据链路校验(13 项)
 python scripts/prepare-parcel-pilot.py prepare  # 龙江村试点裁片（模型推理需独立 Python 3.11 环境）
+python scripts/prepare-parcel-pilot.py enrich   # 为现有前端地块补面积/亩数和标注点（不重跑模型、不改几何）
 
 cd web
 cp .env.local.example .env.local         # 填入 VITE_TIANDITU_TOKEN

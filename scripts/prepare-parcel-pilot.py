@@ -18,7 +18,7 @@ from rasterio.windows import Window, from_bounds
 from rasterio.warp import transform_geom
 from shapely.geometry import mapping, shape
 from shapely.ops import transform as transform_shape
-from pyproj import Transformer
+from pyproj import Geod, Transformer
 
 ROOT = Path(__file__).resolve().parent.parent
 VILLAGE_CODE = "330604102014"
@@ -33,6 +33,7 @@ FRONTEND = ROOT / "web" / "public" / "data" / "parcels" / f"{VILLAGE_CODE}.geojs
 BUFFER_M = 128
 MIN_PARCEL_M2 = 200
 MAX_PARCEL_M2 = 100_000
+M2_PER_MU = 2000 / 3
 
 
 def village_feature() -> dict:
@@ -89,6 +90,38 @@ def prepare() -> None:
     print(f"工作目录: {WORK}")
 
 
+def parcel_properties(parcel_id: int, part, area_m2: float) -> dict:
+    label_point = part.representative_point()
+    return {
+        "id": parcel_id,
+        "area_m2": round(area_m2, 2),
+        "area_mu": round(area_m2 / M2_PER_MU, 2),
+        "label_lng": round(label_point.x, 7),
+        "label_lat": round(label_point.y, 7),
+    }
+
+
+def enrich_frontend() -> None:
+    """为现有前端地块补充面积和标注点，不改变 ID、顺序或几何。"""
+    if not FRONTEND.exists():
+        raise SystemExit(f"地块文件不存在: {FRONTEND}")
+    data = json.loads(FRONTEND.read_text(encoding="utf-8"))
+    geod = Geod(ellps="WGS84")
+    for index, item in enumerate(data.get("features", []), start=1):
+        part = shape(item["geometry"])
+        area_m2 = abs(geod.geometry_area_perimeter(part)[0])
+        parcel_id = item.get("properties", {}).get("id", index)
+        item["properties"] = parcel_properties(parcel_id, part, area_m2)
+
+    temp = FRONTEND.with_suffix(".geojson.tmp")
+    temp.write_text(
+        json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    temp.replace(FRONTEND)
+    print(f"补充面积 {FRONTEND}: {len(data['features'])} 个地块, {FRONTEND.stat().st_size / 1024:.1f} KiB")
+
+
 def export(gpkg: Path) -> None:
     import fiona
 
@@ -116,7 +149,7 @@ def export(gpkg: Path) -> None:
                     continue
                 rows.append({
                     "type": "Feature",
-                    "properties": {"id": len(rows) + 1},
+                    "properties": parcel_properties(len(rows) + 1, part, area_m2),
                     "geometry": mapping(part),
                 })
 
@@ -129,9 +162,13 @@ def export(gpkg: Path) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in {"prepare", "export"}:
-        raise SystemExit("用法: prepare-parcel-pilot.py prepare | export <结果.gpkg>")
+    if len(sys.argv) < 2 or sys.argv[1] not in {"prepare", "export", "enrich"}:
+        raise SystemExit("用法: prepare-parcel-pilot.py prepare | export <结果.gpkg> | enrich")
     if sys.argv[1] == "prepare":
         prepare()
+    elif sys.argv[1] == "enrich":
+        enrich_frontend()
     else:
+        if len(sys.argv) < 3:
+            raise SystemExit("export 需要模型结果 GPKG 路径")
         export(Path(sys.argv[2]))
