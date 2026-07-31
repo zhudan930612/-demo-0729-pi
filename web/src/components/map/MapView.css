@@ -55,6 +55,9 @@
   animation: notice-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .save-notice.error { background: #b91c1c; }
+.business-load-error { position: absolute; left: 50%; top: 72px; z-index: 1120; display: flex; align-items: center; gap: 10px; max-width: min(680px, calc(100vw - 32px)); transform: translateX(-50%); padding: 10px 12px; border: 1px solid #fca5a5; border-radius: 10px; background: #fff7ed; box-shadow: 0 8px 24px rgba(15,23,42,.18); color: #991b1b; font-size: 12px; }
+.business-load-error span { min-width: 0; }
+.business-load-error button { flex: none; padding: 6px 9px; border: 0; border-radius: 7px; background: #b91c1c; color: #fff; font-weight: 700; cursor: pointer; }
 @keyframes notice-in {
   from { opacity: 0.4; transform: translate(-50%, -6px); }
   to { opacity: 1; transform: translate(-50%, 0); }

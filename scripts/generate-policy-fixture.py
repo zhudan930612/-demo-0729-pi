@@ -119,7 +119,12 @@ def main() -> None:
     for parcel_id in ids:
         if parcel_id in uninsured and int(parcel_id) % 5 != 0: continue
         records.append({"villageCode": "330604102014", "parcelId": parcel_id, "year": 2025, "season": "单季稻" if int(parcel_id) % 3 == 0 else ("早稻" if int(parcel_id) % 3 == 1 else "连作晚稻"), "crop": "水稻", "variety": "甬优1540" if int(parcel_id) % 2 else "嘉优中科1号", "startDate": "2025-05-01", "endDate": "2025-11-30", "status": "已核查" if int(parcel_id) % 11 else "需复核", "checkedAt": "2025-06-20" if int(parcel_id) % 11 else "2025-06-22", "note": ""})
-    (OUT / "cultivation-v1.json").write_text(json.dumps({"schemaVersion": "cultivation-v1", "businessDate": BUSINESS_DATE, "records": records}, ensure_ascii=False, indent=2), encoding="utf-8")
+    cultivation_output = json.dumps({"schemaVersion": "cultivation-v1", "businessDate": BUSINESS_DATE, "records": records}, ensure_ascii=False, indent=2)
+    (OUT / "cultivation-v1.json").write_text(cultivation_output, encoding="utf-8")
+    public_business = ROOT / "web/public/business"
+    public_business.mkdir(parents=True, exist_ok=True)
+    (public_business / "policy-v1.json").write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")
+    (public_business / "cultivation-v1.json").write_text(cultivation_output, encoding="utf-8")
     (OUT / "policy-v1.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

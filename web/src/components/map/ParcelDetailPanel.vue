@@ -53,7 +53,7 @@
           <div class="info-card"><span class="eyebrow">所属保单</span><h3>{{ policy.currentPolicy.product }}</h3><button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button><span v-if="copyNotice" class="copy-notice">{{ copyNotice }}</span><dl class="definition-list compact"><div><dt>投保人</dt><dd>{{ policy.applicant?.name }} · {{ policy.applicant?.partyType }}</dd></div><div><dt>被保险人</dt><dd>{{ policy.currentInsured?.name }} · {{ policy.currentInsured?.partyType }}</dd></div><div><dt>保险标的</dt><dd>{{ policy.currentPolicy.insuredObject }}</dd></div><div><dt>保险期间</dt><dd>{{ policy.currentPolicy.periodStart }} 至 {{ policy.currentPolicy.periodEnd }}</dd></div><div><dt>单位保险金额</dt><dd>1,250.00 元/亩</dd></div><div><dt>费率 / 补贴</dt><dd>3.2% / 80%</dd></div><div><dt>总保险金额</dt><dd>{{ money(policy.currentPolicy.summary.sum_insured_cents) }}</dd></div><div><dt>总保费</dt><dd>{{ money(policy.currentPolicy.summary.premium_cents) }}</dd></div></dl><button class="text-button" @click="$emit('highlight-policy')">查看整张保单覆盖范围</button></div>
           <ClaimSummaryBlock :claim="claim" />
         </template>
-        <details v-for="entry in policy.history" :key="entry.policy.id" class="history-card"><summary>{{ entry.policy.periodStart.slice(0, 4) }} 年历史保单 · {{ entry.policy.status }}</summary><dl class="definition-list compact"><div><dt>保单号</dt><dd>{{ entry.policy.policyNo }}</dd></div><div><dt>签单主体</dt><dd>{{ entry.insured?.name }}</dd></div><div><dt>承保面积</dt><dd>{{ Number(entry.coverage.insuredAreaMu).toFixed(2) }} 亩</dd></div><div><dt>保险金额</dt><dd>{{ money(entry.policy.summary.sum_insured_cents) }}</dd></div></dl></details>
+        <details v-for="entry in policy.history" :key="entry.policy.id" class="history-card"><summary>{{ entry.policy.periodStart.slice(0, 4) }} 年历史保单 · {{ entry.policy.status }}</summary><dl class="definition-list compact"><div><dt>承保分类</dt><dd>{{ entry.policy.insuredMode === 'single_insured' ? '单一被保险人' : '分户清单承保' }}</dd></div><div><dt>保单号</dt><dd>{{ entry.policy.policyNo }}</dd></div><div><dt>签单主体</dt><dd>{{ entry.insured?.name }}</dd></div><div><dt>承保面积</dt><dd>{{ Number(entry.coverage.insuredAreaMu).toFixed(2) }} 亩</dd></div><div><dt>单位保额 / 费率</dt><dd>{{ money(entry.policy.unitSumInsuredCentsPerMu) }}/亩 · {{ Number(entry.policy.premiumRate) * 100 }}%</dd></div><div><dt>保险金额</dt><dd>{{ money(entry.policy.summary.sum_insured_cents) }}</dd></div><div><dt>财政补贴 / 自缴</dt><dd>{{ money(entry.policy.summary.subsidy_cents) }} / {{ money(entry.policy.summary.self_paid_cents) }}</dd></div></dl><ClaimSummaryBlock :claim="historyClaim(entry.policy.id)" /></details>
       </section>
     </div>
   </aside>
@@ -66,7 +66,7 @@ import { CULTIVATION_SEASONS, CULTIVATION_STATUSES, cultivationKey, getCurrentCu
 import type { ParcelPolicyContext, ParcelSummaryInput } from '../../features/policy/policySelectors'
 import type { ClaimSummary } from '../../features/policy/policyTypes'
 
-const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; records: CultivationRecord[]; initialRecordKeys: string[]; claim: ClaimSummary | null; initialTab?: 'archive' | 'policy' }>()
+const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; records: CultivationRecord[]; initialRecordKeys: string[]; claim: ClaimSummary | null; historyClaims: ClaimSummary[]; initialTab?: 'archive' | 'policy' }>()
 const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isInitial: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': []; 'highlight-insured': []; 'highlight-policy': [] }>()
 const tab = ref<'archive' | 'policy'>(props.initialTab ?? (props.policy.currentPolicy ? 'policy' : 'archive'))
 const editing = ref(false); const editingKey = ref(''); const formError = ref(''); const copyNotice = ref('')
@@ -90,6 +90,7 @@ function isInitial(record: CultivationRecord) { return props.initialRecordKeys.i
 function removeRecord(record: CultivationRecord) { if (isInitial(record)) return; emit('remove-record', record) }
 function cancelEdit() { editing.value = false; editingKey.value = ''; formError.value = ''; emit('editing-change', false) }
 function saveEdit() { if (draft.status === '未核查') draft.checkedAt = ''; else if (!draft.checkedAt) draft.checkedAt = '2025-07-15'; if (!draft.crop || !draft.startDate || !draft.endDate) { formError.value = '请完整填写作物和种植期间。'; return } emit('save-record', structuredClone(draft), Boolean(editingKey.value)); }
+function historyClaim(policyId: string) { return props.historyClaims.find((item) => item.policyId === policyId) ?? null }
 function markSaved() { cancelEdit() }
 async function copyPolicyNo() { try { await navigator.clipboard.writeText(props.policy.currentPolicy!.policyNo); copyNotice.value = '已复制' } catch { copyNotice.value = '复制失败，请手动选择保单号' } setTimeout(() => { copyNotice.value = '' }, 1800) }
 defineExpose({ markSaved })

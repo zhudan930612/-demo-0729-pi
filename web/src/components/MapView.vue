@@ -52,6 +52,7 @@
       :records="selectedCultivationRecords"
       :initial-record-keys="selectedInitialRecordKeys"
       :claim="selectedClaim"
+      :history-claims="selectedHistoryClaims"
       :initial-tab="selectedPolicyContext.currentPolicy ? 'policy' : 'archive'"
       @request-close="requestCloseDetail"
       @request-restore="requestRestoreCultivation"
@@ -71,6 +72,12 @@
       @close="rosterOpen = false"
       @select="selectRosterItem"
     />
+
+    <div v-if="policyLoadError || cultivationLoadError" class="business-load-error" role="alert">
+      <strong>业务数据加载失败</strong>
+      <span>{{ [policyLoadError, cultivationLoadError].filter(Boolean).join(' ') }}</span>
+      <button type="button" @click="loadBusinessData">重试</button>
+    </div>
 
     <ManualConfirmDialog
       :open="manualDialog.open"
@@ -228,15 +235,23 @@ const canZoomIn = computed(() => currentZoom.value < 19)
 const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
 const basemap = ref<'img' | 'vec'>('img')
-const policyLoad = loadPolicyFixture()
-const cultivationLoad = loadCultivationFixture()
-const policyFixture: PolicyFixture | null = policyLoad.data
-const initialCultivationRecords = cultivationLoad.data ?? []
+const policyFixture = ref<PolicyFixture | null>(null)
+const initialCultivationRecords = ref<CultivationRecord[]>([])
+const policyLoadError = ref('')
+const cultivationLoadError = ref('')
+async function loadBusinessData() {
+  const [policy, cultivation] = await Promise.all([loadPolicyFixture(), loadCultivationFixture()])
+  policyFixture.value = policy.data
+  initialCultivationRecords.value = cultivation.data ?? []
+  policyLoadError.value = policy.error ?? ''
+  cultivationLoadError.value = cultivation.error ?? ''
+}
 const selectedParcel = ref<ParcelSummaryInput | null>(null)
 const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
 const selectedCultivationRecords = ref<CultivationRecord[]>([])
-const selectedInitialRecordKeys = computed(() => selectedParcel.value ? initialCultivationRecords.filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id).map(cultivationKey) : [])
+const selectedInitialRecordKeys = computed(() => selectedParcel.value ? initialCultivationRecords.value.filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id).map(cultivationKey) : [])
 const selectedClaim = ref<ReturnType<typeof claimForInsured>>(null)
+const selectedHistoryClaims = computed(() => policyFixture.value && selectedPolicyContext.value ? policyFixture.value.claims.filter((claim) => selectedPolicyContext.value!.history.some((entry) => entry.policy.id === claim.policyId && entry.insured?.id === claim.insuredPartyId)) : [])
 const cultivationEditing = ref(false)
 const rosterOpen = ref(false)
 const highlightedInsuredIds = ref<Set<string>>(new Set())
@@ -244,11 +259,11 @@ const highlightedPolicyIds = ref<Set<string>>(new Set())
 const detailPanelRef = ref<InstanceType<typeof ParcelDetailPanel>>()
 const selectedRosterItems = computed(() => {
   const policy = selectedPolicyContext.value?.currentPolicy
-  if (!policyFixture || !policy?.enrollmentListId) return []
-  const list = policyFixture.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
-  return list ? policyFixture.enrollmentItems.filter((item) => list.itemIds.includes(item.id)) : []
+  if (!policyFixture.value || !policy?.enrollmentListId) return []
+  const list = policyFixture.value.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
+  return list ? policyFixture.value.enrollmentItems.filter((item) => list.itemIds.includes(item.id)) : []
 })
-const selectedRosterClaims = computed(() => policyFixture && selectedPolicyContext.value?.currentPolicy ? policyFixture.claims.filter((claim) => claim.policyId === selectedPolicyContext.value!.currentPolicy!.id) : [])
+const selectedRosterClaims = computed(() => policyFixture.value && selectedPolicyContext.value?.currentPolicy ? policyFixture.value.claims.filter((claim) => claim.policyId === selectedPolicyContext.value!.currentPolicy!.id) : [])
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
@@ -377,20 +392,23 @@ function parcelId(feature: Feature): ParcelId | null {
 
 function refreshSelectedCultivation() {
   if (!selectedParcel.value) return
-  selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords)
+  selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords.value)
 }
 
 async function selectParcel(parcel: ParcelSummaryInput) {
   if (parcelMode.value !== 'idle' || !parcelOn.value) return
   if (cultivationEditing.value && !await openManualDialog('切换地块', '当前种植档案尚未保存，是否确认放弃并切换地块？', '确认切换')) return
   selectedParcel.value = parcel
-  selectedPolicyContext.value = policyFixture ? parcelPolicyContext(policyFixture, parcel.id) : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
+  selectedPolicyContext.value = policyFixture.value ? parcelPolicyContext(policyFixture.value, parcel.id) : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
   refreshSelectedCultivation()
   const context = selectedPolicyContext.value
-  selectedClaim.value = policyFixture && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture, context.currentPolicy.id, context.currentInsured.id) : null
+  selectedClaim.value = policyFixture.value && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture.value, context.currentPolicy.id, context.currentInsured.id) : null
+  const sameInsuredContext = selectedPolicyContext.value?.currentInsured?.id && highlightedInsuredIds.value.has(parcel.id)
   rosterOpen.value = false
-  highlightedInsuredIds.value = new Set()
-  highlightedPolicyIds.value = new Set()
+  if (!sameInsuredContext) {
+    highlightedInsuredIds.value = new Set()
+    highlightedPolicyIds.value = new Set()
+  }
   renderParcelLayer()
 }
 
@@ -409,7 +427,7 @@ async function requestRestoreCultivation() {
 
 function saveCultivationRecord(record: CultivationRecord, isExisting: boolean) {
   const initial = selectedInitialRecordKeys.value.includes(cultivationKey(record))
-  const result = isExisting ? (initial ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords) : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords)) : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords)
+  const result = isExisting ? (initial ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords.value) : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords.value)) : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords.value)
   if (!result.ok) { showNotice(result.error ?? '种植档案保存失败', true); return }
   refreshSelectedCultivation(); cultivationEditing.value = false; detailPanelRef.value?.markSaved(); showNotice('种植档案已保存到当前浏览器')
 }
@@ -422,22 +440,22 @@ function removeCultivationRecord(record: CultivationRecord) {
 
 function highlightSelectedInsured() {
   const context = selectedPolicyContext.value
-  if (!policyFixture || !context?.currentPolicy || !context.currentInsured) return
-  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
+  if (!policyFixture.value || !context?.currentPolicy || !context.currentInsured) return
+  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
   highlightedPolicyIds.value = new Set(); renderParcelLayer()
 }
 
 function highlightSelectedPolicy() {
   const context = selectedPolicyContext.value
-  if (!policyFixture || !context?.currentPolicy) return
-  highlightedPolicyIds.value = new Set(policyCoverages(policyFixture, context.currentPolicy.id).map((entry) => entry.parcelId))
-  if (context.currentInsured) highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
+  if (!policyFixture.value || !context?.currentPolicy) return
+  highlightedPolicyIds.value = new Set(policyCoverages(policyFixture.value, context.currentPolicy.id).map((entry) => entry.parcelId))
+  if (context.currentInsured) highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
   renderParcelLayer()
 }
 
 function selectRosterItem(item: EnrollmentItem) {
-  if (!policyFixture || !selectedPolicyContext.value?.currentPolicy) return
-  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, item.insuredPartyId, selectedPolicyContext.value.currentPolicy.id).map((entry) => entry.parcelId))
+  if (!policyFixture.value || !selectedPolicyContext.value?.currentPolicy) return
+  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, item.insuredPartyId, selectedPolicyContext.value.currentPolicy.id).map((entry) => entry.parcelId))
   renderParcelLayer()
 }
 
@@ -478,8 +496,9 @@ function leaveParcelWorkMode() {
   workModeController?.leave()
 }
 
-function startParcelEditing() {
+async function startParcelEditing() {
   if (!parcelOn.value || !hasFilterableParcels.value) return
+  if (cultivationEditing.value && !await openManualDialog('进入筛选模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
   clearSelection()
   clearPendingParcelFilterState(parcelFilterState)
   syncPendingParcelCounts()
@@ -576,8 +595,9 @@ async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geom
   return openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要继续')
 }
 
-function startManualDrawing() {
+async function startManualDrawing() {
   if (store.current.level !== 'village') return
+  if (cultivationEditing.value && !await openManualDialog('进入新增模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
   clearSelection()
   showManualStorageNoticeOnce()
   parcelOn.value = true
@@ -715,6 +735,10 @@ async function saveManualBatch() {
   }
   if (!batchHasChanges.value) return
   const nextFeatures = commitManualBatch(manualParcels, manualBatchState)
+  for (const id of pendingRemovedManualIds.value) {
+    const cleaned = removeCultivationForParcel(parcelVillageCode, id)
+    if (!cleaned.ok) { showNotice(cleaned.error ?? '删除地块关联档案失败，未保存本批次。', true); return }
+  }
   const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
   if (!persisted.ok) {
     showNotice(persisted.error, true)
@@ -729,7 +753,6 @@ async function saveManualBatch() {
     hiddenParcelIds.delete(id)
     pendingHideParcelIds.delete(id)
     pendingRestoreParcelIds.delete(id)
-    removeCultivationForParcel(parcelVillageCode, id)
   }
   persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
   resetManualBatch(manualBatchState)
@@ -1036,7 +1059,7 @@ function onAutoLevel() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   map = L.map(mapEl.value!, {
     minZoom: DEFAULT_MIN_ZOOM,
     maxZoom: 19,
@@ -1120,6 +1143,7 @@ onMounted(() => {
     onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
+  await loadBusinessData()
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   map.on('zoomend', () => {
