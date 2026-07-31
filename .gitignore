@@ -27,3 +27,6 @@ dist/
 # ---- 系统 ----
 .DS_Store
 Thumbs.db
+
+# ---- pi 子代理会话运行时文件（不入库） ----
+.pi-subagents/
