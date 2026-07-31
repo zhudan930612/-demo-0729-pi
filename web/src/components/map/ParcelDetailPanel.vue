@@ -11,16 +11,15 @@
     <div class="detail-scroll">
       <section class="detail-section archive-section" aria-labelledby="parcel-archive-title">
         <div class="section-title"><div><span class="section-kicker">01</span><h3 id="parcel-archive-title">地块档案</h3></div></div>
-        <dl class="archive-facts">
+        <dl class="definition-list">
           <div><dt>地类属性</dt><dd>耕地</dd></div>
           <div><dt>地块来源</dt><dd>{{ parcel.source === 'manual' ? '人工新增' : '基础地块' }}</dd></div>
           <div><dt>地块面积</dt><dd>{{ parcel.areaMu.toFixed(2) }} 亩 / {{ parcel.areaM2.toFixed(2) }} ㎡</dd></div>
           <div><dt>当前作物</dt><dd>{{ current.record?.crop ?? (current.nearestRecord ? '当前未种植' : '未标注') }}</dd></div>
-          <div><dt>承保面积</dt><dd>{{ policy.currentCoverage ? `${Number(policy.currentCoverage.insuredAreaMu).toFixed(2)} 亩` : '—' }}</dd></div>
-          <div class="wide"><dt>行政区划</dt><dd>浙江省 · 绍兴市 · 上虞区 · 章镇镇 · {{ villageName }}</dd></div>
+          <div><dt>行政区划</dt><dd>浙江省 · 绍兴市 · 上虞区 · 章镇镇 · {{ villageName }}</dd></div>
           <template v-if="parcel.source === 'manual'">
-            <div class="wide"><dt>创建时间</dt><dd>{{ parcel.createdAt }}</dd></div>
-            <div class="wide"><dt>更新时间</dt><dd>{{ parcel.updatedAt }}</dd></div>
+            <div><dt>创建时间</dt><dd>{{ parcel.createdAt }}</dd></div>
+            <div><dt>更新时间</dt><dd>{{ parcel.updatedAt }}</dd></div>
           </template>
         </dl>
         <p v-if="cropMismatch" class="mismatch">当前标注为{{ current.record?.crop }}，保单承保标的为{{ policy.currentPolicy?.insuredObject }}</p>
@@ -32,7 +31,7 @@
         <template v-else>
           <div class="policy-overview">
             <div><span>保单状态</span><strong class="policy-status">{{ policy.currentPolicy.status }}</strong></div>
-            <div><span>当前地块承保面积</span><strong>{{ Number(policy.currentCoverage!.insuredAreaMu).toFixed(2) }} 亩</strong></div>
+            <div><span>当前地块承保面积</span><strong>{{ coverageAreaText }}</strong></div>
             <p>承保比例 {{ coverageRatio }} · 当前地块保险金额 {{ money(currentParcelSumInsured) }}</p>
           </div>
           <div class="info-block">
@@ -100,6 +99,11 @@ const current = computed(() => getCurrentCultivationRecord(props.records))
 const parcelNumber = computed(() => formatParcelNumber(props.villageCode, props.parcel.source, props.parcel.id))
 const cropMismatch = computed(() => Boolean(current.value.record && props.policy.currentPolicy && current.value.record.crop !== props.policy.currentPolicy.insuredObject))
 const coverageRatio = computed(() => `${Math.min(100, Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) / props.parcel.areaMu * 100).toFixed(1)}%`)
+const coverageAreaText = computed(() => {
+  const areaMu = Number(props.policy.currentCoverage?.insuredAreaMu ?? 0)
+  if (props.policy.currentPolicy?.insuredMode !== 'insured_roster') return `${areaMu.toFixed(2)} 亩`
+  return `${areaMu.toFixed(2)} 亩 / ${(areaMu * 2000 / 3).toFixed(2)} ㎡`
+})
 const currentParcelSumInsured = computed(() => Math.round(Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) * 125000))
 const money = (value: number) => (value / 100).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
 function historyClaim(policyId: string) { return props.historyClaims.find((item) => item.policyId === policyId) ?? null }
