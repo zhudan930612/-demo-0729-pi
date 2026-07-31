@@ -8,49 +8,44 @@
 
 ## 仓库地图
 
-- `README.md`：项目概览、技术栈、数据目录与本地复现入口。
-- `docs/需求文档.md`：产品行为、已确认决策、数据约束和验收标准。
-- `web/`：Vue 3 + Vite + TypeScript 前端。
-- `web/src/components/MapView.vue`：Leaflet 地图、图层、下钻、缩放导航和控制按钮的主要实现。
-- `web/src/stores/drilldown.ts`：层级类型、下钻路径、子级数据 URL 和状态栈。
-- `web/src/api/tianditu.ts`：天地图底图、注记和 pane 配置。
-- `web/src/api/data.ts`：静态 JSON 请求与缓存。
-- `scripts/prepare-boundaries.py`：行政边界拆分、简化和 manifest 生成。
-- `scripts/prepare-rs-tiles.py`：吉林一号 TIF 转 XYZ 瓦片。
-- `scripts/prepare-parcel-pilot.py`：龙江村地块试点裁片及模型结果导出。
-- `scripts/check-codes.py`：行政区划编码一致性检查。
-- `scripts/validate-data.py`：五级静态数据链路验证入口。
+- `README.md`：项目概览、本地运行、数据准备和版权限制。
+- `PRODUCT.md`：稳定的产品定位、用户、能力边界与受限数据约束。
+- `DESIGN.md`：地图工作台的视觉令牌、组件模式和界面边界。
+- `docs/需求文档.md`：当前地图与地块功能、已确认决策、数据约束和验收标准。
+- `docs/地块详情与保单关联V1需求.md`：下一期地块详情与保单关联的需求边界；未实施前不得当作当前行为。
+- `docs/MapView拆分计划.md`：地图模块拆分的架构决策、实施结果与回归清单。
+- `web/src/components/MapView.vue`：地图装配、状态协调和 Leaflet 生命周期。
+- `web/src/map/`：导航、图层、工作模式与手动画图控制器。
+- `web/src/features/parcels/`：地块筛选、批量编辑、样式、类型及单元测试。
+- `web/src/stores/drilldown.ts`、`web/src/api/`：下钻状态、静态数据请求与天地图配置。
+- `scripts/`：边界、影像、地块预处理和数据链路检查；逐个脚本是其产物格式的事实来源。
 
 ## 事实来源
 
-- 产品行为与已确认取舍：`docs/需求文档.md`。
-- 本地运行、数据准备与版权说明：`README.md`。
-- 前端依赖和可用命令：`web/package.json`。
-- 当前地图架构：`web/src/components/MapView.vue`、`web/src/stores/drilldown.ts`、`web/src/api/`。
-- 数据产物格式与生成规则：对应的 `scripts/*.py`。
-- 数据链路是否完整：`python scripts/validate-data.py`。
+- 当前产品行为与验收：`docs/需求文档.md`；跨期需求以 `docs/地块详情与保单关联V1需求.md` 为准。
+- 产品边界与术语：`PRODUCT.md`；视觉与交互样式：`DESIGN.md`。
+- 地图模块职责和拆分后的回归路径：`docs/MapView拆分计划.md`、`web/src/map/`、`web/src/features/parcels/`。
+- 本地运行、依赖、受限数据和版权：`README.md`、`web/package.json`。
+- 数据产物格式和生成规则：相应的 `scripts/*.py`；全链路检查入口为 `python scripts/validate-data.py`。
 
-若文档与当前代码或生成数据冲突，先实测并修正文档；不要在本文件复制详细规格。
+若文档、代码或生成数据冲突，先实测，修正拥有该事实的文档；不要在本文件复制详细规格。
 
 ## 工作闭环
 
-1. 先读本文件，再按任务读取上面的 owner 文件。
-2. 修改用户可见行为前，核对 `docs/需求文档.md`；行为变化后同步该文档。
-3. 修改数据格式时，同时检查生成脚本、`web/src/stores/drilldown.ts` 和前端加载路径。
-4. 小步修改，避免顺带重构与当前任务无关的地图或数据逻辑。
-5. 前端交付前运行：
+1. 先读本文件，再按任务进入上面的 owner 文档和模块。
+2. 改变用户可见行为、术语或验收条件前后，同步 `docs/需求文档.md`；跨期需求同时核对对应 V1 文档。
+3. 改动地图装配时先读 `docs/MapView拆分计划.md`；按职责修改 `web/src/map/`、`web/src/features/parcels/` 或视图组件，避免把逻辑重新堆回 `MapView.vue`。
+4. 改动静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 与前端加载路径。
+5. 前端改动至少运行：
    ```bash
-   cd web && pnpm build
+   cd web && pnpm test && pnpm build
    ```
-6. 数据脚本或层级链路变化后运行：
+6. 数据脚本或层级链路改动后运行：
    ```bash
    python scripts/validate-data.py
    ```
-7. 编码归属逻辑变化后补跑：
-   ```bash
-   python scripts/check-codes.py
-   ```
-8. 记录实际验证结果；未运行对应验证时不要宣称完成。
+   编码归属逻辑变化时，再运行 `python scripts/check-codes.py`。
+7. 记录实际验证结果；未运行对应验证时不要宣称完成。
 
 ## 硬约束
 
@@ -67,9 +62,9 @@
 
 ## 当前缺口
 
-- 尚无独立架构文档；地图架构暂以 `web/src/components/MapView.vue` 和 `web/src/stores/drilldown.ts` 为准。
-- 尚无版本化执行计划目录；复杂跨文件工作应先在 `docs/` 增加专项计划，再实施。
-- 尚无 CI；构建和数据校验目前依赖本地命令。
+- 尚无独立的全仓架构文档；地图架构以 `docs/MapView拆分计划.md`、`web/src/map/` 和 `web/src/features/parcels/` 为准。
+- 尚无统一的版本化执行计划目录；复杂跨模块工作先在 `docs/` 增加专项计划，再实施。
+- 尚无 CI；构建、单测和数据校验当前依赖本地命令。
 - `scripts/` 尚无统一锁定的 Python 依赖文件；新增依赖时同步 `README.md`。
 
 ## 不应写在这里
