@@ -53,7 +53,6 @@
       :initial-record-keys="selectedInitialRecordKeys"
       :claim="selectedClaim"
       :history-claims="selectedHistoryClaims"
-      :initial-tab="selectedPolicyContext.currentPolicy ? 'policy' : 'archive'"
       @request-close="requestCloseDetail"
       @request-restore="requestRestoreCultivation"
       @save-record="saveCultivationRecord"
