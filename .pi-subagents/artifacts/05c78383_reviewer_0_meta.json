@@ -1,0 +1,160 @@
+{
+  "runId": "05c78383",
+  "agent": "reviewer",
+  "task": "只读严格审查当前 feat/parcel-policy-v1 工作树相对 HEAD 的 V1 实现。重点找 P0 功能缺陷、交互断路、数据规则错误、TypeScript/Vue 生命周期问题。按严重度输出具体文件/行和修复建议，不修改文件。",
+  "exitCode": 1,
+  "usage": {
+    "input": 101031,
+    "output": 15938,
+    "cacheRead": 641024,
+    "cacheWrite": 0,
+    "cost": 7.279425,
+    "turns": 11
+  },
+  "model": "my-local/gpt-5.6-sol:high",
+  "attemptedModels": [
+    "my-local/gpt-5.6-sol:high"
+  ],
+  "modelAttempts": [
+    {
+      "model": "my-local/gpt-5.6-sol:high",
+      "success": false,
+      "exitCode": 1,
+      "error": "Agent 'reviewer' requested unavailable child tools: web_search, fetch_content, get_search_content.\nThe `tools` field is a strict allowlist; it does not load extension code.\nFor extension tools, add the provider path to `subagentOnlyExtensions` (child-only), `extensions`, or as a path-like entry in `tools`, while keeping each registered tool name in `tools`.\nFor MCP tools, verify the MCP adapter configuration and selected tool names. For builtin tools, verify the name against the installed Pi version.",
+      "usage": {
+        "input": 101031,
+        "output": 15938,
+        "cacheRead": 641024,
+        "cacheWrite": 0,
+        "cost": 7.279425,
+        "turns": 11
+      }
+    }
+  ],
+  "durationMs": 462056,
+  "toolCount": 48,
+  "error": "Agent 'reviewer' requested unavailable child tools: web_search, fetch_content, get_search_content.\nThe `tools` field is a strict allowlist; it does not load extension code.\nFor extension tools, add the provider path to `subagentOnlyExtensions` (child-only), `extensions`, or as a path-like entry in `tools`, while keeping each registered tool name in `tools`.\nFor MCP tools, verify the MCP adapter configuration and selected tool names. For builtin tools, verify the name against the installed Pi version.",
+  "acceptance": {
+    "status": "attested",
+    "explicit": false,
+    "effectiveAcceptance": {
+      "level": "attested",
+      "explicit": false,
+      "inferredReason": [
+        "read-only/reviewer-style agent"
+      ],
+      "criteria": [
+        {
+          "id": "criterion-1",
+          "must": "Return concrete findings with file paths and severity when applicable",
+          "evidence": [
+            "review-findings",
+            "residual-risks"
+          ],
+          "severity": "required"
+        }
+      ],
+      "evidence": [
+        "review-findings",
+        "residual-risks"
+      ],
+      "verify": [],
+      "stopRules": []
+    },
+    "inferredReason": [
+      "read-only/reviewer-style agent"
+    ],
+    "criteria": [
+      {
+        "id": "criterion-1",
+        "must": "Return concrete findings with file paths and severity when applicable",
+        "evidence": [
+          "review-findings",
+          "residual-risks"
+        ],
+        "severity": "required"
+      }
+    ],
+    "runtimeChecks": [],
+    "verifyRuns": [],
+    "childReport": {
+      "criteriaSatisfied": [
+        {
+          "id": "criterion-1",
+          "status": "satisfied",
+          "evidence": "已返回带严重度、具体文件和行号的 P0/P1 审查发现，并给出修复建议；包括 ParcelDetailPanel.vue:74/81/89-92、MapView.vue:380-415/821-832/1083-1093、generate-policy-fixture.py:35-109、policyRepository.ts:5-36 等证据。"
+        }
+      ],
+      "changedFiles": [],
+      "testsAddedOrUpdated": [],
+      "commandsRun": [
+        {
+          "command": "git status --short --branch && git diff --stat HEAD && git diff --name-status HEAD && git diff --cached --name-status",
+          "result": "passed",
+          "summary": "确认当前分支为 feat/parcel-policy-v1；工作树包含 8 个已跟踪修改及多个未跟踪 V1 文件；没有暂存文件。"
+        },
+        {
+          "command": "cd web && pnpm test",
+          "result": "passed",
+          "summary": "8 个测试文件、40 项测试全部通过。"
+        },
+        {
+          "command": "cd web && pnpm build",
+          "result": "passed",
+          "summary": "vue-tsc 与 Vite 生产构建通过；存在大于 500kB chunk 警告。"
+        },
+        {
+          "command": "python scripts/validate-policy-fixture.py",
+          "result": "passed",
+          "summary": "脚本现有检查全部通过：1533 块基础地块、1450 块当前参保、83 块未参保、45 户、8 张保单；但脚本未检查最终确认主体归属和空间指标。"
+        },
+        {
+          "command": "python scripts/validate-data.py",
+          "result": "passed",
+          "summary": "行政区划和影像数据链路 13 项通过、0 项失败。"
+        },
+        {
+          "command": "git diff --check HEAD",
+          "result": "passed",
+          "summary": "没有空白字符错误；仅输出 LF/CRLF 转换警告。"
+        },
+        {
+          "command": "只读 Python 空间跨度与逐地块金额诊断",
+          "result": "passed",
+          "summary": "金额逐明细复算无差异；发现 6 个单一型主体最大跨度约 731.7m 至 1663.2m，所有 45 个当前被保险人均超过约 350m。"
+        }
+      ],
+      "validationOutput": [
+        "pnpm test: Test Files 8 passed, Tests 40 passed。",
+        "pnpm build: production build succeeded。",
+        "validate-policy-fixture.py: 当前参保 1450/1533，未参保 83，脚本现有检查通过。",
+        "validate-data.py: 13 passed, 0 failed。",
+        "空间诊断：6 个单一型主体最大跨度均明显超过约 350m，最高约 1663.2m。",
+        "逐地块金额复算：当前清单项和保单汇总无差异。"
+      ],
+      "residualRisks": [
+        "未执行真实浏览器 Leaflet 点击、拖动、宽抽屉、两级 Esc 和响应式视觉验收。",
+        "当前自动测试不覆盖本工作树新增的 Vue 详情面板、抽屉和地图联动。",
+        "现有 policy fixture 校验器没有完整验证保单/清单逐级汇总、理赔汇总、确认主体一致性和空间经营指标。",
+        "当前 fixture 没有待生效保单样例，无法以固定数据完成三种状态的界面验收。",
+        "构建产物主 JS 约 940.94kB，构建报告存在大 chunk 警告。"
+      ],
+      "noStagedFiles": true,
+      "diffSummary": "相对 HEAD，工作树新增地块详情、种植档案 UI、保单详情、投保清单抽屉和地图三级高亮，并修改 fixture 生成、地图控制器与异步导航守卫；但关键 CRUD、未保存保护、空间造数、异常加载、历史快照和理赔汇总仍有 P0 缺陷。",
+      "reviewFindings": [
+        "blocker P0: web/src/components/map/ParcelDetailPanel.vue:89-92 / web/src/components/MapView.vue:406-415 - 所有有效档案都被误判为初始记录，用户新增记录无法编辑或删除，删除处理还会清空整块地的全部本机档案。",
+        "blocker P0: web/src/components/MapView.vue:380-390,1083-1084 / web/src/components/map/ParcelDetailPanel.vue:81 - 点击其他地块不经过未保存确认，直接取消编辑并清空联动上下文。",
+        "blocker P0: scripts/generate-policy-fixture.py:35-109 - 生成器覆盖所谓不可变确认文件，确认主体全为 pending，并按数字 ID 切片而非空间经营单元归集。",
+        "blocker P0: scripts/validate-policy-fixture.py:17-37 - 校验器未检查空间组、主要组面积占比、最大跨度、孤立地块及确认主体一致性；实测所有 45 户最大跨度超过约 350m。",
+        "blocker P0: web/src/features/policy/policyRepository.ts:5-36 / web/src/components/MapView.vue:228-234,382-384 - 静态 import 无法覆盖 JSON 404 和重试，加载错误被静默解释成无保单或无档案。",
+        "blocker P0: web/src/components/map/ParcelDetailPanel.vue:74 - 村代码硬编码为龙江村，其他村人工地块种植档案保存必然失败。",
+        "blocker P0: web/src/components/map/ParcelDetailPanel.vue:56 / web/src/features/policy/policySelectors.ts:56-66 - 历史快照字段不完整，保单级理赔汇总虽有 selector 但未接入页面。",
+        "note P0: web/src/components/MapView.vue:821-832 - 确认弹窗打开时 Esc 优先进入地块关闭分支，可能重复打开确认并破坏待决 Promise。",
+        "note P1: 当前工作树没有新增 Vue/地图联动测试，自动测试通过不足以证明 AC-11、AC-16、AC-21、AC-24 至 AC-27。"
+      ],
+      "manualNotes": "本次严格只读，未修改文件。现有自动命令通过，但由于存在上述 P0，整体建议判定为不通过并阻止合并。"
+    }
+  },
+  "transcriptPath": "E:\\各产品线\\农险demo开发0729-pi\\.pi-subagents\\artifacts\\05c78383_reviewer_0_transcript.jsonl",
+  "timestamp": 1785479488945
+}
