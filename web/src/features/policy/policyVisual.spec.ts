@@ -13,8 +13,9 @@ describe('policy visual semantics', () => {
     expect(linkedParcelStyle('single_insured')).not.toHaveProperty('dashArray')
   })
 
-  it('uses dashed purple for group-policy linked parcels', () => {
-    expect(linkedParcelStyle('insured_roster')).toMatchObject({ color: '#8b5cf6', dashArray: '7 5' })
+  it('uses a thin solid purple line for group-policy linked parcels', () => {
+    expect(linkedParcelStyle('insured_roster')).toMatchObject({ color: '#8b5cf6', weight: 2 })
+    expect(linkedParcelStyle('insured_roster')).not.toHaveProperty('dashArray')
   })
 
   it('does not assign an association style to uninsured parcels', () => {
