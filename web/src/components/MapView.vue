@@ -402,11 +402,17 @@ async function selectParcel(parcel: ParcelSummaryInput) {
   refreshSelectedCultivation()
   const context = selectedPolicyContext.value
   selectedClaim.value = policyFixture.value && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture.value, context.currentPolicy.id, context.currentInsured.id) : null
-  const sameInsuredContext = selectedPolicyContext.value?.currentInsured?.id && highlightedInsuredIds.value.has(parcel.id)
   rosterOpen.value = false
-  if (!sameInsuredContext) {
-    highlightedInsuredIds.value = new Set()
+  if (policyFixture.value && context?.currentPolicy?.insuredMode === 'insured_roster') {
+    // 分户清单地块点击后直接展示整张清单的关联地块；当前地块仍由 selectionStyle 使用橙色主高亮。
+    highlightedInsuredIds.value = new Set(policyCoverages(policyFixture.value, context.currentPolicy.id).map((entry) => entry.parcelId))
     highlightedPolicyIds.value = new Set()
+  } else {
+    const sameInsuredContext = selectedPolicyContext.value?.currentInsured?.id && highlightedInsuredIds.value.has(parcel.id)
+    if (!sameInsuredContext) {
+      highlightedInsuredIds.value = new Set()
+      highlightedPolicyIds.value = new Set()
+    }
   }
   renderParcelLayer()
 }
