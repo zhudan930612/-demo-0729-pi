@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-31T05:37:17.111Z",
+  "title": "Design System: 农险双精准地图 Demo",
+  "extensions": {
+    "colorMeta": {
+      "action-blue": { "role": "primary", "displayName": "行动蓝", "canonical": "#2563eb", "tonalRamp": ["oklch(20% 0.08 260)", "oklch(30% 0.12 260)", "oklch(40% 0.16 260)", "oklch(50% 0.19 260)", "#2563eb", "oklch(65% 0.17 260)", "oklch(78% 0.11 260)", "oklch(93% 0.03 260)"] },
+      "map-cyan": { "role": "secondary", "displayName": "空间青", "canonical": "#38bdf8", "tonalRamp": ["oklch(20% 0.05 230)", "oklch(30% 0.08 230)", "oklch(42% 0.12 230)", "oklch(55% 0.15 230)", "#38bdf8", "oklch(73% 0.13 230)", "oklch(84% 0.08 230)", "oklch(96% 0.02 230)"] },
+      "drawing-purple": { "role": "tertiary", "displayName": "绘制紫", "canonical": "#7e22ce", "tonalRamp": ["oklch(20% 0.09 310)", "oklch(30% 0.14 310)", "#7e22ce", "oklch(48% 0.19 310)", "oklch(58% 0.19 310)", "oklch(70% 0.15 310)", "oklch(84% 0.09 310)", "oklch(96% 0.025 310)"] },
+      "canvas-slate": { "role": "neutral", "displayName": "深石墨", "canonical": "#0f172a", "tonalRamp": ["#0f172a", "oklch(24% 0.02 255)", "oklch(34% 0.02 255)", "oklch(47% 0.018 255)", "oklch(60% 0.015 255)", "oklch(73% 0.012 255)", "oklch(86% 0.008 255)", "oklch(97% 0.004 255)"] },
+      "panel-slate": { "role": "neutral", "displayName": "雾白浮层", "canonical": "rgba(248, 250, 252, 0.96)", "tonalRamp": ["oklch(30% 0.01 255)", "oklch(42% 0.01 255)", "oklch(55% 0.01 255)", "oklch(68% 0.008 255)", "oklch(78% 0.006 255)", "oklch(87% 0.005 255)", "oklch(94% 0.004 255)", "rgba(248, 250, 252, 0.96)"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "系统中文正文", "purpose": "地图操作、路径、说明与状态的稳定桌面阅读。" },
+      "control": { "displayName": "操作标签", "purpose": "按钮、工具条、面包屑与普通状态。" },
+      "metric": { "displayName": "空间指标", "purpose": "地块数量、面积与批次统计；与 tabular-nums 搭配。" }
+    },
+    "shadows": [
+      { "name": "tool-panel", "value": "0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12)", "purpose": "地图边缘的面包屑、工具条与控制栈。" },
+      { "name": "status-card", "value": "0 4px 14px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.1)", "purpose": "持续展示但优先级较低的统计和图例。" },
+      { "name": "dialog", "value": "0 22px 50px rgba(15, 23, 42, 0.3)", "purpose": "中断地图操作的确认对话框。" }
+    ],
+    "motion": [
+      { "name": "control-state", "value": "160ms ease", "purpose": "按钮和图标的背景、颜色及阴影状态切换。" },
+      { "name": "notice-enter", "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "保存提示从上方轻微进入。" }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "720px" },
+      { "name": "narrow", "value": "520px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Map Action",
+      "kind": "button",
+      "refersTo": "action-primary",
+      "description": "提交、返回或开始核心地图操作的紧凑主按钮。",
+      "html": "<button class=\"ds-action-primary\">保存更改</button>",
+      "css": ".ds-action-primary { height: 34px; padding: 0 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(30, 64, 175, .25); transition: background-color 160ms ease, box-shadow 160ms ease; } .ds-action-primary:hover { background: #1d4ed8; } .ds-action-primary:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 2px; } .ds-action-primary:active { box-shadow: none; }"
+    },
+    {
+      "name": "Secondary Map Action",
+      "kind": "button",
+      "refersTo": "map-panel",
+      "description": "工具条内的次级操作，依靠悬停底色而非强色块表达。",
+      "html": "<button class=\"ds-action-secondary\">筛选地块</button>",
+      "css": ".ds-action-secondary { height: 34px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #475569; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-action-secondary:hover { background: #e2e8f0; color: #0f172a; } .ds-action-secondary:focus-visible { outline: 3px solid rgba(37, 99, 235, .28); outline-offset: 2px; } .ds-action-secondary:active { background: #cbd5e1; }"
+    },
+    {
+      "name": "Drawing Action",
+      "kind": "button",
+      "refersTo": "drawing-action",
+      "description": "进入或退出人工绘制时使用的紫色模式动作。",
+      "html": "<button class=\"ds-action-drawing\">绘制</button>",
+      "css": ".ds-action-drawing { height: 34px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #7e22ce; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-action-drawing:hover { background: #faf5ff; color: #6b21a8; } .ds-action-drawing:focus-visible { outline: 3px solid rgba(126, 34, 206, .28); outline-offset: 2px; }"
+    },
+    {
+      "name": "Map Control Stack",
+      "kind": "nav",
+      "refersTo": "map-panel",
+      "description": "贴在地图边缘的纵向图层与缩放工具容器。",
+      "html": "<div class=\"ds-control-stack\"><button aria-label=\"切换底图\">⌁</button><button aria-label=\"放大\">+</button><button aria-label=\"缩小\">−</button></div>",
+      "css": ".ds-control-stack { display: flex; flex-direction: column; gap: 2px; width: max-content; padding: 4px; border: 1px solid rgba(148, 163, 184, .34); border-radius: 10px; background: rgba(248, 250, 252, .96); box-shadow: 0 6px 20px rgba(15, 23, 42, .18), 0 1px 2px rgba(15, 23, 42, .12); backdrop-filter: blur(8px); } .ds-control-stack button { width: 36px; height: 36px; border: 0; border-radius: 7px; background: transparent; color: #475569; font: 600 18px/1 'PingFang SC', 'Microsoft YaHei', sans-serif; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-control-stack button:hover { background: #e2e8f0; color: #0f172a; } .ds-control-stack button:focus-visible { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }"
+    },
+    {
+      "name": "Metric Status Card",
+      "kind": "card",
+      "refersTo": "map-panel",
+      "description": "用于地块数量和面积的低干扰地图角标卡。",
+      "html": "<section class=\"ds-status-card\"><span>当前地块</span><strong>1,533</strong><small>块</small></section>",
+      "css": ".ds-status-card { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 3px; width: max-content; padding: 9px 11px 8px; border: 1px solid rgba(148, 163, 184, .34); border-radius: 9px; background: rgba(248, 250, 252, .96); box-shadow: 0 4px 14px rgba(15, 23, 42, .16), 0 1px 2px rgba(15, 23, 42, .1); color: #0f172a; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; backdrop-filter: blur(8px); } .ds-status-card span { grid-column: 1 / -1; color: #64748b; font-size: 10px; } .ds-status-card strong { font-size: 18px; line-height: 1.05; font-variant-numeric: tabular-nums; } .ds-status-card small { color: #64748b; font-size: 10px; }"
+    },
+    {
+      "name": "Confirmation Dialog",
+      "kind": "custom",
+      "refersTo": "drawing-action",
+      "description": "放弃或确认人工地块批次操作的高优先级确认面板。",
+      "html": "<section class=\"ds-dialog\"><span class=\"ds-dialog-icon\">!</span><div><strong>确认放弃修改？</strong><p>未保存的地块将被移除。</p></div><div class=\"ds-dialog-actions\"><button>取消</button><button>确认</button></div></section>",
+      "css": ".ds-dialog { display: grid; grid-template-columns: 42px 1fr; gap: 14px; width: min(420px, 100%); padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 22px 50px rgba(15, 23, 42, .3); color: #0f172a; font: 13px/1.65 'PingFang SC', 'Microsoft YaHei', sans-serif; } .ds-dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #faf5ff; color: #9333ea; font-size: 22px; font-weight: 700; } .ds-dialog strong { font-size: 16px; line-height: 1.25; } .ds-dialog p { margin: 7px 0 0; color: #475569; } .ds-dialog-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; } .ds-dialog-actions button { height: 34px; padding: 0 13px; border: 0; border-radius: 7px; background: #f1f5f9; color: #475569; font: 650 13px 'PingFang SC', 'Microsoft YaHei', sans-serif; cursor: pointer; } .ds-dialog-actions button:last-child { background: #7e22ce; color: #fff; } .ds-dialog-actions button:hover { background: #e2e8f0; color: #0f172a; } .ds-dialog-actions button:last-child:hover { background: #6b21a8; color: #fff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "清晰的空间工具",
+    "overview": "这是一个以地图为主角的内部技术验证工作台。空间影像、行政边界和地块几何是视觉主体；界面只以轻量、半透明的控制浮层停靠在地图边缘，不抢占地图的注意力。信息密度紧凑，但每个动作、状态与反馈都必须能快速扫读。\n\n主操作以蓝色建立单一行动路径；地块绘制以紫色形成与查看、筛选明确分离的工作模式；成功、警告、危险与地图悬停保持各自稳定的语义。桌面是主使用场景，窄视口时工具条保留触达性并允许横向滚动，而非压缩成难以辨认的图标堆。",
+    "keyCharacteristics": ["地图优先：UI 贴边悬浮，避免占据中心视野。", "轻量层次：雾白面板、细边界与柔和阴影共同区分工具层。", "操作可辨：蓝色用于提交与导航，紫色用于人工绘制，状态颜色保留语义。", "数值可靠：计数、面积和状态数量使用等宽数字，避免跳动和误读。"],
+    "rules": [
+      { "name": "Semantic Color Rule", "body": "蓝色、紫色、绿/黄/红的含义在所有地图状态、工具条、通知与图例中必须保持一致；不得因美化目的互换它们。", "section": "colors" },
+      { "name": "Numbers Stay Still Rule", "body": "任何会变化的数量、面积、批次统计必须使用等宽数字；不要用动画或比例字体制造视觉跳动。", "section": "typography" },
+      { "name": "Edge-First Rule", "body": "工具和状态信息固定在地图边缘；只有短时通知与对话框可以进入中心区域。", "section": "elevation" }
+    ],
+    "dos": ["Do 让地图、边界和地块始终是最大面积的视觉主体，工具仅贴边出现。", "Do 使用 {colors.action-blue} 表达主操作和可回跳导航，并保留悬停、禁用与键盘焦点状态。", "Do 让人工绘制始终使用 {colors.drawing-purple}，让图例、顶点、工具条与提示保持同步。", "Do 将状态颜色与明确文字、图标或线型一起使用，尤其是隐藏、恢复、失败与警告。", "Do 保持浮层紧凑、半透明、可读，并在窄屏保留操作触达性。"],
+    "donts": ["Don't 用大标题、营销式横幅、装饰性渐变或全屏卡片压过地图画布。", "Don't 把蓝色、紫色或状态色当作可互换的装饰色。", "Don't 将地块统计、图例和图层控制散落在中心地图区域。", "Don't 只靠颜色区分地块状态，或在状态计数中使用比例数字。", "Don't 为追求“玻璃感”牺牲文字对比度或让面板不透明到遮蔽空间信息。"]
+  }
+}
