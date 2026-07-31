@@ -36,8 +36,8 @@ export interface ParcelLayerSnapshot {
 export interface ParcelLayerCallbacks {
   parcelId(feature: Feature): ParcelId | null
   onFilterToggle(id: ParcelId): void
-  onSelectBase(feature: Feature): void
-  onSelectManual(feature: ManualParcelFeature): void
+  onSelectBase(feature: Feature, event: L.LeafletMouseEvent): void
+  onSelectManual(feature: ManualParcelFeature, event: L.LeafletMouseEvent): void
   onEditExisting(feature: ManualParcelFeature): void
   onEditPending(feature: ManualParcelFeature): void
   onAfterRender(): void
@@ -222,8 +222,8 @@ export function createParcelLayerController(
         onEachFeature: (feature: Feature, layer: L.Layer) => {
           const id = callbacks.parcelId(feature)
           if (state.mode === 'filter' && id) bindFilterInteractions(layer, id)
-          else if (state.mode === 'idle') layer.on('click', () => {
-            callbacks.onSelectBase(feature)
+          else if (state.mode === 'idle') layer.on('click', (event) => {
+            callbacks.onSelectBase(feature, event as L.LeafletMouseEvent)
           })
         },
       }).addTo(map)
@@ -256,8 +256,8 @@ export function createParcelLayerController(
           const id = manual.properties.id
           if (state.mode === 'filter') bindFilterInteractions(layer, id)
           else if (state.mode === 'idle') {
-            layer.on('click', () => {
-              callbacks.onSelectManual(manual)
+            layer.on('click', (event) => {
+              callbacks.onSelectManual(manual, event as L.LeafletMouseEvent)
             })
           } else if (state.mode === 'batch') {
             layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })

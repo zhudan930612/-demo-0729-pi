@@ -390,11 +390,9 @@ function refreshSelectedCultivation() {
   selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords.value)
 }
 
-function requestSelectParcel(parcel: ParcelSummaryInput) {
-  parcelDetailClickGuard.markParcelClick()
+function requestSelectParcel(parcel: ParcelSummaryInput, event: L.LeafletMouseEvent) {
+  parcelDetailClickGuard.markParcelClick(event.originalEvent)
   void selectParcel(parcel)
-  // 没有产生后续 map click 时及时释放，避免吞掉下一次真正的空白点击。
-  setTimeout(() => { parcelDetailClickGuard.releaseParcelClick() }, 0)
 }
 
 async function selectParcel(parcel: ParcelSummaryInput) {
@@ -1113,16 +1111,19 @@ onMounted(async () => {
     {
       parcelId,
       onFilterToggle: toggleParcelFilterSelection,
-      onSelectBase: (feature) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) requestSelectParcel(parcel) },
-      onSelectManual: (feature) => { requestSelectParcel(fromManualParcel(feature)) },
+      onSelectBase: (feature, event) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) requestSelectParcel(parcel, event) },
+      onSelectManual: (feature, event) => { requestSelectParcel(fromManualParcel(feature), event) },
       onEditExisting: (feature) => { void startBatchExistingManualEditing(feature) },
       onEditPending: (feature) => { void startPendingManualEditing(feature) },
       onAfterRender: navigationController.bringOutlineToFront,
       selectionStyle,
     },
   )
-  map.on('click', () => {
-    if (parcelDetailClickGuard.consumeMapClick()) return
+  map.on('click', (event) => {
+    if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
+    const target = event.originalEvent.target
+    // Canvas 矢量地块共用地图 canvas；点击 canvas 不等同于地图空白，不能用于关闭详情。
+    if (target instanceof HTMLCanvasElement) return
     if (parcelMode.value === 'idle' && selectedParcel.value && !rosterOpen.value) void requestCloseDetail()
   })
   manualDrawingController = createManualDrawingController(

@@ -1,23 +1,21 @@
 export interface ParcelDetailClickGuard {
-  markParcelClick(): void
-  consumeMapClick(): boolean
-  releaseParcelClick(): void
+  markParcelClick(event: Event): void
+  consumeMapClick(event: Event): boolean
 }
 
 /**
  * Leaflet Canvas may emit a map click after a GeoJSON layer click even when
- * bubblingMouseEvents is disabled. This guard consumes only that same-turn map
- * click; later independent blank-map clicks remain available to close details.
+ * bubblingMouseEvents is disabled. Layer and map events retain the same native
+ * event object, so matching by identity is stable even when delivery is delayed.
  */
 export function createParcelDetailClickGuard(): ParcelDetailClickGuard {
-  let pendingParcelClick = false
+  let parcelClickEvent: Event | null = null
   return {
-    markParcelClick() { pendingParcelClick = true },
-    consumeMapClick() {
-      if (!pendingParcelClick) return false
-      pendingParcelClick = false
+    markParcelClick(event) { parcelClickEvent = event },
+    consumeMapClick(event) {
+      if (event !== parcelClickEvent) return false
+      parcelClickEvent = null
       return true
     },
-    releaseParcelClick() { pendingParcelClick = false },
   }
 }

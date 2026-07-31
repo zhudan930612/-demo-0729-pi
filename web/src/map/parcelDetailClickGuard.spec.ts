@@ -2,22 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { createParcelDetailClickGuard } from './parcelDetailClickGuard'
 
 describe('parcel detail click guard', () => {
-  it('consumes the map click emitted after a parcel click exactly once', () => {
+  it('consumes a map click carrying the same native event exactly once', () => {
     const guard = createParcelDetailClickGuard()
-    guard.markParcelClick()
-    expect(guard.consumeMapClick()).toBe(true)
-    expect(guard.consumeMapClick()).toBe(false)
+    const event = new Event('click')
+    guard.markParcelClick(event)
+    expect(guard.consumeMapClick(event)).toBe(true)
+    expect(guard.consumeMapClick(event)).toBe(false)
   })
 
-  it('does not consume an independent blank-map click', () => {
+  it('does not consume a later independent blank-map click', () => {
     const guard = createParcelDetailClickGuard()
-    expect(guard.consumeMapClick()).toBe(false)
+    guard.markParcelClick(new Event('click'))
+    expect(guard.consumeMapClick(new Event('click'))).toBe(false)
   })
 
-  it('releases the guard when Leaflet does not emit a map click', () => {
+  it('still matches a delayed map event without a timing race', async () => {
     const guard = createParcelDetailClickGuard()
-    guard.markParcelClick()
-    guard.releaseParcelClick()
-    expect(guard.consumeMapClick()).toBe(false)
+    const event = new Event('click')
+    guard.markParcelClick(event)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(guard.consumeMapClick(event)).toBe(true)
   })
 })
