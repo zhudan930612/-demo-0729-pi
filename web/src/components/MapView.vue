@@ -51,8 +51,6 @@
       :policy="selectedPolicyContext"
       :records="selectedCultivationRecords"
       :initial-record-keys="selectedInitialRecordKeys"
-      :claim="selectedClaim"
-      :history-claims="selectedHistoryClaims"
       @request-close="requestCloseDetail"
       @request-restore="requestRestoreCultivation"
       @save-record="saveCultivationRecord"
@@ -67,7 +65,6 @@
       :policy="selectedPolicyContext.currentPolicy"
       :items="selectedRosterItems"
       :parties="policyFixture?.parties ?? []"
-      :claims="selectedRosterClaims"
       @close="rosterOpen = false"
       @select="selectRosterItem"
     />
@@ -127,7 +124,7 @@ import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
 import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
 import { cultivationKey, type CultivationRecord } from '../features/policy/cultivationState'
-import { claimForInsured, fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../features/policy/policySelectors'
+import { fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../features/policy/policySelectors'
 import type { EnrollmentItem, PolicyFixture } from '../features/policy/policyTypes'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
@@ -249,8 +246,6 @@ const selectedParcel = ref<ParcelSummaryInput | null>(null)
 const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
 const selectedCultivationRecords = ref<CultivationRecord[]>([])
 const selectedInitialRecordKeys = computed(() => selectedParcel.value ? initialCultivationRecords.value.filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id).map(cultivationKey) : [])
-const selectedClaim = ref<ReturnType<typeof claimForInsured>>(null)
-const selectedHistoryClaims = computed(() => policyFixture.value && selectedPolicyContext.value ? policyFixture.value.claims.filter((claim) => selectedPolicyContext.value!.history.some((entry) => entry.policy.id === claim.policyId && entry.insured?.id === claim.insuredPartyId)) : [])
 const cultivationEditing = ref(false)
 const rosterOpen = ref(false)
 const highlightedInsuredIds = ref<Set<string>>(new Set())
@@ -262,7 +257,6 @@ const selectedRosterItems = computed(() => {
   const list = policyFixture.value.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
   return list ? policyFixture.value.enrollmentItems.filter((item) => list.itemIds.includes(item.id)) : []
 })
-const selectedRosterClaims = computed(() => policyFixture.value && selectedPolicyContext.value?.currentPolicy ? policyFixture.value.claims.filter((claim) => claim.policyId === selectedPolicyContext.value!.currentPolicy!.id) : [])
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
@@ -319,7 +313,6 @@ function clearSelection() {
   selectedParcel.value = null
   selectedPolicyContext.value = null
   selectedCultivationRecords.value = []
-  selectedClaim.value = null
   cultivationEditing.value = false
   rosterOpen.value = false
   highlightedInsuredIds.value = new Set()
@@ -401,7 +394,6 @@ async function selectParcel(parcel: ParcelSummaryInput) {
   selectedPolicyContext.value = policyFixture.value ? parcelPolicyContext(policyFixture.value, parcel.id) : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
   refreshSelectedCultivation()
   const context = selectedPolicyContext.value
-  selectedClaim.value = policyFixture.value && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture.value, context.currentPolicy.id, context.currentInsured.id) : null
   rosterOpen.value = false
   const currentPolicyCoverages = policyFixture.value && context?.currentPolicy
     ? policyCoverages(policyFixture.value, context.currentPolicy.id)

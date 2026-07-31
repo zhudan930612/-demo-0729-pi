@@ -54,7 +54,6 @@
         <details v-for="entry in policy.history" :key="entry.policy.id" class="history-card">
           <summary>{{ entry.policy.periodStart.slice(0, 4) }} 年历史保单 · {{ entry.policy.status }}</summary>
           <dl class="definition-list compact"><div><dt>承保分类</dt><dd>{{ entry.policy.insuredMode === 'single_insured' ? '单一被保险人' : '分户清单承保' }}</dd></div><div><dt>保单号</dt><dd>{{ entry.policy.policyNo }}</dd></div><div><dt>签单主体</dt><dd>{{ entry.insured?.name }}</dd></div><div><dt>承保面积</dt><dd>{{ Number(entry.coverage.insuredAreaMu).toFixed(2) }} 亩</dd></div><div><dt>单位保额 / 费率</dt><dd>{{ money(entry.policy.unitSumInsuredCentsPerMu) }}/亩 · {{ Number(entry.policy.premiumRate) * 100 }}%</dd></div><div><dt>保险金额</dt><dd>{{ money(entry.policy.summary.sum_insured_cents) }}</dd></div><div><dt>财政补贴 / 自缴</dt><dd>{{ money(entry.policy.summary.subsidy_cents) }} / {{ money(entry.policy.summary.self_paid_cents) }}</dd></div></dl>
-          <ClaimSummaryBlock :claim="historyClaim(entry.policy.id)" />
         </details>
       </section>
 
@@ -76,23 +75,17 @@
         <div v-else class="empty-state compact-empty"><strong>单一被保险人承保</strong><p>该保单不设分户清单，全部承保地块归属于同一被保险人。</p><button class="text-button" @click="$emit('highlight-insured')">查看该户地块</button></div>
       </section>
 
-      <section class="detail-section claim-section" aria-labelledby="claim-title">
-        <div class="section-title"><div><span class="section-kicker">04</span><h3 id="claim-title">理赔摘要</h3></div></div>
-        <ClaimSummaryBlock :claim="claim" />
-      </section>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import ClaimSummaryBlock from './ClaimSummaryBlock.vue'
 import { getCurrentCultivationRecord, type CultivationRecord } from '../../features/policy/cultivationState'
 import { formatParcelNumber } from '../../features/policy/parcelNumber'
 import type { ParcelPolicyContext, ParcelSummaryInput } from '../../features/policy/policySelectors'
-import type { ClaimSummary } from '../../features/policy/policyTypes'
 
-const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; records: CultivationRecord[]; initialRecordKeys: string[]; claim: ClaimSummary | null; historyClaims: ClaimSummary[] }>()
+const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; records: CultivationRecord[]; initialRecordKeys: string[] }>()
 const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': []; 'highlight-insured': []; 'highlight-policy': [] }>()
 const copyNotice = ref('')
 const current = computed(() => getCurrentCultivationRecord(props.records))
@@ -106,7 +99,6 @@ const coverageAreaText = computed(() => {
 })
 const currentParcelSumInsured = computed(() => Math.round(Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) * 125000))
 const money = (value: number) => (value / 100).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
-function historyClaim(policyId: string) { return props.historyClaims.find((item) => item.policyId === policyId) ?? null }
 function markSaved() {}
 async function copyPolicyNo() { try { await navigator.clipboard.writeText(props.policy.currentPolicy!.policyNo); copyNotice.value = '已复制' } catch { copyNotice.value = '复制失败，请手动选择保单号' } setTimeout(() => { copyNotice.value = '' }, 1800) }
 defineExpose({ markSaved })
