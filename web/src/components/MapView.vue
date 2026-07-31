@@ -129,6 +129,7 @@ import type { EnrollmentItem, PolicyFixture } from '../features/policy/policyTyp
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
+import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
 import {
@@ -287,6 +288,8 @@ let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触�
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 let manualDialogResolve: ((confirmed: boolean) => void) | null = null
+// Leaflet Canvas 在部分浏览器中会让地块点击继续触发 map click；显式守卫是详情入口的回归保护。
+const parcelDetailClickGuard = createParcelDetailClickGuard()
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
@@ -385,6 +388,13 @@ function parcelId(feature: Feature): ParcelId | null {
 function refreshSelectedCultivation() {
   if (!selectedParcel.value) return
   selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords.value)
+}
+
+function requestSelectParcel(parcel: ParcelSummaryInput) {
+  parcelDetailClickGuard.markParcelClick()
+  void selectParcel(parcel)
+  // 没有产生后续 map click 时及时释放，避免吞掉下一次真正的空白点击。
+  setTimeout(() => { parcelDetailClickGuard.releaseParcelClick() }, 0)
 }
 
 async function selectParcel(parcel: ParcelSummaryInput) {
@@ -1103,8 +1113,8 @@ onMounted(async () => {
     {
       parcelId,
       onFilterToggle: toggleParcelFilterSelection,
-      onSelectBase: (feature) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) void selectParcel(parcel) },
-      onSelectManual: (feature) => { void selectParcel(fromManualParcel(feature)) },
+      onSelectBase: (feature) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) requestSelectParcel(parcel) },
+      onSelectManual: (feature) => { requestSelectParcel(fromManualParcel(feature)) },
       onEditExisting: (feature) => { void startBatchExistingManualEditing(feature) },
       onEditPending: (feature) => { void startPendingManualEditing(feature) },
       onAfterRender: navigationController.bringOutlineToFront,
@@ -1112,6 +1122,7 @@ onMounted(async () => {
     },
   )
   map.on('click', () => {
+    if (parcelDetailClickGuard.consumeMapClick()) return
     if (parcelMode.value === 'idle' && selectedParcel.value && !rosterOpen.value) void requestCloseDetail()
   })
   manualDrawingController = createManualDrawingController(

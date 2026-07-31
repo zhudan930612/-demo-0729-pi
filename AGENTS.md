@@ -59,6 +59,7 @@
 - 村是导航终点；新增更深层级前必须先更新需求与数据方案。
 - 不要用村点生成伪村界；村界来源规则见 `docs/需求文档.md`。
 - 保持天地图文字注记位于影像、地块和边界之上。
+- 地块详情入口必须经过 `web/src/map/parcelDetailClickGuard.ts` 隔离 Leaflet Canvas 的地块点击与地图空白点击；不得只依赖 `bubblingMouseEvents`，改动点击链路时必须保留并运行对应单元测试。
 
 ## 当前缺口
 
