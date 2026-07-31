@@ -126,6 +126,7 @@ import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation,
 import { cultivationKey, type CultivationRecord } from '../features/policy/cultivationState'
 import { fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../features/policy/policySelectors'
 import type { EnrollmentItem, PolicyFixture } from '../features/policy/policyTypes'
+import { linkedParcelStyle } from '../features/policy/policyVisual'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
@@ -472,7 +473,7 @@ function selectionStyle(feature: Feature): L.PathOptions | null {
   const id = parcelId(feature)
   if (!id || !selectedParcel.value) return null
   if (id === selectedParcel.value.id) return { color: '#f97316', weight: 4, fillColor: '#fb923c', fillOpacity: 0.34 }
-  if (highlightedInsuredIds.value.has(id)) return { color: '#22c55e', weight: 3, fillColor: '#4ade80', fillOpacity: 0.25 }
+  if (highlightedInsuredIds.value.has(id)) return linkedParcelStyle(selectedPolicyContext.value?.currentPolicy?.insuredMode)
   if (highlightedPolicyIds.value.has(id)) return { color: '#a78bfa', weight: 2, dashArray: '7 5', fillColor: '#c4b5fd', fillOpacity: 0.14 }
   return null
 }
