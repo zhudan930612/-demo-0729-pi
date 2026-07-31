@@ -36,9 +36,12 @@ export interface ParcelLayerSnapshot {
 export interface ParcelLayerCallbacks {
   parcelId(feature: Feature): ParcelId | null
   onFilterToggle(id: ParcelId): void
+  onSelectBase(feature: Feature): void
+  onSelectManual(feature: ManualParcelFeature): void
   onEditExisting(feature: ManualParcelFeature): void
   onEditPending(feature: ManualParcelFeature): void
   onAfterRender(): void
+  selectionStyle(feature: Feature): L.PathOptions | null
 }
 
 export interface ParcelLayerMetrics {
@@ -204,7 +207,7 @@ export function createParcelLayerController(
     if (visibleAiFeatures.length) {
       const collection: FeatureCollection = { type: 'FeatureCollection', features: visibleAiFeatures }
       parcelLayer = L.geoJSON(collection, {
-        interactive: state.mode === 'filter' && state.parcelOn,
+        interactive: state.parcelOn && (state.mode === 'idle' || state.mode === 'filter'),
         style: (feature) => {
           const current = getState()
           const id = feature ? callbacks.parcelId(feature as Feature) : null
@@ -212,11 +215,16 @@ export function createParcelLayerController(
           if (current.mode === 'batch' || current.mode === 'drawing') {
             return id && current.hiddenIds.has(id) ? PARCEL_HIDDEN_STYLE : PARCEL_EDIT_STYLE
           }
-          return current.parcelOn ? PARCEL_STYLE : { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
+          if (!current.parcelOn) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
+          return feature ? callbacks.selectionStyle(feature as Feature) ?? PARCEL_STYLE : PARCEL_STYLE
         },
         onEachFeature: (feature: Feature, layer: L.Layer) => {
           const id = callbacks.parcelId(feature)
           if (state.mode === 'filter' && id) bindFilterInteractions(layer, id)
+          else if (state.mode === 'idle') layer.on('click', (event) => {
+            L.DomEvent.stopPropagation(event)
+            callbacks.onSelectBase(feature)
+          })
         },
       }).addTo(map)
     }
@@ -233,20 +241,25 @@ export function createParcelLayerController(
     if (visibleManualParcels.length) {
       const collection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
       manualParcelLayer = L.geoJSON(collection, {
-        interactive: state.parcelOn && (state.mode === 'batch' || state.mode === 'filter'),
+        interactive: state.parcelOn && (state.mode === 'idle' || state.mode === 'batch' || state.mode === 'filter'),
         style: (feature) => {
           const current = getState()
           if (!current.parcelOn) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
           const id = feature ? callbacks.parcelId(feature as Feature) : null
           if (current.mode === 'filter') return editStyle(id)
           if (current.mode === 'batch' || current.mode === 'drawing') return MANUAL_PARCEL_STYLE
-          return PARCEL_STYLE
+          return feature ? callbacks.selectionStyle(feature as Feature) ?? PARCEL_STYLE : PARCEL_STYLE
         },
         onEachFeature: (feature: Feature, layer: L.Layer) => {
           const manual = feature as ManualParcelFeature
           const id = manual.properties.id
           if (state.mode === 'filter') bindFilterInteractions(layer, id)
-          else if (state.mode === 'batch') {
+          else if (state.mode === 'idle') {
+            layer.on('click', (event) => {
+              L.DomEvent.stopPropagation(event)
+              callbacks.onSelectManual(manual)
+            })
+          } else if (state.mode === 'batch') {
             layer.bindTooltip(`人工绘制 · ${manual.properties.area_mu.toFixed(2)} 亩`, { sticky: true, direction: 'top', className: 'manual-parcel-tooltip' })
             layer.on('click', (event) => {
               if (!getState().parcelOn) return

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Feature } from 'geojson'
 
-export type NavigationGuard = () => boolean
+export type NavigationGuard = () => boolean | Promise<boolean>
 let navigationGuard: NavigationGuard | null = null
 
 export type Level = 'province' | 'city' | 'county' | 'township' | 'village'
@@ -58,19 +58,19 @@ export const useDrilldownStore = defineStore('drilldown', {
     setNavigationGuard(guard: NavigationGuard | null) {
       navigationGuard = guard
     },
-    canNavigate() {
-      return navigationGuard?.() ?? true
+    async canNavigate() {
+      return await (navigationGuard?.() ?? true)
     },
-    drill(crumb: Crumb) {
-      if (this.canNavigate()) this.path.push(crumb)
+    async drill(crumb: Crumb) {
+      if (await this.canNavigate()) this.path.push(crumb)
     },
-    backTo(index: number) {
-      if (index >= 0 && index < this.path.length - 1 && this.canNavigate()) {
+    async backTo(index: number) {
+      if (index >= 0 && index < this.path.length - 1 && await this.canNavigate()) {
         this.path = this.path.slice(0, index + 1)
       }
     },
-    back() {
-      if (this.path.length > 1 && this.canNavigate()) this.path.pop()
+    async back() {
+      if (this.path.length > 1 && await this.canNavigate()) this.path.pop()
     },
   },
 })

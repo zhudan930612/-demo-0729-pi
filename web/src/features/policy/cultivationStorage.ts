@@ -90,6 +90,20 @@ export function addCultivationRecord(villageCode: string, record: CultivationRec
   return writeData(resolved, data)
 }
 
+export function updateAddedCultivation(villageCode: string, record: CultivationRecord, initialRecords: CultivationRecord[], storage?: Storage): CultivationStorageResult {
+  if (record.villageCode !== villageCode) return { ok: false, error: '村代码不匹配' }
+  const resolved = resolveStorage(storage)
+  const data = readData(resolved)
+  const current = bucket(data, villageCode)
+  const key = cultivationKey(record)
+  if (!current.additions[key]) return { ok: false, error: '用户新增档案不存在' }
+  const effective = readEffectiveCultivation(villageCode, record.parcelId, initialRecords, storage).map((item) => cultivationKey(item) === key ? record : item)
+  const validation = validateCultivationRecords(effective)
+  if (!validation.valid) return { ok: false, error: validation.errors.join('；') }
+  data.villages[villageCode] = { ...current, additions: { ...current.additions, [key]: record } }
+  return writeData(resolved, data)
+}
+
 export function removeAddedCultivation(villageCode: string, record: Pick<CultivationRecord, 'parcelId' | 'year' | 'season'>, storage?: Storage): CultivationStorageResult {
   const resolved = resolveStorage(storage)
   const data = readData(resolved)

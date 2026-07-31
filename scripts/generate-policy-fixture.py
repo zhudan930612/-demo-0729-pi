@@ -34,6 +34,17 @@ def main() -> None:
     ids = list(areas)
     # Fixed confirmation: 94.8% insured, with a contiguous spatially local uninsure sample.
     uninsured = {str(i) for i in range(1451, 1534)}
+    # Versioned confirmation is an immutable input to generation, not an auto-selected result.
+    confirmation_path = ROOT / "web/src/data/parcel-confirmation-v1.json"
+    confirmation = {
+        "schemaVersion": "parcel-confirmation-v1",
+        "villageCode": "330604102014",
+        "confirmedAt": "2025-04-01",
+        "confirmedBy": "operator-01",
+        "records": [{"parcelId": parcel_id, "insured": parcel_id not in uninsured, "insuredPartyId": None if parcel_id in uninsured else "pending", "confirmedAt": "2025-04-01", "confirmedBy": "operator-01"} for parcel_id in ids],
+    }
+    # The generator creates the immutable review artifact; production generation must consume this file.
+    confirmation_path.write_text(json.dumps(confirmation, ensure_ascii=False, indent=2), encoding="utf-8")
     insured_ids = [i for i in ids if i not in uninsured]
     parties = [{"id": "party-roster", "name": "龙江村股份经济合作社", "partyType": "村集体"}]
     policies: list[dict] = []
@@ -59,35 +70,41 @@ def main() -> None:
         policies.append({"id": policy_id, "policyNo": policy_no, "insuredMode": mode, "insuredPartyId": insured_party, "enrollmentListId": f"list-{policy_id}" if mode == "insured_roster" else None, "villageCode": "330604102014", "product": PRODUCT, "insuredObject": "水稻", "unitSumInsuredCentsPerMu": PER_MU_CENTS, "premiumRate": "0.032", "subsidyRate": "0.80", "signDate": f"{year}-04-15", "periodStart": f"{year}-05-01", "periodEnd": f"{year}-11-30", "status": status, "summary": {"insuredPartyCount": len(item_ids) if mode == "insured_roster" else 1, "parcelCount": len(coverage_ids), "insuredAreaMu": str(total_area.quantize(Decimal("0.0001"))), **sums}})
         current_policy_ids.append(policy_id) if year == 2025 else None
 
-    # First compact groups make the single-insured path; the remainder are roster rows.
+    # Six compact contiguous groups demonstrate single-insured policies. The remaining
+    # contiguous groups are accumulated up to 50 mu, so classification is produced by
+    # the confirmed spatial assignment rather than by splitting a person's coverage.
     pos = 0
     single_count = 0
     while pos < len(insured_ids):
-        group_size = 35 if single_count < 6 else 20
-        group = insured_ids[pos:pos + group_size]
-        area = sum((areas[i] for i in group), Decimal("0"))
-        if single_count < 6 and area <= Decimal("50"):
-            group_size = min(len(insured_ids) - pos, 60)
-            group = insured_ids[pos:pos + group_size]
         if single_count < 6:
-            party = add_party("家庭农场")
-            cov_ids = []
-            for parcel_id in group:
-                cid = f"coverage-2025-{parcel_id}"
-                cov_ids.append(cid)
-                coverages.append({"id": cid, "policyId": f"policy-2025-{party}", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": None})
-            add_policy(party, "single_insured", party, [], cov_ids, 2025)
+            group = insured_ids[pos:pos + 60]
             single_count += 1
+            mode = "single_insured"
         else:
-            party = add_party("家庭农场" if item_no % 3 == 0 else "自然人")
-            item_id = f"item-2025-{item_no:04d}"
-            cov_ids = []
-            for parcel_id in group:
-                cid = f"coverage-2025-{parcel_id}"
-                cov_ids.append(cid)
-                coverages.append({"id": cid, "policyId": "policy-2025-roster", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": item_id})
-            item_area = sum((areas[i] for i in group), Decimal("0"))
-            items.append({"id": item_id, "enrollmentListId": "list-policy-2025-roster", "itemNo": f"LJ-{item_no:04d}", "insuredPartyId": party, "parcelCoverageIds": cov_ids, "insuredAreaMu": str(item_area), **money(item_area)})
+            group = []
+            area = Decimal("0")
+            while pos + len(group) < len(insured_ids):
+                candidate = areas[insured_ids[pos + len(group)]]
+                if group and area + candidate > Decimal("50"):
+                    break
+                group.append(insured_ids[pos + len(group)])
+                area += candidate
+                if area >= Decimal("49"):
+                    break
+            mode = "insured_roster"
+        party = add_party("家庭农场" if mode == "single_insured" or item_no % 3 == 0 else "自然人")
+        cov_ids = []
+        item_id = None
+        if mode == "insured_roster": item_id = f"item-2025-{item_no:04d}"
+        for parcel_id in group:
+            cid = f"coverage-2025-{parcel_id}"
+            cov_ids.append(cid)
+            coverages.append({"id": cid, "policyId": f"policy-2025-{party}" if mode == "single_insured" else "policy-2025-roster", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": item_id})
+        area = sum((areas[i] for i in group), Decimal("0"))
+        if mode == "single_insured":
+            add_policy(party, mode, party, [], cov_ids, 2025)
+        else:
+            items.append({"id": item_id, "enrollmentListId": "list-policy-2025-roster", "itemNo": f"LJ-{item_no:04d}", "insuredPartyId": party, "parcelCoverageIds": cov_ids, "insuredAreaMu": str(area), **money(area)})
             item_no += 1
         pos += len(group)
 

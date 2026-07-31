@@ -36,6 +36,7 @@ export function createManualDrawingController(
 
   const onBatchMapClick = () => {
     const state = getState()
+    if (state.mode === 'idle') { callbacks.onBlankMapClick(); return }
     if (state.mode !== 'batch' || !state.selectedId) return
     callbacks.onBlankMapClick()
   }

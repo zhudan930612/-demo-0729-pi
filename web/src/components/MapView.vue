@@ -42,6 +42,36 @@
       {{ saveNotice }}
     </div>
 
+    <ParcelDetailPanel
+      v-if="selectedParcel && selectedPolicyContext"
+      ref="detailPanelRef"
+      :parcel="selectedParcel"
+      :village-code="parcelVillageCode"
+      :village-name="store.current.name"
+      :policy="selectedPolicyContext"
+      :records="selectedCultivationRecords"
+      :initial-record-keys="selectedInitialRecordKeys"
+      :claim="selectedClaim"
+      :initial-tab="selectedPolicyContext.currentPolicy ? 'policy' : 'archive'"
+      @request-close="requestCloseDetail"
+      @request-restore="requestRestoreCultivation"
+      @save-record="saveCultivationRecord"
+      @remove-record="removeCultivationRecord"
+      @editing-change="cultivationEditing = $event"
+      @open-roster="rosterOpen = true"
+      @highlight-insured="highlightSelectedInsured"
+      @highlight-policy="highlightSelectedPolicy"
+    />
+    <PolicyRosterDrawer
+      v-if="rosterOpen && selectedPolicyContext?.currentPolicy?.insuredMode === 'insured_roster'"
+      :policy="selectedPolicyContext.currentPolicy"
+      :items="selectedRosterItems"
+      :parties="policyFixture?.parties ?? []"
+      :claims="selectedRosterClaims"
+      @close="rosterOpen = false"
+      @select="selectRosterItem"
+    />
+
     <ManualConfirmDialog
       :open="manualDialog.open"
       :title="manualDialog.title"
@@ -85,7 +115,14 @@ import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
+import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
+import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
+import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
+import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
+import { cultivationKey, type CultivationRecord } from '../features/policy/cultivationState'
+import { claimForInsured, fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../features/policy/policySelectors'
+import type { EnrollmentItem, PolicyFixture } from '../features/policy/policyTypes'
 import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
 import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
@@ -191,6 +228,27 @@ const canZoomIn = computed(() => currentZoom.value < 19)
 const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
 const basemap = ref<'img' | 'vec'>('img')
+const policyLoad = loadPolicyFixture()
+const cultivationLoad = loadCultivationFixture()
+const policyFixture: PolicyFixture | null = policyLoad.data
+const initialCultivationRecords = cultivationLoad.data ?? []
+const selectedParcel = ref<ParcelSummaryInput | null>(null)
+const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
+const selectedCultivationRecords = ref<CultivationRecord[]>([])
+const selectedInitialRecordKeys = computed(() => selectedParcel.value ? initialCultivationRecords.filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id).map(cultivationKey) : [])
+const selectedClaim = ref<ReturnType<typeof claimForInsured>>(null)
+const cultivationEditing = ref(false)
+const rosterOpen = ref(false)
+const highlightedInsuredIds = ref<Set<string>>(new Set())
+const highlightedPolicyIds = ref<Set<string>>(new Set())
+const detailPanelRef = ref<InstanceType<typeof ParcelDetailPanel>>()
+const selectedRosterItems = computed(() => {
+  const policy = selectedPolicyContext.value?.currentPolicy
+  if (!policyFixture || !policy?.enrollmentListId) return []
+  const list = policyFixture.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
+  return list ? policyFixture.enrollmentItems.filter((item) => list.itemIds.includes(item.id)) : []
+})
+const selectedRosterClaims = computed(() => policyFixture && selectedPolicyContext.value?.currentPolicy ? policyFixture.claims.filter((claim) => claim.policyId === selectedPolicyContext.value!.currentPolicy!.id) : [])
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
@@ -243,7 +301,19 @@ const baseStyle = (level: keyof typeof LEVEL_WEIGHT): L.PathOptions => ({
   fillOpacity: 0.08,
 })
 
+function clearSelection() {
+  selectedParcel.value = null
+  selectedPolicyContext.value = null
+  selectedCultivationRecords.value = []
+  selectedClaim.value = null
+  cultivationEditing.value = false
+  rosterOpen.value = false
+  highlightedInsuredIds.value = new Set()
+  highlightedPolicyIds.value = new Set()
+}
+
 function clearLayers() {
+  clearSelection()
   leaveParcelWorkMode()
   pendingHideParcelIds.clear()
   pendingRestoreParcelIds.clear()
@@ -281,9 +351,14 @@ function toggleRs() {
 }
 
 /** AI 地块独立开/关 */
-function toggleParcels() {
+async function toggleParcels() {
   if (parcelMode.value !== 'idle') return
+  if (parcelOn.value && selectedParcel.value && cultivationEditing.value) {
+    const confirmed = await openManualDialog('关闭地块图层', '当前种植档案尚未保存，关闭后将丢失编辑内容。', '确认关闭')
+    if (!confirmed) return
+  }
   parcelOn.value = !parcelOn.value
+  if (!parcelOn.value) clearSelection()
   renderParcelLayer()
 }
 
@@ -298,6 +373,81 @@ function zoomOut() {
 function parcelId(feature: Feature): ParcelId | null {
   const id = feature.properties?.id
   return id === null || id === undefined ? null : String(id)
+}
+
+function refreshSelectedCultivation() {
+  if (!selectedParcel.value) return
+  selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords)
+}
+
+async function selectParcel(parcel: ParcelSummaryInput) {
+  if (parcelMode.value !== 'idle' || !parcelOn.value) return
+  if (cultivationEditing.value && !await openManualDialog('切换地块', '当前种植档案尚未保存，是否确认放弃并切换地块？', '确认切换')) return
+  selectedParcel.value = parcel
+  selectedPolicyContext.value = policyFixture ? parcelPolicyContext(policyFixture, parcel.id) : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
+  refreshSelectedCultivation()
+  const context = selectedPolicyContext.value
+  selectedClaim.value = policyFixture && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture, context.currentPolicy.id, context.currentInsured.id) : null
+  rosterOpen.value = false
+  highlightedInsuredIds.value = new Set()
+  highlightedPolicyIds.value = new Set()
+  renderParcelLayer()
+}
+
+async function requestCloseDetail() {
+  if (cultivationEditing.value && !await openManualDialog('关闭地块详情', '当前种植档案尚未保存，是否确认放弃？', '确认放弃')) return
+  clearSelection()
+  renderParcelLayer()
+}
+
+async function requestRestoreCultivation() {
+  if (!selectedParcel.value || !await openManualDialog('恢复初始档案', '将清除当前地块的本机覆盖与新增记录，是否继续？', '确认恢复')) return
+  const result = restoreInitialCultivation(parcelVillageCode, selectedParcel.value.id)
+  if (!result.ok) { showNotice(result.error ?? '恢复失败', true); return }
+  refreshSelectedCultivation(); showNotice('已恢复当前地块初始档案')
+}
+
+function saveCultivationRecord(record: CultivationRecord, isExisting: boolean) {
+  const initial = selectedInitialRecordKeys.value.includes(cultivationKey(record))
+  const result = isExisting ? (initial ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords) : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords)) : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords)
+  if (!result.ok) { showNotice(result.error ?? '种植档案保存失败', true); return }
+  refreshSelectedCultivation(); cultivationEditing.value = false; detailPanelRef.value?.markSaved(); showNotice('种植档案已保存到当前浏览器')
+}
+
+function removeCultivationRecord(record: CultivationRecord) {
+  const result = removeAddedCultivation(parcelVillageCode, record)
+  if (!result.ok) { showNotice(result.error ?? '删除失败', true); return }
+  refreshSelectedCultivation(); showNotice('新增种植档案已删除')
+}
+
+function highlightSelectedInsured() {
+  const context = selectedPolicyContext.value
+  if (!policyFixture || !context?.currentPolicy || !context.currentInsured) return
+  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
+  highlightedPolicyIds.value = new Set(); renderParcelLayer()
+}
+
+function highlightSelectedPolicy() {
+  const context = selectedPolicyContext.value
+  if (!policyFixture || !context?.currentPolicy) return
+  highlightedPolicyIds.value = new Set(policyCoverages(policyFixture, context.currentPolicy.id).map((entry) => entry.parcelId))
+  if (context.currentInsured) highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
+  renderParcelLayer()
+}
+
+function selectRosterItem(item: EnrollmentItem) {
+  if (!policyFixture || !selectedPolicyContext.value?.currentPolicy) return
+  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture, item.insuredPartyId, selectedPolicyContext.value.currentPolicy.id).map((entry) => entry.parcelId))
+  renderParcelLayer()
+}
+
+function selectionStyle(feature: Feature): L.PathOptions | null {
+  const id = parcelId(feature)
+  if (!id || !selectedParcel.value) return null
+  if (id === selectedParcel.value.id) return { color: '#f97316', weight: 4, fillColor: '#fb923c', fillOpacity: 0.34 }
+  if (highlightedInsuredIds.value.has(id)) return { color: '#22c55e', weight: 3, fillColor: '#4ade80', fillOpacity: 0.25 }
+  if (highlightedPolicyIds.value.has(id)) return { color: '#a78bfa', weight: 2, dashArray: '7 5', fillColor: '#c4b5fd', fillOpacity: 0.14 }
+  return null
 }
 
 function syncPendingParcelCounts() {
@@ -330,6 +480,7 @@ function leaveParcelWorkMode() {
 
 function startParcelEditing() {
   if (!parcelOn.value || !hasFilterableParcels.value) return
+  clearSelection()
   clearPendingParcelFilterState(parcelFilterState)
   syncPendingParcelCounts()
   enterParcelWorkMode('filter')
@@ -427,6 +578,7 @@ async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geom
 
 function startManualDrawing() {
   if (store.current.level !== 'village') return
+  clearSelection()
   showManualStorageNoticeOnce()
   parcelOn.value = true
   editingManualOriginal = null
@@ -577,6 +729,7 @@ async function saveManualBatch() {
     hiddenParcelIds.delete(id)
     pendingHideParcelIds.delete(id)
     pendingRestoreParcelIds.delete(id)
+    removeCultivationForParcel(parcelVillageCode, id)
   }
   persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
   resetManualBatch(manualBatchState)
@@ -658,6 +811,7 @@ async function saveManualDraft() {
 }
 
 function hasUnsavedParcelWork(): boolean {
+  if (cultivationEditing.value) return true
   if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') return manualDraftPoints.value.length > 0 || batchHasChanges.value || Boolean(editingPendingManualId)
   if (parcelMode.value === 'editing') return manualDraftDirty.value
   return pendingChangeCount.value > 0
@@ -675,6 +829,8 @@ function onManualKeydown(event: KeyboardEvent) {
     return
   }
   if (manualDialog.value.open) return
+  if (event.key === 'Escape' && rosterOpen.value) { event.preventDefault(); rosterOpen.value = false; return }
+  if (event.key === 'Escape' && selectedParcel.value) { event.preventDefault(); void requestCloseDetail(); return }
   if (event.key === 'Escape' && (parcelMode.value === 'batch' || parcelMode.value === 'drawing')) {
     event.preventDefault()
     void cancelManualBatch()
@@ -923,11 +1079,17 @@ onMounted(() => {
     {
       parcelId,
       onFilterToggle: toggleParcelFilterSelection,
+      onSelectBase: (feature) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) void selectParcel(parcel) },
+      onSelectManual: (feature) => { void selectParcel(fromManualParcel(feature)) },
       onEditExisting: (feature) => { void startBatchExistingManualEditing(feature) },
       onEditPending: (feature) => { void startPendingManualEditing(feature) },
       onAfterRender: navigationController.bringOutlineToFront,
+      selectionStyle,
     },
   )
+  map.on('click', () => {
+    if (parcelMode.value === 'idle' && selectedParcel.value && !rosterOpen.value) void requestCloseDetail()
+  })
   manualDrawingController = createManualDrawingController(
     map,
     () => ({
@@ -947,7 +1109,7 @@ onMounted(() => {
         manualDraftDirty.value = true
       },
       onCloseRequested: () => { void finishManualDrawing() },
-      onBlankMapClick: () => { void finishPendingManualEditing() },
+      onBlankMapClick: () => { if (parcelMode.value === 'idle' && selectedParcel.value) void requestCloseDetail(); else void finishPendingManualEditing() },
       onRemoveRequested: removeBatchManualParcel,
     },
   )
@@ -964,9 +1126,9 @@ onMounted(() => {
     currentZoom.value = map.getZoom()
     onAutoLevel()
   })
-  store.setNavigationGuard(() => {
-    if (!hasUnsavedParcelWork()) return true
-    return window.confirm('当前地块修改尚未保存，离开后将丢失。确定离开吗？')
+  store.setNavigationGuard(async () => {
+    if (!hasUnsavedParcelWork()) { clearSelection(); return true }
+    return openManualDialog('离开当前村', '当前修改尚未保存，离开后将丢失。是否继续？', '确认离开')
   })
   beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     if (!hasUnsavedParcelWork()) return
