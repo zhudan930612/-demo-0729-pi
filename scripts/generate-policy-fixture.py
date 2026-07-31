@@ -32,19 +32,16 @@ def main() -> None:
     features = sorted(source["features"], key=lambda f: int(f["properties"]["id"]))
     areas = {str(f["properties"]["id"]): Decimal(str(f["properties"]["area_mu"])).quantize(Decimal("0.0001")) for f in features}
     ids = list(areas)
-    # Fixed confirmation: 94.8% insured, with a contiguous spatially local uninsure sample.
-    uninsured = {str(i) for i in range(1451, 1534)}
-    # Versioned confirmation is an immutable input to generation, not an auto-selected result.
     confirmation_path = ROOT / "web/src/data/parcel-confirmation-v1.json"
-    confirmation = {
-        "schemaVersion": "parcel-confirmation-v1",
-        "villageCode": "330604102014",
-        "confirmedAt": "2025-04-01",
-        "confirmedBy": "operator-01",
-        "records": [{"parcelId": parcel_id, "insured": parcel_id not in uninsured, "insuredPartyId": None if parcel_id in uninsured else "pending", "confirmedAt": "2025-04-01", "confirmedBy": "operator-01"} for parcel_id in ids],
-    }
-    # The generator creates the immutable review artifact; production generation must consume this file.
-    confirmation_path.write_text(json.dumps(confirmation, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not confirmation_path.exists():
+        raise SystemExit("missing immutable parcel confirmation; run prepare-policy-confirmation.py and complete review first")
+    confirmation = json.loads(confirmation_path.read_text(encoding="utf-8"))
+    if confirmation.get("schemaVersion") != "parcel-confirmation-v1" or len(confirmation.get("records", [])) != len(ids):
+        raise SystemExit("invalid parcel confirmation schema or coverage")
+    confirmed = {record["parcelId"]: record for record in confirmation["records"]}
+    if set(confirmed) != set(ids) or any(record.get("insured") and not record.get("insuredPartyId") for record in confirmed.values()):
+        raise SystemExit("confirmation must uniquely cover all parcels and assign every insured parcel")
+    uninsured = {parcel_id for parcel_id, record in confirmed.items() if not record["insured"]}
     insured_ids = [i for i in ids if i not in uninsured]
     parties = [{"id": "party-roster", "name": "龙江村股份经济合作社", "partyType": "村集体"}]
     policies: list[dict] = []
@@ -70,43 +67,27 @@ def main() -> None:
         policies.append({"id": policy_id, "policyNo": policy_no, "insuredMode": mode, "insuredPartyId": insured_party, "enrollmentListId": f"list-{policy_id}" if mode == "insured_roster" else None, "villageCode": "330604102014", "product": PRODUCT, "insuredObject": "水稻", "unitSumInsuredCentsPerMu": PER_MU_CENTS, "premiumRate": "0.032", "subsidyRate": "0.80", "signDate": f"{year}-04-15", "periodStart": f"{year}-05-01", "periodEnd": f"{year}-11-30", "status": status, "summary": {"insuredPartyCount": len(item_ids) if mode == "insured_roster" else 1, "parcelCount": len(coverage_ids), "insuredAreaMu": str(total_area.quantize(Decimal("0.0001"))), **sums}})
         current_policy_ids.append(policy_id) if year == 2025 else None
 
-    # Six compact contiguous groups demonstrate single-insured policies. The remaining
-    # contiguous groups are accumulated up to 50 mu, so classification is produced by
-    # the confirmed spatial assignment rather than by splitting a person's coverage.
-    pos = 0
-    single_count = 0
-    while pos < len(insured_ids):
-        if single_count < 6:
-            group = insured_ids[pos:pos + 60]
-            single_count += 1
-            mode = "single_insured"
-        else:
-            group = []
-            area = Decimal("0")
-            while pos + len(group) < len(insured_ids):
-                candidate = areas[insured_ids[pos + len(group)]]
-                if group and area + candidate > Decimal("50"):
-                    break
-                group.append(insured_ids[pos + len(group)])
-                area += candidate
-                if area >= Decimal("49"):
-                    break
-            mode = "insured_roster"
-        party = add_party("家庭农场" if mode == "single_insured" or item_no % 3 == 0 else "自然人")
+    confirmed_groups: dict[str, list[str]] = {}
+    for parcel_id in insured_ids:
+        confirmed_groups.setdefault(confirmed[parcel_id]["insuredPartyId"], []).append(parcel_id)
+    for confirmed_party_id, group in sorted(confirmed_groups.items()):
+        party_type = "家庭农场" if int(confirmed_party_id.rsplit("-", 1)[-1]) % 3 == 0 else "自然人"
+        party = add_party(party_type)
+        if party != confirmed_party_id:
+            raise SystemExit(f"confirmation party sequence mismatch: {confirmed_party_id} != {party}")
+        area = sum((areas[i] for i in group), Decimal("0"))
+        mode = "insured_roster" if area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00") else "single_insured"
+        item_id = f"item-2025-{item_no:04d}" if mode == "insured_roster" else None
         cov_ids = []
-        item_id = None
-        if mode == "insured_roster": item_id = f"item-2025-{item_no:04d}"
         for parcel_id in group:
             cid = f"coverage-2025-{parcel_id}"
             cov_ids.append(cid)
             coverages.append({"id": cid, "policyId": f"policy-2025-{party}" if mode == "single_insured" else "policy-2025-roster", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": item_id})
-        area = sum((areas[i] for i in group), Decimal("0"))
         if mode == "single_insured":
             add_policy(party, mode, party, [], cov_ids, 2025)
         else:
             items.append({"id": item_id, "enrollmentListId": "list-policy-2025-roster", "itemNo": f"LJ-{item_no:04d}", "insuredPartyId": party, "parcelCoverageIds": cov_ids, "insuredAreaMu": str(area), **money(area)})
             item_no += 1
-        pos += len(group)
 
     # Patch the policy IDs on single coverages now that the policy IDs are known; roster policy is fixed.
     for c in coverages:
@@ -130,7 +111,7 @@ def main() -> None:
         {"id": "claim-2025-002", "policyId": "policy-2025-roster", "insuredPartyId": items[1]["insuredPartyId"], "enrollmentItemId": items[1]["id"], "reportCount": 1, "estimatedLossCents": 92000, "paidCents": 92000, "latestReportDate": "2025-05-28", "latestStatus": "已结案"},
         {"id": "claim-2024-001", "policyId": "policy-2024-history", "insuredPartyId": history_party, "reportCount": 1, "estimatedLossCents": 60000, "paidCents": 60000, "latestReportDate": "2024-08-01", "latestStatus": "已结案"},
     ])
-    report = {"fixtureVersion": "policy-v1.0.0", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "singlePolicyCount": sum(p["insuredMode"] == "single_insured" for p in policies), "rosterItemCount": len(items), "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": "2025-04-01", "confirmedBy": "operator-01", "grouping": "local contiguous fixed confirmation"}}
+    report = {"fixtureVersion": "policy-v1.0.0", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "singlePolicyCount": sum(p["insuredMode"] == "single_insured" for p in policies), "rosterItemCount": len(items), "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": confirmation["confirmedAt"], "confirmedBy": confirmation["confirmedBy"], "grouping": "local geometry-nearest fixed confirmation", "insuredPartyMetrics": confirmation.get("spatialReview", [])}}
     fixture = {"schemaVersion": "policy-v1", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "parties": parties, "policies": policies, "enrollmentLists": [{"id": "list-policy-2025-roster", "policyId": "policy-2025-roster", "applicantPartyId": "party-roster", "itemIds": [i["id"] for i in items]}], "enrollmentItems": items, "parcelCoverages": coverages, "claims": claims, "report": report}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "policy-v1.json").write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")

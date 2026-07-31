@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, restoreInitialCultivation, saveCultivationOverride } from './cultivationStorage'
+import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from './cultivationStorage'
 import type { CultivationRecord } from './cultivationState'
 
 class MemoryStorage implements Storage {
@@ -22,6 +22,8 @@ describe('cultivation storage', () => {
     expect(addCultivationRecord('v', added, [initial], storage).ok).toBe(true)
     expect(readEffectiveCultivation('v', '1', [initial], storage).map((r) => r.variety)).toContain('乙')
     expect(readEffectiveCultivation('other', '1', [initial], storage)).toHaveLength(0)
+    expect(updateAddedCultivation('v', { ...added, variety: '丙' }, [initial], storage).ok).toBe(true)
+    expect(readEffectiveCultivation('v', '1', [initial], storage).find((r) => r.year === 2024)?.variety).toBe('丙')
     expect(removeAddedCultivation('v', added, storage).ok).toBe(true)
     expect(readEffectiveCultivation('v', '1', [initial], storage)).toHaveLength(1)
   })
