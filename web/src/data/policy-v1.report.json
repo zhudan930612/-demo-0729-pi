@@ -1,0 +1,19 @@
+{
+  "fixtureVersion": "policy-v1.0.0",
+  "businessDate": "2025-07-15",
+  "villageCode": "330604102014",
+  "baseParcelCount": 1533,
+  "insuredParcelCount": 1450,
+  "uninsuredParcelCount": 83,
+  "uninsuredAreaMu": "167.8200",
+  "partyCount": 70,
+  "policyCount": 8,
+  "singlePolicyCount": 7,
+  "rosterItemCount": 62,
+  "spatialReview": {
+    "confirmationVersion": "parcel-confirmation-v1",
+    "confirmedAt": "2025-04-01",
+    "confirmedBy": "operator-01",
+    "grouping": "local contiguous fixed confirmation"
+  }
+}
