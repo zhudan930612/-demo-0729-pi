@@ -208,6 +208,7 @@ export function createParcelLayerController(
       const collection: FeatureCollection = { type: 'FeatureCollection', features: visibleAiFeatures }
       parcelLayer = L.geoJSON(collection, {
         interactive: state.parcelOn && (state.mode === 'idle' || state.mode === 'filter'),
+        bubblingMouseEvents: false,
         style: (feature) => {
           const current = getState()
           const id = feature ? callbacks.parcelId(feature as Feature) : null
@@ -222,7 +223,7 @@ export function createParcelLayerController(
           const id = callbacks.parcelId(feature)
           if (state.mode === 'filter' && id) bindFilterInteractions(layer, id)
           else if (state.mode === 'idle') layer.on('click', (event) => {
-            L.DomEvent.stopPropagation(event)
+            L.DomEvent.stopPropagation((event as L.LeafletMouseEvent).originalEvent)
             callbacks.onSelectBase(feature)
           })
         },
@@ -242,6 +243,7 @@ export function createParcelLayerController(
       const collection: FeatureCollection = { type: 'FeatureCollection', features: visibleManualParcels }
       manualParcelLayer = L.geoJSON(collection, {
         interactive: state.parcelOn && (state.mode === 'idle' || state.mode === 'batch' || state.mode === 'filter'),
+        bubblingMouseEvents: false,
         style: (feature) => {
           const current = getState()
           if (!current.parcelOn) return { ...PARCEL_STYLE, opacity: 0, fillOpacity: 0 }
@@ -256,7 +258,7 @@ export function createParcelLayerController(
           if (state.mode === 'filter') bindFilterInteractions(layer, id)
           else if (state.mode === 'idle') {
             layer.on('click', (event) => {
-              L.DomEvent.stopPropagation(event)
+              L.DomEvent.stopPropagation((event as L.LeafletMouseEvent).originalEvent)
               callbacks.onSelectManual(manual)
             })
           } else if (state.mode === 'batch') {
