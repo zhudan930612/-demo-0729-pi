@@ -403,9 +403,13 @@ async function selectParcel(parcel: ParcelSummaryInput) {
   const context = selectedPolicyContext.value
   selectedClaim.value = policyFixture.value && context?.currentPolicy && context.currentInsured ? claimForInsured(policyFixture.value, context.currentPolicy.id, context.currentInsured.id) : null
   rosterOpen.value = false
-  if (policyFixture.value && context?.currentPolicy?.insuredMode === 'insured_roster') {
-    // 分户清单地块点击后直接展示整张清单的关联地块；当前地块仍由 selectionStyle 使用橙色主高亮。
-    highlightedInsuredIds.value = new Set(policyCoverages(policyFixture.value, context.currentPolicy.id).map((entry) => entry.parcelId))
+  const currentPolicyCoverages = policyFixture.value && context?.currentPolicy
+    ? policyCoverages(policyFixture.value, context.currentPolicy.id)
+    : []
+  if (currentPolicyCoverages.length > 1) {
+    // 只要当前保单关联多个地块，点击其中任一地块就展示同一保单的全部可见关联地块。
+    // 当前地块仍由 selectionStyle 使用橙色主高亮，其余关联地块使用绿色次级高亮。
+    highlightedInsuredIds.value = new Set(currentPolicyCoverages.map((entry) => entry.parcelId))
     highlightedPolicyIds.value = new Set()
   } else {
     const sameInsuredContext = selectedPolicyContext.value?.currentInsured?.id && highlightedInsuredIds.value.has(parcel.id)
