@@ -222,8 +222,7 @@ export function createParcelLayerController(
         onEachFeature: (feature: Feature, layer: L.Layer) => {
           const id = callbacks.parcelId(feature)
           if (state.mode === 'filter' && id) bindFilterInteractions(layer, id)
-          else if (state.mode === 'idle') layer.on('click', (event) => {
-            L.DomEvent.stopPropagation((event as L.LeafletMouseEvent).originalEvent)
+          else if (state.mode === 'idle') layer.on('click', () => {
             callbacks.onSelectBase(feature)
           })
         },
@@ -257,8 +256,7 @@ export function createParcelLayerController(
           const id = manual.properties.id
           if (state.mode === 'filter') bindFilterInteractions(layer, id)
           else if (state.mode === 'idle') {
-            layer.on('click', (event) => {
-              L.DomEvent.stopPropagation((event as L.LeafletMouseEvent).originalEvent)
+            layer.on('click', () => {
               callbacks.onSelectManual(manual)
             })
           } else if (state.mode === 'batch') {
