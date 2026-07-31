@@ -7,7 +7,6 @@
       <div class="legend-item"><span class="legend-swatch manual" aria-hidden="true"></span><span>人工地块</span></div>
       <div class="legend-item"><span class="legend-swatch pending-manual" aria-hidden="true"></span><span>本批新增地块</span></div>
     </div>
-    <div v-if="rsHint" class="summary-imagery" :class="{ off: !rsVisible }">{{ rsHint }}</div>
   </section>
 
   <section v-else-if="mode === 'filter'" class="parcel-summary parcel-legend" aria-label="筛选地块图示说明">
@@ -18,7 +17,6 @@
       <div class="legend-item"><span class="legend-swatch hidden" aria-hidden="true"></span><span>已隐藏</span></div>
       <div class="legend-item"><span class="legend-swatch pending-restore" aria-hidden="true"></span><span>待恢复</span></div>
     </div>
-    <div v-if="rsHint" class="summary-imagery" :class="{ off: !rsVisible }">{{ rsHint }}</div>
   </section>
 
   <section v-else-if="parcelVisible && parcelOn" class="parcel-summary" aria-label="地块统计">
