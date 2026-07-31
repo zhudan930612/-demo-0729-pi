@@ -70,13 +70,18 @@ def main() -> None:
     confirmed_groups: dict[str, list[str]] = {}
     for parcel_id in insured_ids:
         confirmed_groups.setdefault(confirmed[parcel_id]["insuredPartyId"], []).append(parcel_id)
+    if len([group for group in confirmed_groups.values() if len(group) > 1]) != 4:
+        raise SystemExit("confirmation must contain exactly four multi-parcel operating regions")
     for confirmed_party_id, group in sorted(confirmed_groups.items()):
-        party_type = "家庭农场" if int(confirmed_party_id.rsplit("-", 1)[-1]) % 3 == 0 else "自然人"
+        party_number = int(confirmed_party_id.rsplit("-", 1)[-1])
+        party_type = "家庭农场" if party_number <= 4 else "自然人"
         party = add_party(party_type)
         if party != confirmed_party_id:
             raise SystemExit(f"confirmation party sequence mismatch: {confirmed_party_id} != {party}")
         area = sum((areas[i] for i in group), Decimal("0"))
-        mode = "insured_roster" if area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00") else "single_insured"
+        mode = "single_insured" if len(group) > 1 else "insured_roster"
+        if mode == "single_insured" and area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00"):
+            raise SystemExit(f"four-region single policy must exceed 50 mu: {party} = {area}")
         item_id = f"item-2025-{item_no:04d}" if mode == "insured_roster" else None
         cov_ids = []
         for parcel_id in group:
@@ -111,7 +116,8 @@ def main() -> None:
         {"id": "claim-2025-002", "policyId": "policy-2025-roster", "insuredPartyId": items[1]["insuredPartyId"], "enrollmentItemId": items[1]["id"], "reportCount": 1, "estimatedLossCents": 92000, "paidCents": 92000, "latestReportDate": "2025-05-28", "latestStatus": "已结案"},
         {"id": "claim-2024-001", "policyId": "policy-2024-history", "insuredPartyId": history_party, "reportCount": 1, "estimatedLossCents": 60000, "paidCents": 60000, "latestReportDate": "2024-08-01", "latestStatus": "已结案"},
     ])
-    report = {"fixtureVersion": "policy-v1.0.0", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "singlePolicyCount": sum(p["insuredMode"] == "single_insured" for p in policies), "rosterItemCount": len(items), "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": confirmation["confirmedAt"], "confirmedBy": confirmation["confirmedBy"], "grouping": "local geometry-nearest fixed confirmation", "insuredPartyMetrics": confirmation.get("spatialReview", [])}}
+    current_policies = [policy for policy in policies if policy["status"] != "已到期"]
+    report = {"fixtureVersion": "policy-v1.1.0", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "currentPolicyCount": len(current_policies), "currentSinglePolicyCount": sum(p["insuredMode"] == "single_insured" for p in current_policies), "currentRosterPolicyCount": sum(p["insuredMode"] == "insured_roster" for p in current_policies), "rosterItemCount": len(items), "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": confirmation["confirmedAt"], "confirmedBy": confirmation["confirmedBy"], "grouping": confirmation.get("assignmentModel", "fixed confirmation"), "insuredPartyMetrics": confirmation.get("spatialReview", [])}}
     fixture = {"schemaVersion": "policy-v1", "businessDate": BUSINESS_DATE, "villageCode": "330604102014", "parties": parties, "policies": policies, "enrollmentLists": [{"id": "list-policy-2025-roster", "policyId": "policy-2025-roster", "applicantPartyId": "party-roster", "itemIds": [i["id"] for i in items]}], "enrollmentItems": items, "parcelCoverages": coverages, "claims": claims, "report": report}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "policy-v1.json").write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")

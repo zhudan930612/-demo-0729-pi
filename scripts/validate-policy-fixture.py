@@ -26,6 +26,17 @@ def main():
   roster=any(i['insuredPartyId']==party for i in items.values())
   if (total<=Decimal('50'))!=roster: violations.append((party,str(total)))
  check(not violations,'全部被保险人符合 50.00 亩分类且不拆分')
+ current_policies=[policy for policy in p['policies'] if policy['status']!='已到期']
+ single_current=[policy for policy in current_policies if policy['insuredMode']=='single_insured']
+ roster_current=[policy for policy in current_policies if policy['insuredMode']=='insured_roster']
+ check(len(current_policies)==5 and len(single_current)==4 and len(roster_current)==1,'2025 当前保单严格为 4 张单一型 + 1 张清单型')
+ roster_policy_id=roster_current[0]['id']
+ roster_coverages=[coverage for coverage in current if coverage['policyId']==roster_policy_id]
+ roster_item_ids={item['id'] for item in items.values() if item['enrollmentListId']==roster_current[0]['enrollmentListId']}
+ check(len(roster_coverages)==len(roster_item_ids) and all(len(items[item_id]['parcelCoverageIds'])==1 for item_id in roster_item_ids),'分户清单严格一块一户')
+ multi_parcel_parties=[party for party,covs in by_party.items() if len(covs)>1]
+ check(len(multi_parcel_parties)==4 and all(any(policy['insuredPartyId']==party for policy in single_current) for party in multi_parcel_parties),'仅四个红区为一户多块单一型保单')
+ check(q.get('assignmentModel')=='four-approximate-regions-plus-one-parcel-roster','确认清单使用四区加一块一户模型')
  check(all(Decimal(x['insuredAreaMu'])>0 and Decimal(x['insuredAreaMu'])<=areas[x['parcelId']] for x in p['parcelCoverages']),'承保面积均大于 0 且不超过几何面积')
  check(all(re.fullmatch(r'\d{22}',x['policyNo']) for x in p['policies']),'保单号均为项目唯一 22 位数字')
  check(len({x['policyNo'] for x in p['policies']})==len(p['policies']),'保单号项目内唯一')
@@ -35,5 +46,5 @@ def main():
  check(bool(current_records-set(current_ids)),'部分当前未参保地块具备初始档案')
  forbidden=re.compile(r'身份证|手机号码|银行卡|银行账号|开户行|手写签名|某保险公司|演示数据|合成数据|虚构示例')
  check(not forbidden.search(POLICY.read_text(encoding='utf8')),'fixture 未出现禁止的敏感字段或弱化标识')
- print(f"报告: 基础 {len(areas)} 块，当前参保 {len(current_ids)} 块，未参保 {len(areas)-len(current_ids)} 块，被保险人 {len(by_party)} 户，保单 {len(p['policies'])} 张。")
+ print(f"报告: 基础 {len(areas)} 块，当前参保 {len(current_ids)} 块，未参保 {len(areas)-len(current_ids)} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（4 单一型 + 1 清单型），历史保单 {len(p['policies'])-len(current_policies)} 张。")
 if __name__=='__main__': main()
