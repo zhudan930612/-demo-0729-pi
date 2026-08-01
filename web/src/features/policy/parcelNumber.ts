@@ -1,9 +1,9 @@
 export type ParcelNumberSource = 'base' | 'manual'
 
 /**
- * 业务展示编号：DK-{12位村代码}-{来源码}-{稳定源ID}。
+ * 业务展示编号：DK-{12位村代码}-{来源码}-{稳定标识}。
  *
- * 村代码隔离行政区域，B/M 区分基础与人工地块，稳定源 ID 保证同村内唯一。
+ * 基础地块使用原始稳定 ID；人工地块由详情面板传入村内持久化递增序号。
  * 该编号只用于展示，不替换 GeoJSON ID 或现有 localStorage 业务键。
  */
 export function formatParcelNumber(villageCode: string, source: ParcelNumberSource, sourceId: string): string {
