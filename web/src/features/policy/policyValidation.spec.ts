@@ -4,7 +4,7 @@ import type { Policy, ParcelCoverage, PolicyFixture } from './policyTypes'
 
 const policy = (id: string, start: string, end: string, status: Policy['status']): Policy => ({
   id, policyNo: '1234567890123456789012', insuredMode: 'single_insured', insuredPartyId: 'p', enrollmentListId: null,
-  villageCode: 'v', product: '水稻完全成本保险', insuredObject: '水稻', unitSumInsuredCentsPerMu: 125000,
+  villageCode: 'v', product: '政策性水稻完全成本保险', insuredObject: '水稻', unitSumInsuredCentsPerMu: 125000,
   premiumRate: '0.032', subsidyRate: '0.80', signDate: '2025-01-01', periodStart: start, periodEnd: end, status,
   summary: { insuredPartyCount: 1, parcelCount: 1, insuredAreaMu: '1.0000', sum_insured_cents: 125000, premium_cents: 4000, subsidy_cents: 3200, self_paid_cents: 800 },
 })

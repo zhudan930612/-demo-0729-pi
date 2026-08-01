@@ -42,7 +42,7 @@
             <p>承保比例 {{ coverageRatio }} · 当前地块保险金额 {{ money(currentParcelSumInsured) }}</p>
           </div>
           <div class="info-block">
-            <div class="policy-title-row"><div><span>保险产品</span><h4>{{ policy.currentPolicy.product }}</h4></div></div>
+            <div class="policy-title-row"><div><span>投保险种</span><h4>{{ policy.currentPolicy.product }}</h4></div></div>
             <button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button><span v-if="copyNotice" class="copy-notice">{{ copyNotice }}</span>
             <dl class="definition-list compact">
               <div><dt>投保人</dt><dd>{{ policyPartyDisplay }}</dd></div>
@@ -54,7 +54,7 @@
               <div><dt>总保险金额</dt><dd>{{ money(policy.currentPolicy.summary.sum_insured_cents) }}</dd></div>
               <div><dt>总保费</dt><dd>{{ money(policy.currentPolicy.summary.premium_cents) }}</dd></div>
             </dl>
-            <button class="text-button" @click="$emit('highlight-policy')">查看整张保单覆盖范围</button>
+            <button v-if="policy.currentPolicy.insuredMode === 'insured_roster'" class="text-button" @click="$emit('highlight-policy')">查看整张保单覆盖范围</button>
           </div>
         </template>
 
@@ -79,7 +79,7 @@
           </dl>
           <div class="button-row"><button class="text-button" @click="$emit('highlight-insured')">查看该户地块</button><button class="primary-button" @click="$emit('open-roster')">查看完整投保清单</button></div>
         </div>
-        <div v-else class="empty-state compact-empty"><strong>单一被保险人承保</strong><p>该保单不设分户清单，全部承保地块归属于同一被保险人。</p><button class="text-button" @click="$emit('highlight-insured')">查看该户地块</button></div>
+        <div v-else class="empty-state compact-empty"><strong>单一被保险人承保</strong><p>该保单不设分户清单，全部承保地块归属于同一被保险人。</p></div>
       </section>
 
     </div>
