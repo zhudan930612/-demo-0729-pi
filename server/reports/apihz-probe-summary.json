@@ -1,0 +1,135 @@
+{
+  "reportVersion": 1,
+  "probedAtUtc": "2026-08-01T18:09:15.252Z",
+  "beijingDate": "2026-08-02",
+  "year": 2026,
+  "outcome": "success",
+  "businessCode": 200,
+  "listCount": 15,
+  "startCount": 2,
+  "stopCount": 13,
+  "typeValues": [
+    "start",
+    "stop"
+  ],
+  "listFields": [
+    "explanation",
+    "namecn",
+    "nameen",
+    "no1",
+    "no2",
+    "no3",
+    "no4",
+    "type"
+  ],
+  "samples": [
+    {
+      "type": "start",
+      "observationCount": 44,
+      "observationFields": [
+        "forecast_babj",
+        "intensity_code",
+        "intensity_desc",
+        "intensity_text",
+        "lat",
+        "lon",
+        "move_desc",
+        "move_dir_code",
+        "move_dir_text",
+        "move_speed_kmh",
+        "position_text",
+        "pressure_hpa",
+        "time_ymdh",
+        "wind_radius",
+        "wind_speed_ms"
+      ],
+      "nodesWithWindRadius": 44,
+      "windRadiusEntryCount": 118,
+      "windRadiusFields": [
+        "avg_radius_km",
+        "grade",
+        "grade_desc",
+        "grade_text",
+        "ne_radius_km",
+        "nw_radius_km",
+        "se_radius_km",
+        "sw_radius_km"
+      ],
+      "windGradesSeen": [
+        "七级",
+        "十二级",
+        "十级"
+      ],
+      "forecastParentCount": 1,
+      "forecastCount": 8,
+      "forecastFields": [
+        "forecast_desc",
+        "forecast_hour",
+        "intensity_code",
+        "intensity_text",
+        "lat",
+        "lon",
+        "position_text",
+        "pressure_hpa",
+        "target_time_ymdh",
+        "wind_speed_ms"
+      ],
+      "forecastHourRange": [
+        12,
+        120
+      ],
+      "duplicateForecastHourSeen": false,
+      "duplicateTargetTimeSeen": true
+    },
+    {
+      "type": "stop",
+      "observationCount": 21,
+      "observationFields": [
+        "forecast_babj",
+        "intensity_code",
+        "intensity_desc",
+        "intensity_text",
+        "lat",
+        "lon",
+        "move_desc",
+        "move_dir_code",
+        "move_dir_text",
+        "move_speed_kmh",
+        "position_text",
+        "pressure_hpa",
+        "time_ymdh",
+        "wind_radius",
+        "wind_speed_ms"
+      ],
+      "nodesWithWindRadius": 0,
+      "windRadiusEntryCount": 0,
+      "windRadiusFields": [],
+      "windGradesSeen": [],
+      "forecastParentCount": 1,
+      "forecastCount": 1,
+      "forecastFields": [
+        "forecast_desc",
+        "forecast_hour",
+        "intensity_code",
+        "intensity_text",
+        "lat",
+        "lon",
+        "position_text",
+        "pressure_hpa",
+        "target_time_ymdh",
+        "wind_speed_ms"
+      ],
+      "forecastHourRange": [
+        12,
+        12
+      ],
+      "duplicateForecastHourSeen": false,
+      "duplicateTargetTimeSeen": false
+    }
+  ],
+  "noActiveTyphoonSampleCovered": false,
+  "limitations": [
+    "单次探针只证明该抓取时刻和所选样本，不保证年度列表长期完整或字段长期稳定。",
+    "本次存在活动台风，未覆盖真实无活动台风样例。"
+  ]
+}

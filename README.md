@@ -9,6 +9,7 @@
 ## 技术栈
 
 - 前端：`web/` —— Vue 3 + Vite + TypeScript + Leaflet + Pinia
+- 台风代理：`server/` —— Node.js 内置 HTTP 服务，负责隐藏 APIHz 凭据并校验上游响应
 - 数据预处理：`scripts/` —— Python（pyshp / shapely / rasterio / Pillow）
 - 地块识别：仓库外运行 [Delineate Anything v2](https://github.com/Lavreniuk/Delineate-Anything)，结果裁界后导出静态 GeoJSON
 
@@ -93,7 +94,66 @@ pnpm dev
 http://localhost:5173
 ```
 
-### 6. 构建与预览发布包
+### 6. 启动台风 API 代理并联调
+
+台风功能通过独立 Node 服务访问 APIHz。APIHz 开发者 ID 和 KEY 只能由服务端读取，不得使用 `VITE_*` 变量，也不得写入浏览器代码或提交到仓库。
+
+复制服务端环境变量示例：
+
+Windows PowerShell：
+
+```powershell
+Copy-Item server/.env.example server/.env.local
+```
+
+macOS / Linux / Git Bash：
+
+```bash
+cp server/.env.example server/.env.local
+```
+
+编辑 `server/.env.local`，填写本机凭据：
+
+```dotenv
+APIHZ_DEVELOPER_ID=你的开发者ID
+APIHZ_KEY=你的开发者KEY
+PORT=8787
+```
+
+`server/.env.local` 已被 Git 忽略。服务也兼容 `APIHZ_ID`，但优先读取 `APIHZ_DEVELOPER_ID`。生产环境应直接注入进程环境变量，不依赖文件。
+
+在仓库根目录打开两个终端：
+
+```bash
+# 终端 1：Node 代理，默认只监听 127.0.0.1:8787
+pnpm --dir server start
+
+# 终端 2：Vite 前端
+pnpm --dir web dev
+```
+
+Vite 将浏览器的 `/api` 请求转发至 `http://127.0.0.1:8787`。如本机代理端口不同，只设置非秘密变量 `DEV_API_PROXY_TARGET`，例如 `http://127.0.0.1:9000`；不要把 APIHz 凭据放入该变量。
+
+可用以下命令检查代理：
+
+```bash
+curl http://127.0.0.1:8787/healthz
+curl "http://127.0.0.1:8787/api/typhoons?year=2026"
+```
+
+`/healthz` 只返回进程状态和是否已配置，不回显凭据。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。
+
+真实 API 技术探针：
+
+```bash
+pnpm --dir server probe:apihz
+```
+
+探针会安全加载 `server/.env.local`，也可读取已忽略的仓库根 `.env.local`；process environment 始终优先。探针只写入 `server/reports/apihz-probe-summary.json` 脱敏聚合报告，不保存原始响应、台风编号、名称、坐标或凭据。无凭据时安全跳过并返回退出码 2。
+
+生产部署采用同源反向代理：由 Nginx/网关通过 HTTPS 提供 `web/dist/`，把 `/api` 转发到仅在内网或 loopback 监听的 Node 服务。生产环境不使用 Vite 代理，不对 Node 服务开放任意跨域访问，并由进程管理器注入 `APIHZ_DEVELOPER_ID`、`APIHZ_KEY`。
+
+### 7. 构建与预览发布包
 
 ```bash
 pnpm build
