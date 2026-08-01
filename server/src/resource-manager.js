@@ -6,14 +6,28 @@ export class ResourceLimitError extends Error {
   }
 }
 
+function deleteOldest(map) {
+  const oldest = map.keys().next().value
+  if (oldest !== undefined) map.delete(oldest)
+}
+
 /** 固定窗口基础限流；只使用 socket IP，避免信任未配置网关的转发头。 */
-export function createIpRateLimiter({ limit, windowMs, now = Date.now }) {
+export function createIpRateLimiter({ limit, windowMs, maxClients = 2048, now = Date.now }) {
   const clients = new Map()
+
+  function cleanupExpired(timestamp) {
+    // 每次访问全量回收过期窗口，避免不再访问的 IP 永久占用内存。
+    for (const [ip, entry] of clients) if (timestamp >= entry.resetAt) clients.delete(ip)
+  }
+
   return {
     consume(ip) {
       const timestamp = now()
+      cleanupExpired(timestamp)
       const current = clients.get(ip)
-      if (!current || timestamp >= current.resetAt) {
+      if (!current) {
+        // 容量达到上限时按插入顺序淘汰最旧窗口；容量始终为硬上限。
+        while (clients.size >= maxClients) deleteOldest(clients)
         clients.set(ip, { count: 1, resetAt: timestamp + windowMs })
         return true
       }
@@ -22,6 +36,7 @@ export function createIpRateLimiter({ limit, windowMs, now = Date.now }) {
       return true
     },
     clear() { clients.clear() },
+    stats() { return { clientCount: clients.size } },
   }
 }
 
@@ -29,18 +44,35 @@ export function createIpRateLimiter({ limit, windowMs, now = Date.now }) {
  * 全局唯一上游请求 broker：相同业务 key 合并、成功结果短缓存、唯一请求并发受限。
  * cache/in-flight key 仅由 list 年份或 detail 编号构成，不包含凭据。
  */
-export function createUpstreamBroker({ maxConcurrency, cacheTtlMs, now = Date.now }) {
+export function createUpstreamBroker({ maxConcurrency, cacheTtlMs, cacheMaxEntries = 128, now = Date.now }) {
   const cache = new Map()
   const inFlight = new Map()
   let activeCount = 0
 
-  function subscribe(key, loader) {
-    const cached = cache.get(key)
+  function cleanupExpired(timestamp) {
+    // 每次访问全量回收过期缓存，原 key 不再访问也不会滞留。
+    for (const [key, entry] of cache) if (entry.expiresAt <= timestamp) cache.delete(key)
+  }
+
+  function cacheSuccess(key, value) {
     const timestamp = now()
-    if (cached && cached.expiresAt > timestamp) {
+    cleanupExpired(timestamp)
+    cache.delete(key)
+    // Map 插入顺序作为 LRU 顺序；满载时淘汰最久未使用的成功项。
+    while (cache.size >= cacheMaxEntries) deleteOldest(cache)
+    cache.set(key, { value, expiresAt: timestamp + cacheTtlMs })
+  }
+
+  function subscribe(key, loader) {
+    const timestamp = now()
+    cleanupExpired(timestamp)
+    const cached = cache.get(key)
+    if (cached) {
+      // 命中后移动到末尾，形成明确 LRU 淘汰顺序。
+      cache.delete(key)
+      cache.set(key, cached)
       return { promise: Promise.resolve(cached.value), release() {}, source: 'cache' }
     }
-    if (cached) cache.delete(key)
 
     let entry = inFlight.get(key)
     if (!entry) {
@@ -51,7 +83,7 @@ export function createUpstreamBroker({ maxConcurrency, cacheTtlMs, now = Date.no
       entry.promise = Promise.resolve()
         .then(() => loader(controller.signal))
         .then((value) => {
-          cache.set(key, { value, expiresAt: now() + cacheTtlMs })
+          cacheSuccess(key, value)
           return value
         })
         .finally(() => {

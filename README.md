@@ -120,7 +120,9 @@ APIHZ_KEY=你的开发者KEY
 PORT=8787
 APIHZ_UPSTREAM_CONCURRENCY=6
 APIHZ_CACHE_TTL_MS=30000
+APIHZ_CACHE_MAX_ENTRIES=128
 APIHZ_RATE_LIMIT_PER_MINUTE=60
+APIHZ_RATE_LIMIT_MAX_CLIENTS=2048
 ```
 
 `server/.env.local` 已被 Git 忽略。服务也兼容 `APIHZ_ID`，但优先读取 `APIHZ_DEVELOPER_ID`。生产环境应直接注入进程环境变量，不依赖文件。
@@ -144,7 +146,7 @@ curl http://127.0.0.1:8787/healthz
 curl "http://127.0.0.1:8787/api/typhoons?year=2026"
 ```
 
-`/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
+`/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；缓存最多保留 128 条、限流窗口最多跟踪 2048 个直连 IP，均会在后续访问时全量回收过期项，满载时按最旧/LRU 顺序淘汰。这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
 
 真实 API 技术探针：
 

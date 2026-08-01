@@ -29,6 +29,23 @@ describe('typhoon timeline view model', () => {
     }
   })
 
+  it('同月相邻短标签按最终 50px 区间分 lane，同 lane 不重叠', () => {
+    const items = [
+      history('a', ['2026-01-02 00:00:00']),
+      history('b', ['2026-01-03 00:00:00']),
+      history('c', ['2026-01-20 00:00:00']),
+    ]
+    const model = buildTyphoonTimelineViewModel({ details: items, nowMs, realtimeCount: 0, openedHistoricalIds: [], focusedTyphoonId: null, selectedNodeByTyphoon: {}, historyPending: 0 })
+    expect(model.labels.find((label) => label.id === 'a')!.lane).not.toBe(model.labels.find((label) => label.id === 'b')!.lane)
+    for (let lane = 0; lane < model.laneCount; lane += 1) {
+      const labels = model.labels.filter((label) => label.lane === lane).sort((left, right) => left.leftPercent - right.leftPercent)
+      for (let index = 1; index < labels.length; index += 1) {
+        const previousEnd = labels[index - 1]!.leftPercent + labels[index - 1]!.widthPercent
+        expect(labels[index]!.leftPercent).toBeGreaterThanOrEqual(previousEnd)
+      }
+    }
+  })
+
   it('分别给出实时达到上限和总数达到上限文案，已打开标签不禁用', () => {
     const item = history('a', ['2026-01-02 00:00:00'])
     const liveLimit = buildTyphoonTimelineViewModel({ details: [item], nowMs, realtimeCount: 6, openedHistoricalIds: [], focusedTyphoonId: null, selectedNodeByTyphoon: {}, historyPending: 0 })

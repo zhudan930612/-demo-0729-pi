@@ -179,7 +179,7 @@ import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapsho
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
 import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
-import { clearPinnedPopup, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
+import { clearPinnedPopup, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
@@ -1000,6 +1000,7 @@ function toggleTyphoonCard(typhoonId: string) {
 
 function closeHistoricalTyphoon(typhoonId: string) {
   typhoonPlaybackController?.cancel(typhoonId)
+  typhoonPopupState.value = clearPopupForTyphoon(typhoonPopupState.value, typhoonId)
   const nextVisible = { ...visibleObservationCountByTyphoon.value }
   delete nextVisible[typhoonId]
   visibleObservationCountByTyphoon.value = nextVisible

@@ -32,10 +32,16 @@ export function createAppServer(config, options = {}) {
   const logger = options.logger ?? console
   const now = options.now ?? Date.now
   const broker = options.broker ?? createUpstreamBroker({
-    maxConcurrency: config.upstreamConcurrency ?? 6, cacheTtlMs: config.cacheTtlMs ?? 30_000, now,
+    maxConcurrency: config.upstreamConcurrency ?? 6,
+    cacheTtlMs: config.cacheTtlMs ?? 30_000,
+    cacheMaxEntries: config.cacheMaxEntries ?? 128,
+    now,
   })
   const rateLimiter = options.rateLimiter ?? createIpRateLimiter({
-    limit: config.rateLimitPerMinute ?? 60, windowMs: 60_000, now,
+    limit: config.rateLimitPerMinute ?? 60,
+    windowMs: 60_000,
+    maxClients: config.rateLimitMaxClients ?? 2048,
+    now,
   })
   return http.createServer(async (request, response) => {
     const requestId = randomUUID()

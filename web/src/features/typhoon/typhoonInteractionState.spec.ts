@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clearPinnedPopup, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget } from './typhoonInteractionState'
+import { clearPinnedPopup, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget } from './typhoonInteractionState'
 
 const center = { kind: 'center' as const, typhoonId: 'a', nodeId: 'n1' }
 const wind7 = { kind: 'wind' as const, typhoonId: 'a', nodeId: 'n1', grade: '7' }
@@ -16,6 +16,13 @@ describe('typhoon popup state', () => {
     state = leavePopup(state, wind10)
     expect(visiblePopupTarget(state)).toEqual(wind10)
     expect(visiblePopupTarget(clearPinnedPopup(state))).toBeNull()
+  })
+  it('关闭历史台风清理自己的 hover/pinned，不影响其他台风 popup', () => {
+    const other = { kind: 'center' as const, typhoonId: 'b', nodeId: 'n2' }
+    expect(clearPopupForTyphoon({ hover: center, pinned: wind10 }, 'a')).toEqual({ hover: null, pinned: null })
+    expect(clearPopupForTyphoon({ hover: other, pinned: wind10 }, 'a')).toEqual({ hover: other, pinned: null })
+    const unchanged = { hover: other, pinned: null }
+    expect(clearPopupForTyphoon(unchanged, 'a')).toBe(unchanged)
   })
 })
 

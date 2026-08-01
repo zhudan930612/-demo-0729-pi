@@ -44,13 +44,14 @@ function limitMessage(realtimeCount: number, openedCount: number): string {
 }
 
 export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): TyphoonTimelineViewModel {
-  const model = buildTimelineModel(source.details, source.nowMs)
+  // 第一次只确定月份和标签数量；最终 50px 可点宽度必须在 lane 分配前参与。
+  const sizingModel = buildTimelineModel(source.details, source.nowMs, 0)
+  const months = sizingModel?.months ?? []
+  const trackWidthPx = Math.max(720, months.length * 180, (sizingModel?.labels.length ?? 0) * 100)
+  const model = buildTimelineModel(source.details, source.nowMs, 50 / trackWidthPx)
   const message = limitMessage(source.realtimeCount, source.openedHistoricalIds.length)
   const detailById = new Map(source.details.map((detail) => [detail.id, detail]))
-  const months = model?.months ?? []
   const rawLabels = model?.labels ?? []
-  const trackWidthPx = Math.max(720, months.length * 180, rawLabels.length * 100)
-  const minimumWidthPercent = 50 / trackWidthPx * 100
   const labels = rawLabels.flatMap((label) => {
     const detail = detailById.get(label.typhoonId)
     if (!detail) return []
@@ -67,8 +68,8 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
       id: detail.id,
       text: `${number} · ${detail.nameCn || '--'}`,
       title: `${detail.nameCn || '--'}（${detail.nameEn || '--'}）`,
-      leftPercent: Math.min(label.visualStartX * 100, 100 - minimumWidthPercent),
-      widthPercent: Math.max((label.visualEndX - label.visualStartX) * 100, minimumWidthPercent),
+      leftPercent: label.visualStartX * 100,
+      widthPercent: (label.visualEndX - label.visualStartX) * 100,
       lane: label.lane,
       opened,
       focused: source.focusedTyphoonId === detail.id,
