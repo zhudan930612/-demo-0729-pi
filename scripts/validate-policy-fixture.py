@@ -1,6 +1,7 @@
 """Validate V1 policy/cultivation fixtures against the local pilot GeoJSON."""
 from __future__ import annotations
 import hashlib, json, math, re, subprocess, tempfile
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
@@ -10,6 +11,29 @@ POLICY=ROOT/'web/src/data/policy-v1.json'; CULT=ROOT/'web/src/data/cultivation-v
 def check(ok: bool, message: str):
  print(('✅' if ok else '❌'),message)
  if not ok: raise AssertionError(message)
+
+def valid_identity(value: str) -> bool:
+ if not re.fullmatch(r'\d{17}[\dX]',value): return False
+ try: date.fromisoformat(f'{value[6:10]}-{value[10:12]}-{value[12:14]}')
+ except ValueError: return False
+ weights=(7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2); codes='10X98765432'
+ return value[-1]==codes[sum(int(d)*w for d,w in zip(value[:17],weights))%11]
+
+def age_on(value: str, business: date) -> int:
+ born=date.fromisoformat(f'{value[6:10]}-{value[10:12]}-{value[12:14]}')
+ return business.year-born.year-((business.month,business.day)<(born.month,born.day))
+
+def valid_luhn(value: str) -> bool:
+ if not re.fullmatch(r'\d+',value): return False
+ total=0
+ for index,digit in enumerate(reversed(value)):
+  number=int(digit)
+  if index%2==1:
+   number*=2
+   if number>9: number-=9
+  total+=number
+ return total%10==0
+
 def main():
  p=json.loads(POLICY.read_text(encoding='utf8')); c=json.loads(CULT.read_text(encoding='utf8')); g=json.loads(PARCEL.read_text(encoding='utf8')); q=json.loads(CONFIRM.read_text(encoding='utf8'))
  areas={str(f['properties']['id']):Decimal(str(f['properties']['area_mu'])) for f in g['features']}; policies={x['id']:x for x in p['policies']}; parties={x['id'] for x in p['parties']}; items={x['id']:x for x in p['enrollmentItems']}
@@ -44,7 +68,21 @@ def main():
  current_records={x['parcelId'] for x in c['records'] if x['year']==2025 and x['crop']=='水稻'}
  check(set(current_ids)<=current_records,'全部当前参保基础地块具备 2025 水稻初始档案')
  check(bool(current_records-set(current_ids)),'部分当前未参保地块具备初始档案')
- forbidden=re.compile(r'身份证|手机号码|银行卡|银行账号|开户行|手写签名|某保险公司|演示数据|合成数据|虚构示例')
- check(not forbidden.search(POLICY.read_text(encoding='utf8')),'fixture 未出现禁止的敏感字段或弱化标识')
+ roster_parties = [party for party in p['parties'] if party['id'].startswith('party-') and party['id'] not in {'party-roster'}]
+ current_party_names = [party['name'] for party in roster_parties if party['id'] != 'party-0300']
+ check(all(re.fullmatch(r'[\u4e00-\u9fff]{2,3}', name) for name in current_party_names),'清单主体姓名仅含 2 至 3 个汉字')
+ check(len(current_party_names)==len(set(current_party_names)),'清单主体姓名不重复')
+ check(any(len(name)==2 for name in current_party_names) and any(len(name)==3 for name in current_party_names),'清单主体姓名包含两字名和三字名')
+ current_parties = [party for party in roster_parties if party['id'] != 'party-0300']
+ identities = [party.get('identityOrOrgCode','') for party in current_parties]
+ check(all(valid_identity(value) for value in identities),'清单主体身份证日期和校验码正确')
+ check(all(35<=age_on(value,date.fromisoformat(p['businessDate']))<=60 for value in identities),'清单主体年龄均为 35 至 60 岁')
+ check(len(identities)==len(set(identities)),'清单主体身份证号唯一')
+ check(all(re.fullmatch(r'1\d{10}', party.get('contactPhone', '')) for party in current_parties),'清单主体联系方式格式正确')
+ accounts = [party.get('bankAccount','') for party in current_parties]
+ check(all(value.startswith('621799') and len(value)==19 and valid_luhn(value) for value in accounts),'清单主体邮储银行卡号格式和 Luhn 校验正确')
+ check(len(accounts)==len(set(accounts)),'清单主体银行卡号唯一')
+ check(not all(int(accounts[index])-int(accounts[index-1])==1 for index in range(1,len(accounts))),'清单主体银行卡号不使用顺序递增')
+ check(all(party.get('bankName')=='中国邮政储蓄银行' for party in current_parties),'清单主体开户行统一为中国邮政储蓄银行')
  print(f"报告: 基础 {len(areas)} 块，当前参保 {len(current_ids)} 块，未参保 {len(areas)-len(current_ids)} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（4 单一型 + 1 清单型），历史保单 {len(p['policies'])-len(current_policies)} 张。")
 if __name__=='__main__': main()

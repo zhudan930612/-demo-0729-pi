@@ -49,6 +49,7 @@
       :village-code="parcelVillageCode"
       :village-name="store.current.name"
       :policy="selectedPolicyContext"
+      :roster-party-display="selectedRosterPartyDisplay"
       :records="selectedCultivationRecords"
       :initial-record-keys="selectedInitialRecordKeys"
       @request-close="requestCloseDetail"
@@ -257,7 +258,15 @@ const selectedRosterItems = computed(() => {
   const policy = selectedPolicyContext.value?.currentPolicy
   if (!policyFixture.value || !policy?.enrollmentListId) return []
   const list = policyFixture.value.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
-  return list ? policyFixture.value.enrollmentItems.filter((item) => list.itemIds.includes(item.id)) : []
+  if (!list) return []
+  const itemById = new Map(policyFixture.value.enrollmentItems.map((item) => [item.id, item]))
+  return list.itemIds.map((itemId) => itemById.get(itemId)).filter((item): item is EnrollmentItem => Boolean(item))
+})
+const selectedRosterPartyDisplay = computed(() => {
+  if (selectedPolicyContext.value?.currentPolicy?.insuredMode !== 'insured_roster') return ''
+  const firstItem = selectedRosterItems.value[0]
+  const firstParty = firstItem && policyFixture.value?.parties.find((party) => party.id === firstItem.insuredPartyId)
+  return firstParty ? `${firstParty.name}等${selectedRosterItems.value.length}户种植户` : '—'
 })
 
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级

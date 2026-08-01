@@ -1,5 +1,6 @@
 """Generate the versioned, non-identifying V1 business fixtures from the local parcel pilot."""
 from __future__ import annotations
+import hashlib
 import json
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -18,6 +19,66 @@ PARTY_NAMES = {
     3: "沈伟良",
     4: "王海峰",
 }
+SURNAMES = "陈林黄王吴周徐孙胡朱高何沈郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅曾彭吕苏卢蒋蔡贾丁魏薛叶阮潘杜戴夏钟汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段雷钱汤尹黎易常武乔贺赖龚文"
+GIVEN_NAMES = (
+    "伟", "建华", "秀英", "志强", "芳", "桂芳", "国平", "丽娟",
+    "娜", "海燕", "文杰", "晓明", "敏", "春梅", "德华", "美玲",
+    "静", "志伟", "玉兰", "建国", "强", "秀珍", "永强", "淑芬",
+    "磊", "海峰", "小红", "庆华", "军", "金凤", "瑞芳", "明辉",
+    "洋", "雅琴", "国良", "冬梅", "勇",
+)
+BANK_NAME = "中国邮政储蓄银行"
+ID_WEIGHTS = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
+ID_CHECK_CODES = "10X98765432"
+
+
+def party_name(number: int) -> str:
+    if number in PARTY_NAMES:
+        return PARTY_NAMES[number]
+    index = number - 5
+    return f"{SURNAMES[index % len(SURNAMES)]}{GIVEN_NAMES[index % len(GIVEN_NAMES)]}"
+
+
+def identity_number(number: int) -> str:
+    age = 35 + number % 26
+    year = 2025 - age
+    month = number * 5 % 6 + 1
+    day = number * 7 % 27 + 1
+    sequence = number * 37 % 999 + 1
+    body = f"330604{year:04d}{month:02d}{day:02d}{sequence:03d}"
+    check = ID_CHECK_CODES[sum(int(digit) * weight for digit, weight in zip(body, ID_WEIGHTS)) % 11]
+    return f"{body}{check}"
+
+
+def luhn_check_digit(body: str) -> str:
+    total = 0
+    for index, digit in enumerate(reversed(body)):
+        value = int(digit)
+        if index % 2 == 0:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return str((10 - total % 10) % 10)
+
+
+def bank_account(number: int) -> str:
+    digest = hashlib.sha256(f"longjiang-psbc-{number}".encode()).hexdigest()
+    suffix = f"{int(digest[:16], 16) % 10**12:012d}"
+    body = f"621799{suffix}"
+    return f"{body}{luhn_check_digit(body)}"
+
+
+def party_profile(number: int, name: str) -> dict[str, str]:
+    phone = f"{('13', '15', '18')[number % 3]}{570000000 + number * 7919:08d}"
+    return {
+        "identityOrOrgCode": identity_number(number),
+        "contactPhone": phone,
+        "bankAccount": bank_account(number),
+        "bankName": BANK_NAME,
+        "remark": "",
+        "signature": name,
+    }
 
 
 def cents(value: Decimal) -> int:
@@ -61,7 +122,8 @@ def main() -> None:
     def add_party(party_type: str) -> str:
         nonlocal party_no
         pid = f"party-{party_no:04d}"
-        parties.append({"id": pid, "name": PARTY_NAMES.get(party_no, f"龙江村{party_type}{party_no:03d}"), "partyType": party_type})
+        name = party_name(party_no)
+        parties.append({"id": pid, "name": name, "partyType": party_type, **party_profile(party_no, name)})
         party_no += 1
         return pid
 

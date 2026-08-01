@@ -93,7 +93,7 @@ import { formatParcelNumber } from '../../features/policy/parcelNumber'
 import type { ParcelPolicyContext, ParcelSummaryInput } from '../../features/policy/policySelectors'
 import { policyBusinessType } from '../../features/policy/policyVisual'
 
-const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; records: CultivationRecord[]; initialRecordKeys: string[] }>()
+const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; rosterPartyDisplay: string; records: CultivationRecord[]; initialRecordKeys: string[] }>()
 const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': []; 'highlight-insured': []; 'highlight-policy': [] }>()
 const copyNotice = ref('')
 const current = computed(() => getCurrentCultivationRecord(props.records))
@@ -103,7 +103,7 @@ const policyType = computed(() => policyBusinessType(props.policy.currentPolicy?
 const policyTypeClass = computed(() => props.policy.currentPolicy?.insuredMode === 'single_insured' ? 'large' : props.policy.currentPolicy?.insuredMode === 'insured_roster' ? 'group' : 'uninsured')
 const coverageRatio = computed(() => `${Math.min(100, Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) / props.parcel.areaMu * 100).toFixed(1)}%`)
 const policyPartyDisplay = computed(() => {
-  if (props.policy.currentPolicy?.insuredMode === 'insured_roster') return '沈嘉禾等295户种植户'
+  if (props.policy.currentPolicy?.insuredMode === 'insured_roster') return props.rosterPartyDisplay || '—'
   const party = props.policy.currentInsured ?? props.policy.applicant
   return party?.name ?? '—'
 })

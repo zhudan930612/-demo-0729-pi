@@ -13,13 +13,13 @@
       <div><span>自缴保费</span><strong>{{ money(policy.summary.self_paid_cents) }}</strong></div>
     </section>
     <div class="roster-tools">
-      <input v-model.trim="query" type="search" placeholder="搜索被保险人名称或平台主体编号" />
+      <input v-model.trim="query" type="search" placeholder="搜索投保人姓名或证件号" />
       <span>总户数 {{ items.length }} · 当前结果 {{ filtered.length }}</span>
     </div>
     <div class="roster-table-wrap">
       <table>
-        <thead><tr><th>序号</th><th>被保险人</th><th>主体编号</th><th>类型</th><th>地块数</th><th>承保面积</th><th>保险金额</th><th>总保费</th><th>补贴</th><th>自缴</th></tr></thead>
-        <tbody><tr v-for="(item,index) in pageItems" :key="item.id" :class="{ selected: selectedId === item.id }" @click="select(item)"><td>{{ (page-1)*20+index+1 }}</td><td>{{ party(item)?.name }}</td><td>{{ party(item)?.id }}</td><td>{{ party(item)?.partyType }}</td><td>{{ item.parcelCoverageIds.length }}</td><td>{{ Number(item.insuredAreaMu).toFixed(2) }} 亩</td><td>{{ money(item.sum_insured_cents) }}</td><td>{{ money(item.premium_cents) }}</td><td>{{ money(item.subsidy_cents) }}</td><td>{{ money(item.self_paid_cents) }}</td></tr></tbody>
+        <thead><tr><th>序号</th><th>村（居）</th><th>投保人姓名</th><th>组织机构代码 / 身份证号</th><th>联系方式</th><th>投保面积（亩）</th><th>保费金额（元）</th><th>农户自缴（元）</th><th>农户银行卡号或银行账号</th><th>农户开户行</th><th>备注</th></tr></thead>
+        <tbody><tr v-for="(item,index) in pageItems" :key="item.id" :class="{ selected: selectedId === item.id }" @click="select(item)"><td>{{ (page-1)*20+index+1 }}</td><td>龙江村</td><td>{{ party(item)?.name }}</td><td>{{ party(item)?.identityOrOrgCode ?? '—' }}</td><td>{{ party(item)?.contactPhone ?? '—' }}</td><td>{{ Number(item.insuredAreaMu).toFixed(2) }}</td><td>{{ amount(item.premium_cents) }}</td><td>{{ amount(item.self_paid_cents) }}</td><td>{{ party(item)?.bankAccount ?? '—' }}</td><td>{{ party(item)?.bankName ?? '—' }}</td><td>{{ party(item)?.remark || '—' }}</td></tr></tbody>
       </table>
       <div v-if="!pageItems.length" class="empty-state"><strong>未找到匹配的被保险人</strong></div>
     </div>
@@ -41,7 +41,8 @@ const filtered = computed(() => {
   const value = query.value.toLowerCase()
   return props.items.filter((item) => {
     const insured = party(item)
-    return !value || insured?.name.toLowerCase().includes(value) || insured?.id.toLowerCase().includes(value)
+    const fields = [insured?.name, insured?.id, insured?.identityOrOrgCode, insured?.contactPhone, insured?.bankAccount]
+    return !value || fields.some((field) => field?.toLowerCase().includes(value))
   })
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 20)))
@@ -49,4 +50,5 @@ const pageItems = computed(() => filtered.value.slice((page.value - 1) * 20, pag
 watch(query, () => { page.value = 1 })
 function select(item: EnrollmentItem) { selectedId.value = item.id; emit('select', item) }
 const money = (value: number) => (value / 100).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
+const amount = (value: number) => (value / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 </script>

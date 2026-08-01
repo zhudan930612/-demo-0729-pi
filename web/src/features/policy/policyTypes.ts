@@ -19,6 +19,12 @@ export interface Party {
   id: string
   name: string
   partyType: PartyType
+  identityOrOrgCode?: string
+  contactPhone?: string
+  bankAccount?: string
+  bankName?: string
+  remark?: string
+  signature?: string
 }
 
 export interface PolicySummary {
