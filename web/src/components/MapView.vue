@@ -175,10 +175,11 @@ import { createMapNavigationController, type MapNavigationController } from '../
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
 import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
 import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
-import { autoLevelAllowed, enterDisasterMode, exitDisasterMode, mapTyphoonLayerSnapshot } from '../features/typhoon/disasterModeLifecycle'
+import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapshot, shouldAutoFitTyphoon } from '../features/typhoon/disasterModeLifecycle'
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
 import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
+import { clearPinnedPopup, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
@@ -243,12 +244,11 @@ const disasterActive = ref(false)
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
 const typhoonRevealToken = ref(0)
-const typhoonHoverTarget = ref<TyphoonHoverTarget | null>(null)
+const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
 const typhoonHoverPosition = ref({ x: 0, y: 0 })
 const mapViewport = ref({ width: 0, height: 0 })
-const typhoonHoverModel = computed(() => typhoonHoverTarget.value
-  ? buildTyphoonHoverViewModel(typhoonStore.details, typhoonHoverTarget.value)
-  : null)
+const typhoonHoverTarget = computed(() => visiblePopupTarget(typhoonPopupState.value))
+const typhoonHoverModel = computed(() => typhoonHoverTarget.value ? buildTyphoonHoverViewModel(typhoonStore.details, typhoonHoverTarget.value) : null)
 const typhoonPanelModel = computed(() => buildTyphoonPathPanelViewModel({
   liveIds: typhoonStore.liveIds,
   openedHistoricalIds: typhoonStore.openedHistoricalIds,
@@ -378,6 +378,7 @@ let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 let manualDialogResolve: ((confirmed: boolean) => void) | null = null
 let provinceRenderPromise: Promise<void> | null = null
 let fittedTyphoonSessionId: number | null = null
+const disasterModeCoordinator = createDisasterModeCoordinator()
 // Leaflet Canvas 在部分浏览器中会让地块点击继续触发 map click；显式守卫是详情入口的回归保护。
 const parcelDetailClickGuard = createParcelDetailClickGuard()
 
@@ -951,8 +952,21 @@ async function waitForProvincePanorama() {
   hideParcelLayersForDisaster()
 }
 
+function rollbackTyphoonMode(error?: unknown) {
+  typhoonRepository?.exit()
+  typhoonLayerController?.clear()
+  typhoonPlaybackController?.cancel()
+  visibleObservationCountByTyphoon.value = {}
+  typhoonPopupState.value = { hover: null, pinned: null }
+  disasterActive.value = false
+  fittedTyphoonSessionId = null
+  flySeq += 1
+  provinceRenderPromise = null
+  if (error) showNotice('台风模式加载异常，请稍后重新进入。', true)
+}
+
 async function enterTyphoonMode() {
-  const entered = await enterDisasterMode({
+  const entered = await disasterModeCoordinator.enter({
     hasUnsavedWork: hasUnsavedParcelWork,
     isActive: () => disasterActive.value,
     setActive: (active) => { disasterActive.value = active },
@@ -961,18 +975,25 @@ async function enterTyphoonMode() {
     resetToProvince: () => store.resetToProvince(),
     renderProvincePanorama: waitForProvincePanorama,
     enterRepository: () => { fittedTyphoonSessionId = null; void typhoonRepository.enter() },
+    rollback: rollbackTyphoonMode,
   })
   if (!entered) provinceRenderPromise = null
 }
 
-function revealTyphoon(typhoonId: string, nodeId?: string) {
+function focusTyphoonFromUser(typhoonId: string, nodeId?: string) {
+  if (shouldCancelPlaybackForFocus(typhoonPlaybackController?.activeTyphoonId ?? null, typhoonId)) typhoonPlaybackController?.cancel()
   typhoonStore.focusTyphoon(typhoonId)
-  if (!typhoonStore.expandedIds.includes(typhoonId)) typhoonStore.toggleExpanded(typhoonId)
   if (nodeId) typhoonStore.selectNode(typhoonId, nodeId)
+}
+
+function revealTyphoon(typhoonId: string, nodeId?: string) {
+  focusTyphoonFromUser(typhoonId, nodeId)
+  if (!typhoonStore.expandedIds.includes(typhoonId)) typhoonStore.toggleExpanded(typhoonId)
   typhoonRevealToken.value += 1
 }
 
 function toggleTyphoonCard(typhoonId: string) {
+  focusTyphoonFromUser(typhoonId)
   typhoonStore.toggleExpanded(typhoonId)
   typhoonRevealToken.value += 1
 }
@@ -1040,16 +1061,17 @@ function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
 }
 
 function exitTyphoonMode() {
-  exitDisasterMode({
+  disasterModeCoordinator.exit({
     isActive: () => disasterActive.value,
     exitRepository: () => typhoonRepository?.exit(),
     clearTyphoonLayers: () => typhoonLayerController?.clear(),
     setActive: (active) => { disasterActive.value = active },
+    invalidateNavigation: () => { flySeq += 1; provinceRenderPromise = null },
   })
   fittedTyphoonSessionId = null
   typhoonPlaybackController?.cancel()
   visibleObservationCountByTyphoon.value = {}
-  typhoonHoverTarget.value = null
+  typhoonPopupState.value = { hover: null, pinned: null }
   // 地块关闭状态、业务抽屉与当前相机均原样保留；不触发行政 render。
   parcelOn.value = false
 }
@@ -1060,6 +1082,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 function onManualKeydown(event: KeyboardEvent) {
   if (isTypingTarget(event.target)) return
+  if (event.key === 'Escape' && typhoonPopupState.value.pinned) {
+    event.preventDefault()
+    typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
+    return
+  }
   if (event.key === 'Escape' && manualDialog.value.open) {
     event.preventDefault()
     closeManualDialog(false)
@@ -1260,8 +1287,8 @@ watch(() => ({
     selectedNodeByTyphoon: state.selected,
     visibleObservationCountByTyphoon: state.visibleCounts,
   }))
-  if (state.focused && state.realtime.length > 0 && fittedTyphoonSessionId !== state.sessionId) {
-    if (typhoonLayerController.fitBoundsForTyphoon(state.focused, { padding: [36, 36], maxZoom: 7.5 })) {
+  if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
+    if (typhoonLayerController.fitBoundsForTyphoon(state.focused!, { padding: [36, 36], maxZoom: 7.5 })) {
       fittedTyphoonSessionId = state.sessionId
     }
   }
@@ -1351,6 +1378,7 @@ onMounted(async () => {
     },
   )
   map.on('click', (event) => {
+    if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
     if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
     const target = event.originalEvent.target
     // Canvas 矢量地块共用地图 canvas；点击 canvas 不等同于地图空白，不能用于关闭详情。
@@ -1388,19 +1416,23 @@ onMounted(async () => {
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
   const setHover = (target: TyphoonHoverTarget, point: { x: number; y: number }) => {
-    typhoonHoverTarget.value = target
+    typhoonPopupState.value = hoverPopup(typhoonPopupState.value, target)
     typhoonHoverPosition.value = point
   }
-  const clearHover = (target: TyphoonHoverTarget) => {
-    if (typhoonHoverTarget.value?.kind === target.kind
-      && typhoonHoverTarget.value.typhoonId === target.typhoonId
-      && typhoonHoverTarget.value.nodeId === target.nodeId) typhoonHoverTarget.value = null
+  const clearHover = (target: TyphoonHoverTarget) => { typhoonPopupState.value = leavePopup(typhoonPopupState.value, target) }
+  const pinTyphoonPopup = (target: TyphoonHoverTarget, point: { x: number; y: number }) => {
+    typhoonPopupState.value = pinPopup(typhoonPopupState.value, target)
+    typhoonHoverPosition.value = point
   }
   typhoonLayerController = createTyphoonLayerController(map, {
     onTyphoonClick: ({ typhoonId }) => revealTyphoon(typhoonId),
-    onNodeClick: ({ typhoonId, nodeId, kind }) => kind === 'actual' ? selectActualTyphoonNode(typhoonId, nodeId) : revealTyphoon(typhoonId),
-    onCenterClick: ({ typhoonId, nodeId }) => selectActualTyphoonNode(typhoonId, nodeId),
-    onWindCircleClick: ({ typhoonId, nodeId }) => selectActualTyphoonNode(typhoonId, nodeId),
+    onNodeClick: ({ typhoonId, nodeId, kind, containerPoint }) => {
+      if (kind === 'actual') selectActualTyphoonNode(typhoonId, nodeId)
+      else revealTyphoon(typhoonId)
+      if (kind === 'actual') pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint)
+    },
+    onCenterClick: ({ typhoonId, nodeId, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint) },
+    onWindCircleClick: ({ typhoonId, nodeId, grade, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint) },
     onCenterEnter: ({ typhoonId, nodeId, containerPoint }) => setHover({ kind: 'center', typhoonId, nodeId }, containerPoint),
     onCenterLeave: ({ typhoonId, nodeId }) => clearHover({ kind: 'center', typhoonId, nodeId }),
     onWindCircleEnter: ({ typhoonId, nodeId, grade, containerPoint }) => setHover({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint),

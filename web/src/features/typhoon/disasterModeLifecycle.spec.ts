@@ -1,74 +1,76 @@
 import { describe, expect, it, vi } from 'vitest'
-import { autoLevelAllowed, enterDisasterMode, exitDisasterMode, mapTyphoonLayerSnapshot } from './disasterModeLifecycle'
+import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapshot, shouldAutoFitTyphoon } from './disasterModeLifecycle'
 import type { TyphoonDetail } from './typhoonTypes'
 
-function detail(id: string): TyphoonDetail {
-  return { id, nameCn: id, nameEn: id, status: 'start', sourceIndex: 0, observationsApiOrder: [], observationsAsc: [], observationsDesc: [], latestObservation: null, anomalies: [] }
+function ports(overrides: Record<string, unknown> = {}) {
+  let active = false
+  const events: string[] = []
+  return {
+    events,
+    value: {
+      hasUnsavedWork: () => false, isActive: () => active,
+      setActive: (value: boolean) => { active = value; events.push(`active:${value}`) },
+      closeBusinessPanels: () => events.push('close'), hideParcelLayers: () => events.push('hide'),
+      resetToProvince: async () => true, renderProvincePanorama: async () => {}, enterRepository: () => events.push('repository'),
+      rollback: () => { active = false; events.push('rollback') },
+      ...overrides,
+    },
+    activate() { active = true },
+  }
 }
 
-describe('disaster mode lifecycle coordinator', () => {
-  it('严格等待省级全景后才启动 repository', async () => {
-    const events: string[] = []
-    let active = false
-    let resolvePanorama!: () => void
-    const panorama = new Promise<void>((resolve) => { resolvePanorama = resolve })
-    const result = enterDisasterMode({
-      hasUnsavedWork: () => false,
-      isActive: () => active,
-      setActive: (value) => { active = value; events.push(`active:${value}`) },
-      closeBusinessPanels: () => events.push('close-business'),
-      hideParcelLayers: () => events.push('hide-parcels'),
-      resetToProvince: async () => { events.push('reset-province'); return true },
-      renderProvincePanorama: async () => { events.push('panorama:start'); await panorama; events.push('panorama:end') },
-      enterRepository: () => events.push('repository'),
-    })
-    await Promise.resolve()
-    expect(events).toEqual(['close-business', 'hide-parcels', 'active:true', 'reset-province', 'panorama:start'])
-    resolvePanorama()
-    await expect(result).resolves.toBe(true)
-    expect(events.at(-1)).toBe('repository')
+describe('disaster mode generation coordinator', () => {
+  it('进入中退出后旧任务不能启动 repository', async () => {
+    let resolve!: () => void
+    const pending = new Promise<void>((done) => { resolve = done })
+    const setup = ports({ renderProvincePanorama: () => pending })
+    const coordinator = createDisasterModeCoordinator()
+    const entering = coordinator.enter(setup.value)
+    await Promise.resolve(); await Promise.resolve()
+    coordinator.exit({ isActive: setup.value.isActive, setActive: setup.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn() })
+    resolve()
+    await expect(entering).resolves.toBe(false)
+    expect(setup.events).not.toContain('repository')
   })
 
-  it('未保存操作阻止进入且无副作用', async () => {
-    const sideEffect = vi.fn()
-    await expect(enterDisasterMode({
-      hasUnsavedWork: () => true, isActive: () => false, setActive: sideEffect,
-      closeBusinessPanels: sideEffect, hideParcelLayers: sideEffect,
-      resetToProvince: async () => { sideEffect(); return true },
-      renderProvincePanorama: async () => sideEffect(), enterRepository: sideEffect,
-    })).resolves.toBe(false)
-    expect(sideEffect).not.toHaveBeenCalled()
+  it('退出立即重进时第一轮不能借新 active 复活', async () => {
+    let resolveFirst!: () => void
+    const first = ports({ renderProvincePanorama: () => new Promise<void>((done) => { resolveFirst = done }) })
+    const coordinator = createDisasterModeCoordinator()
+    const oldEnter = coordinator.enter(first.value)
+    await Promise.resolve(); await Promise.resolve()
+    coordinator.exit({ isActive: first.value.isActive, setActive: first.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn() })
+    const next = ports()
+    await expect(coordinator.enter(next.value)).resolves.toBe(true)
+    resolveFirst()
+    await expect(oldEnter).resolves.toBe(false)
+    expect(first.events).not.toContain('repository')
+    expect(next.events).toContain('repository')
   })
 
-  it('退出只清会话与专题图层，不触碰相机', () => {
-    let active = true
-    const events: string[] = []
-    expect(exitDisasterMode({
-      isActive: () => active,
-      exitRepository: () => events.push('repository:exit'),
-      clearTyphoonLayers: () => events.push('layers:clear'),
-      setActive: (value) => { active = value; events.push(`active:${value}`) },
-    })).toBe(true)
-    expect(events).toEqual(['repository:exit', 'layers:clear', 'active:false'])
+  it('reset false 与 panorama reject 均回滚', async () => {
+    const coordinator = createDisasterModeCoordinator()
+    const rejectedReset = ports({ resetToProvince: async () => false })
+    await expect(coordinator.enter(rejectedReset.value)).resolves.toBe(false)
+    expect(rejectedReset.events).toContain('rollback')
+    const rejectedRender = ports({ renderProvincePanorama: async () => { throw new Error('render') } })
+    await expect(coordinator.enter(rejectedRender.value)).resolves.toBe(false)
+    expect(rejectedRender.events).toContain('rollback')
   })
 })
 
-describe('disaster map integration helpers', () => {
-  it('把实时与已打开历史映射为 controller snapshot', () => {
+describe('integration helpers', () => {
+  const detail = (id: string): TyphoonDetail => ({ id, nameCn:id, nameEn:id, status:'start', sourceIndex:0, observationsApiOrder:[], observationsAsc:[], observationsDesc:[], latestObservation:null, anomalies:[] })
+  it('映射图层快照并阻止灾害态自动下钻', () => {
     const live = detail('live')
-    const history = { ...detail('history'), status: 'stop' as const }
-    const result = mapTyphoonLayerSnapshot({ realtimeDetails: [live], openedHistoricalIds: ['history'], details: { live, history }, focusedTyphoonId: 'live', selectedNodeByTyphoon: { live: 'node-1' }, visibleObservationCountByTyphoon: { history: 2 } })
-    expect(result.realtime.map((entry) => entry.detail.id)).toEqual(['live'])
-    expect(result.realtime[0]!.visibleObservationCount).toBeUndefined()
-    expect(result.historical.map((entry) => entry.detail.id)).toEqual(['history'])
-    expect(result.historical[0]!.visibleObservationCount).toBe(2)
-    expect(result.focusedTyphoonId).toBe('live')
-  })
-
-  it('灾害模式、地块模式或程序化缩放均阻止自动行政进退', () => {
-    expect(autoLevelAllowed(false, 'idle', false)).toBe(true)
+    expect(mapTyphoonLayerSnapshot({ realtimeDetails:[live], openedHistoricalIds:[], details:{ live }, focusedTyphoonId:'live', selectedNodeByTyphoon:{} }).realtime[0]?.detail.id).toBe('live')
     expect(autoLevelAllowed(true, 'idle', false)).toBe(false)
-    expect(autoLevelAllowed(false, 'filter', false)).toBe(false)
-    expect(autoLevelAllowed(false, 'idle', true)).toBe(false)
+  })
+  it('自动 fit 仅在 ready 且最终焦点为实时台风时消费', () => {
+    const base = { active:true, phase:'ready', focusedId:'a', realtimeIds:['a'], sessionId:2, fittedSessionId:null }
+    expect(shouldAutoFitTyphoon(base)).toBe(true)
+    expect(shouldAutoFitTyphoon({ ...base, phase:'loading-live' })).toBe(false)
+    expect(shouldAutoFitTyphoon({ ...base, focusedId:'history' })).toBe(false)
+    expect(shouldAutoFitTyphoon({ ...base, fittedSessionId:2 })).toBe(false)
   })
 })

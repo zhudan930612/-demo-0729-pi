@@ -20,6 +20,15 @@ describe('typhoon timeline view model', () => {
     expect(model.laneCount).toBe(2)
   })
 
+  it('3/4/6 lane 均保留至少 50px 可点击宽度且轨道高度可由 laneCount 推导', () => {
+    for (const count of [3, 4, 6]) {
+      const items = Array.from({ length: count }, (_, index) => history(`lane-${index}`, ['2026-01-02 00:00:00', '2026-01-03 00:00:00']))
+      const model = buildTyphoonTimelineViewModel({ details: items, nowMs, realtimeCount: 0, openedHistoricalIds: [], focusedTyphoonId: null, selectedNodeByTyphoon: {}, historyPending: 0 })
+      expect(model.laneCount).toBe(count)
+      expect(model.labels.every((label) => label.widthPercent / 100 * model.trackWidthPx >= 50)).toBe(true)
+    }
+  })
+
   it('分别给出实时达到上限和总数达到上限文案，已打开标签不禁用', () => {
     const item = history('a', ['2026-01-02 00:00:00'])
     const liveLimit = buildTyphoonTimelineViewModel({ details: [item], nowMs, realtimeCount: 6, openedHistoricalIds: [], focusedTyphoonId: null, selectedNodeByTyphoon: {}, historyPending: 0 })

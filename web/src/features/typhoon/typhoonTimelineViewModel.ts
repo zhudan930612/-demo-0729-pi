@@ -47,7 +47,11 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
   const model = buildTimelineModel(source.details, source.nowMs)
   const message = limitMessage(source.realtimeCount, source.openedHistoricalIds.length)
   const detailById = new Map(source.details.map((detail) => [detail.id, detail]))
-  const labels = (model?.labels ?? []).flatMap((label) => {
+  const months = model?.months ?? []
+  const rawLabels = model?.labels ?? []
+  const trackWidthPx = Math.max(720, months.length * 180, rawLabels.length * 100)
+  const minimumWidthPercent = 50 / trackWidthPx * 100
+  const labels = rawLabels.flatMap((label) => {
     const detail = detailById.get(label.typhoonId)
     if (!detail) return []
     const opened = source.openedHistoricalIds.includes(detail.id)
@@ -63,8 +67,8 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
       id: detail.id,
       text: `${number} · ${detail.nameCn || '--'}`,
       title: `${detail.nameCn || '--'}（${detail.nameEn || '--'}）`,
-      leftPercent: label.visualStartX * 100,
-      widthPercent: (label.visualEndX - label.visualStartX) * 100,
+      leftPercent: Math.min(label.visualStartX * 100, 100 - minimumWidthPercent),
+      widthPercent: Math.max((label.visualEndX - label.visualStartX) * 100, minimumWidthPercent),
       lane: label.lane,
       opened,
       focused: source.focusedTyphoonId === detail.id,
@@ -74,13 +78,12 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
       indicatorLabel: selected ? `当前节点：${selected.timeYmdh}` : '',
     }]
   })
-  const months = model?.months ?? []
   return {
     year: model?.year ?? new Date(source.nowMs + 8 * 60 * 60 * 1000).getUTCFullYear(),
     months,
     labels,
     laneCount: model?.laneCount ?? 0,
-    trackWidthPx: Math.max(720, months.length * 180, labels.length * 100),
+    trackWidthPx,
     empty: labels.length === 0 && source.historyPending === 0,
     loading: source.historyPending > 0,
     limitMessage: message,
