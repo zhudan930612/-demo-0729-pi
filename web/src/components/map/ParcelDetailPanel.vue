@@ -15,7 +15,7 @@
           <div><dt>地类属性</dt><dd>耕地</dd></div>
           <div><dt>地块来源</dt><dd>{{ parcel.source === 'manual' ? '人工新增' : '基础地块' }}</dd></div>
           <div><dt>地块面积</dt><dd>{{ parcel.areaMu.toFixed(2) }} 亩 / {{ parcel.areaM2.toFixed(2) }} ㎡</dd></div>
-          <div><dt>当前作物</dt><dd>{{ current.record?.crop ?? (current.nearestRecord ? '当前未种植' : '未标注') }}</dd></div>
+          <div><dt>当前作物</dt><dd>{{ current.record?.crop ?? (current.nearestRecord ? '当前未种植' : '——') }}</dd></div>
           <div><dt>行政区划</dt><dd>浙江省 · 绍兴市 · 上虞区 · 章镇镇 · {{ villageName }}</dd></div>
           <template v-if="parcel.source === 'manual'">
             <div><dt>创建时间</dt><dd>{{ parcel.createdAt }}</dd></div>
@@ -30,7 +30,7 @@
           <div><span class="section-kicker">02</span><h3 id="policy-title">所属保单</h3></div>
           <span class="policy-type-chip" :class="`type-${policyTypeClass}`">{{ policyType }}</span>
         </div>
-        <div v-if="!policy.currentPolicy" class="empty-state"><strong>暂无关联保单</strong><p>当前地块尚未纳入承保清单。</p></div>
+        <div v-if="!policy.currentPolicy" class="empty-state"><strong>暂无保单</strong><p>当前地块尚未纳入承保</p></div>
         <template v-else>
           <div class="policy-map-legend" :class="`type-${policyTypeClass}`">
             <span class="policy-map-swatch current" aria-hidden="true"></span><span>当前地块</span>
@@ -71,9 +71,9 @@
 
       <section class="detail-section" aria-labelledby="item-title">
         <div class="section-title"><div><span class="section-kicker">03</span><h3 id="item-title">分户清单</h3></div></div>
-        <div v-if="!policy.currentPolicy" class="empty-state compact-empty"><p>关联保单后显示承保分项。</p></div>
+        <div v-if="!policy.currentPolicy" class="empty-state"><strong>暂无清单</strong><p>当前地块没有分户清单</p></div>
         <div v-else-if="policy.currentPolicy.insuredMode === 'insured_roster'" class="info-block">
-          <dl class="definition-list compact">
+          <dl class="definition-list compact roster-stat-list">
             <div><dt>承保农户数</dt><dd>{{ policy.currentPolicy.summary.insuredPartyCount }} 户</dd></div>
             <div><dt>关联地块</dt><dd>{{ policy.currentPolicy.summary.parcelCount }} 块</dd></div>
             <div><dt>平均自缴保费</dt><dd>{{ money(averageSelfPaidCents) }}</dd></div>
