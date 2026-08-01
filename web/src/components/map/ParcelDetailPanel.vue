@@ -34,7 +34,7 @@
         <template v-else>
           <div class="policy-map-legend" :class="`type-${policyTypeClass}`">
             <span class="policy-map-swatch current" aria-hidden="true"></span><span>当前地块</span>
-            <span class="policy-map-swatch linked" aria-hidden="true"></span><span>{{ policyType }}关联地块</span>
+            <span class="policy-map-swatch linked" aria-hidden="true"></span><span>关联地块</span>
           </div>
           <div class="policy-overview">
             <div><span>保单状态</span><strong class="policy-status">{{ policy.currentPolicy.status }}</strong></div>
@@ -42,7 +42,7 @@
             <p>承保比例 {{ coverageRatio }} · 当前地块保险金额 {{ money(currentParcelSumInsured) }}</p>
           </div>
           <div class="info-block">
-            <div class="policy-title-row"><div><span>保险产品</span><h4>{{ policy.currentPolicy.product }}</h4></div><span class="status-chip">{{ policy.currentPolicy.status }}</span></div>
+            <div class="policy-title-row"><div><span>保险产品</span><h4>{{ policy.currentPolicy.product }}</h4></div></div>
             <button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button><span v-if="copyNotice" class="copy-notice">{{ copyNotice }}</span>
             <dl class="definition-list compact">
               <div><dt>投保人</dt><dd>{{ policy.applicant?.name }} · {{ policy.applicant?.partyType }}</dd></div>
@@ -104,7 +104,6 @@ const policyTypeClass = computed(() => props.policy.currentPolicy?.insuredMode =
 const coverageRatio = computed(() => `${Math.min(100, Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) / props.parcel.areaMu * 100).toFixed(1)}%`)
 const coverageAreaText = computed(() => {
   const areaMu = Number(props.policy.currentCoverage?.insuredAreaMu ?? 0)
-  if (props.policy.currentPolicy?.insuredMode !== 'insured_roster') return `${areaMu.toFixed(2)} 亩`
   return `${areaMu.toFixed(2)} 亩 / ${(areaMu * 2000 / 3).toFixed(2)} ㎡`
 })
 const currentParcelSumInsured = computed(() => Math.round(Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) * 125000))
