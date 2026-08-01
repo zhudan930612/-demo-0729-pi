@@ -61,6 +61,7 @@ describe('typhoon session store', () => {
     store.receiveLiveDetail(1, detail('a', 'start', 10))
     store.receiveHistoricalDetail(1, detail('h', 'stop', 20))
     store.openHistorical('h')
+    expect(store.selectedNodeByTyphoon.h).toBeUndefined()
     store.selectNode('a', 'a:obs:0'); store.selectNode('h', 'h:obs:0'); store.focusTyphoon('a')
     store.setTimelineOpen(true); store.setTimelineOpen(false)
     expect(store.selectedNodeByTyphoon).toEqual({ a: 'a:obs:0', h: 'h:obs:0' })

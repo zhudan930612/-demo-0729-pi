@@ -1,5 +1,5 @@
 <template>
-  <aside class="typhoon-path-panel" aria-labelledby="typhoon-panel-title">
+  <aside class="typhoon-path-panel" :class="{ 'timeline-open': timelineOpen }" aria-labelledby="typhoon-panel-title">
     <header class="panel-header">
       <div><span class="mode-kicker">灾害风险 · 单次快照</span><h2 id="typhoon-panel-title">台风路径</h2></div>
       <button type="button" class="close-button" aria-label="关闭台风路径并退出灾害风险模式" title="退出灾害风险模式" @click="emit('close')">
@@ -34,7 +34,7 @@ import type { TyphoonPathPanelViewModel } from '../../features/typhoon/typhoonPa
 import type { TyphoonPhase } from '../../stores/typhoon'
 import TyphoonCard from './TyphoonCard.vue'
 import TyphoonLegend from './TyphoonLegend.vue'
-const props = defineProps<{ phase: TyphoonPhase; realtimeCount: number; model: TyphoonPathPanelViewModel }>()
+const props = defineProps<{ phase: TyphoonPhase; realtimeCount: number; model: TyphoonPathPanelViewModel; timelineOpen: boolean }>()
 const emit = defineEmits<{ close: []; toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string] }>()
 const forwardNode = (typhoonId: string, nodeId: string) => emit('select-node', typhoonId, nodeId)
 const statusTitle = computed(() => props.phase === 'loading-live' ? '实时台风加载中' : props.phase === 'error' ? '实时台风数据加载异常' : props.realtimeCount === 0 ? '当前无活动台风' : `当前活动台风 ${props.realtimeCount} 个`)
@@ -48,7 +48,8 @@ const statusDescription = computed(() => props.phase === 'loading-live' ? '实�
 .status-row { display:flex; align-items:center; gap:9px; padding:8px 9px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; }.status-row > div { min-width:0; display:grid; gap:1px; }.status-row strong { font-size:12px; }.status-row span { color:#64748b; font-size:10px; line-height:1.35; }.status-icon,.spinner { width:17px; height:17px; flex:none; color:#2563eb; text-align:center; }.status-row.error { border-color:#fecaca; background:#fff7ed; }.status-row.error .status-icon { color:#b91c1c; font-weight:800; }.spinner { box-sizing:border-box; border:2px solid #bfdbfe; border-top-color:#2563eb; border-radius:50%; animation:spin .8s linear infinite; }
 .panel-scroll { min-height:0; flex:1; overflow-y:auto; padding-right:2px; }.typhoon-group + .typhoon-group { margin-top:9px; }.typhoon-group > h3 { position:sticky; top:0; z-index:4; display:flex; align-items:center; gap:5px; margin:0 0 5px; padding:5px 3px; background:rgba(248,250,252,.98); color:#334155; font-size:11px; }.typhoon-group > h3 span { color:#2563eb; }.typhoon-group:nth-child(2) > h3 span { color:#7e22ce; }.typhoon-group > h3 b { min-width:18px; padding:1px 5px; border-radius:9px; background:#e2e8f0; text-align:center; font-variant-numeric:tabular-nums; }.card-list { display:grid; gap:6px; }
 @keyframes spin { to { transform:rotate(360deg); } }
-@media (max-width:720px) { .typhoon-path-panel { top:64px; bottom:154px; width:min(350px,calc(100vw - 24px)); } }
-@media (max-width:520px) { .typhoon-path-panel { top:62px; left:12px; right:12px; bottom:148px; width:auto; } }
+.typhoon-path-panel.timeline-open { bottom:206px; }
+@media (max-width:720px) { .typhoon-path-panel { top:64px; bottom:154px; width:min(350px,calc(100vw - 24px)); } .typhoon-path-panel.timeline-open { bottom:194px; } }
+@media (max-width:520px) { .typhoon-path-panel { top:62px; left:12px; right:12px; bottom:148px; width:auto; } .typhoon-path-panel.timeline-open { bottom:190px; } }
 @media (prefers-reduced-motion:reduce) { .spinner { animation:none; border-color:#2563eb; } }
 </style>

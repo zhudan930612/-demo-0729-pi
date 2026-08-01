@@ -140,8 +140,8 @@ export const useTyphoonStore = defineStore('typhoon', {
       this.openedHistoricalIds.push(typhoonId)
       this.focusedTyphoonId = typhoonId
       this.expandedIds = [...this.expandedIds.filter((id) => id !== typhoonId), typhoonId]
-      const latest = detail.latestObservation
-      if (latest) this.selectedNodeByTyphoon[typhoonId] = latest.id
+      // 首个节点由逐点播放 owner 立即写入；store 不自行跳到末节点。
+      delete this.selectedNodeByTyphoon[typhoonId]
       return true
     },
     closeHistorical(typhoonId: TyphoonId) {

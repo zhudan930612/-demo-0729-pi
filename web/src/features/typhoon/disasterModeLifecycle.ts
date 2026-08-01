@@ -51,12 +51,16 @@ export interface TyphoonSnapshotSource {
   details: Readonly<Record<string, TyphoonDetail | undefined>>
   focusedTyphoonId: string | null
   selectedNodeByTyphoon: Readonly<Record<string, string | undefined>>
+  visibleObservationCountByTyphoon?: Readonly<Record<string, number | undefined>>
 }
 
 export function mapTyphoonLayerSnapshot(source: TyphoonSnapshotSource): TyphoonLayerSnapshot {
   return {
     realtime: source.realtimeDetails.map((detail) => ({ detail })),
-    historical: source.openedHistoricalIds.flatMap((id) => source.details[id] ? [{ detail: source.details[id]! }] : []),
+    historical: source.openedHistoricalIds.flatMap((id) => source.details[id] ? [{
+      detail: source.details[id]!,
+      visibleObservationCount: source.visibleObservationCountByTyphoon?.[id],
+    }] : []),
     focusedTyphoonId: source.focusedTyphoonId,
     selectedNodeByTyphoon: source.selectedNodeByTyphoon,
   }

@@ -57,9 +57,11 @@ describe('disaster map integration helpers', () => {
   it('把实时与已打开历史映射为 controller snapshot', () => {
     const live = detail('live')
     const history = { ...detail('history'), status: 'stop' as const }
-    const result = mapTyphoonLayerSnapshot({ realtimeDetails: [live], openedHistoricalIds: ['history'], details: { live, history }, focusedTyphoonId: 'live', selectedNodeByTyphoon: { live: 'node-1' } })
+    const result = mapTyphoonLayerSnapshot({ realtimeDetails: [live], openedHistoricalIds: ['history'], details: { live, history }, focusedTyphoonId: 'live', selectedNodeByTyphoon: { live: 'node-1' }, visibleObservationCountByTyphoon: { history: 2 } })
     expect(result.realtime.map((entry) => entry.detail.id)).toEqual(['live'])
+    expect(result.realtime[0]!.visibleObservationCount).toBeUndefined()
     expect(result.historical.map((entry) => entry.detail.id)).toEqual(['history'])
+    expect(result.historical[0]!.visibleObservationCount).toBe(2)
     expect(result.focusedTyphoonId).toBe('live')
   })
 
