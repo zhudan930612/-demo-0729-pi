@@ -3,7 +3,7 @@
     <table>
       <thead><tr><th scope="col">时间</th><th scope="col">气压</th><th scope="col">风力</th><th scope="col">移速</th></tr></thead>
       <tbody>
-        <tr v-for="node in nodes" :key="node.id" :class="{ selected: node.selected }">
+        <tr v-for="node in nodes" :key="node.id" :ref="(element) => setNodeRef(node.id, element)" :class="{ selected: node.selected }">
           <td colspan="4">
             <button
               type="button"
@@ -25,9 +25,20 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, watch } from 'vue'
 import type { TyphoonNodeRowViewModel } from '../../features/typhoon/typhoonPanelViewModel'
-defineProps<{ tableId: string; nodes: readonly TyphoonNodeRowViewModel[] }>()
+const props = defineProps<{ tableId: string; nodes: readonly TyphoonNodeRowViewModel[]; revealToken?: number }>()
 const emit = defineEmits<{ 'select-node': [nodeId: string] }>()
+const nodeRefs = new Map<string, Element>()
+function setNodeRef(id: string, element: unknown) {
+  if (element instanceof Element) nodeRefs.set(id, element)
+  else nodeRefs.delete(id)
+}
+watch(() => [props.nodes.find((node) => node.selected)?.id, props.revealToken] as const, async ([id]) => {
+  if (!id) return
+  await nextTick()
+  nodeRefs.get(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+})
 </script>
 
 <style scoped>

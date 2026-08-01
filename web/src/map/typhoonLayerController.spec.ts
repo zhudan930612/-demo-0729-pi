@@ -126,7 +126,9 @@ describe('typhoon layer scene builder', () => {
 describe('typhoon layer resource contract', () => {
   it('所有专题 pane 明确低于 annotationPane 且层次严格递增', () => {
     const panes = Object.values(TYPHOON_PANES)
-    expect(panes.map((pane) => pane.zIndex)).toEqual([410, 415, 420, 425, 430, 435])
+    expect(panes.map((pane) => pane.zIndex)).toEqual([410, 411, 412, 415, 420, 425, 430, 435])
+    expect(TYPHOON_PANES.wind12.zIndex).toBeGreaterThan(TYPHOON_PANES.wind10.zIndex)
+    expect(TYPHOON_PANES.wind10.zIndex).toBeGreaterThan(TYPHOON_PANES.wind7.zIndex)
     expect(panes.every((pane) => pane.zIndex < 450)).toBe(true)
   })
 

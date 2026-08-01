@@ -5,7 +5,9 @@ import type { ForecastNode, ObservationNode, TyphoonDetail, WindRadius } from '.
 import { windCirclePolygon, windRadiusPriority, type LatLon } from '../features/typhoon/typhoonWindCircle'
 
 export const TYPHOON_PANES = {
-  windCircle: { name: 'typhoonWindCirclePane', zIndex: 410 },
+  wind7: { name: 'typhoonWind7Pane', zIndex: 410 },
+  wind10: { name: 'typhoonWind10Pane', zIndex: 411 },
+  wind12: { name: 'typhoonWind12Pane', zIndex: 412 },
   guardLine: { name: 'typhoonGuardLinePane', zIndex: 415 },
   path: { name: 'typhoonPathPane', zIndex: 420 },
   point: { name: 'typhoonPointPane', zIndex: 425 },
@@ -53,11 +55,15 @@ export interface TyphoonLayerSnapshot {
 export interface TyphoonLayerEvent {
   typhoonId: string
 }
+export interface TyphoonPointerPosition { x: number; y: number }
 export interface TyphoonNodeLayerEvent extends TyphoonLayerEvent {
   nodeId: string
+  kind: 'actual' | 'forecast'
+  containerPoint: TyphoonPointerPosition
 }
 export interface TyphoonWindLayerEvent extends TyphoonNodeLayerEvent {
   grade: string
+  kind: 'actual'
 }
 
 export interface TyphoonLayerCallbacks {
@@ -203,6 +209,18 @@ function stop(event: L.LeafletEvent) {
   if (originalEvent) L.DomEvent.stopPropagation(originalEvent)
 }
 
+function pointerPosition(map: L.Map, event: L.LeafletEvent): TyphoonPointerPosition {
+  const mouse = event as L.LeafletMouseEvent
+  const point = mouse.containerPoint ?? map.latLngToContainerPoint(mouse.latlng)
+  return { x: point.x, y: point.y }
+}
+
+function windPane(priority: number) {
+  if (priority >= 3) return TYPHOON_PANES.wind12.name
+  if (priority === 2) return TYPHOON_PANES.wind10.name
+  return TYPHOON_PANES.wind7.name
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]!)
 }
@@ -250,17 +268,17 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
     for (const circle of scene.windCircles) {
       const colors = windColors(circle.priority)
       const layer = L.polygon(latLngs(circle.polygon), {
-        pane: TYPHOON_PANES.windCircle.name,
+        pane: windPane(circle.priority),
         ...colors,
         weight: scene.focused ? 1.8 : 1.2,
         opacity: 0.8,
         fillOpacity: scene.focused ? 0.13 : 0.08,
         bubblingMouseEvents: false,
       }).addTo(group)
-      const payload = { typhoonId: scene.id, nodeId: circle.nodeId, grade: circle.grade }
-      layer.on('click', (event) => { stop(event); callbacks.onWindCircleClick?.(payload) })
-      layer.on('mouseover', (event) => { stop(event); callbacks.onWindCircleEnter?.(payload) })
-      layer.on('mouseout', (event) => { stop(event); callbacks.onWindCircleLeave?.(payload) })
+      const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: circle.nodeId, grade: circle.grade, kind: 'actual' as const, containerPoint: pointerPosition(map, event) })
+      layer.on('click', (event) => { stop(event); callbacks.onWindCircleClick?.(payload(event)) })
+      layer.on('mouseover', (event) => { stop(event); callbacks.onWindCircleEnter?.(payload(event)) })
+      layer.on('mouseout', (event) => { stop(event); callbacks.onWindCircleLeave?.(payload(event)) })
     }
     if (scene.actualPath.length >= 2) {
       const path = L.polyline(latLngs(scene.actualPath), {
@@ -295,16 +313,16 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
         dashArray: forecast ? '2 2' : undefined,
         bubblingMouseEvents: false,
       }).addTo(group)
-      const payload = { typhoonId: scene.id, nodeId: point.id }
-      layer.on('click', (event) => { stop(event); callbacks.onNodeClick?.(payload) })
-      layer.on('mouseover', (event) => { stop(event); callbacks.onNodeEnter?.(payload) })
-      layer.on('mouseout', (event) => { stop(event); callbacks.onNodeLeave?.(payload) })
+      const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: point.id, kind: forecast ? 'forecast' as const : 'actual' as const, containerPoint: pointerPosition(map, event) })
+      layer.on('click', (event) => { stop(event); callbacks.onNodeClick?.(payload(event)) })
+      layer.on('mouseover', (event) => { stop(event); callbacks.onNodeEnter?.(payload(event)) })
+      layer.on('mouseout', (event) => { stop(event); callbacks.onNodeLeave?.(payload(event)) })
     }
     scene.actualPoints.forEach((point) => addPoint(point, false))
     scene.forecastPoints.forEach((point) => addPoint(point, true))
     if (scene.centerNode) {
       const node = scene.centerNode
-      const payload = { typhoonId: scene.id, nodeId: node.id }
+      const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: node.id, kind: 'actual' as const, containerPoint: pointerPosition(map, event) })
       const center = L.circleMarker([node.lat, node.lon], {
         pane: TYPHOON_PANES.center.name,
         radius: scene.focused ? 10 : 8,
@@ -315,9 +333,9 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
         opacity: 1,
         bubblingMouseEvents: false,
       }).addTo(group)
-      center.on('click', (event) => { stop(event); callbacks.onCenterClick?.(payload) })
-      center.on('mouseover', (event) => { stop(event); callbacks.onCenterEnter?.(payload) })
-      center.on('mouseout', (event) => { stop(event); callbacks.onCenterLeave?.(payload) })
+      center.on('click', (event) => { stop(event); callbacks.onCenterClick?.(payload(event)) })
+      center.on('mouseover', (event) => { stop(event); callbacks.onCenterEnter?.(payload(event)) })
+      center.on('mouseout', (event) => { stop(event); callbacks.onCenterLeave?.(payload(event)) })
       const labelText = `${scene.detail.nameCn || scene.detail.id}（${node.timeYmdh.slice(5, 16)}）`
       L.marker([node.lat, node.lon], {
         pane: TYPHOON_PANES.label.name,

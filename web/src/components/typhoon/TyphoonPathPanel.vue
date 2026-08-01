@@ -16,11 +16,11 @@
     <div v-if="model.displayedCount" class="panel-scroll">
       <section v-if="model.realtime.length" class="typhoon-group" aria-labelledby="live-group-title">
         <h3 id="live-group-title"><span aria-hidden="true">●</span>实时台风 <b>{{ model.realtime.length }}</b></h3>
-        <div class="card-list"><TyphoonCard v-for="card in model.realtime" :key="card.id" :card="card" @toggle="emit('toggle', $event)" @select-node="forwardNode" /></div>
+        <div class="card-list"><TyphoonCard v-for="card in model.realtime" :key="card.id" :card="card" :reveal-token="revealToken" @toggle="emit('toggle', $event)" @select-node="forwardNode" @register-card="setCardRef" /></div>
       </section>
       <section v-if="model.historical.length" class="typhoon-group" aria-labelledby="history-group-title">
         <h3 id="history-group-title"><span aria-hidden="true">◷</span>历史台风 <b>{{ model.historical.length }}</b></h3>
-        <div class="card-list"><TyphoonCard v-for="card in model.historical" :key="card.id" :card="card" @toggle="emit('toggle', $event)" @close-history="emit('close-history', $event)" @select-node="forwardNode" /></div>
+        <div class="card-list"><TyphoonCard v-for="card in model.historical" :key="card.id" :card="card" :reveal-token="revealToken" @toggle="emit('toggle', $event)" @close-history="emit('close-history', $event)" @select-node="forwardNode" @register-card="setCardRef" /></div>
       </section>
     </div>
 
@@ -29,14 +29,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, watch } from 'vue'
 import type { TyphoonPathPanelViewModel } from '../../features/typhoon/typhoonPanelViewModel'
 import type { TyphoonPhase } from '../../stores/typhoon'
 import TyphoonCard from './TyphoonCard.vue'
 import TyphoonLegend from './TyphoonLegend.vue'
-const props = defineProps<{ phase: TyphoonPhase; realtimeCount: number; model: TyphoonPathPanelViewModel; timelineOpen: boolean }>()
+const props = defineProps<{ phase: TyphoonPhase; realtimeCount: number; model: TyphoonPathPanelViewModel; timelineOpen: boolean; revealToken?: number }>()
 const emit = defineEmits<{ close: []; toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string] }>()
 const forwardNode = (typhoonId: string, nodeId: string) => emit('select-node', typhoonId, nodeId)
+const cardRefs = new Map<string, Element>()
+function setCardRef(id: string, element: unknown) {
+  if (element instanceof Element) cardRefs.set(id, element)
+  else cardRefs.delete(id)
+}
+watch(() => [props.model.realtime.find((card) => card.focused)?.id ?? props.model.historical.find((card) => card.focused)?.id, props.revealToken] as const, async ([id]) => {
+  if (!id) return
+  await nextTick()
+  cardRefs.get(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+})
 const statusTitle = computed(() => props.phase === 'loading-live' ? '实时台风加载中' : props.phase === 'error' ? '实时台风数据加载异常' : props.realtimeCount === 0 ? '当前无活动台风' : `当前活动台风 ${props.realtimeCount} 个`)
 const statusDescription = computed(() => props.phase === 'loading-live' ? '实时详情到达后将逐条显示。' : props.phase === 'error' ? '当前仅保留数据异常状态占位。' : props.realtimeCount ? '全部活动台风保持显示，选择只改变焦点与详情。' : '历史台风需从底部时间轴主动打开。')
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <article class="typhoon-card" :class="[{ focused: card.focused, expanded: card.expanded }, card.status]">
+  <article :ref="(element) => emit('register-card', card.id, element)" class="typhoon-card" :class="[{ focused: card.focused, expanded: card.expanded }, card.status]">
     <div class="card-title-row">
       <button
         type="button"
@@ -33,7 +33,7 @@
         </dl>
         <p class="wind-note" :class="{ missing: card.detail.windRadiusMessage.startsWith('暂无') }">{{ card.detail.windRadiusMessage }}</p>
       </section>
-      <TyphoonNodeTable :table-id="tableId" :nodes="card.nodes" @select-node="emit('select-node', card.id, $event)" />
+      <TyphoonNodeTable :table-id="tableId" :nodes="card.nodes" :reveal-token="revealToken" @select-node="emit('select-node', card.id, $event)" />
     </div>
   </article>
 </template>
@@ -42,8 +42,8 @@
 import { computed } from 'vue'
 import type { TyphoonCardViewModel } from '../../features/typhoon/typhoonPanelViewModel'
 import TyphoonNodeTable from './TyphoonNodeTable.vue'
-const props = defineProps<{ card: TyphoonCardViewModel }>()
-const emit = defineEmits<{ toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string] }>()
+const props = defineProps<{ card: TyphoonCardViewModel; revealToken?: number }>()
+const emit = defineEmits<{ toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string]; 'register-card': [typhoonId: string, element: unknown] }>()
 const safeId = computed(() => props.card.id.replace(/[^a-zA-Z0-9_-]/g, '-'))
 const contentId = computed(() => `typhoon-card-content-${safeId.value}`)
 const tableId = computed(() => `typhoon-node-table-${safeId.value}`)

@@ -8,10 +8,19 @@
       :realtime-count="typhoonStore.realtimeDetails.length"
       :model="typhoonPanelModel"
       :timeline-open="typhoonStore.timelineOpen"
+      :reveal-token="typhoonRevealToken"
       @close="exitTyphoonMode"
       @toggle="toggleTyphoonCard"
       @close-history="closeHistoricalTyphoon"
       @select-node="selectTyphoonPanelNode"
+    />
+    <TyphoonHoverPopup
+      v-if="disasterActive"
+      :model="typhoonHoverModel"
+      :x="typhoonHoverPosition.x"
+      :y="typhoonHoverPosition.y"
+      :viewport-width="mapViewport.width"
+      :viewport-height="mapViewport.height"
     />
 
     <TyphoonTimelineDrawer
@@ -150,6 +159,7 @@ import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
 import TyphoonTimelineDrawer from './typhoon/TyphoonTimelineDrawer.vue'
+import TyphoonHoverPopup from './typhoon/TyphoonHoverPopup.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
 import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
@@ -168,6 +178,7 @@ import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '.
 import { autoLevelAllowed, enterDisasterMode, exitDisasterMode, mapTyphoonLayerSnapshot } from '../features/typhoon/disasterModeLifecycle'
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
+import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
@@ -231,6 +242,13 @@ const typhoonStore = useTyphoonStore()
 const disasterActive = ref(false)
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
+const typhoonRevealToken = ref(0)
+const typhoonHoverTarget = ref<TyphoonHoverTarget | null>(null)
+const typhoonHoverPosition = ref({ x: 0, y: 0 })
+const mapViewport = ref({ width: 0, height: 0 })
+const typhoonHoverModel = computed(() => typhoonHoverTarget.value
+  ? buildTyphoonHoverViewModel(typhoonStore.details, typhoonHoverTarget.value)
+  : null)
 const typhoonPanelModel = computed(() => buildTyphoonPathPanelViewModel({
   liveIds: typhoonStore.liveIds,
   openedHistoricalIds: typhoonStore.openedHistoricalIds,
@@ -947,8 +965,16 @@ async function enterTyphoonMode() {
   if (!entered) provinceRenderPromise = null
 }
 
+function revealTyphoon(typhoonId: string, nodeId?: string) {
+  typhoonStore.focusTyphoon(typhoonId)
+  if (!typhoonStore.expandedIds.includes(typhoonId)) typhoonStore.toggleExpanded(typhoonId)
+  if (nodeId) typhoonStore.selectNode(typhoonId, nodeId)
+  typhoonRevealToken.value += 1
+}
+
 function toggleTyphoonCard(typhoonId: string) {
   typhoonStore.toggleExpanded(typhoonId)
+  typhoonRevealToken.value += 1
 }
 
 function closeHistoricalTyphoon(typhoonId: string) {
@@ -996,14 +1022,21 @@ function toggleHistoricalFromTimeline(typhoonId: string) {
   playHistoricalTyphoon(typhoonId)
 }
 
-function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
+function selectActualTyphoonNode(typhoonId: string, nodeId: string) {
   typhoonPlaybackController?.cancel()
   const detail = typhoonStore.details[typhoonId]
-  if (detail?.status === 'stop') {
-    visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: detail.observationsAsc.length }
+  const selection = actualNodeSelection(detail, 'actual', nodeId)
+  if (!selection) return false
+  if (selection.visibleObservationCount !== undefined) {
+    visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: selection.visibleObservationCount }
   }
-  typhoonStore.selectNode(typhoonId, nodeId)
+  revealTyphoon(typhoonId, nodeId)
   void nextTick(() => typhoonLayerController.panNodeIntoView(typhoonId, nodeId, { padding: [40, 40] }))
+  return true
+}
+
+function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
+  selectActualTyphoonNode(typhoonId, nodeId)
 }
 
 function exitTyphoonMode() {
@@ -1016,6 +1049,7 @@ function exitTyphoonMode() {
   fittedTyphoonSessionId = null
   typhoonPlaybackController?.cancel()
   visibleObservationCountByTyphoon.value = {}
+  typhoonHoverTarget.value = null
   // 地块关闭状态、业务抽屉与当前相机均原样保留；不触发行政 render。
   parcelOn.value = false
 }
@@ -1353,10 +1387,24 @@ onMounted(async () => {
     onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
+  const setHover = (target: TyphoonHoverTarget, point: { x: number; y: number }) => {
+    typhoonHoverTarget.value = target
+    typhoonHoverPosition.value = point
+  }
+  const clearHover = (target: TyphoonHoverTarget) => {
+    if (typhoonHoverTarget.value?.kind === target.kind
+      && typhoonHoverTarget.value.typhoonId === target.typhoonId
+      && typhoonHoverTarget.value.nodeId === target.nodeId) typhoonHoverTarget.value = null
+  }
   typhoonLayerController = createTyphoonLayerController(map, {
-    onTyphoonClick: ({ typhoonId }) => typhoonStore.focusTyphoon(typhoonId),
-    onNodeClick: ({ typhoonId, nodeId }) => selectTyphoonPanelNode(typhoonId, nodeId),
-    onCenterClick: ({ typhoonId, nodeId }) => selectTyphoonPanelNode(typhoonId, nodeId),
+    onTyphoonClick: ({ typhoonId }) => revealTyphoon(typhoonId),
+    onNodeClick: ({ typhoonId, nodeId, kind }) => kind === 'actual' ? selectActualTyphoonNode(typhoonId, nodeId) : revealTyphoon(typhoonId),
+    onCenterClick: ({ typhoonId, nodeId }) => selectActualTyphoonNode(typhoonId, nodeId),
+    onWindCircleClick: ({ typhoonId, nodeId }) => selectActualTyphoonNode(typhoonId, nodeId),
+    onCenterEnter: ({ typhoonId, nodeId, containerPoint }) => setHover({ kind: 'center', typhoonId, nodeId }, containerPoint),
+    onCenterLeave: ({ typhoonId, nodeId }) => clearHover({ kind: 'center', typhoonId, nodeId }),
+    onWindCircleEnter: ({ typhoonId, nodeId, grade, containerPoint }) => setHover({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint),
+    onWindCircleLeave: ({ typhoonId, nodeId, grade }) => clearHover({ kind: 'wind', typhoonId, nodeId, grade }),
   })
   typhoonRepository = createTyphoonSessionRepository(typhoonStore)
   typhoonPlaybackController = createTyphoonPlaybackController({
@@ -1365,6 +1413,12 @@ onMounted(async () => {
   await loadBusinessData()
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
+  const syncMapViewport = () => {
+    const size = map.getSize()
+    mapViewport.value = { width: size.x, height: size.y }
+  }
+  syncMapViewport()
+  map.on('resize', syncMapViewport)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
     onAutoLevel()
