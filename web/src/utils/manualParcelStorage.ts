@@ -14,6 +14,8 @@ export interface ManualParcelProperties {
   label_lat: number
   created_at: string
   updated_at: string
+  /** Human-readable number shown in the parcel detail panel; storage id remains opaque and stable. */
+  display_no?: number
 }
 
 export type ManualParcelFeature = Feature<Polygon, ManualParcelProperties>
@@ -21,6 +23,8 @@ export type ManualParcelFeature = Feature<Polygon, ManualParcelProperties>
 interface ManualParcelStorage {
   version: 1
   villages: Record<string, ManualParcelFeature[]>
+  /** Monotonically increasing next display number per village. */
+  next_display_no?: Record<string, number>
 }
 
 export interface ManualParcelReadResult {
@@ -29,7 +33,7 @@ export interface ManualParcelReadResult {
 }
 
 function emptyStorage(): ManualParcelStorage {
-  return { version: 1, villages: {} }
+  return { version: 1, villages: {}, next_display_no: {} }
 }
 
 function isManualFeature(value: unknown, villageCode: string): value is ManualParcelFeature {
@@ -89,7 +93,19 @@ export function readManualParcels(villageCode: string, storage?: Storage): Manua
   if (!parsed.data) return { features: [], error: parsed.error }
   const records = parsed.data.villages[villageCode]
   if (!Array.isArray(records)) return { features: [] }
-  const features = records.filter((feature) => isManualFeature(feature, villageCode))
+  const validFeatures = records.filter((feature) => isManualFeature(feature, villageCode))
+  const configuredNext = parsed.data.next_display_no?.[villageCode]
+  const features = normalizeManualDisplayNumbers(validFeatures, configuredNext ?? 1)
+  const nextDisplayNo = maxManualDisplayNo(features) + 1
+  if (configuredNext !== nextDisplayNo || validFeatures.some((feature, index) => feature.properties.display_no !== features[index]?.properties.display_no)) {
+    try {
+      parsed.data.villages[villageCode] = features
+      parsed.data.next_display_no = { ...parsed.data.next_display_no, [villageCode]: nextDisplayNo }
+      resolved.setItem(MANUAL_PARCEL_STORAGE_KEY, JSON.stringify(parsed.data))
+    } catch {
+      // 读取成功即可继续展示；下次保存时仍会尝试补齐序号。
+    }
+  }
   return {
     features,
     error: features.length === records.length ? undefined : '部分本机人工地块记录无效，已跳过显示。',
@@ -100,16 +116,21 @@ export function writeManualParcels(
   villageCode: string,
   features: ManualParcelFeature[],
   storage?: Storage,
-): { ok: true } | { ok: false; error: string } {
+): { ok: true; features: ManualParcelFeature[] } | { ok: false; error: string } {
   const resolved = browserStorage(storage)
   if (!resolved) return { ok: false, error: '当前浏览器不允许访问本机存储，无法保存人工地块。' }
   const parsed = parseStorage(resolved)
   if (!parsed.data) return { ok: false, error: parsed.error ?? '无法读取本机人工地块。' }
   try {
-    if (features.length) parsed.data.villages[villageCode] = features
+    const configuredNext = parsed.data.next_display_no?.[villageCode]
+    const storedFeatures = parsed.data.villages[villageCode] ?? []
+    const nextStart = configuredNext ?? maxManualDisplayNo(storedFeatures) + 1
+    const numberedFeatures = normalizeManualDisplayNumbers(features, nextStart)
+    if (numberedFeatures.length) parsed.data.villages[villageCode] = numberedFeatures
     else delete parsed.data.villages[villageCode]
+    parsed.data.next_display_no = { ...parsed.data.next_display_no, [villageCode]: Math.max(nextStart, maxManualDisplayNo(numberedFeatures) + 1) }
     resolved.setItem(MANUAL_PARCEL_STORAGE_KEY, JSON.stringify(parsed.data))
-    return { ok: true }
+    return { ok: true, features: numberedFeatures }
   } catch {
     return { ok: false, error: '保存失败，请检查浏览器是否允许本地存储或存储空间是否充足。' }
   }
@@ -120,11 +141,36 @@ function createId(): string {
   return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+function maxManualDisplayNo(features: ManualParcelFeature[]): number {
+  return features.reduce((max, feature) => Math.max(max, feature.properties.display_no ?? 0), 0)
+}
+
+function normalizeManualDisplayNumbers(features: ManualParcelFeature[], startingNo = 1): ManualParcelFeature[] {
+  const used = new Set<number>()
+  let next = Math.max(1, startingNo)
+  return [...features]
+    .sort((a, b) => a.properties.created_at.localeCompare(b.properties.created_at) || a.properties.id.localeCompare(b.properties.id))
+    .map((feature) => {
+      const stored = feature.properties.display_no
+      const storedNumber = typeof stored === 'number' ? stored : null
+      const hasStoredNumber = storedNumber !== null && Number.isInteger(storedNumber) && storedNumber > 0 && !used.has(storedNumber)
+      const displayNo = hasStoredNumber ? storedNumber : (() => {
+        while (used.has(next)) next += 1
+        return next
+      })()
+      used.add(displayNo)
+      next = Math.max(next, displayNo + 1)
+      return stored === displayNo ? feature : { ...feature, properties: { ...feature.properties, display_no: displayNo } }
+    })
+    .sort((a, b) => a.properties.display_no! - b.properties.display_no!)
+}
+
 export function makeManualParcel(
   villageCode: string,
   prepared: PreparedManualGeometry,
   previous?: ManualParcelFeature,
   now = new Date().toISOString(),
+  displayNo?: number,
 ): ManualParcelFeature {
   return {
     type: 'Feature',
@@ -139,6 +185,7 @@ export function makeManualParcel(
       label_lat: prepared.labelLat,
       created_at: previous?.properties.created_at ?? now,
       updated_at: now,
+      display_no: previous?.properties.display_no ?? displayNo,
     },
   }
 }

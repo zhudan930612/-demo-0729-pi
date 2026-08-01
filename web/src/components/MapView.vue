@@ -745,15 +745,15 @@ async function saveManualBatch() {
     const cleaned = removeCultivationForParcel(parcelVillageCode, id)
     if (!cleaned.ok) { showNotice(cleaned.error ?? '删除地块关联档案失败，未保存本批次。', true); return }
   }
+  const addedCount = pendingManualParcels.value.length
+  const changedCount = pendingManualEdits.value.length
+  const removedCount = pendingRemovedManualIds.value.length
   const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
   if (!persisted.ok) {
     showNotice(persisted.error, true)
     return
   }
-  const addedCount = pendingManualParcels.value.length
-  const changedCount = pendingManualEdits.value.length
-  const removedCount = pendingRemovedManualIds.value.length
-  manualParcels = nextFeatures
+  manualParcels = persisted.features
   hasManualParcels.value = manualParcels.length > 0
   for (const id of pendingRemovedManualIds.value) {
     hiddenParcelIds.delete(id)
@@ -819,7 +819,12 @@ async function saveManualDraft() {
   if ((warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)
       && !await openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要保存')) return
 
-  const next = makeManualParcel(parcelVillageCode, checked.prepared, editingManualOriginal ?? undefined)
+  const next = makeManualParcel(
+    parcelVillageCode,
+    checked.prepared,
+    editingManualOriginal ?? undefined,
+    undefined,
+  )
   const nextFeatures = editingManualOriginal
     ? manualParcels.map((feature) => feature.properties.id === editingManualOriginal!.properties.id ? next : feature)
     : [...manualParcels, next]
@@ -828,7 +833,7 @@ async function saveManualDraft() {
     showNotice(persisted.error, true)
     return
   }
-  manualParcels = nextFeatures
+  manualParcels = persisted.features
   hasManualParcels.value = manualParcels.length > 0
   manualDrawingController.clearDraft()
   manualDraftPoints.value = []

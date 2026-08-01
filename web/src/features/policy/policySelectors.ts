@@ -18,6 +18,7 @@ export interface ParcelSummaryInput {
   areaM2: number
   createdAt?: string
   updatedAt?: string
+  displayNo?: number
 }
 
 export function parcelPolicyContext(fixture: PolicyFixture, parcelId: string): ParcelPolicyContext {
@@ -78,5 +79,5 @@ export function fromBaseParcel(properties: Record<string, unknown>): ParcelSumma
 }
 
 export function fromManualParcel(feature: ManualParcelFeature): ParcelSummaryInput {
-  return { id: feature.properties.id, source: 'manual', areaMu: feature.properties.area_mu, areaM2: feature.properties.area_m2, createdAt: feature.properties.created_at, updatedAt: feature.properties.updated_at }
+  return { id: feature.properties.id, source: 'manual', areaMu: feature.properties.area_mu, areaM2: feature.properties.area_m2, createdAt: feature.properties.created_at, updatedAt: feature.properties.updated_at, displayNo: feature.properties.display_no }
 }

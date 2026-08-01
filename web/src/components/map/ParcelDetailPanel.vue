@@ -18,10 +18,6 @@
             <div><dt>地块面积</dt><dd>{{ parcel.areaMu.toFixed(2) }} 亩 / {{ parcel.areaM2.toFixed(2) }} ㎡</dd></div>
             <div><dt>当前作物</dt><dd>{{ current.record?.crop ?? (current.nearestRecord ? '当前未种植' : '——') }}</dd></div>
             <div><dt>行政区划</dt><dd>浙江省 · 绍兴市 · 上虞区 · 章镇镇 · {{ villageName }}</dd></div>
-            <template v-if="parcel.source === 'manual'">
-              <div><dt>创建时间</dt><dd>{{ parcel.createdAt }}</dd></div>
-              <div><dt>更新时间</dt><dd>{{ parcel.updatedAt }}</dd></div>
-            </template>
           </dl>
         </div>
         <p v-if="cropMismatch" class="mismatch">当前标注为{{ current.record?.crop }}，保单承保标的为{{ policy.currentPolicy?.insuredObject }}</p>
@@ -102,7 +98,9 @@ const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; vil
 const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': [] }>()
 const copyNotice = ref('')
 const current = computed(() => getCurrentCultivationRecord(props.records))
-const parcelNumber = computed(() => formatParcelNumber(props.villageCode, props.parcel.source, props.parcel.id))
+const parcelNumber = computed(() => props.parcel.source === 'manual'
+  ? `DK-${props.villageCode}-M-${props.parcel.displayNo ?? '—'}`
+  : formatParcelNumber(props.villageCode, props.parcel.source, props.parcel.id))
 const cropMismatch = computed(() => Boolean(current.value.record && props.policy.currentPolicy && current.value.record.crop !== props.policy.currentPolicy.insuredObject))
 const policyType = computed(() => policyBusinessType(props.policy.currentPolicy?.insuredMode))
 const policyTypeClass = computed(() => props.policy.currentPolicy?.insuredMode === 'single_insured' ? 'large' : props.policy.currentPolicy?.insuredMode === 'insured_roster' ? 'group' : 'uninsured')

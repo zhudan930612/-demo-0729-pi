@@ -22,6 +22,7 @@ describe('manual parcel storage', () => {
     const feature = makeManualParcel('v1', prepared, undefined, '2026-01-01T00:00:00.000Z')
     expect(writeManualParcels('v1', [feature], storage).ok).toBe(true)
     expect(readManualParcels('v1', storage).features).toHaveLength(1)
+    expect(readManualParcels('v1', storage).features[0].properties.display_no).toBe(1)
     expect(readManualParcels('v2', storage).features).toHaveLength(0)
   })
 
@@ -40,6 +41,15 @@ describe('manual parcel storage', () => {
     const result = writeManualParcels('v1', [feature], storage)
     expect(result.ok).toBe(false)
     expect(storage.getItem('agri-map:manual-parcels:v1')).toBe('{broken')
+  })
+
+  it('never reuses a deleted display number', () => {
+    const storage = new MemoryStorage()
+    const first = makeManualParcel('v1', prepared)
+    expect(writeManualParcels('v1', [first], storage)).toMatchObject({ ok: true, features: [{ properties: { display_no: 1 } }] })
+    expect(writeManualParcels('v1', [], storage).ok).toBe(true)
+    const second = makeManualParcel('v1', prepared)
+    expect(writeManualParcels('v1', [second], storage)).toMatchObject({ ok: true, features: [{ properties: { display_no: 2 } }] })
   })
 
   it('deletes a village bucket when its last feature is removed', () => {
