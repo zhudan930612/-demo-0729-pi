@@ -43,7 +43,10 @@
           </div>
           <div class="info-block">
             <div class="policy-title-row"><div><span>投保险种</span><h4>{{ policy.currentPolicy.product }}</h4></div></div>
-            <button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button><span v-if="copyNotice" class="copy-notice">{{ copyNotice }}</span>
+            <div class="policy-number-line">
+              <button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button>
+              <span v-if="copyNotice" class="copy-notice" :class="{ error: copyNotice !== '已复制' }" role="status" aria-live="polite">{{ copyNotice }}</span>
+            </div>
             <dl class="definition-list compact">
               <div><dt>投保人</dt><dd>{{ policyPartyDisplay }}</dd></div>
               <div><dt>被保险人</dt><dd>{{ policyPartyDisplay }}</dd></div>
@@ -114,6 +117,6 @@ const coverageAreaText = computed(() => {
 const currentParcelSumInsured = computed(() => Math.round(Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) * 125000))
 const money = (value: number) => (value / 100).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
 function markSaved() {}
-async function copyPolicyNo() { try { await navigator.clipboard.writeText(props.policy.currentPolicy!.policyNo); copyNotice.value = '已复制' } catch { copyNotice.value = '复制失败，请手动选择保单号' } setTimeout(() => { copyNotice.value = '' }, 1800) }
+async function copyPolicyNo() { try { await navigator.clipboard.writeText(props.policy.currentPolicy!.policyNo); copyNotice.value = '已复制' } catch { copyNotice.value = '复制失败' } setTimeout(() => { copyNotice.value = '' }, 1800) }
 defineExpose({ markSaved })
 </script>
