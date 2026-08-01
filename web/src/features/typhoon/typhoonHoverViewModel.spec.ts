@@ -21,6 +21,7 @@ describe('typhoon hover view model', () => {
     expect(model?.kind).toBe('center')
     if (model?.kind !== 'center') return
     expect(model.pressure).toBe('925 hPa')
+    expect(model.wind).toBe('58 m/s，超强台风')
     expect(model.referencePosition).toBe('<b>官方位置</b>')
     expect(model.trend).toBe('<script>API预报</script>')
     expect(model.trendSource).toBe('API 原文')

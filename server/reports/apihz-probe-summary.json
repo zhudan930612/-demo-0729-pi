@@ -128,8 +128,59 @@
     }
   ],
   "noActiveTyphoonSampleCovered": false,
+  "historicalNoStartStructureSamples": [
+    {
+      "year": 2025,
+      "listCount": 32,
+      "startCount": 0,
+      "stopCount": 32,
+      "listFields": [
+        "explanation",
+        "namecn",
+        "nameen",
+        "no1",
+        "no2",
+        "no3",
+        "no4",
+        "type"
+      ]
+    },
+    {
+      "year": 2024,
+      "listCount": 28,
+      "startCount": 0,
+      "stopCount": 28,
+      "listFields": [
+        "explanation",
+        "namecn",
+        "nameen",
+        "no1",
+        "no2",
+        "no3",
+        "no4",
+        "type"
+      ]
+    },
+    {
+      "year": 2023,
+      "listCount": 20,
+      "startCount": 0,
+      "stopCount": 20,
+      "listFields": [
+        "explanation",
+        "namecn",
+        "nameen",
+        "no1",
+        "no2",
+        "no3",
+        "no4",
+        "type"
+      ]
+    }
+  ],
   "limitations": [
     "单次探针只证明该抓取时刻和所选样本，不保证年度列表长期完整或字段长期稳定。",
-    "本次存在活动台风，未覆盖真实无活动台风样例。"
+    "本次当前年度存在活动台风，未覆盖真实无活动台风时刻。",
+    "过去完整自然年度的 0-start 聚合只证明 API 返回形态，不冒充当前无活动台风时刻。"
   ]
 }

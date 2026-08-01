@@ -23,6 +23,24 @@ function beijingYear(now = Date.now()) {
   return new Date(now + 8 * 60 * 60 * 1000).getUTCFullYear()
 }
 
+function probeYear() {
+  const value = process.env.PROBE_YEAR
+  if (!value) return beijingYear()
+  if (!/^\d{4}$/.test(value) || Number(value) < 2000 || Number(value) > beijingYear()) {
+    throw new Error('PROBE_YEAR must be a year from 2000 through the current Beijing year')
+  }
+  return Number(value)
+}
+
+function structureYears(currentYear, selectedYear) {
+  if (selectedYear !== currentYear && process.env.PROBE_STRUCTURE_YEARS === undefined) return []
+  const raw = process.env.PROBE_STRUCTURE_YEARS ?? '2025,2024,2023'
+  return [...new Set(raw.split(',').map((value) => value.trim()).filter(Boolean))]
+    .filter((value) => /^\d{4}$/.test(value))
+    .map(Number)
+    .filter((year) => year >= 2000 && year <= currentYear && year !== selectedYear)
+}
+
 function fieldNames(items) {
   return [...new Set(items.flatMap((item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.keys(item) : []))].sort()
 }
@@ -39,7 +57,8 @@ function hasDuplicates(values) {
 async function runProbe() {
   const client = createApiHzClient(config)
   const probedAtUtc = new Date().toISOString()
-  const year = beijingYear()
+  const currentYear = beijingYear()
+  const year = probeYear()
   const listPayload = await client.list(year)
   const list = listPayload.list
   const startItems = list.filter((item) => item.type === 'start')
@@ -72,6 +91,19 @@ async function runProbe() {
     })
   }
 
+  const historicalNoStartStructureSamples = []
+  for (const sampleYear of structureYears(currentYear, year)) {
+    const payload = await client.list(sampleYear)
+    const items = payload.list
+    historicalNoStartStructureSamples.push({
+      year: sampleYear,
+      listCount: items.length,
+      startCount: items.filter((item) => item.type === 'start').length,
+      stopCount: items.filter((item) => item.type === 'stop').length,
+      listFields: fieldNames(items),
+    })
+  }
+
   const report = {
     reportVersion: 1,
     probedAtUtc,
@@ -85,13 +117,18 @@ async function runProbe() {
     typeValues: [...new Set(list.map((item) => item.type))].sort(),
     listFields: fieldNames(list),
     samples,
-    noActiveTyphoonSampleCovered: startItems.length === 0,
+    noActiveTyphoonSampleCovered: year === currentYear && startItems.length === 0,
+    historicalNoStartStructureSamples,
     limitations: [
       '单次探针只证明该抓取时刻和所选样本，不保证年度列表长期完整或字段长期稳定。',
-      startItems.length === 0 ? '本次当前年度快照覆盖无活动台风状态。' : '本次存在活动台风，未覆盖真实无活动台风样例。',
+      year === currentYear
+        ? (startItems.length === 0 ? '本次当前年度快照覆盖无活动台风状态。' : '本次当前年度存在活动台风，未覆盖真实无活动台风时刻。')
+        : '本次使用过去完整自然年度，仅验证 0-start 返回结构，不代表当前时刻。',
+      '过去完整自然年度的 0-start 聚合只证明 API 返回形态，不冒充当前无活动台风时刻。',
     ],
   }
-  const reportPath = path.join(serverDir, 'reports', 'apihz-probe-summary.json')
+  const fileName = year === currentYear ? 'apihz-probe-summary.json' : `apihz-probe-summary-${year}.json`
+  const reportPath = path.join(serverDir, 'reports', fileName)
   fs.mkdirSync(path.dirname(reportPath), { recursive: true })
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 })
   console.log(JSON.stringify({
