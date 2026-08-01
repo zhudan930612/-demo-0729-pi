@@ -12,6 +12,12 @@ PRODUCT = "水稻完全成本保险"
 PER_MU_CENTS = 125000
 RATE = Decimal("0.032")
 SUBSIDY = Decimal("0.80")
+PARTY_NAMES = {
+    1: "陈立新",
+    2: "周建华",
+    3: "沈伟良",
+    4: "王海峰",
+}
 
 
 def cents(value: Decimal) -> int:
@@ -55,7 +61,7 @@ def main() -> None:
     def add_party(party_type: str) -> str:
         nonlocal party_no
         pid = f"party-{party_no:04d}"
-        parties.append({"id": pid, "name": f"龙江村{party_type}{party_no:03d}", "partyType": party_type})
+        parties.append({"id": pid, "name": PARTY_NAMES.get(party_no, f"龙江村{party_type}{party_no:03d}"), "partyType": party_type})
         party_no += 1
         return pid
 

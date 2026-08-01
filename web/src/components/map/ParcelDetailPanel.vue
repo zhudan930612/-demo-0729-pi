@@ -45,8 +45,8 @@
             <div class="policy-title-row"><div><span>保险产品</span><h4>{{ policy.currentPolicy.product }}</h4></div></div>
             <button class="policy-number" @click="copyPolicyNo">{{ policy.currentPolicy.policyNo }}</button><span v-if="copyNotice" class="copy-notice">{{ copyNotice }}</span>
             <dl class="definition-list compact">
-              <div><dt>投保人</dt><dd>{{ policy.applicant?.name }} · {{ policy.applicant?.partyType }}</dd></div>
-              <div><dt>被保险人</dt><dd>{{ policy.currentInsured?.name }} · {{ policy.currentInsured?.partyType }}</dd></div>
+              <div><dt>投保人</dt><dd>{{ policyPartyDisplay }}</dd></div>
+              <div><dt>被保险人</dt><dd>{{ policyPartyDisplay }}</dd></div>
               <div><dt>保险标的</dt><dd>{{ policy.currentPolicy.insuredObject }}</dd></div>
               <div><dt>保险期间</dt><dd>{{ policy.currentPolicy.periodStart }} 至 {{ policy.currentPolicy.periodEnd }}</dd></div>
               <div><dt>单位保险金额</dt><dd>1,250.00 元/亩</dd></div>
@@ -102,6 +102,11 @@ const cropMismatch = computed(() => Boolean(current.value.record && props.policy
 const policyType = computed(() => policyBusinessType(props.policy.currentPolicy?.insuredMode))
 const policyTypeClass = computed(() => props.policy.currentPolicy?.insuredMode === 'single_insured' ? 'large' : props.policy.currentPolicy?.insuredMode === 'insured_roster' ? 'group' : 'uninsured')
 const coverageRatio = computed(() => `${Math.min(100, Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) / props.parcel.areaMu * 100).toFixed(1)}%`)
+const policyPartyDisplay = computed(() => {
+  if (props.policy.currentPolicy?.insuredMode === 'insured_roster') return '沈嘉禾等295户种植户'
+  const party = props.policy.currentInsured ?? props.policy.applicant
+  return party?.name ?? '—'
+})
 const coverageAreaText = computed(() => {
   const areaMu = Number(props.policy.currentCoverage?.insuredAreaMu ?? 0)
   return `${areaMu.toFixed(2)} 亩 / ${(areaMu * 2000 / 3).toFixed(2)} ㎡`
