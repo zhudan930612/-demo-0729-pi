@@ -2,11 +2,15 @@
   <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle', 'parcel-drawing': parcelMode === 'drawing' }">
     <div ref="mapEl" class="map"></div>
 
-    <TyphoonModePanel
+    <TyphoonPathPanel
       v-if="disasterActive"
       :phase="typhoonStore.phase"
       :realtime-count="typhoonStore.realtimeDetails.length"
+      :model="typhoonPanelModel"
       @close="exitTyphoonMode"
+      @toggle="toggleTyphoonCard"
+      @close-history="closeHistoricalTyphoon"
+      @select-node="selectTyphoonPanelNode"
     />
 
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
@@ -134,7 +138,7 @@ import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
 import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
-import TyphoonModePanel from './typhoon/TyphoonModePanel.vue'
+import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
 import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
@@ -151,6 +155,7 @@ import { createParcelWorkModeController, type ParcelWorkModeController } from '.
 import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
 import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
 import { autoLevelAllowed, enterDisasterMode, exitDisasterMode, mapTyphoonLayerSnapshot } from '../features/typhoon/disasterModeLifecycle'
+import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
   addPendingManualParcel,
@@ -212,6 +217,14 @@ const store = useDrilldownStore()
 const typhoonStore = useTyphoonStore()
 const disasterActive = ref(false)
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
+const typhoonPanelModel = computed(() => buildTyphoonPathPanelViewModel({
+  liveIds: typhoonStore.liveIds,
+  openedHistoricalIds: typhoonStore.openedHistoricalIds,
+  details: typhoonStore.details,
+  focusedTyphoonId: typhoonStore.focusedTyphoonId,
+  expandedIds: typhoonStore.expandedIds,
+  selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
+}))
 const rsVisible = ref(false)
 const rsHint = ref('')
 const rsOn = ref(true)
@@ -908,6 +921,20 @@ async function enterTyphoonMode() {
     enterRepository: () => { fittedTyphoonSessionId = null; void typhoonRepository.enter() },
   })
   if (!entered) provinceRenderPromise = null
+}
+
+function toggleTyphoonCard(typhoonId: string) {
+  typhoonStore.toggleExpanded(typhoonId)
+}
+
+function closeHistoricalTyphoon(typhoonId: string) {
+  typhoonStore.closeHistorical(typhoonId)
+}
+
+function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
+  // M7 可在此 seam 先停止逐点动画；本里程碑没有 timer。
+  typhoonStore.selectNode(typhoonId, nodeId)
+  typhoonLayerController.panNodeIntoView(typhoonId, nodeId, { padding: [40, 40] })
 }
 
 function exitTyphoonMode() {
