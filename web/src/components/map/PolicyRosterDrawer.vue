@@ -1,7 +1,7 @@
 <template>
-  <section class="roster-drawer" aria-label="完整投保清单">
+  <section class="roster-drawer" aria-label="分户投保清单">
     <header class="roster-header">
-      <div><span class="eyebrow">完整投保清单</span><h2>{{ policy.policyNo }}</h2></div>
+      <div><span class="eyebrow">分户投保清单</span><h2>{{ policy.policyNo }}</h2></div>
       <button class="icon-button" aria-label="返回保单详情" @click="$emit('close')">×</button>
     </header>
     <section class="roster-summary">

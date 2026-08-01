@@ -48,16 +48,18 @@
               <span v-if="copyNotice" class="copy-notice" :class="{ error: copyNotice !== '已复制' }" role="status" aria-live="polite">{{ copyNotice }}</span>
             </div>
             <dl class="definition-list compact">
+              <div><dt>投保方式</dt><dd>{{ policy.currentPolicy.insuredMode === 'single_insured' ? '个人投保' : '团体投保' }}</dd></div>
               <div><dt>投保人</dt><dd>{{ policyPartyDisplay }}</dd></div>
               <div><dt>被保险人</dt><dd>{{ policyPartyDisplay }}</dd></div>
               <div><dt>保险标的</dt><dd>{{ policy.currentPolicy.insuredObject }}</dd></div>
               <div><dt>保险期间</dt><dd>{{ policy.currentPolicy.periodStart }} 至 {{ policy.currentPolicy.periodEnd }}</dd></div>
               <div><dt>单位保险金额</dt><dd>1,250.00 元/亩</dd></div>
               <div><dt>费率 / 补贴</dt><dd>3.2% / 80%</dd></div>
+              <div><dt>整单承保面积</dt><dd>{{ Number(policy.currentPolicy.summary.insuredAreaMu).toFixed(2) }} 亩</dd></div>
               <div><dt>总保险金额</dt><dd>{{ money(policy.currentPolicy.summary.sum_insured_cents) }}</dd></div>
               <div><dt>总保费</dt><dd>{{ money(policy.currentPolicy.summary.premium_cents) }}</dd></div>
+              <div><dt>财政补贴 / 自缴</dt><dd>{{ money(policy.currentPolicy.summary.subsidy_cents) }} / {{ money(policy.currentPolicy.summary.self_paid_cents) }}</dd></div>
             </dl>
-            <button v-if="policy.currentPolicy.insuredMode === 'insured_roster'" class="text-button" @click="$emit('highlight-policy')">查看整张保单覆盖范围</button>
           </div>
         </template>
 
@@ -68,19 +70,17 @@
       </section>
 
       <section class="detail-section" aria-labelledby="item-title">
-        <div class="section-title"><div><span class="section-kicker">03</span><h3 id="item-title">分项清单</h3></div></div>
+        <div class="section-title"><div><span class="section-kicker">03</span><h3 id="item-title">分户清单</h3></div></div>
         <div v-if="!policy.currentPolicy" class="empty-state compact-empty"><p>关联保单后显示承保分项。</p></div>
-        <div v-else-if="policy.currentItem" class="info-block">
-          <div class="item-heading"><div><span>被保险人</span><h4>{{ policy.currentInsured?.name }}</h4></div><strong>{{ policy.currentItem.itemNo }}</strong></div>
+        <div v-else-if="policy.currentPolicy.insuredMode === 'insured_roster'" class="info-block">
           <dl class="definition-list compact">
-            <div><dt>平台主体编号</dt><dd>{{ policy.currentInsured?.id }}</dd></div>
-            <div><dt>主体类型</dt><dd>{{ policy.currentInsured?.partyType }}</dd></div>
-            <div><dt>关联地块</dt><dd>{{ policy.currentItem.parcelCoverageIds.length }} 块</dd></div>
-            <div><dt>汇总承保面积</dt><dd>{{ Number(policy.currentItem.insuredAreaMu).toFixed(2) }} 亩</dd></div>
-            <div><dt>保险金额</dt><dd>{{ money(policy.currentItem.sum_insured_cents) }}</dd></div>
-            <div><dt>总保费 / 自缴</dt><dd>{{ money(policy.currentItem.premium_cents) }} / {{ money(policy.currentItem.self_paid_cents) }}</dd></div>
+            <div><dt>承保农户数</dt><dd>{{ policy.currentPolicy.summary.insuredPartyCount }} 户</dd></div>
+            <div><dt>关联地块</dt><dd>{{ policy.currentPolicy.summary.parcelCount }} 块</dd></div>
+            <div><dt>平均自缴保费</dt><dd>{{ money(averageSelfPaidCents) }}</dd></div>
+            <div><dt>平均承保面积</dt><dd>{{ averageInsuredAreaMu.toFixed(2) }} 亩</dd></div>
+            <div><dt>平均保险金额</dt><dd>{{ money(averageSumInsuredCents) }}</dd></div>
           </dl>
-          <div class="button-row"><button class="text-button" @click="$emit('highlight-insured')">查看该户地块</button><button class="primary-button" @click="$emit('open-roster')">查看完整投保清单</button></div>
+          <div class="button-row"><button class="roster-open-button" @click="$emit('open-roster')">查看分户投保清单</button></div>
         </div>
         <div v-else class="empty-state compact-empty"><strong>单一被保险人承保</strong><p>该保单不设分户清单，全部承保地块归属于同一被保险人。</p></div>
       </section>
@@ -97,7 +97,7 @@ import type { ParcelPolicyContext, ParcelSummaryInput } from '../../features/pol
 import { policyBusinessType } from '../../features/policy/policyVisual'
 
 const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; rosterPartyDisplay: string; records: CultivationRecord[]; initialRecordKeys: string[] }>()
-const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': []; 'highlight-insured': []; 'highlight-policy': [] }>()
+const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': [] }>()
 const copyNotice = ref('')
 const current = computed(() => getCurrentCultivationRecord(props.records))
 const parcelNumber = computed(() => formatParcelNumber(props.villageCode, props.parcel.source, props.parcel.id))
@@ -115,6 +115,10 @@ const coverageAreaText = computed(() => {
   return `${areaMu.toFixed(2)} 亩 / ${(areaMu * 2000 / 3).toFixed(2)} ㎡`
 })
 const currentParcelSumInsured = computed(() => Math.round(Number(props.policy.currentCoverage?.insuredAreaMu ?? 0) * 125000))
+const insuredPartyCount = computed(() => Math.max(1, props.policy.currentPolicy?.summary.insuredPartyCount ?? 1))
+const averageSelfPaidCents = computed(() => Math.round((props.policy.currentPolicy?.summary.self_paid_cents ?? 0) / insuredPartyCount.value))
+const averageInsuredAreaMu = computed(() => Number(props.policy.currentPolicy?.summary.insuredAreaMu ?? 0) / insuredPartyCount.value)
+const averageSumInsuredCents = computed(() => Math.round((props.policy.currentPolicy?.summary.sum_insured_cents ?? 0) / insuredPartyCount.value))
 const money = (value: number) => (value / 100).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY' })
 function markSaved() {}
 async function copyPolicyNo() { try { await navigator.clipboard.writeText(props.policy.currentPolicy!.policyNo); copyNotice.value = '已复制' } catch { copyNotice.value = '复制失败' } setTimeout(() => { copyNotice.value = '' }, 1800) }

@@ -58,8 +58,6 @@
       @remove-record="removeCultivationRecord"
       @editing-change="cultivationEditing = $event"
       @open-roster="rosterOpen = true"
-      @highlight-insured="highlightSelectedInsured"
-      @highlight-policy="highlightSelectedPolicy"
     />
     <PolicyRosterDrawer
       v-if="rosterOpen && selectedPolicyContext?.currentPolicy?.insuredMode === 'insured_roster'"
@@ -455,21 +453,6 @@ function removeCultivationRecord(record: CultivationRecord) {
   const result = removeAddedCultivation(parcelVillageCode, record)
   if (!result.ok) { showNotice(result.error ?? '删除失败', true); return }
   refreshSelectedCultivation(); showNotice('新增种植档案已删除')
-}
-
-function highlightSelectedInsured() {
-  const context = selectedPolicyContext.value
-  if (!policyFixture.value || !context?.currentPolicy || !context.currentInsured) return
-  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
-  highlightedPolicyIds.value = new Set(); renderParcelLayer()
-}
-
-function highlightSelectedPolicy() {
-  const context = selectedPolicyContext.value
-  if (!policyFixture.value || !context?.currentPolicy) return
-  highlightedPolicyIds.value = new Set(policyCoverages(policyFixture.value, context.currentPolicy.id).map((entry) => entry.parcelId))
-  if (context.currentInsured) highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, context.currentInsured.id, context.currentPolicy.id).map((entry) => entry.parcelId))
-  renderParcelLayer()
 }
 
 function selectRosterItem(item: EnrollmentItem) {
