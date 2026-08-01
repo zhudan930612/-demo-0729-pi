@@ -42,31 +42,35 @@
       {{ saveNotice }}
     </div>
 
-    <ParcelDetailPanel
-      v-if="selectedParcel && selectedPolicyContext"
-      ref="detailPanelRef"
-      :parcel="selectedParcel"
-      :village-code="parcelVillageCode"
-      :village-name="store.current.name"
-      :policy="selectedPolicyContext"
-      :roster-party-display="selectedRosterPartyDisplay"
-      :records="selectedCultivationRecords"
-      :initial-record-keys="selectedInitialRecordKeys"
-      @request-close="requestCloseDetail"
-      @request-restore="requestRestoreCultivation"
-      @save-record="saveCultivationRecord"
-      @remove-record="removeCultivationRecord"
-      @editing-change="cultivationEditing = $event"
-      @open-roster="rosterOpen = true"
-    />
-    <PolicyRosterDrawer
-      v-if="rosterOpen && selectedPolicyContext?.currentPolicy?.insuredMode === 'insured_roster'"
-      :policy="selectedPolicyContext.currentPolicy"
-      :items="selectedRosterItems"
-      :parties="policyFixture?.parties ?? []"
-      @close="rosterOpen = false"
-      @select="selectRosterItem"
-    />
+    <Transition name="side-drawer">
+      <ParcelDetailPanel
+        v-if="selectedParcel && selectedPolicyContext"
+        ref="detailPanelRef"
+        :parcel="selectedParcel"
+        :village-code="parcelVillageCode"
+        :village-name="store.current.name"
+        :policy="selectedPolicyContext"
+        :roster-party-display="selectedRosterPartyDisplay"
+        :records="selectedCultivationRecords"
+        :initial-record-keys="selectedInitialRecordKeys"
+        @request-close="requestCloseDetail"
+        @request-restore="requestRestoreCultivation"
+        @save-record="saveCultivationRecord"
+        @remove-record="removeCultivationRecord"
+        @editing-change="cultivationEditing = $event"
+        @open-roster="rosterOpen = true"
+      />
+    </Transition>
+    <Transition name="side-drawer">
+      <PolicyRosterDrawer
+        v-if="rosterOpen && selectedPolicyContext?.currentPolicy?.insuredMode === 'insured_roster'"
+        :policy="selectedPolicyContext.currentPolicy"
+        :items="selectedRosterItems"
+        :parties="policyFixture?.parties ?? []"
+        @close="rosterOpen = false"
+        @select="selectRosterItem"
+      />
+    </Transition>
 
     <div v-if="policyLoadError || cultivationLoadError" class="business-load-error" role="alert">
       <strong>业务数据加载失败</strong>
