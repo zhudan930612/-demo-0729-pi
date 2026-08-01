@@ -11,6 +11,9 @@ function baseConfig(overrides = {}) {
     upstreamUrl: 'https://cn.apihz.cn/api/tianqi/taifeng.php',
     timeoutMs: 100,
     maxResponseBytes: 1024 * 1024,
+    upstreamConcurrency: 6,
+    cacheTtlMs: 30_000,
+    rateLimitPerMinute: 60,
     ...overrides,
   }
 }
@@ -94,6 +97,32 @@ test('rejects unsafe detail identifiers and query parameters', async () => {
     assert.ok([400, 404].includes(response.status), path)
   }
   assert.equal(calls, 0)
+})
+
+test('rate limit returns unified 429 and health remains available', async () => {
+  const { base } = await startApp(baseConfig({ rateLimitPerMinute: 1 }), {
+    fetchImpl: async () => Response.json({ code: 200, list: [] }),
+  })
+  assert.equal((await fetch(`${base}/api/typhoons?year=2026`)).status, 200)
+  const limited = await fetch(`${base}/api/typhoons?year=2025`)
+  assert.equal(limited.status, 429)
+  assert.equal((await body(limited)).error.code, 'RATE_LIMITED')
+  assert.equal((await fetch(`${base}/healthz`)).status, 200)
+})
+
+test('global upstream concurrency returns unified 503', async () => {
+  let release
+  const stalled = new Promise((resolve) => { release = resolve })
+  const { base } = await startApp(baseConfig({ upstreamConcurrency: 1 }), {
+    fetchImpl: async (url) => url.searchParams.get('year') === '2026' ? stalled : Response.json({ code: 200, list: [] }),
+  })
+  const first = fetch(`${base}/api/typhoons?year=2026`)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  const busy = await fetch(`${base}/api/typhoons?year=2025`)
+  assert.equal(busy.status, 503)
+  assert.equal((await body(busy)).error.code, 'SERVICE_BUSY')
+  release(Response.json({ code: 200, list: [] }))
+  assert.equal((await first).status, 200)
 })
 
 test('passes through valid list and detail payloads while injecting credentials only upstream', async () => {

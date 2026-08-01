@@ -60,7 +60,7 @@ export function createApiHzClient(config, options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   if (typeof fetchImpl !== 'function') throw new TypeError('fetch implementation is required')
 
-  async function request(params, mode) {
+  async function request(params, mode, externalSignal) {
     if (!config.developerId || !config.key) throw new UpstreamError('unconfigured', 'APIHz 服务未配置')
     const url = new URL(config.upstreamUrl)
     url.searchParams.set('id', config.developerId)
@@ -68,6 +68,9 @@ export function createApiHzClient(config, options = {}) {
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
 
     const controller = new AbortController()
+    const abortFromExternal = () => controller.abort()
+    externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
+    if (externalSignal?.aborted) controller.abort()
     const timeout = setTimeout(() => controller.abort(), config.timeoutMs)
     try {
       const response = await fetchImpl(url, {
@@ -92,11 +95,12 @@ export function createApiHzClient(config, options = {}) {
       throw new UpstreamError('network', '上游网络请求失败')
     } finally {
       clearTimeout(timeout)
+      externalSignal?.removeEventListener('abort', abortFromExternal)
     }
   }
 
   return {
-    list(year) { return request({ year: String(year) }, 'list') },
-    detail(no) { return request({ no: String(no) }, 'detail') },
+    list(year, signal) { return request({ year: String(year) }, 'list', signal) },
+    detail(no, signal) { return request({ no: String(no) }, 'detail', signal) },
   }
 }

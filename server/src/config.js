@@ -35,5 +35,8 @@ export function readServerConfig(env = process.env) {
     port: positiveInteger(env.PORT, 8787),
     timeoutMs: positiveInteger(env.APIHZ_TIMEOUT_MS, 8000),
     maxResponseBytes: positiveInteger(env.APIHZ_MAX_RESPONSE_BYTES, 5 * 1024 * 1024),
+    upstreamConcurrency: positiveInteger(env.APIHZ_UPSTREAM_CONCURRENCY, 6),
+    cacheTtlMs: positiveInteger(env.APIHZ_CACHE_TTL_MS, 30_000),
+    rateLimitPerMinute: positiveInteger(env.APIHZ_RATE_LIMIT_PER_MINUTE, 60),
   }
 }

@@ -118,6 +118,9 @@ cp server/.env.example server/.env.local
 APIHZ_DEVELOPER_ID=你的开发者ID
 APIHZ_KEY=你的开发者KEY
 PORT=8787
+APIHZ_UPSTREAM_CONCURRENCY=6
+APIHZ_CACHE_TTL_MS=30000
+APIHZ_RATE_LIMIT_PER_MINUTE=60
 ```
 
 `server/.env.local` 已被 Git 忽略。服务也兼容 `APIHZ_ID`，但优先读取 `APIHZ_DEVELOPER_ID`。生产环境应直接注入进程环境变量，不依赖文件。
@@ -141,7 +144,7 @@ curl http://127.0.0.1:8787/healthz
 curl "http://127.0.0.1:8787/api/typhoons?year=2026"
 ```
 
-`/healthz` 只返回进程状态和是否已配置，不回显凭据。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。
+`/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
 
 真实 API 技术探针：
 
@@ -151,7 +154,7 @@ pnpm --dir server probe:apihz
 
 探针会安全加载 `server/.env.local`，也可读取已忽略的仓库根 `.env.local`；process environment 始终优先。探针只写入 `server/reports/apihz-probe-summary.json` 脱敏聚合报告，不保存原始响应、台风编号、名称、坐标或凭据。无凭据时安全跳过并返回退出码 2。
 
-生产部署采用同源反向代理：由 Nginx/网关通过 HTTPS 提供 `web/dist/`，把 `/api` 转发到仅在内网或 loopback 监听的 Node 服务。生产环境不使用 Vite 代理，不对 Node 服务开放任意跨域访问，并由进程管理器注入 `APIHZ_DEVELOPER_ID`、`APIHZ_KEY`。
+生产部署采用同源反向代理：由 Nginx/网关通过 HTTPS 提供 `web/dist/`，把 `/api` 转发到仅在内网或 loopback 监听的 Node 服务。生产环境不使用 Vite 代理，不对 Node 服务开放任意跨域访问，并由进程管理器注入 `APIHZ_DEVELOPER_ID`、`APIHZ_KEY`。建议在公网网关同时配置按来源和路由的限流/连接上限，Node 内置限制作为第二层保护；若网关转发真实客户端地址，应由网关执行公网 IP 限流，因为 Node 默认只信任直连 socket IP，不信任可伪造的转发头。
 
 ### 7. 构建与预览发布包
 
