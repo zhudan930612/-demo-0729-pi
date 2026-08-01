@@ -43,26 +43,6 @@
       <button type="button" class="edit-action cancel" @click="emit('cancel-manual-edit')">取消</button>
     </template>
 
-    <template v-else>
-      <button type="button" class="edit-launch primary-launch" @click="emit('start-manual')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m4 5 7-2 5 5-2 10-9 2-2-8Z" /><path d="M18 13v8M14 17h8" />
-        </svg>
-        新增地块
-      </button>
-      <button
-        type="button"
-        class="edit-launch"
-        :disabled="!parcelOn || !hasFilterableParcels"
-        :title="hasFilterableParcels ? '筛选地块' : '当前村没有可筛选的地块'"
-        @click="emit('start-filter')"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 5h16l-6.5 7.2V19l-3 1.5v-8.3Z" />
-        </svg>
-        筛选地块
-      </button>
-    </template>
   </div>
 </template>
 
@@ -71,8 +51,6 @@ import type { ParcelMode } from '../../features/parcels/parcelTypes'
 
 defineProps<{
   mode: ParcelMode
-  parcelOn: boolean
-  hasFilterableParcels: boolean
   hiddenCount: number
   pendingHideCount: number
   pendingRestoreCount: number
@@ -84,8 +62,6 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'start-manual': []
-  'start-filter': []
   'restore-all': []
   'save-filter': []
   'cancel-filter': []
@@ -117,7 +93,6 @@ const emit = defineEmits<{
   backdrop-filter: blur(8px);
 }
 .parcel-edit-toolbar.active { gap: 4px; padding: 5px 6px; }
-.edit-launch,
 .edit-action {
   height: 34px;
   border: 0;
@@ -127,22 +102,8 @@ const emit = defineEmits<{
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
-.edit-launch {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 13px;
-  background: #fff;
-  color: #1d4ed8;
-}
-.edit-launch svg { width: 16px; height: 16px; }
-.edit-launch:hover:not(:disabled) { background: #eff6ff; color: #1e40af; }
-.edit-launch.primary-launch { background: #2563eb; color: #fff; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25); }
-.edit-launch.primary-launch:hover { background: #1d4ed8; color: #fff; }
-.edit-launch:disabled { cursor: not-allowed; color: #94a3b8; opacity: 0.7; }
 .edit-action { padding: 0 12px; background: transparent; color: #475569; }
 .edit-action:hover:not(:disabled) { background: #e2e8f0; color: #0f172a; }
-.edit-launch:focus-visible,
 .edit-action:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: 2px; }
 .edit-action:disabled { cursor: not-allowed; opacity: 0.38; }
 .edit-action.primary { background: #2563eb; color: #fff; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.25); }
@@ -204,7 +165,6 @@ const emit = defineEmits<{
 
 @media (max-width: 520px) {
   .parcel-edit-toolbar { left: 12px; right: 12px; overflow-x: auto; }
-  .edit-action,
-  .edit-launch { flex: 0 0 auto; }
+  .edit-action { flex: 0 0 auto; }
 }
 </style>

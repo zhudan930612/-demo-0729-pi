@@ -2,12 +2,10 @@
   <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle', 'parcel-drawing': parcelMode === 'drawing' }">
     <div ref="mapEl" class="map"></div>
 
-    <!-- 村级地块业务操作：新增与筛选保持同组常驻，进入模式后原位替换。 -->
+    <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
     <ParcelEditToolbar
-      v-if="store.current.level === 'village'"
+      v-if="store.current.level === 'village' && parcelMode !== 'idle'"
       :mode="parcelMode"
-      :parcel-on="parcelOn"
-      :has-filterable-parcels="hasFilterableParcels"
       :hidden-count="hiddenParcelCount"
       :pending-hide-count="pendingHideCount"
       :pending-restore-count="pendingRestoreCount"
@@ -16,8 +14,6 @@
       :draft-point-count="manualDraftPoints.length"
       :batch-has-changes="batchHasChanges"
       :draft-area-text="manualDraftAreaText"
-      @start-manual="startManualDrawing"
-      @start-filter="startParcelEditing"
       @restore-all="restoreAllHiddenParcels"
       @save-filter="saveParcelEdits"
       @cancel-filter="cancelParcelEditing"
@@ -105,9 +101,13 @@
       :mode="parcelMode"
       :can-zoom-in="canZoomIn"
       :can-zoom-out="canZoomOut"
+      :parcel-tools-visible="store.current.level === 'village'"
+      :has-filterable-parcels="hasFilterableParcels"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
+      @start-manual="startManualDrawing"
+      @start-filter="startParcelEditing"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
     />
