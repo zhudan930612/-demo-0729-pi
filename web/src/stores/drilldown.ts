@@ -72,5 +72,11 @@ export const useDrilldownStore = defineStore('drilldown', {
     async back() {
       if (this.path.length > 1 && await this.canNavigate()) this.path.pop()
     },
+    async resetToProvince(): Promise<boolean> {
+      if (this.path.length === 1 && this.current.level === 'province') return true
+      if (!await this.canNavigate()) return false
+      this.path = [{ level: 'province', code: '330000', name: '浙江省' }]
+      return true
+    },
   },
 })

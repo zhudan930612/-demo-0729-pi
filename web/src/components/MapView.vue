@@ -2,6 +2,13 @@
   <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle', 'parcel-drawing': parcelMode === 'drawing' }">
     <div ref="mapEl" class="map"></div>
 
+    <TyphoonModePanel
+      v-if="disasterActive"
+      :phase="typhoonStore.phase"
+      :realtime-count="typhoonStore.realtimeDetails.length"
+      @close="exitTyphoonMode"
+    />
+
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
     <ParcelEditToolbar
       v-if="store.current.level === 'village' && parcelMode !== 'idle'"
@@ -101,13 +108,17 @@
       :mode="parcelMode"
       :can-zoom-in="canZoomIn"
       :can-zoom-out="canZoomOut"
-      :parcel-tools-visible="store.current.level === 'village'"
+      :parcel-tools-visible="store.current.level === 'village' || disasterActive"
+      :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive"
       :has-filterable-parcels="hasFilterableParcels"
+      :disaster-entry-disabled="disasterEntryDisabled"
+      :disaster-active="disasterActive"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
       @start-manual="startManualDrawing"
       @start-filter="startParcelEditing"
+      @open-typhoon="enterTyphoonMode"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
     />
@@ -115,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 import L from 'leaflet'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
@@ -123,6 +134,7 @@ import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
 import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
+import TyphoonModePanel from './typhoon/TyphoonModePanel.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
 import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
@@ -136,6 +148,10 @@ import { createParcelLayerController, type ParcelLayerController } from '../map/
 import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
+import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
+import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
+import { autoLevelAllowed, enterDisasterMode, exitDisasterMode, mapTyphoonLayerSnapshot } from '../features/typhoon/disasterModeLifecycle'
+import { useTyphoonStore } from '../stores/typhoon'
 import {
   addPendingManualParcel,
   commitManualBatch,
@@ -193,6 +209,9 @@ const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 
 const mapEl = ref<HTMLDivElement>()
 const store = useDrilldownStore()
+const typhoonStore = useTyphoonStore()
+const disasterActive = ref(false)
+const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const rsVisible = ref(false)
 const rsHint = ref('')
 const rsOn = ref(true)
@@ -279,6 +298,8 @@ let navigationController: MapNavigationController
 let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
 let workModeController: ParcelWorkModeController
+let typhoonLayerController: TyphoonLayerController
+let typhoonRepository: TyphoonSessionRepository
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
 
@@ -300,6 +321,8 @@ let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触�
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 let manualDialogResolve: ((confirmed: boolean) => void) | null = null
+let provinceRenderPromise: Promise<void> | null = null
+let fittedTyphoonSessionId: number | null = null
 // Leaflet Canvas 在部分浏览器中会让地块点击继续触发 map click；显式守卫是详情入口的回归保护。
 const parcelDetailClickGuard = createParcelDetailClickGuard()
 
@@ -368,13 +391,14 @@ function clearLayers() {
 
 /** 高分影像 开/关 */
 function toggleRs() {
+  if (disasterActive.value) return
   rsOn.value = !rsOn.value
   navigationController.setImageryOpacity(rsOn.value ? RS_OPACITY : 0)
 }
 
 /** AI 地块独立开/关 */
 async function toggleParcels() {
-  if (parcelMode.value !== 'idle') return
+  if (disasterActive.value || parcelMode.value !== 'idle') return
   if (parcelOn.value && selectedParcel.value && cultivationEditing.value) {
     const confirmed = await openManualDialog('关闭地块图层', '当前种植档案尚未保存，关闭后将丢失编辑内容。', '确认关闭')
     if (!confirmed) return
@@ -503,7 +527,7 @@ function leaveParcelWorkMode() {
 }
 
 async function startParcelEditing() {
-  if (!parcelOn.value || !hasFilterableParcels.value) return
+  if (disasterActive.value || !parcelOn.value || !hasFilterableParcels.value) return
   if (cultivationEditing.value && !await openManualDialog('进入筛选模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
   clearSelection()
   clearPendingParcelFilterState(parcelFilterState)
@@ -602,7 +626,7 @@ async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geom
 }
 
 async function startManualDrawing() {
-  if (store.current.level !== 'village') return
+  if (disasterActive.value || store.current.level !== 'village') return
   if (cultivationEditing.value && !await openManualDialog('进入新增模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
   clearSelection()
   showManualStorageNoticeOnce()
@@ -851,6 +875,53 @@ function hasUnsavedParcelWork(): boolean {
   return pendingChangeCount.value > 0
 }
 
+function closeBusinessForDisaster() {
+  clearSelection()
+  rosterOpen.value = false
+}
+
+function hideParcelLayersForDisaster() {
+  parcelOn.value = false
+  parcelLayerController?.clear()
+  manualDrawingController?.clear()
+  parcelVisible.value = false
+  parcelDisplayCount.value = 0
+  parcelDisplayAreaMu.value = 0
+}
+
+async function waitForProvincePanorama() {
+  await nextTick()
+  if (provinceRenderPromise) await provinceRenderPromise
+  else await render(false)
+  hideParcelLayersForDisaster()
+}
+
+async function enterTyphoonMode() {
+  const entered = await enterDisasterMode({
+    hasUnsavedWork: hasUnsavedParcelWork,
+    isActive: () => disasterActive.value,
+    setActive: (active) => { disasterActive.value = active },
+    closeBusinessPanels: closeBusinessForDisaster,
+    hideParcelLayers: hideParcelLayersForDisaster,
+    resetToProvince: () => store.resetToProvince(),
+    renderProvincePanorama: waitForProvincePanorama,
+    enterRepository: () => { fittedTyphoonSessionId = null; void typhoonRepository.enter() },
+  })
+  if (!entered) provinceRenderPromise = null
+}
+
+function exitTyphoonMode() {
+  exitDisasterMode({
+    isActive: () => disasterActive.value,
+    exitRepository: () => typhoonRepository?.exit(),
+    clearTyphoonLayers: () => typhoonLayerController?.clear(),
+    setActive: (active) => { disasterActive.value = active },
+  })
+  fittedTyphoonSessionId = null
+  // 地块关闭状态、业务抽屉与当前相机均原样保留；不触发行政 render。
+  parcelOn.value = false
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 }
@@ -1035,12 +1106,36 @@ watch(() => store.path.length, () => {
   manualDrawingController.clearDraft()
   manualDraftPoints.value = []
   manualDraftDirty.value = false
-  render(nf)
+  provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
+
+watch(() => ({
+  active: disasterActive.value,
+  sessionId: typhoonStore.sessionId,
+  realtime: typhoonStore.realtimeDetails,
+  opened: typhoonStore.openedHistoricalIds,
+  focused: typhoonStore.focusedTyphoonId,
+  selected: { ...typhoonStore.selectedNodeByTyphoon },
+  phase: typhoonStore.phase,
+}), (state) => {
+  if (!state.active || !typhoonLayerController) return
+  typhoonLayerController.render(mapTyphoonLayerSnapshot({
+    realtimeDetails: state.realtime,
+    openedHistoricalIds: state.opened,
+    details: typhoonStore.details,
+    focusedTyphoonId: state.focused,
+    selectedNodeByTyphoon: state.selected,
+  }))
+  if (state.focused && state.realtime.length > 0 && fittedTyphoonSessionId !== state.sessionId) {
+    if (typhoonLayerController.fitBoundsForTyphoon(state.focused, { padding: [36, 36], maxZoom: 7.5 })) {
+      fittedTyphoonSessionId = state.sessionId
+    }
+  }
+}, { deep: true })
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
-  if (suppressAutoZoom || parcelMode.value !== 'idle') return
+  if (!autoLevelAllowed(disasterActive.value, parcelMode.value, suppressAutoZoom)) return
   const crumb = store.current
   const z = map.getZoom()
 
@@ -1158,6 +1253,18 @@ onMounted(async () => {
     onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
+  typhoonLayerController = createTyphoonLayerController(map, {
+    onTyphoonClick: ({ typhoonId }) => typhoonStore.focusTyphoon(typhoonId),
+    onNodeClick: ({ typhoonId, nodeId }) => {
+      typhoonStore.selectNode(typhoonId, nodeId)
+      typhoonLayerController.panNodeIntoView(typhoonId, nodeId, { padding: [36, 36] })
+    },
+    onCenterClick: ({ typhoonId, nodeId }) => {
+      typhoonStore.selectNode(typhoonId, nodeId)
+      typhoonLayerController.panNodeIntoView(typhoonId, nodeId, { padding: [36, 36] })
+    },
+  })
+  typhoonRepository = createTyphoonSessionRepository(typhoonStore)
   await loadBusinessData()
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
@@ -1179,12 +1286,14 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  exitTyphoonMode()
   disposed = true
   flySeq += 1
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
   if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
   window.removeEventListener('keydown', onManualKeydown)
   store.setNavigationGuard(null)
+  typhoonLayerController?.destroy()
   workModeController?.destroy()
   manualDrawingController?.destroy()
   parcelLayerController?.destroy()
