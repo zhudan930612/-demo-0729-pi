@@ -12,8 +12,6 @@ export interface TyphoonTimelineLabelViewModel {
   focused: boolean
   disabled: boolean
   disabledReason: string
-  indicatorPercent: number | null
-  indicatorLabel: string
 }
 
 export interface TyphoonTimelineViewModel {
@@ -55,12 +53,6 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
     const detail = detailById.get(label.typhoonId)
     if (!detail) return []
     const opened = source.openedHistoricalIds.includes(detail.id)
-    const selectedId = source.selectedNodeByTyphoon[detail.id]
-    const selected = selectedId ? detail.observationsAsc.find((node) => node.id === selectedId) : undefined
-    const duration = Math.max(1, label.endMs - label.startMs)
-    const indicatorPercent = opened && selected
-      ? Math.max(0, Math.min(100, ((selected.epochMs - label.startMs) / duration) * 100))
-      : null
     const disabledReason = opened ? '' : message
     return [{
       id: detail.id,
@@ -73,8 +65,6 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
       focused: source.focusedTyphoonId === detail.id,
       disabled: Boolean(disabledReason),
       disabledReason,
-      indicatorPercent,
-      indicatorLabel: selected ? `当前节点：${selected.timeYmdh}` : '',
     }]
   })
   return {

@@ -66,11 +66,11 @@ describe('typhoon timeline view model', () => {
     expect(opened.labels[0]!.disabled).toBe(false)
   })
 
-  it('加载中允许已有标签先显示，选中节点映射指示器', () => {
+  it('加载中允许已有标签先显示并保留打开与焦点状态', () => {
     const item = history('a', ['2026-01-01 00:00:00', '2026-01-11 00:00:00'])
     const model = buildTyphoonTimelineViewModel({ details: [item], nowMs, realtimeCount: 0, openedHistoricalIds: ['a'], focusedTyphoonId: 'a', selectedNodeByTyphoon: { a: item.observationsAsc[1]!.id }, historyPending: 2 })
     expect(model.loading).toBe(true)
     expect(model.empty).toBe(false)
-    expect(model.labels[0]!.indicatorPercent).toBe(100)
+    expect(model.labels[0]).toMatchObject({ opened: true, focused: true })
   })
 })
