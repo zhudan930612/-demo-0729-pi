@@ -2,78 +2,68 @@
 
 ## 仓库目的
 
-- 本仓库是浙江农业保险地图 Demo：天地图底图、浙江省五级行政区划下钻、吉林一号影像、地块与保单业务，以及灾害风险/台风查看。
+- 浙江农业保险地图 Demo：天地图底图、浙江省五级行政区划下钻、吉林一号影像、地块与保单业务，以及灾害风险/台风查看。
 - 优先保证空间数据链路正确、地图交互稳定、受限数据不外泄。
 - 仓库文件是事实来源；不要依赖未落盘的聊天上下文。
 
 ## 仓库地图
 
-- `README.md`：项目概览、本地运行、数据准备和版权限制。
-- `PRODUCT.md`：稳定的产品定位、用户、能力边界与受限数据约束。
-- `DESIGN.md`：地图工作台的视觉令牌、组件模式和界面边界。
-- `docs/README.md`：项目文档总入口，区分现役需求和历史归档。
-- `docs/requirements/需求文档.md`：当前地图与地块功能、已确认决策、数据约束和验收标准。
-- `docs/requirements/地块详情与保单关联V1需求.md`：当前 V1 地块详情、种植档案与保单关联的业务规则及验收标准。
-- `docs/requirements/灾害风险与台风查看需求.md`：灾害风险与台风 V1 的业务规则和验收标准。
-- `docs/archive/`：已完成计划和阶段性验收证据的归档；不作为现役需求事实来源。
-- `docs/archive/灾害风险与台风实施计划.md`、`docs/archive/灾害风险与台风验收记录.md`：台风 V1 的历史实施边界、提交分段与阶段性验证证据。
-- `docs/archive/MapView拆分计划.md`：地图模块拆分的历史架构决策与回归清单。
-- `web/src/components/MapView.vue`：地图装配、状态协调和 Leaflet 生命周期。
-- `web/src/map/`、`web/src/features/`、`web/src/stores/`：地图控制器、地块/保单/台风业务和会话状态。
-- `server/`：APIHz 台风服务端代理、资源保护、脱敏探针和测试。
-- `scripts/`：边界、影像、地块预处理和数据链路检查；逐个脚本是其产物格式的事实来源。
+- `README.md`：项目概览、本地运行、数据准备、代理接入和版权限制。
+- `PRODUCT.md`：稳定的产品定位、能力边界和术语。
+- `DESIGN.md`：地图工作台的视觉令牌与组件模式。
+- `docs/README.md`：项目文档总入口；从这里进入现役需求或历史归档。
+- `web/src/`：Vue/Leaflet 前端；`web/src/components/MapView.vue` 负责装配，`web/src/map/`、`web/src/features/`、`web/src/stores/` 持有地图和业务逻辑。
+- `server/`：APIHz 台风代理、资源保护、脱敏探针和测试。
+- `scripts/`：边界、影像、地块预处理与数据链路检查。
 
 ## 事实来源
 
-- 地图与地块行为：`docs/requirements/需求文档.md`；详情/保单行为：`docs/requirements/地块详情与保单关联V1需求.md`；灾害风险/台风行为：`docs/requirements/灾害风险与台风查看需求.md`。
-- 产品边界与术语：`PRODUCT.md`；视觉与交互样式：`DESIGN.md`。
-- 地图模块当前职责以 `web/src/map/`、`web/src/features/parcels/` 和装配源码为准；历史拆分决策与回归清单见 `docs/archive/MapView拆分计划.md`。
-- 本地运行、代理接入、依赖、受限数据和版权：`README.md`、`web/package.json`、`server/package.json`。
-- 数据产物格式和生成规则：相应的 `scripts/*.py`；全链路检查入口为 `python scripts/validate-data.py`。
+- 用户可见行为、业务规则和验收标准：`docs/README.md` 指向的对应现役需求。
+- 产品边界与术语：`PRODUCT.md`；视觉与交互：`DESIGN.md`。
+- 当前架构职责：对应源码和测试；`docs/archive/` 仅用于追溯历史决策和阶段性证据。
+- 本地运行、环境变量、依赖和版权：`README.md`、`web/package.json`、`server/package.json`。
+- 数据产物格式和生成规则：相应的 `scripts/*.py`。
 
-若文档、代码或生成数据冲突，先实测，修正拥有该事实的文档；不要在本文件复制详细规格。
+若文档、代码或生成数据冲突，先实测，再修正拥有该事实的文档；不要在本文件复制详细规格。
 
 ## 工作闭环
 
-1. 先读本文件，再按任务进入上面的 owner 文档和模块。
-2. 改变用户可见行为、术语或验收条件前后，同步拥有该行为的需求文档；地块详情/保单与台风分别核对对应 V1 文档。
-3. 改动地图装配时查阅 `docs/archive/MapView拆分计划.md` 的历史边界与回归清单，并以当前源码裁决职责；修改 `web/src/map/`、`web/src/features/parcels/` 或视图组件，避免把逻辑重新堆回 `MapView.vue`。
-4. 改动静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 与前端加载路径。
-5. 前端改动至少运行：
-   ```bash
-   cd web && pnpm test && pnpm build
-   ```
-   台风代理改动同时运行 `pnpm --dir server test`；台风 V1 阶段性验收证据见 `docs/archive/灾害风险与台风验收记录.md`，当前改动仍须记录本次实际验证结果。
-6. 数据脚本或层级链路改动后运行：
-   ```bash
-   python scripts/validate-data.py
-   ```
-   编码归属逻辑变化时，再运行 `python scripts/check-codes.py`。
-7. 记录实际验证结果；未运行对应验证时不要宣称完成。
+1. 先从 `docs/README.md` 找到任务对应的 owner 文档和代码模块。
+2. 改变用户可见行为、术语或验收条件时，同步对应现役需求。
+3. 改地图装配时沿用 `web/src/map/`、`web/src/features/` 和视图组件的现有职责，避免把逻辑重新堆回 `MapView.vue`。
+4. 改静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 和前端加载路径。
+5. 按改动范围运行下面的验证命令，并记录实际结果；未运行时不要宣称完成。
+6. 复杂跨模块工作先建立版本化专项计划；仓库当前没有统一计划目录，新增入口时同步 `docs/README.md`。
+
+## 验证命令
+
+```bash
+pnpm --dir web test
+pnpm --dir web build
+pnpm --dir server test              # 修改台风代理时
+python scripts/validate-data.py     # 修改数据脚本或层级链路时
+python scripts/check-codes.py       # 修改编码归属逻辑时
+git diff --check
+```
 
 ## 硬约束
 
-- 不提交 `.env.local` 或天地图 Token；示例变量见 `web/.env.local.example`。
-- 不提交 `01-行政区划/`、`05-遥感数据/`、`参考截图/`。
-- 不提交 `web/public/data/`、`web/public/tiles/`、`web/dist/`；这些是本地生成或受版权约束的产物。
-- 吉林一号影像、派生瓦片和 AI 地块 GeoJSON 不得公开分发。
-- 锐多宝数据未获商业授权前不得对外发布；详细说明以 `README.md` 和 `docs/requirements/需求文档.md` 为准。
-- Delineate Anything 仅作为仓库外离线工具；不要把其源码、环境或模型权重复制进本仓库。
-- AI 地块是演示结果，不得描述为确权、承保或测绘成果。
-- 村是导航终点；新增更深层级前必须先更新需求与数据方案。
-- 不要用村点生成伪村界；村界来源规则见 `docs/requirements/需求文档.md`。
+- 不提交 `.env.local`、天地图 Token 或 APIHz 凭据；示例见 `web/.env.local.example`、`server/.env.example`。
+- 不提交 `01-行政区划/`、`05-遥感数据/`、`参考截图/`、`web/public/data/`、`web/public/tiles/` 或 `web/dist/`。
+- 吉林一号影像、派生瓦片和 AI 地块 GeoJSON 不得公开分发；锐多宝数据未获商业授权前不得对外发布。
+- Delineate Anything 仅作为仓库外离线工具；不要复制其源码、环境或模型权重。
+- AI 地块不得描述为确权、承保或测绘成果。
+- 村是导航终点；不得用村点生成伪村界。更深层级和村界来源规则以现役地图需求为准。
 - 保持天地图文字注记位于影像、地块和边界之上。
 
 ## 当前缺口
 
-- 尚无独立的全仓架构文档；地图/地块与台风当前架构以对应源码为准，历史实施决策分别见 `docs/archive/MapView拆分计划.md` 和 `docs/archive/灾害风险与台风实施计划.md`。
-- 地块详情、保单、种植档案和台风 V1 代码已落盘；当前验证证据分别见对应需求/验收文档。
-- 尚无统一的版本化执行计划目录；复杂跨模块工作先在 `docs/` 增加专项计划，再实施。
-- 尚无 CI；构建、单测和数据校验当前依赖本地命令。
+- 尚无独立全仓架构文档；当前架构以源码为准，历史实施决策见 `docs/archive/`。
+- 尚无统一版本化执行计划目录和 CI；验证依赖本地命令。
 - `scripts/` 尚无统一锁定的 Python 依赖文件；新增依赖时同步 `README.md`。
 
 ## 不应写在这里
 
-- 详细产品规格、缩放阈值表、地块模型参数或数据统计；放到 `docs/requirements/需求文档.md`。
+- 详细产品规格、缩放阈值、模型参数或数据统计；放入 `docs/README.md` 路由的 owner 文档。
 - 临时任务进度、会话状态、一次性调试记录或未验证猜测。
-- 无法指向仓库文件、脚本或检查命令的空泛要求。
+- 无法指向仓库文件、命令或检查器的空泛要求。
