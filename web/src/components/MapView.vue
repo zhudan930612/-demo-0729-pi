@@ -1446,10 +1446,10 @@ onMounted(async () => {
       if (kind === 'actual') pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint)
     },
     onNodeEnter: ({ typhoonId, nodeId, kind, containerPoint }) => {
-      if (kind === 'actual') setHover({ kind: 'center', typhoonId, nodeId }, containerPoint)
+      setHover({ kind: kind === 'actual' ? 'center' : 'forecast', typhoonId, nodeId }, containerPoint)
     },
     onNodeLeave: ({ typhoonId, nodeId, kind }) => {
-      if (kind === 'actual') clearHover({ kind: 'center', typhoonId, nodeId })
+      clearHover({ kind: kind === 'actual' ? 'center' : 'forecast', typhoonId, nodeId })
     },
     onCenterClick: ({ typhoonId, nodeId, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint) },
     onWindCircleClick: ({ typhoonId, nodeId, grade, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint) },

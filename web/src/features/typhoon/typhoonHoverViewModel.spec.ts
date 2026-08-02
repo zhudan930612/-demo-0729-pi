@@ -28,6 +28,17 @@ describe('typhoon hover view model', () => {
     expect(model).not.toHaveProperty('trend')
   })
 
+  it('预测节点输出独立中国预报浮窗字段', () => {
+    const observation = node('a:n')
+    const d = { ...detail('a', observation), domesticNo: '202613' }
+    const forecastId = observation.forecastSnapshot!.nodes[0]!.id
+    const model = buildTyphoonHoverViewModel({ a: d }, { kind: 'forecast', typhoonId: 'a', nodeId: forecastId })
+    expect(model).toMatchObject({
+      kind: 'forecast', title: '202613 中文a', provider: '中国预报', publishedTime: '8月1日20时',
+      futureTime: '12小时后', position: '155.00° / 22.00°', windSpeed: '55米/秒', pressure: '--', intensity: '--',
+    })
+  })
+
   it('缺失风圈级显示 -- 并完整提供四象限', () => {
     const d = detail('a', node('a:n'))
     const center = buildTyphoonHoverViewModel({ a: d }, { kind: 'center', typhoonId: 'a', nodeId: 'a:n' })

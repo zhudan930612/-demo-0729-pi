@@ -1,8 +1,9 @@
 import { windRadiusPriority } from './typhoonWindCircle'
-import type { ObservationNode, TyphoonDetail, WindRadius } from './typhoonTypes'
+import type { ForecastNode, ObservationNode, TyphoonDetail, WindRadius } from './typhoonTypes'
 
 export type TyphoonHoverTarget =
   | { kind: 'center'; typhoonId: string; nodeId: string }
+  | { kind: 'forecast'; typhoonId: string; nodeId: string }
   | { kind: 'wind'; typhoonId: string; nodeId: string; grade: string }
 
 export interface TyphoonCenterHoverViewModel {
@@ -22,6 +23,20 @@ export interface TyphoonCenterHoverViewModel {
   radius12: string
 }
 
+export interface TyphoonForecastHoverViewModel {
+  kind: 'forecast'
+  typhoonId: string
+  nodeId: string
+  title: string
+  provider: string
+  publishedTime: string
+  futureTime: string
+  position: string
+  windSpeed: string
+  pressure: string
+  intensity: string
+}
+
 export interface TyphoonWindHoverViewModel {
   kind: 'wind'
   typhoonId: string
@@ -35,7 +50,7 @@ export interface TyphoonWindHoverViewModel {
   southeast: string
 }
 
-export type TyphoonHoverViewModel = TyphoonCenterHoverViewModel | TyphoonWindHoverViewModel
+export type TyphoonHoverViewModel = TyphoonCenterHoverViewModel | TyphoonForecastHoverViewModel | TyphoonWindHoverViewModel
 
 function findNode(detail: TyphoonDetail | undefined, nodeId: string): ObservationNode | null {
   return detail?.observationsAsc.find((node) => node.id === nodeId) ?? null
@@ -79,6 +94,30 @@ function centerModel(detail: TyphoonDetail, node: ObservationNode): TyphoonCente
   }
 }
 
+function findForecast(detail: TyphoonDetail, nodeId: string): { forecast: ForecastNode; origin: ObservationNode } | null {
+  for (const origin of detail.observationsAsc) {
+    const forecast = origin.forecastSnapshot?.nodes.find((node) => node.id === nodeId)
+    if (forecast) return { forecast, origin }
+  }
+  return null
+}
+
+function forecastModel(detail: TyphoonDetail, forecast: ForecastNode, origin: ObservationNode): TyphoonForecastHoverViewModel {
+  return {
+    kind: 'forecast',
+    typhoonId: detail.id,
+    nodeId: forecast.id,
+    title: `${detail.domesticNo || detail.id} ${detail.nameCn || '--'}`,
+    provider: '中国预报',
+    publishedTime: compactNodeTime(origin.timeYmdh),
+    futureTime: forecast.targetTimeYmdh ? compactNodeTime(forecast.targetTimeYmdh) : `${forecast.forecastHour}小时后`,
+    position: forecast.positionText?.trim() || `${forecast.lon.toFixed(2)}° / ${forecast.lat.toFixed(2)}°`,
+    windSpeed: `${forecast.windSpeedMs}米/秒`,
+    pressure: forecast.pressureHpa === undefined ? '--' : `${forecast.pressureHpa}百帕`,
+    intensity: forecast.intensityText || '--',
+  }
+}
+
 function windModel(detail: TyphoonDetail, node: ObservationNode, grade: string): TyphoonWindHoverViewModel | null {
   const radius = node.windRadii.find((item) => item.grade === grade)
   if (!radius) return null
@@ -102,8 +141,13 @@ export function buildTyphoonHoverViewModel(
   target: TyphoonHoverTarget,
 ): TyphoonHoverViewModel | null {
   const detail = details[target.typhoonId]
+  if (!detail) return null
+  if (target.kind === 'forecast') {
+    const found = findForecast(detail, target.nodeId)
+    return found ? forecastModel(detail, found.forecast, found.origin) : null
+  }
   const node = findNode(detail, target.nodeId)
-  if (!detail || !node) return null
+  if (!node) return null
   return target.kind === 'center' ? centerModel(detail, node) : windModel(detail, node, target.grade)
 }
 

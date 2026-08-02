@@ -377,20 +377,18 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
       }).addTo(group)
       const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: point.id, kind: forecast ? 'forecast' as const : 'actual' as const, containerPoint: pointerPosition(map, event) })
       layer.on('click', (event) => { stop(event); callbacks.onNodeClick?.(payload(event)) })
-      if (!forecast) {
-        layer.on('mouseover', (event) => {
-          stop(event)
-          layer.setRadius(baseRadius + 2.5)
-          layer.setStyle({ weight: point.style.borderWidthPx + 1.5 })
-          callbacks.onNodeEnter?.(payload(event))
-        })
-        layer.on('mouseout', (event) => {
-          stop(event)
-          layer.setRadius(baseRadius)
-          layer.setStyle({ weight: point.style.borderWidthPx })
-          callbacks.onNodeLeave?.(payload(event))
-        })
-      }
+      layer.on('mouseover', (event) => {
+        stop(event)
+        layer.setRadius(baseRadius + 2.5)
+        layer.setStyle({ weight: point.style.borderWidthPx + 1.5 })
+        callbacks.onNodeEnter?.(payload(event))
+      })
+      layer.on('mouseout', (event) => {
+        stop(event)
+        layer.setRadius(baseRadius)
+        layer.setStyle({ weight: point.style.borderWidthPx })
+        callbacks.onNodeLeave?.(payload(event))
+      })
     }
     scene.actualPoints.forEach((point) => addPoint(point, false))
     scene.forecastPoints.forEach((point) => addPoint(point, true))

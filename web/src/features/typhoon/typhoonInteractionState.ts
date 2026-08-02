@@ -7,7 +7,7 @@ export interface TyphoonPopupState {
 
 export function sameHoverTarget(left: TyphoonHoverTarget | null, right: TyphoonHoverTarget | null): boolean {
   if (!left || !right || left.kind !== right.kind || left.typhoonId !== right.typhoonId || left.nodeId !== right.nodeId) return false
-  return left.kind === 'center' || (right.kind === 'wind' && left.grade === right.grade)
+  return left.kind === 'center' || left.kind === 'forecast' || (right.kind === 'wind' && left.grade === right.grade)
 }
 export function visiblePopupTarget(state: TyphoonPopupState): TyphoonHoverTarget | null { return state.pinned ?? state.hover }
 export function hoverPopup(state: TyphoonPopupState, target: TyphoonHoverTarget): TyphoonPopupState { return { ...state, hover: target } }
