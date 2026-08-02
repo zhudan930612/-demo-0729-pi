@@ -14,17 +14,18 @@ function detail(id: string, observation: ObservationNode, status: 'start' | 'sto
 }
 
 describe('typhoon hover view model', () => {
-  it('严格按 typhoonId/nodeId 取值且 API 文本保持纯文本', () => {
+  it('严格按 typhoonId/nodeId 取值并输出截图所需的单列参数', () => {
     const a = detail('a', node('a:n'))
     const b = detail('b', node('b:n', { pressureHpa: 980 }))
     const model = buildTyphoonHoverViewModel({ a, b }, { kind: 'center', typhoonId: 'a', nodeId: 'a:n' })
     expect(model?.kind).toBe('center')
     if (model?.kind !== 'center') return
-    expect(model.pressure).toBe('925 hPa')
-    expect(model.wind).toBe('58 m/s，超强台风')
-    expect(model.referencePosition).toBe('<b>官方位置</b>')
-    expect(model.trend).toBe('<script>API预报</script>')
-    expect(model.trendSource).toBe('API 原文')
+    expect(model.time).toBe('8月1日20时')
+    expect(model.pressure).toBe('925百帕')
+    expect(model.windSpeed).toBe('58米/秒')
+    expect(model.intensity).toBe('超强台风')
+    expect(model).not.toHaveProperty('referencePosition')
+    expect(model).not.toHaveProperty('trend')
   })
 
   it('缺失风圈级显示 -- 并完整提供四象限', () => {
@@ -33,12 +34,6 @@ describe('typhoon hover view model', () => {
     expect(center?.kind === 'center' && center.radius10).toBe('--')
     const wind = buildTyphoonHoverViewModel({ a: d }, { kind: 'wind', typhoonId: 'a', nodeId: 'a:n', grade: '7' })
     expect(wind?.kind === 'wind' && [wind.northwest, wind.northeast, wind.southwest, wind.southeast]).toEqual(['190 km', '200 km', '160 km', '180 km'])
-  })
-
-  it('参考位置与趋势按回退优先级并标记应用生成来源', () => {
-    const d = detail('a', node('a:n', { officialReferenceText: undefined, forecastSnapshot: null, moveDescription: '向西移动' }))
-    const model = buildTyphoonHoverViewModel({ a: d }, { kind: 'center', typhoonId: 'a', nodeId: 'a:n' })
-    expect(model?.kind === 'center' && [model.referencePosition, model.trend, model.trendSource]).toEqual(['暂无参考位置', '向西移动', '应用生成'])
   })
 
   it('预测点不会污染 actual selected node，历史实际点返回完整可见数量', () => {

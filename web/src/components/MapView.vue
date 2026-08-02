@@ -181,7 +181,7 @@ import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapsho
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
 import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
-import { clearPinnedPopup, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
+import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
@@ -1445,12 +1445,16 @@ onMounted(async () => {
       else revealTyphoon(typhoonId)
       if (kind === 'actual') pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint)
     },
+    onNodeEnter: ({ typhoonId, nodeId, kind, containerPoint }) => {
+      if (kind === 'actual') setHover({ kind: 'center', typhoonId, nodeId }, containerPoint)
+    },
+    onNodeLeave: ({ typhoonId, nodeId, kind }) => {
+      if (kind === 'actual') clearHover({ kind: 'center', typhoonId, nodeId })
+    },
     onCenterClick: ({ typhoonId, nodeId, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint) },
     onWindCircleClick: ({ typhoonId, nodeId, grade, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint) },
     onCenterEnter: ({ typhoonId, nodeId, containerPoint }) => setHover({ kind: 'center', typhoonId, nodeId }, containerPoint),
     onCenterLeave: ({ typhoonId, nodeId }) => clearHover({ kind: 'center', typhoonId, nodeId }),
-    onWindCircleEnter: ({ typhoonId, nodeId, grade, containerPoint }) => setHover({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint),
-    onWindCircleLeave: ({ typhoonId, nodeId, grade }) => clearHover({ kind: 'wind', typhoonId, nodeId, grade }),
   })
   typhoonRepository = createTyphoonSessionRepository(typhoonStore)
   typhoonPlaybackController = createTyphoonPlaybackController({
@@ -1465,6 +1469,9 @@ onMounted(async () => {
   }
   syncMapViewport()
   map.on('resize', syncMapViewport)
+  map.getContainer().addEventListener('pointermove', () => {
+    typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)
+  })
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
     emit('zoom-change', currentZoom.value)

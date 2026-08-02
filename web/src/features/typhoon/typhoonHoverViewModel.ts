@@ -1,4 +1,3 @@
-import { futureTrendText, referencePositionText } from './typhoonText'
 import { windRadiusPriority } from './typhoonWindCircle'
 import type { ObservationNode, TyphoonDetail, WindRadius } from './typhoonTypes'
 
@@ -14,15 +13,13 @@ export interface TyphoonCenterHoverViewModel {
   nameEn: string
   time: string
   position: string
-  wind: string
+  windSpeed: string
+  intensity: string
   pressure: string
   movement: string
   radius7: string
   radius10: string
   radius12: string
-  referencePosition: string
-  trend: string
-  trendSource: 'API 原文' | '应用生成' | ''
 }
 
 export interface TyphoonWindHoverViewModel {
@@ -49,16 +46,20 @@ function radiusText(radius: WindRadius | undefined): string {
   const values = [radius.neRadiusKm, radius.seRadiusKm, radius.swRadiusKm, radius.nwRadiusKm]
   const minimum = Math.min(...values)
   const maximum = Math.max(...values)
-  return minimum === maximum ? `${minimum} km` : `${minimum}–${maximum} km`
+  return minimum === maximum ? `${minimum}公里` : `${minimum}-${maximum}公里`
 }
 
 function radiusByPriority(node: ObservationNode, priority: number): WindRadius | undefined {
   return node.windRadii.find((radius) => windRadiusPriority(radius) === priority)
 }
 
+function compactNodeTime(value: string): string {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2})/)
+  return match ? `${Number(match[2])}月${Number(match[3])}日${match[4]}时` : value || '--'
+}
+
 function centerModel(detail: TyphoonDetail, node: ObservationNode): TyphoonCenterHoverViewModel {
-  const trend = futureTrendText(node)
-  const movement = [node.moveSpeedKmh === undefined ? '' : `${node.moveSpeedKmh} km/h`, node.moveDirectionText ?? '']
+  const movement = [node.moveSpeedKmh === undefined ? '' : `${node.moveSpeedKmh}公里/小时`, node.moveDirectionText ?? '']
     .filter(Boolean).join('，') || '--'
   return {
     kind: 'center',
@@ -66,17 +67,15 @@ function centerModel(detail: TyphoonDetail, node: ObservationNode): TyphoonCente
     nodeId: node.id,
     nameCn: detail.nameCn || '--',
     nameEn: detail.nameEn || '--',
-    time: node.timeYmdh || '--',
-    position: node.positionText?.trim() || `${node.lon.toFixed(2)}°E / ${node.lat.toFixed(2)}°N`,
-    wind: `${node.windSpeedMs} m/s${node.intensityText ? `，${node.intensityText}` : ''}`,
-    pressure: node.pressureHpa === undefined ? '--' : `${node.pressureHpa} hPa`,
+    time: compactNodeTime(node.timeYmdh),
+    position: node.positionText?.trim() || `${node.lon.toFixed(2)}° / ${node.lat.toFixed(2)}°`,
+    windSpeed: `${node.windSpeedMs}米/秒`,
+    intensity: node.intensityText || '--',
+    pressure: node.pressureHpa === undefined ? '--' : `${node.pressureHpa}百帕`,
     movement,
     radius7: radiusText(radiusByPriority(node, 1)),
     radius10: radiusText(radiusByPriority(node, 2)),
     radius12: radiusText(radiusByPriority(node, 3)),
-    referencePosition: referencePositionText(node),
-    trend: trend.text,
-    trendSource: trend.source === 'api' ? 'API 原文' : trend.source === 'application' ? '应用生成' : '',
   }
 }
 

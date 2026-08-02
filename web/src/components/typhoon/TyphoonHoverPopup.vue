@@ -1,14 +1,16 @@
 <template>
   <div v-if="model" class="typhoon-hover" :class="model.kind" :style="popupStyle" role="tooltip">
     <template v-if="model.kind === 'center'">
-      <header><strong>{{ model.nameCn }}</strong><span>{{ model.nameEn }} · {{ model.time }}</span></header>
+      <header><strong>{{ model.nameCn }}({{ model.nameEn }})</strong><time>{{ model.time }}</time></header>
       <dl>
-        <div><dt>中心位置</dt><dd>{{ model.position }}</dd></div><div><dt>风速风力</dt><dd>{{ model.wind }}</dd></div>
-        <div><dt>中心气压</dt><dd>{{ model.pressure }}</dd></div><div><dt>移速移向</dt><dd>{{ model.movement }}</dd></div>
-        <div><dt>七级半径</dt><dd>{{ model.radius7 }}</dd></div><div><dt>十级半径</dt><dd>{{ model.radius10 }}</dd></div>
-        <div><dt>十二级半径</dt><dd>{{ model.radius12 }}</dd></div><div><dt>参考位置</dt><dd>{{ model.referencePosition }}</dd></div>
+        <div><dt>中心位置</dt><dd>{{ model.position }}</dd></div>
+        <div><dt>风速风力</dt><dd>{{ model.windSpeed }}，<b>{{ model.intensity }}</b></dd></div>
+        <div><dt>中心气压</dt><dd>{{ model.pressure }}</dd></div>
+        <div><dt>移速移向</dt><dd>{{ model.movement }}</dd></div>
+        <div><dt>七级半径</dt><dd>{{ model.radius7 }}</dd></div>
+        <div><dt>十级半径</dt><dd>{{ model.radius10 }}</dd></div>
+        <div><dt>十二级半径</dt><dd>{{ model.radius12 }}</dd></div>
       </dl>
-      <p><b>未来趋势</b><em v-if="model.trendSource">{{ model.trendSource }}</em>{{ model.trend }}</p>
     </template>
     <template v-else>
       <header><strong>{{ model.title }}</strong><span>{{ model.typhoonName }} · {{ model.nodeTime }}</span></header>
@@ -22,15 +24,17 @@ import { computed } from 'vue'
 import type { TyphoonHoverViewModel } from '../../features/typhoon/typhoonHoverViewModel'
 const props = defineProps<{ model: TyphoonHoverViewModel | null; x: number; y: number; viewportWidth: number; viewportHeight: number }>()
 const popupStyle = computed(() => {
-  const width = props.model?.kind === 'center' ? 330 : 250
-  const height = props.model?.kind === 'center' ? 268 : 132
-  const left = Math.max(8, Math.min(props.viewportWidth - width - 8, props.x + 18))
-  const preferredTop = props.y - height / 2
+  const center = props.model?.kind === 'center'
+  const width = center ? 270 : 112
+  const height = center ? 258 : 110
+  const preferredLeft = center ? props.x - width / 2 : props.x + 18
+  const left = Math.max(8, Math.min(props.viewportWidth - width - 8, preferredLeft))
+  const preferredTop = center ? props.y - height - 34 : props.y - height / 2
   const top = Math.max(8, Math.min(props.viewportHeight - height - 8, preferredTop))
   return { left: `${left}px`, top: `${top}px`, width: `${width}px` }
 })
 </script>
 
 <style scoped>
-.typhoon-hover{position:absolute;z-index:1200;box-sizing:border-box;padding:10px;border:1px solid rgba(148,163,184,.5);border-radius:8px;background:rgba(255,255,255,.98);box-shadow:0 10px 28px rgba(15,23,42,.26);color:#0f172a;pointer-events:none}.typhoon-hover header{display:grid;gap:2px;padding-bottom:7px;border-bottom:1px solid #e2e8f0}.typhoon-hover header strong{font-size:13px}.typhoon-hover header span{color:#64748b;font-size:10px}.typhoon-hover dl{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin:8px 0 0}.typhoon-hover dl div{min-width:0;display:grid;gap:1px}.typhoon-hover dt{color:#64748b;font-size:10px}.typhoon-hover dd{margin:0;overflow:hidden;color:#334155;font-size:10px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}.typhoon-hover p{display:grid;grid-template-columns:auto auto 1fr;gap:5px;margin:8px 0 0;padding-top:7px;border-top:1px solid #e2e8f0;font-size:10px;line-height:1.4}.typhoon-hover p b{color:#475569}.typhoon-hover p em{align-self:start;padding:1px 4px;border-radius:4px;background:#eff6ff;color:#1d4ed8;font-size:10px;font-style:normal;font-weight:700}.quadrants{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.quadrants span{display:grid;gap:2px;padding:6px;border:1px solid #e2e8f0;border-radius:6px;color:#64748b;font-size:10px}.quadrants b{color:#0f172a;font-size:12px;font-variant-numeric:tabular-nums}@media(max-width:520px){.typhoon-hover.center{max-width:calc(100vw - 16px)}}
+.typhoon-hover{position:absolute;z-index:1200;box-sizing:border-box;padding:4px;border:3px solid #2563eb;border-radius:9px;background:#2563eb;box-shadow:0 10px 28px rgba(15,23,42,.3);color:#0f172a;pointer-events:none}.typhoon-hover header{min-height:30px;display:flex;align-items:center;gap:7px;padding:2px 3px 5px;color:#fff;white-space:nowrap}.typhoon-hover header strong{overflow:hidden;font-size:13px;text-overflow:ellipsis}.typhoon-hover header time{margin-left:auto;color:#facc15;font-size:12px;font-weight:800}.typhoon-hover header span{overflow:hidden;color:#dbeafe;font-size:10px;text-overflow:ellipsis}.typhoon-hover dl{margin:0;padding:7px 8px;border-radius:7px;background:rgba(248,250,252,.94)}.typhoon-hover dl div{min-height:30px;display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;border-bottom:1px solid #cbd5e1}.typhoon-hover dl div:last-child{border-bottom:0}.typhoon-hover dt{color:#64748b;font-size:13px}.typhoon-hover dd{margin:0;overflow:hidden;color:#475569;font-size:12px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}.typhoon-hover dd b{color:#ef4444;font-weight:700}.typhoon-hover.wind{padding:5px 7px;border:0;border-radius:7px;background:rgba(255,255,255,.96);box-shadow:0 5px 16px rgba(15,23,42,.22)}.typhoon-hover.wind header{min-height:0;padding:0 0 4px;border-bottom:1px solid #cbd5e1;color:#475569}.typhoon-hover.wind header strong{font-size:13px}.typhoon-hover.wind header span{display:none}.quadrants{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;padding:4px 0 0;background:transparent}.quadrants span{display:grid;gap:1px;padding:0;border:0;border-radius:0;color:#334155;font-size:12px}.quadrants b{color:#3b82f6;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums}@media(max-width:520px){.typhoon-hover.center{max-width:calc(100vw - 16px)}}
 </style>

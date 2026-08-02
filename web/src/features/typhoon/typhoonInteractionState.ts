@@ -14,6 +14,9 @@ export function hoverPopup(state: TyphoonPopupState, target: TyphoonHoverTarget)
 export function leavePopup(state: TyphoonPopupState, target: TyphoonHoverTarget): TyphoonPopupState { return sameHoverTarget(state.hover, target) ? { ...state, hover: null } : state }
 export function pinPopup(_state: TyphoonPopupState, target: TyphoonHoverTarget): TyphoonPopupState { return { hover: null, pinned: target } }
 export function clearPinnedPopup(state: TyphoonPopupState): TyphoonPopupState { return { ...state, pinned: null } }
+export function clearPinnedWindPopupOnMove(state: TyphoonPopupState): TyphoonPopupState {
+  return state.pinned?.kind === 'wind' ? { ...state, pinned: null } : state
+}
 /** 关闭一条历史台风时只清除属于该台风的 hover/pinned，其他台风 popup 保留。 */
 export function clearPopupForTyphoon(state: TyphoonPopupState, typhoonId: string): TyphoonPopupState {
   const hover = state.hover?.typhoonId === typhoonId ? null : state.hover

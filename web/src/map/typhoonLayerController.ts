@@ -340,8 +340,6 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
       }).addTo(group)
       const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: circle.nodeId, grade: circle.grade, kind: 'actual' as const, containerPoint: pointerPosition(map, event) })
       layer.on('click', (event) => { stop(event); callbacks.onWindCircleClick?.(payload(event)) })
-      layer.on('mouseover', (event) => { stop(event); callbacks.onWindCircleEnter?.(payload(event)) })
-      layer.on('mouseout', (event) => { stop(event); callbacks.onWindCircleLeave?.(payload(event)) })
     }
     if (scene.actualPath.length >= 2) {
       const path = L.polyline(latLngs(scene.actualPath), {
@@ -365,9 +363,10 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
       path.on('click', (event) => { stop(event); callbacks.onTyphoonClick?.({ typhoonId: scene.id }) })
     }
     const addPoint = (point: TyphoonScenePoint, forecast: boolean) => {
+      const baseRadius = point.style.diameterPx / 2
       const layer = L.circleMarker([point.lat, point.lon], {
         pane: TYPHOON_PANES.point.name,
-        radius: point.style.diameterPx / 2,
+        radius: baseRadius,
         color: point.style.borderColor,
         weight: point.style.borderWidthPx,
         fillColor: point.style.color,
@@ -378,8 +377,20 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
       }).addTo(group)
       const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: point.id, kind: forecast ? 'forecast' as const : 'actual' as const, containerPoint: pointerPosition(map, event) })
       layer.on('click', (event) => { stop(event); callbacks.onNodeClick?.(payload(event)) })
-      layer.on('mouseover', (event) => { stop(event); callbacks.onNodeEnter?.(payload(event)) })
-      layer.on('mouseout', (event) => { stop(event); callbacks.onNodeLeave?.(payload(event)) })
+      if (!forecast) {
+        layer.on('mouseover', (event) => {
+          stop(event)
+          layer.setRadius(baseRadius + 2.5)
+          layer.setStyle({ weight: point.style.borderWidthPx + 1.5 })
+          callbacks.onNodeEnter?.(payload(event))
+        })
+        layer.on('mouseout', (event) => {
+          stop(event)
+          layer.setRadius(baseRadius)
+          layer.setStyle({ weight: point.style.borderWidthPx })
+          callbacks.onNodeLeave?.(payload(event))
+        })
+      }
     }
     scene.actualPoints.forEach((point) => addPoint(point, false))
     scene.forecastPoints.forEach((point) => addPoint(point, true))
