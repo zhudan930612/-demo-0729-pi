@@ -14,8 +14,9 @@
 - `docs/需求文档.md`：当前地图与地块功能、已确认决策、数据约束和验收标准。
 - `docs/地块详情与保单关联V1需求.md`：当前 V1 地块详情、种植档案与保单关联的业务规则及验收标准。
 - `docs/灾害风险与台风查看需求.md`：灾害风险与台风 V1 的业务规则和验收标准。
-- `docs/灾害风险与台风实施计划.md`、`docs/灾害风险与台风验收记录.md`：台风模块架构边界、提交分段与当前验证证据。
-- `docs/MapView拆分计划.md`：地图模块拆分的历史架构决策与回归清单。
+- `docs/archive/`：已完成计划和阶段性验收证据的归档；不作为现役需求事实来源。
+- `docs/archive/灾害风险与台风实施计划.md`、`docs/archive/灾害风险与台风验收记录.md`：台风 V1 的历史实施边界、提交分段与阶段性验证证据。
+- `docs/archive/MapView拆分计划.md`：地图模块拆分的历史架构决策与回归清单。
 - `web/src/components/MapView.vue`：地图装配、状态协调和 Leaflet 生命周期。
 - `web/src/map/`、`web/src/features/`、`web/src/stores/`：地图控制器、地块/保单/台风业务和会话状态。
 - `server/`：APIHz 台风服务端代理、资源保护、脱敏探针和测试。
@@ -25,7 +26,7 @@
 
 - 地图与地块行为：`docs/需求文档.md`；详情/保单行为：`docs/地块详情与保单关联V1需求.md`；灾害风险/台风行为：`docs/灾害风险与台风查看需求.md`。
 - 产品边界与术语：`PRODUCT.md`；视觉与交互样式：`DESIGN.md`。
-- 地图模块职责和拆分后的回归路径：`docs/MapView拆分计划.md`、`web/src/map/`、`web/src/features/parcels/`。
+- 地图模块当前职责以 `web/src/map/`、`web/src/features/parcels/` 和装配源码为准；历史拆分决策与回归清单见 `docs/archive/MapView拆分计划.md`。
 - 本地运行、代理接入、依赖、受限数据和版权：`README.md`、`web/package.json`、`server/package.json`。
 - 数据产物格式和生成规则：相应的 `scripts/*.py`；全链路检查入口为 `python scripts/validate-data.py`。
 
@@ -35,13 +36,13 @@
 
 1. 先读本文件，再按任务进入上面的 owner 文档和模块。
 2. 改变用户可见行为、术语或验收条件前后，同步拥有该行为的需求文档；地块详情/保单与台风分别核对对应 V1 文档。
-3. 改动地图装配时先读 `docs/MapView拆分计划.md`；按职责修改 `web/src/map/`、`web/src/features/parcels/` 或视图组件，避免把逻辑重新堆回 `MapView.vue`。
+3. 改动地图装配时查阅 `docs/archive/MapView拆分计划.md` 的历史边界与回归清单，并以当前源码裁决职责；修改 `web/src/map/`、`web/src/features/parcels/` 或视图组件，避免把逻辑重新堆回 `MapView.vue`。
 4. 改动静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 与前端加载路径。
 5. 前端改动至少运行：
    ```bash
    cd web && pnpm test && pnpm build
    ```
-   台风代理改动同时运行 `pnpm --dir server test`；完整台风验收见 `docs/灾害风险与台风验收记录.md`。
+   台风代理改动同时运行 `pnpm --dir server test`；台风 V1 阶段性验收证据见 `docs/archive/灾害风险与台风验收记录.md`，当前改动仍须记录本次实际验证结果。
 6. 数据脚本或层级链路改动后运行：
    ```bash
    python scripts/validate-data.py
@@ -64,7 +65,7 @@
 
 ## 当前缺口
 
-- 尚无独立的全仓架构文档；地图/地块架构以 `docs/MapView拆分计划.md` 和对应源码为准，台风架构以 `docs/灾害风险与台风实施计划.md` 为准。
+- 尚无独立的全仓架构文档；地图/地块与台风当前架构以对应源码为准，历史实施决策分别见 `docs/archive/MapView拆分计划.md` 和 `docs/archive/灾害风险与台风实施计划.md`。
 - 地块详情、保单、种植档案和台风 V1 代码已落盘；当前验证证据分别见对应需求/验收文档。
 - 尚无统一的版本化执行计划目录；复杂跨模块工作先在 `docs/` 增加专项计划，再实施。
 - 尚无 CI；构建、单测和数据校验当前依赖本地命令。
