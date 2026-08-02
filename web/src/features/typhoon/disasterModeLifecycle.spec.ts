@@ -61,10 +61,12 @@ describe('disaster mode generation coordinator', () => {
 
 describe('integration helpers', () => {
   const detail = (id: string): TyphoonDetail => ({ id, nameCn:id, nameEn:id, status:'start', sourceIndex:0, observationsApiOrder:[], observationsAsc:[], observationsDesc:[], latestObservation:null, anomalies:[] })
-  it('映射图层快照并阻止灾害态自动下钻', () => {
+  it('映射图层快照且台风模式不限制行政缩放下钻', () => {
     const live = detail('live')
     expect(mapTyphoonLayerSnapshot({ realtimeDetails:[live], openedHistoricalIds:[], details:{ live }, focusedTyphoonId:'live', selectedNodeByTyphoon:{} }).realtime[0]?.detail.id).toBe('live')
-    expect(autoLevelAllowed(true, 'idle', false)).toBe(false)
+    expect(autoLevelAllowed('idle', false)).toBe(true)
+    expect(autoLevelAllowed('editing', false)).toBe(false)
+    expect(autoLevelAllowed('idle', true)).toBe(false)
   })
   it('自动 fit 仅在 ready 且最终焦点为实时台风时消费', () => {
     const base = { active:true, phase:'ready', focusedId:'a', realtimeIds:['a'], sessionId:2, fittedSessionId:null }

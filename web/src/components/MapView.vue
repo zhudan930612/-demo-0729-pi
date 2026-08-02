@@ -445,7 +445,8 @@ function clearLayers() {
   parcelVisible.value = false
   rsHint.value = ''
   rsOn.value = true
-  parcelOn.value = true
+  // 台风专题可跨行政层级导航，但业务地块与影像继续保持隐藏。
+  parcelOn.value = !disasterActive.value
 }
 
 /** 高分影像 开/关 */
@@ -1178,7 +1179,7 @@ async function render(noFly = false) {
       })
 
   // 人工地块不依赖高分影像或 AI 产物：进入任意村时先建立当前村上下文并读取本机记录。
-  if (crumb.level === 'village') {
+  if (!disasterActive.value && crumb.level === 'village') {
     parcelVillageCode = crumb.code
     const manualResult = readManualParcels(crumb.code)
     manualParcels = manualResult.features
@@ -1190,7 +1191,7 @@ async function render(noFly = false) {
   }
 
   // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
-  if (crumb.level === 'township' || crumb.level === 'village') {
+  if (!disasterActive.value && (crumb.level === 'township' || crumb.level === 'village')) {
     // 等飞行结束再插入影像，避免动画中途因低于 minZoom 导致瓦片不恢复。
     const [info] = await Promise.all([
       rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
@@ -1307,7 +1308,7 @@ watch(() => ({
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
-  if (!autoLevelAllowed(disasterActive.value, parcelMode.value, suppressAutoZoom)) return
+  if (!autoLevelAllowed(parcelMode.value, suppressAutoZoom)) return
   const crumb = store.current
   const z = map.getZoom()
 

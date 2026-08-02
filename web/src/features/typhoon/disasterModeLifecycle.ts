@@ -74,7 +74,7 @@ export function mapTyphoonLayerSnapshot(source: TyphoonSnapshotSource): TyphoonL
     selectedNodeByTyphoon: source.selectedNodeByTyphoon,
   }
 }
-export function autoLevelAllowed(disasterActive: boolean, parcelMode: string, suppressAutoZoom: boolean): boolean { return !disasterActive && parcelMode === 'idle' && !suppressAutoZoom }
+export function autoLevelAllowed(parcelMode: string, suppressAutoZoom: boolean): boolean { return parcelMode === 'idle' && !suppressAutoZoom }
 export function shouldAutoFitTyphoon(input: { active: boolean; phase: string; focusedId: string | null; realtimeIds: readonly string[]; sessionId: number; fittedSessionId: number | null }): boolean {
   return input.active && input.phase === 'ready' && input.focusedId !== null && input.realtimeIds.includes(input.focusedId) && input.fittedSessionId !== input.sessionId
 }
