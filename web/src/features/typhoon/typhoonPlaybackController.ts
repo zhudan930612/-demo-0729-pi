@@ -17,7 +17,7 @@ export function createTyphoonPlaybackController(options: TyphoonPlaybackOptions 
   const schedule = options.setTimeout ?? globalThis.setTimeout
   const unschedule = options.clearTimeout ?? globalThis.clearTimeout
   const reducedMotion = options.reducedMotion ?? (() => false)
-  const intervalMs = options.intervalMs ?? 300
+  const intervalMs = options.intervalMs ?? 150
   let timer: ReturnType<typeof setTimeout> | null = null
   let token = 0
   let activeTyphoonId: string | null = null

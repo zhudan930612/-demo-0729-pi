@@ -14,17 +14,17 @@ describe('typhoon playback controller', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('首点立即显示，之后每 300ms 只新增一个节点并在末点完成', () => {
+  it('首点立即显示，之后每 150ms 只新增一个节点并在末点完成', () => {
     const steps: Array<[string, number]> = []
     const complete = vi.fn()
     const controller = createTyphoonPlaybackController()
     controller.play(detail(), { onStep: (node, count) => steps.push([node.id, count]), onComplete: complete })
     expect(steps).toEqual([['history:obs:0', 1]])
-    vi.advanceTimersByTime(299)
+    vi.advanceTimersByTime(149)
     expect(steps).toHaveLength(1)
     vi.advanceTimersByTime(1)
     expect(steps.at(-1)).toEqual(['history:obs:1', 2])
-    vi.advanceTimersByTime(300)
+    vi.advanceTimersByTime(150)
     expect(steps.at(-1)).toEqual(['history:obs:2', 3])
     expect(complete).toHaveBeenCalledWith(expect.objectContaining({ id: 'history:obs:2' }), 3)
     expect(controller.activeTyphoonId).toBeNull()
