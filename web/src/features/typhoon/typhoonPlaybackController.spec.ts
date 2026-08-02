@@ -27,7 +27,7 @@ describe('typhoon playback controller', () => {
     vi.advanceTimersByTime(150)
     expect(steps.at(-1)).toEqual(['history:obs:2', 3])
     expect(complete).toHaveBeenCalledWith(expect.objectContaining({ id: 'history:obs:2' }), 3)
-    expect(controller.activeTyphoonId).toBeNull()
+    expect(controller.activeTyphoonIds).toEqual([])
   })
 
   it('取消后排队回调不再写入', () => {
@@ -52,16 +52,38 @@ describe('typhoon playback controller', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
-  it('播放另一台风会取消前一个 timer', () => {
+  it('播放另一台风时两个 timer 独立推进并分别完成', () => {
+    const firstStep = vi.fn()
+    const secondStep = vi.fn()
+    const firstComplete = vi.fn()
+    const secondComplete = vi.fn()
+    const controller = createTyphoonPlaybackController()
+    controller.play(detail(), { onStep: firstStep, onComplete: firstComplete })
+    const nextNodes = detail(2).observationsAsc.map((node, index) => ({ ...node, id: `next:obs:${index}` }))
+    const next = { ...detail(2), id: 'next', observationsApiOrder: nextNodes, observationsAsc: nextNodes, observationsDesc: [...nextNodes].reverse(), latestObservation: nextNodes.at(-1) ?? null }
+    controller.play(next, { onStep: secondStep, onComplete: secondComplete })
+    expect(controller.activeTyphoonIds).toEqual(['history', 'next'])
+    vi.advanceTimersByTime(150)
+    expect(firstStep).toHaveBeenCalledTimes(2)
+    expect(secondStep).toHaveBeenCalledTimes(2)
+    expect(secondComplete).toHaveBeenCalledOnce()
+    expect(controller.activeTyphoonIds).toEqual(['history'])
+    vi.advanceTimersByTime(150)
+    expect(firstStep).toHaveBeenCalledTimes(3)
+    expect(firstComplete).toHaveBeenCalledOnce()
+    expect(controller.activeTyphoonIds).toEqual([])
+  })
+
+  it('取消指定台风不影响其他台风', () => {
     const firstStep = vi.fn()
     const secondStep = vi.fn()
     const controller = createTyphoonPlaybackController()
     controller.play(detail(), { onStep: firstStep, onComplete: vi.fn() })
-    const nextNodes = detail(2).observationsAsc.map((node, index) => ({ ...node, id: `next:obs:${index}` }))
-    const next = { ...detail(2), id: 'next', observationsApiOrder: nextNodes, observationsAsc: nextNodes, observationsDesc: [...nextNodes].reverse(), latestObservation: nextNodes.at(-1) ?? null }
+    const next = { ...detail(), id: 'next' }
     controller.play(next, { onStep: secondStep, onComplete: vi.fn() })
+    expect(controller.cancel('history')).toBe(true)
     vi.runAllTimers()
-    expect(firstStep).toHaveBeenCalledTimes(1)
-    expect(secondStep).toHaveBeenCalledTimes(2)
+    expect(firstStep).toHaveBeenCalledOnce()
+    expect(secondStep).toHaveBeenCalledTimes(3)
   })
 })

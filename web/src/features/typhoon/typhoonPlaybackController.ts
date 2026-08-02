@@ -12,38 +12,46 @@ export interface TyphoonPlaybackOptions {
   intervalMs?: number
 }
 
-/** 单一逐点动画 owner；任一时刻最多播放一条历史台风。 */
+interface PlaybackEntry {
+  timer: ReturnType<typeof setTimeout> | null
+  token: number
+}
+
+/** 每个历史台风拥有独立计时器；打开或聚焦另一台风不停止已有播放。 */
 export function createTyphoonPlaybackController(options: TyphoonPlaybackOptions = {}) {
   const schedule = options.setTimeout ?? globalThis.setTimeout
   const unschedule = options.clearTimeout ?? globalThis.clearTimeout
   const reducedMotion = options.reducedMotion ?? (() => false)
   const intervalMs = options.intervalMs ?? 150
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let token = 0
-  let activeTyphoonId: string | null = null
+  const entries = new Map<string, PlaybackEntry>()
+  let nextToken = 0
 
   function cancel(typhoonId?: string) {
-    if (typhoonId && activeTyphoonId !== typhoonId) return false
-    token += 1
-    if (timer !== null) unschedule(timer)
-    timer = null
-    const cancelled = activeTyphoonId !== null
-    activeTyphoonId = null
+    if (typhoonId) {
+      const entry = entries.get(typhoonId)
+      if (!entry) return false
+      if (entry.timer !== null) unschedule(entry.timer)
+      entries.delete(typhoonId)
+      return true
+    }
+    const cancelled = entries.size > 0
+    for (const entry of entries.values()) if (entry.timer !== null) unschedule(entry.timer)
+    entries.clear()
     return cancelled
   }
 
   function play(detail: TyphoonDetail, callbacks: TyphoonPlaybackCallbacks) {
-    cancel()
+    cancel(detail.id)
     const nodes = detail.observationsAsc
     if (!nodes.length) return false
-    activeTyphoonId = detail.id
-    const playToken = token
+    const entry: PlaybackEntry = { timer: null, token: ++nextToken }
+    entries.set(detail.id, entry)
 
     if (reducedMotion()) {
       const last = nodes[nodes.length - 1]!
       callbacks.onStep(last, nodes.length)
       callbacks.onComplete(last, nodes.length)
-      activeTyphoonId = null
+      entries.delete(detail.id)
       return true
     }
 
@@ -51,24 +59,24 @@ export function createTyphoonPlaybackController(options: TyphoonPlaybackOptions 
     callbacks.onStep(nodes[0]!, visibleCount)
     if (nodes.length === 1) {
       callbacks.onComplete(nodes[0]!, visibleCount)
-      activeTyphoonId = null
+      entries.delete(detail.id)
       return true
     }
 
     const advance = () => {
-      if (playToken !== token || activeTyphoonId !== detail.id) return
+      const current = entries.get(detail.id)
+      if (!current || current.token !== entry.token) return
       visibleCount += 1
       const node = nodes[visibleCount - 1]!
       callbacks.onStep(node, visibleCount)
       if (visibleCount >= nodes.length) {
-        timer = null
-        activeTyphoonId = null
+        entries.delete(detail.id)
         callbacks.onComplete(node, visibleCount)
         return
       }
-      timer = schedule(advance, intervalMs)
+      current.timer = schedule(advance, intervalMs)
     }
-    timer = schedule(advance, intervalMs)
+    entry.timer = schedule(advance, intervalMs)
     return true
   }
 
@@ -78,7 +86,8 @@ export function createTyphoonPlaybackController(options: TyphoonPlaybackOptions 
     play,
     cancel,
     destroy,
-    get activeTyphoonId() { return activeTyphoonId },
+    isPlaying: (typhoonId: string) => entries.has(typhoonId),
+    get activeTyphoonIds() { return [...entries.keys()] },
   }
 }
 

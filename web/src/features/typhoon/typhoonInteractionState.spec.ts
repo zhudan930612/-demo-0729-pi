@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget } from './typhoonInteractionState'
+import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, visiblePopupTarget } from './typhoonInteractionState'
 
 const center = { kind: 'center' as const, typhoonId: 'a', nodeId: 'n1' }
 const wind7 = { kind: 'wind' as const, typhoonId: 'a', nodeId: 'n1', grade: '7' }
@@ -27,13 +27,5 @@ describe('typhoon popup state', () => {
     expect(clearPopupForTyphoon({ hover: other, pinned: wind10 }, 'a')).toEqual({ hover: other, pinned: null })
     const unchanged = { hover: other, pinned: null }
     expect(clearPopupForTyphoon(unchanged, 'a')).toBe(unchanged)
-  })
-})
-
-describe('focus playback policy', () => {
-  it('只在切换至不同台风时取消播放', () => {
-    expect(shouldCancelPlaybackForFocus('a', 'b')).toBe(true)
-    expect(shouldCancelPlaybackForFocus('a', 'a')).toBe(false)
-    expect(shouldCancelPlaybackForFocus(null, 'b')).toBe(false)
   })
 })

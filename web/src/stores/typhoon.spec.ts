@@ -83,6 +83,19 @@ describe('typhoon session store', () => {
     expect(store.openedHistoricalIds).toEqual(['h'])
   })
 
+  it('并行动画推进各自节点且不抢占当前焦点台风', () => {
+    const store = useTyphoonStore()
+    store.beginSession(1, 2026)
+    store.receiveSummaries(1, [summary('a', 'start'), summary('h', 'stop')])
+    store.receiveLiveDetail(1, detail('a', 'start', 10))
+    store.receiveHistoricalDetail(1, detail('h', 'stop', 20))
+    store.openHistorical('h')
+    store.focusTyphoon('a')
+    store.advancePlaybackNode('h', 'h:obs:0')
+    expect(store.focusedTyphoonId).toBe('a')
+    expect(store.selectedNodeByTyphoon.h).toBe('h:obs:0')
+  })
+
   it('旧 session action 在退出后无效', () => {
     const store = useTyphoonStore()
     store.beginSession(1, 2026)

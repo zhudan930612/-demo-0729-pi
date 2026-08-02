@@ -23,8 +23,3 @@ export function clearPopupForTyphoon(state: TyphoonPopupState, typhoonId: string
   const pinned = state.pinned?.typhoonId === typhoonId ? null : state.pinned
   return hover === state.hover && pinned === state.pinned ? state : { hover, pinned }
 }
-
-/** 切换不同台风前取消动画；相同台风的展开/详情操作不误停自己的播放。 */
-export function shouldCancelPlaybackForFocus(activePlaybackId: string | null, nextTyphoonId: string): boolean {
-  return activePlaybackId !== null && activePlaybackId !== nextTyphoonId
-}

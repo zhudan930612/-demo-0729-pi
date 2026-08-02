@@ -180,7 +180,7 @@ import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapsho
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
 import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
 import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
-import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, shouldCancelPlaybackForFocus, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
+import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import {
@@ -981,7 +981,6 @@ async function enterTyphoonMode() {
 }
 
 function focusTyphoonFromUser(typhoonId: string, nodeId?: string) {
-  if (shouldCancelPlaybackForFocus(typhoonPlaybackController?.activeTyphoonId ?? null, typhoonId)) typhoonPlaybackController?.cancel()
   typhoonStore.focusTyphoon(typhoonId)
   if (nodeId) typhoonStore.selectNode(typhoonId, nodeId)
 }
@@ -1013,11 +1012,11 @@ function playHistoricalTyphoon(typhoonId: string) {
   typhoonPlaybackController.play(detail, {
     onStep: (node, visibleCount) => {
       visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: visibleCount }
-      typhoonStore.selectNode(typhoonId, node.id)
+      typhoonStore.advancePlaybackNode(typhoonId, node.id)
     },
     onComplete: (node, visibleCount) => {
       visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: visibleCount }
-      typhoonStore.selectNode(typhoonId, node.id)
+      typhoonStore.advancePlaybackNode(typhoonId, node.id)
     },
   })
 }
@@ -1027,8 +1026,7 @@ function toggleHistoricalFromTimeline(typhoonId: string) {
     closeHistoricalTyphoon(typhoonId)
     return
   }
-  // 只取消当前 timer；此前已打开台风保留当时路径与独立选中节点。
-  typhoonPlaybackController.cancel()
+  // 每条历史台风独立播放；打开新台风不停止其他台风的计时器。
   if (!typhoonStore.openHistorical(typhoonId)) return
   const detail = typhoonStore.details[typhoonId]!
   visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: Math.min(1, detail.observationsAsc.length) }
@@ -1046,7 +1044,7 @@ function toggleHistoricalFromTimeline(typhoonId: string) {
 }
 
 function selectActualTyphoonNode(typhoonId: string, nodeId: string) {
-  typhoonPlaybackController?.cancel()
+  typhoonPlaybackController?.cancel(typhoonId)
   const detail = typhoonStore.details[typhoonId]
   const selection = actualNodeSelection(detail, 'actual', nodeId)
   if (!selection) return false

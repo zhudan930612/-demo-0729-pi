@@ -125,6 +125,10 @@ export const useTyphoonStore = defineStore('typhoon', {
       this.focusedTyphoonId = typhoonId
       this.selectedNodeByTyphoon[typhoonId] = nodeId
     },
+    advancePlaybackNode(typhoonId: TyphoonId, nodeId: string) {
+      if (!this.displayedIds.includes(typhoonId)) return
+      this.selectedNodeByTyphoon[typhoonId] = nodeId
+    },
     toggleExpanded(typhoonId: TyphoonId) {
       this.expandedIds = this.expandedIds.includes(typhoonId) ? [] : [typhoonId]
       this.focusedTyphoonId = typhoonId
