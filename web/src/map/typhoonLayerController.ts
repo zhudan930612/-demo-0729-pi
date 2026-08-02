@@ -1,4 +1,5 @@
 import L from 'leaflet'
+import typhoonIconUrl from '../assets/taifeng.svg?url'
 import { forecastIsDisplayable } from '../features/typhoon/typhoonForecast'
 import { typhoonPointStyle, type TyphoonPointStyle } from '../features/typhoon/typhoonStyles'
 import type { ForecastNode, ObservationNode, TyphoonDetail, WindRadius } from '../features/typhoon/typhoonTypes'
@@ -231,6 +232,14 @@ function windColors(priority: number) {
   return { color: '#0369a1', fillColor: '#38bdf8' }
 }
 
+export function typhoonCenterIconClass(status: TyphoonDetail['status'], focused: boolean): string {
+  return ['typhoon-vortex-marker', status === 'start' ? 'is-live' : 'is-history', focused ? 'is-focused' : ''].filter(Boolean).join(' ')
+}
+
+function typhoonCenterIconHtml(): string {
+  return `<span class="typhoon-vortex-glyph" aria-hidden="true"><img src="${typhoonIconUrl}" alt="" draggable="false"></span>`
+}
+
 export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayerCallbacks = {}) {
   ensurePanes(map)
   let guardLayer: L.LayerGroup | null = null
@@ -323,15 +332,19 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
     if (scene.centerNode) {
       const node = scene.centerNode
       const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: node.id, kind: 'actual' as const, containerPoint: pointerPosition(map, event) })
-      const center = L.circleMarker([node.lat, node.lon], {
+      const iconSize = scene.focused ? 38 : 32
+      const center = L.marker([node.lat, node.lon], {
         pane: TYPHOON_PANES.center.name,
-        radius: scene.focused ? 10 : 8,
-        color: '#ffffff',
-        weight: scene.focused ? 4 : 3,
-        fillColor: '#0f172a',
-        fillOpacity: 0.36,
-        opacity: 1,
         bubblingMouseEvents: false,
+        keyboard: true,
+        title: `${scene.detail.nameCn || scene.detail.id}${scene.detail.status === 'start' ? '实时台风' : '历史台风'}`,
+        alt: `${scene.detail.nameCn || scene.detail.id}${scene.detail.status === 'start' ? '实时台风中心' : '历史台风中心'}`,
+        icon: L.divIcon({
+          className: typhoonCenterIconClass(scene.detail.status, scene.focused),
+          html: typhoonCenterIconHtml(),
+          iconSize: [iconSize, iconSize],
+          iconAnchor: [iconSize / 2, iconSize / 2],
+        }),
       }).addTo(group)
       center.on('click', (event) => { stop(event); callbacks.onCenterClick?.(payload(event)) })
       center.on('mouseover', (event) => { stop(event); callbacks.onCenterEnter?.(payload(event)) })

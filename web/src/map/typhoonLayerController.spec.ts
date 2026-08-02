@@ -7,6 +7,7 @@ import {
   buildTyphoonScenes,
   createTyphoonSceneRegistry,
   TYPHOON_GUARD_LINES,
+  typhoonCenterIconClass,
   TYPHOON_PANES,
   type TyphoonLayerSnapshot,
 } from './typhoonLayerController'
@@ -124,6 +125,11 @@ describe('typhoon layer scene builder', () => {
 })
 
 describe('typhoon layer resource contract', () => {
+  it('实时和历史中心图标使用可区分的动静状态类', () => {
+    expect(typhoonCenterIconClass('start', true)).toBe('typhoon-vortex-marker is-live is-focused')
+    expect(typhoonCenterIconClass('stop', false)).toBe('typhoon-vortex-marker is-history')
+  })
+
   it('所有专题 pane 明确低于 annotationPane 且层次严格递增', () => {
     const panes = Object.values(TYPHOON_PANES)
     expect(panes.map((pane) => pane.zIndex)).toEqual([410, 411, 412, 415, 420, 425, 430, 435])
