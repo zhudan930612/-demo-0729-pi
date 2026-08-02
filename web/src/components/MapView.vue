@@ -446,20 +446,19 @@ function clearLayers() {
   parcelVisible.value = false
   rsHint.value = ''
   rsOn.value = true
-  // 台风专题可跨行政层级导航，但业务地块与影像继续保持隐藏。
-  parcelOn.value = !disasterActive.value
+  // 台风专题与业务图层可同时显示；行政切换后地块默认保持开启。
+  parcelOn.value = true
 }
 
 /** 高分影像 开/关 */
 function toggleRs() {
-  if (disasterActive.value) return
   rsOn.value = !rsOn.value
   navigationController.setImageryOpacity(rsOn.value ? RS_OPACITY : 0)
 }
 
 /** AI 地块独立开/关 */
 async function toggleParcels() {
-  if (disasterActive.value || parcelMode.value !== 'idle') return
+  if (parcelMode.value !== 'idle') return
   if (parcelOn.value && selectedParcel.value && cultivationEditing.value) {
     const confirmed = await openManualDialog('关闭地块图层', '当前种植档案尚未保存，关闭后将丢失编辑内容。', '确认关闭')
     if (!confirmed) return
@@ -941,20 +940,10 @@ function closeBusinessForDisaster() {
   rosterOpen.value = false
 }
 
-function hideParcelLayersForDisaster() {
-  parcelOn.value = false
-  parcelLayerController?.clear()
-  manualDrawingController?.clear()
-  parcelVisible.value = false
-  parcelDisplayCount.value = 0
-  parcelDisplayAreaMu.value = 0
-}
-
 async function prepareProvinceLayersWithoutMovingCamera() {
   await nextTick()
   if (provinceRenderPromise) await provinceRenderPromise
   else await render(true)
-  hideParcelLayersForDisaster()
 }
 
 function rollbackTyphoonMode(error?: unknown) {
@@ -978,7 +967,6 @@ async function enterTyphoonMode() {
     isActive: () => disasterActive.value,
     setActive: (active) => { disasterActive.value = active },
     closeBusinessPanels: closeBusinessForDisaster,
-    hideParcelLayers: hideParcelLayersForDisaster,
     resetToProvince: () => store.resetToProvince(),
     prepareProvinceLayers: prepareProvinceLayersWithoutMovingCamera,
     enterRepository: () => {
@@ -1074,20 +1062,27 @@ function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
   selectActualTyphoonNode(typhoonId, nodeId)
 }
 
-function exitTyphoonMode() {
+function exitTyphoonMode(restoreView = true) {
   disasterModeCoordinator.exit({
     isActive: () => disasterActive.value,
     exitRepository: () => typhoonRepository?.exit(),
     clearTyphoonLayers: () => typhoonLayerController?.clear(),
     setActive: (active) => { disasterActive.value = active },
     invalidateNavigation: () => { flySeq += 1; provinceRenderPromise = null },
+    restoreProvinceView: () => {
+      if (!restoreView) return
+      const alreadyProvince = store.path.length === 1 && store.current.level === 'province'
+      void store.resetToProvince().then((reset) => {
+        if (!reset || !alreadyProvince) return
+        provinceRenderPromise = render().finally(() => { provinceRenderPromise = null })
+      })
+    },
   })
   fittedTyphoonSessionId = null
   typhoonPlaybackController?.cancel()
   visibleObservationCountByTyphoon.value = {}
   typhoonPopupState.value = { hover: null, pinned: null }
-  // 地块关闭状态、业务抽屉与当前相机均原样保留；不触发行政 render。
-  parcelOn.value = false
+  // 业务抽屉保持关闭；行政状态和相机恢复浙江省默认视角。
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -1181,7 +1176,7 @@ async function render(noFly = false) {
       })
 
   // 人工地块不依赖高分影像或 AI 产物：进入任意村时先建立当前村上下文并读取本机记录。
-  if (!disasterActive.value && crumb.level === 'village') {
+  if (crumb.level === 'village') {
     parcelVillageCode = crumb.code
     const manualResult = readManualParcels(crumb.code)
     manualParcels = manualResult.features
@@ -1193,7 +1188,7 @@ async function render(noFly = false) {
   }
 
   // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
-  if (!disasterActive.value && (crumb.level === 'township' || crumb.level === 'village')) {
+  if (crumb.level === 'township' || crumb.level === 'village') {
     // 等飞行结束再插入影像，避免动画中途因低于 minZoom 导致瓦片不恢复。
     const [info] = await Promise.all([
       rsInfo ? Promise.resolve(rsInfo) : fetchRsInfo().catch(() => null),
@@ -1493,7 +1488,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  exitTyphoonMode()
+  exitTyphoonMode(false)
   disposed = true
   flySeq += 1
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)

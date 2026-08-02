@@ -10,7 +10,7 @@ function ports(overrides: Record<string, unknown> = {}) {
     value: {
       hasUnsavedWork: () => false, isActive: () => active,
       setActive: (value: boolean) => { active = value; events.push(`active:${value}`) },
-      closeBusinessPanels: () => events.push('close'), hideParcelLayers: () => events.push('hide'),
+      closeBusinessPanels: () => events.push('close'),
       resetToProvince: async () => true, prepareProvinceLayers: async () => {}, enterRepository: () => events.push('repository'),
       rollback: () => { active = false; events.push('rollback') },
       ...overrides,
@@ -27,7 +27,7 @@ describe('disaster mode generation coordinator', () => {
     const coordinator = createDisasterModeCoordinator()
     const entering = coordinator.enter(setup.value)
     await Promise.resolve(); await Promise.resolve()
-    coordinator.exit({ isActive: setup.value.isActive, setActive: setup.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn() })
+    coordinator.exit({ isActive: setup.value.isActive, setActive: setup.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn(), restoreProvinceView: vi.fn() })
     resolve()
     await expect(entering).resolves.toBe(false)
     expect(setup.events).not.toContain('repository')
@@ -39,7 +39,7 @@ describe('disaster mode generation coordinator', () => {
     const coordinator = createDisasterModeCoordinator()
     const oldEnter = coordinator.enter(first.value)
     await Promise.resolve(); await Promise.resolve()
-    coordinator.exit({ isActive: first.value.isActive, setActive: first.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn() })
+    coordinator.exit({ isActive: first.value.isActive, setActive: first.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn(), restoreProvinceView: vi.fn() })
     const next = ports()
     await expect(coordinator.enter(next.value)).resolves.toBe(true)
     resolveFirst()
@@ -56,6 +56,25 @@ describe('disaster mode generation coordinator', () => {
     const rejectedRender = ports({ prepareProvinceLayers: async () => { throw new Error('render') } })
     await expect(coordinator.enter(rejectedRender.value)).resolves.toBe(false)
     expect(rejectedRender.events).toContain('rollback')
+  })
+})
+
+describe('disaster mode exit coordinator', () => {
+  it('退出活动模式后清理专题并恢复浙江省默认视角', () => {
+    const setup = ports()
+    setup.activate()
+    const restoreProvinceView = vi.fn()
+    const coordinator = createDisasterModeCoordinator()
+    expect(coordinator.exit({ isActive: setup.value.isActive, setActive: setup.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn(), restoreProvinceView })).toBe(true)
+    expect(restoreProvinceView).toHaveBeenCalledOnce()
+  })
+
+  it('未处于活动模式时不触发视角恢复', () => {
+    const setup = ports()
+    const restoreProvinceView = vi.fn()
+    const coordinator = createDisasterModeCoordinator()
+    expect(coordinator.exit({ isActive: setup.value.isActive, setActive: setup.value.setActive, exitRepository: vi.fn(), clearTyphoonLayers: vi.fn(), invalidateNavigation: vi.fn(), restoreProvinceView })).toBe(false)
+    expect(restoreProvinceView).not.toHaveBeenCalled()
   })
 })
 

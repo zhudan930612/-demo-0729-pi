@@ -6,7 +6,6 @@ export interface DisasterEnterPorts {
   isActive(): boolean
   setActive(active: boolean): void
   closeBusinessPanels(): void
-  hideParcelLayers(): void
   resetToProvince(): Promise<boolean>
   prepareProvinceLayers(): Promise<void>
   enterRepository(): void
@@ -19,6 +18,7 @@ export interface DisasterExitPorts {
   clearTyphoonLayers(): void
   setActive(active: boolean): void
   invalidateNavigation(): void
+  restoreProvinceView(): void
 }
 
 /** 唯一 generation owner：旧 enter 无法借随后重进产生的新 active 状态复活。 */
@@ -30,7 +30,6 @@ export function createDisasterModeCoordinator() {
     const current = () => token === generation && ports.isActive()
     try {
       ports.closeBusinessPanels()
-      ports.hideParcelLayers()
       ports.setActive(true)
       const reset = await ports.resetToProvince()
       if (!current()) return false
@@ -53,6 +52,7 @@ export function createDisasterModeCoordinator() {
     ports.exitRepository()
     ports.clearTyphoonLayers()
     ports.setActive(false)
+    ports.restoreProvinceView()
     return true
   }
   return { enter, exit, get generation() { return generation } }

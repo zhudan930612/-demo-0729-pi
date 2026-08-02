@@ -42,8 +42,8 @@
     <button v-if="rsVisible" type="button" class="icon-btn" :class="{ off: !rsOn }" :aria-label="rsOn ? '关闭高分影像' : '打开高分影像'" @click="emit('toggle-rs')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line v-if="!rsOn" x1="3" y1="3" x2="21" y2="21"/></svg><span class="icon-tip" role="tooltip">{{ rsOn ? '关闭高分影像' : '打开高分影像' }}</span>
     </button>
-    <button v-if="parcelVisible" type="button" class="icon-btn parcel-btn" :class="{ off: !parcelOn }" :disabled="parcelToolsDisabled" :aria-label="parcelToolsDisabled ? parcelTip : (parcelOn ? '关闭地块图层' : '打开地块图层')" @click="emit('toggle-parcels')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 4 7-1 3 6-2 11-8 1z"/><path d="m10 3 8 2 3 6-4 9-6-1"/><path d="m13 9 8 2"/><path d="m4 14 8-2"/></svg><span class="icon-tip" role="tooltip">{{ parcelToolsDisabled ? parcelTip : (parcelOn ? '关闭地块图层' : '打开地块图层') }}</span>
+    <button v-if="parcelVisible" type="button" class="icon-btn parcel-btn" :class="{ off: !parcelOn }" :disabled="mode !== 'idle'" :aria-label="parcelOn ? '关闭地块图层' : '打开地块图层'" @click="emit('toggle-parcels')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 4 7-1 3 6-2 11-8 1z"/><path d="m10 3 8 2 3 6-4 9-6-1"/><path d="m13 9 8 2"/><path d="m4 14 8-2"/></svg><span class="icon-tip" role="tooltip">{{ parcelOn ? '关闭地块图层' : '打开地块图层' }}</span>
     </button>
   </div>
   <div class="zoom-stack" aria-label="地图缩放工具">
@@ -61,7 +61,7 @@ const controlStackRef=ref<HTMLElement|null>(null), parcelToolButtonRef=ref<HTMLB
 const firstDisasterActionRef=ref<HTMLButtonElement|null>(null),firstParcelActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false), disasterMenuOpen=ref(false)
 const disasterTip=computed(()=>props.disasterActive?'灾害风险模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'灾害风险')
-const parcelTip=computed(()=>props.disasterActive?'灾害风险模式下不能使用地块工具':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
+const parcelTip=computed(()=>props.disasterActive?'灾害风险模式下可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 function closeMenus(){parcelMenuOpen.value=false;disasterMenuOpen.value=false}
 function toggleDisasterMenu(){if(props.disasterEntryDisabled||props.disasterActive)return;parcelMenuOpen.value=false;disasterMenuOpen.value=!disasterMenuOpen.value;if(disasterMenuOpen.value)void nextTick(()=>firstDisasterActionRef.value?.focus())}
 function toggleParcelMenu(){if(props.parcelToolsDisabled)return;disasterMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
