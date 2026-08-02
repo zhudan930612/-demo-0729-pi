@@ -2,9 +2,12 @@
 
 以天地图卫星影像为底图，浙江省 **省→市→县→乡→村** 五级下钻 + 分级行政边界展示；
 乡镇级和村级叠加吉林一号 0.5m 高分影像（影像覆盖上虞章镇镇、嵊州三界镇共 17 村）；
-龙江村试点展示 Delineate Anything v2 自动识别的演示地块。
+龙江村试点展示 Delineate Anything v2 自动识别的演示地块；省级灾害风险模式展示 APIHz 实时/历史台风路径、预测、风圈、警戒线和时间轴。
 
-当前需求与决策记录见 [docs/需求文档.md](docs/需求文档.md)。地块详情、种植档案与保单关联 V1 的业务规则及验收标准见 [docs/地块详情与保单关联V1需求.md](docs/地块详情与保单关联V1需求.md)。
+- 地图与地块：[docs/需求文档.md](docs/需求文档.md)
+- 地块详情、种植档案与保单：[docs/地块详情与保单关联V1需求.md](docs/地块详情与保单关联V1需求.md)
+- 灾害风险与台风：[docs/灾害风险与台风查看需求.md](docs/灾害风险与台风查看需求.md)
+- 台风实现边界与验收证据：[docs/灾害风险与台风实施计划.md](docs/灾害风险与台风实施计划.md)、[docs/灾害风险与台风验收记录.md](docs/灾害风险与台风验收记录.md)
 
 ## 技术栈
 
@@ -81,14 +84,14 @@ VITE_TIANDITU_TOKEN=你的天地图Token
 
 `.env.local` 已被 Git 忽略，禁止提交 Token。
 
-### 5. 安装依赖并启动
+### 5. 安装前端依赖并启动基础地图
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-浏览器访问终端显示的地址，默认是：
+只需地图、影像、地块与本机业务功能时可先单独启动前端；“查看台风”还必须按下一节启动 Node 代理。浏览器访问终端显示的地址，默认是：
 
 ```text
 http://localhost:5173
@@ -161,8 +164,8 @@ pnpm --dir server probe:apihz
 ### 7. 构建与预览发布包
 
 ```bash
-pnpm build
-pnpm preview --host 0.0.0.0
+pnpm --dir web build
+pnpm --dir web preview --host 0.0.0.0
 ```
 
 - 构建产物位于 `web/dist/`
