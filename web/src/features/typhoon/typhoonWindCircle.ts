@@ -13,21 +13,35 @@ function destination(lat: number, lon: number, bearingDegrees: number, distanceK
   return [lat2 * 180 / Math.PI, ((lon2 * 180 / Math.PI + 540) % 360) - 180]
 }
 
-function radiusForBearing(radius: WindRadius, bearing: number): number {
-  if (bearing < 90) return radius.neRadiusKm
-  if (bearing < 180) return radius.seRadiusKm
-  if (bearing < 270) return radius.swRadiusKm
-  return radius.nwRadiusKm
+function axisDestination(lat: number, lon: number, bearing: 0 | 90 | 180 | 270 | 360, distanceKm: number): LatLon {
+  const degrees = distanceKm / EARTH_RADIUS_KM * 180 / Math.PI
+  if (bearing === 0 || bearing === 360) return [lat + degrees, lon]
+  if (bearing === 180) return [lat - degrees, lon]
+  const longitudeDegrees = degrees / Math.cos(lat * Math.PI / 180)
+  return [lat, ((lon + (bearing === 90 ? longitudeDegrees : -longitudeDegrees) + 540) % 360) - 180]
 }
 
-export function windCirclePolygon(node: Pick<ObservationNode, 'lat' | 'lon'>, radius: WindRadius, stepsPerQuadrant = 12): LatLon[] | null {
+function quadrantPoint(lat: number, lon: number, bearing: number, distanceKm: number): LatLon {
+  if (bearing % 90 === 0) return axisDestination(lat, lon, bearing as 0 | 90 | 180 | 270 | 360, distanceKm)
+  return destination(lat, lon, bearing, distanceKm)
+}
+
+export function windCirclePolygon(node: Pick<ObservationNode, 'lat' | 'lon'>, radius: WindRadius, stepsPerQuadrant = 48): LatLon[] | null {
   if (!Number.isFinite(node.lat) || !Number.isFinite(node.lon) || node.lat < -90 || node.lat > 90 || node.lon < -180 || node.lon > 180
     || !Number.isInteger(stepsPerQuadrant) || stepsPerQuadrant < 1
     || [radius.neRadiusKm, radius.seRadiusKm, radius.swRadiusKm, radius.nwRadiusKm].some((value) => !Number.isFinite(value) || value <= 0)) return null
   const points: LatLon[] = []
-  for (let step = 0; step < stepsPerQuadrant * 4; step += 1) {
-    const bearing = step * 360 / (stepsPerQuadrant * 4)
-    points.push(destination(node.lat, node.lon, bearing, radiusForBearing(radius, bearing)))
+  const quadrants = [
+    { start: 0, radiusKm: radius.neRadiusKm },
+    { start: 90, radiusKm: radius.seRadiusKm },
+    { start: 180, radiusKm: radius.swRadiusKm },
+    { start: 270, radiusKm: radius.nwRadiusKm },
+  ] as const
+  for (const quadrant of quadrants) {
+    for (let step = 0; step <= stepsPerQuadrant; step += 1) {
+      const bearing = quadrant.start + step * 90 / stepsPerQuadrant
+      points.push(quadrantPoint(node.lat, node.lon, bearing, quadrant.radiusKm))
+    }
   }
   points.push(points[0]!)
   return points

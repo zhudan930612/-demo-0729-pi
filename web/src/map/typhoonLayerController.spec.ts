@@ -6,6 +6,7 @@ import type { ForecastSnapshot, ObservationNode, TyphoonDetail, WindRadius } fro
 import {
   buildTyphoonScenes,
   createTyphoonSceneRegistry,
+  quadrantWindArcPath,
   TYPHOON_GUARD_LINES,
   typhoonCenterIconClass,
   TYPHOON_PANES,
@@ -125,6 +126,20 @@ describe('typhoon layer scene builder', () => {
 })
 
 describe('typhoon layer resource contract', () => {
+  it('风圈路径由四段 SVG 圆弧和四条轴向连接组成', () => {
+    const path = quadrantWindArcPath({ x: 0, y: 0 }, [
+      { x: 0, y: -4 }, { x: 4, y: 0 },
+      { x: 3, y: 0 }, { x: 0, y: 3 },
+      { x: 0, y: 2 }, { x: -2, y: 0 },
+      { x: -1, y: 0 }, { x: 0, y: -1 },
+    ])!
+    expect(path.match(/A /g)).toHaveLength(4)
+    expect(path.match(/L /g)).toHaveLength(3)
+    expect(path).toContain('A 4 4 0 0 1 4 0')
+    expect(path).toContain('L 3 0')
+    expect(path.endsWith('Z')).toBe(true)
+  })
+
   it('实时和历史中心图标使用可区分的动静状态类', () => {
     expect(typhoonCenterIconClass('start', true)).toBe('typhoon-vortex-marker is-live is-focused')
     expect(typhoonCenterIconClass('stop', false)).toBe('typhoon-vortex-marker is-history')

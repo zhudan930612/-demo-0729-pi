@@ -93,6 +93,31 @@ export interface TyphoonWindScene {
   polygon: readonly LatLon[]
   radius: WindRadius
 }
+
+interface PointLike { x: number; y: number }
+
+/** 四段原生 SVG 椭圆弧 + 四条轴向连接线；axisPoints 顺序为 N/E、E/S、S/W、W/N。 */
+export function quadrantWindArcPath(center: PointLike, axisPoints: readonly PointLike[]): string | null {
+  if (axisPoints.length !== 8) return null
+  const [nNe, eNe, eSe, sSe, sSw, wSw, wNw, nNw] = axisPoints
+  if (!nNe || !eNe || !eSe || !sSe || !sSw || !wSw || !wNw || !nNw) return null
+  const arc = (start: PointLike, end: PointLike) => {
+    const rx = Math.max(Math.abs(start.x - center.x), Math.abs(end.x - center.x))
+    const ry = Math.max(Math.abs(start.y - center.y), Math.abs(end.y - center.y))
+    return `A ${rx} ${ry} 0 0 1 ${end.x} ${end.y}`
+  }
+  return [
+    `M ${nNe.x} ${nNe.y}`,
+    arc(nNe, eNe),
+    `L ${eSe.x} ${eSe.y}`,
+    arc(eSe, sSe),
+    `L ${sSw.x} ${sSw.y}`,
+    arc(sSw, wSw),
+    `L ${wNw.x} ${wNw.y}`,
+    arc(wNw, nNw),
+    'Z',
+  ].join(' ')
+}
 export interface TyphoonScene {
   id: string
   detail: TyphoonDetail
@@ -141,7 +166,7 @@ export function buildTyphoonScenes(snapshot: TyphoonLayerSnapshot): TyphoonScene
     const forecastNodes = forecast?.snapshot.nodes ?? []
     const windCircles = centerNode
       ? centerNode.windRadii
-          .map((radius) => ({ radius, priority: windRadiusPriority(radius), polygon: windCirclePolygon(centerNode, radius) }))
+          .map((radius) => ({ radius, priority: windRadiusPriority(radius), polygon: windCirclePolygon(centerNode, radius, 1) }))
           .filter((item): item is { radius: WindRadius; priority: number; polygon: LatLon[] } => Boolean(item.polygon))
           // 外层低等级先画，十二级等内层后画并位于上方。
           .sort((left, right) => left.priority - right.priority)
@@ -227,9 +252,14 @@ function escapeHtml(value: string) {
 }
 
 function windColors(priority: number) {
-  if (priority >= 3) return { color: '#b91c1c', fillColor: '#ef4444' }
-  if (priority === 2) return { color: '#c2410c', fillColor: '#fb923c' }
-  return { color: '#0369a1', fillColor: '#38bdf8' }
+  if (priority >= 3) return { color: '#f59e0b', fillColor: '#f59e0b' }
+  if (priority === 2) return { color: '#f59e0b', fillColor: '#c9953f' }
+  return { color: '#f59e0b', fillColor: '#94a3b8' }
+}
+
+function windFillOpacity(priority: number, focused: boolean): number {
+  const opacity = priority >= 3 ? 0.46 : priority === 2 ? 0.36 : 0.26
+  return focused ? opacity : opacity * 0.72
 }
 
 export function typhoonCenterIconClass(status: TyphoonDetail['status'], focused: boolean): string {
@@ -275,13 +305,37 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
     const group = L.layerGroup().addTo(map)
     const pathColor = scene.focused ? '#1d4ed8' : '#475569'
     for (const circle of scene.windCircles) {
+      const node = scene.centerNode?.id === circle.nodeId ? scene.centerNode : null
+      const axisLatLngs = circle.polygon.slice(0, 8)
+      if (!node || axisLatLngs.length !== 8) continue
+      const centerPoint = map.project([node.lat, node.lon], 0)
+      const axisPoints = axisLatLngs.map(([lat, lon]) => map.project([lat, lon], 0))
+      const pathData = quadrantWindArcPath(centerPoint, axisPoints)
+      if (!pathData) continue
+      const allPoints = [centerPoint, ...axisPoints]
+      const minX = Math.min(...allPoints.map((point) => point.x))
+      const maxX = Math.max(...allPoints.map((point) => point.x))
+      const minY = Math.min(...allPoints.map((point) => point.y))
+      const maxY = Math.max(...allPoints.map((point) => point.y))
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`)
+      svg.setAttribute('preserveAspectRatio', 'none')
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       const colors = windColors(circle.priority)
-      const layer = L.polygon(latLngs(circle.polygon), {
+      path.setAttribute('d', pathData)
+      path.setAttribute('fill', colors.fillColor)
+      path.setAttribute('fill-opacity', String(windFillOpacity(circle.priority, scene.focused)))
+      path.setAttribute('stroke', colors.color)
+      path.setAttribute('stroke-width', String(scene.focused ? 1.8 : 1.2))
+      path.setAttribute('vector-effect', 'non-scaling-stroke')
+      path.setAttribute('pointer-events', 'visiblePainted')
+      svg.append(path)
+      const layer = L.svgOverlay(svg, L.latLngBounds(
+        map.unproject([minX, maxY], 0),
+        map.unproject([maxX, minY], 0),
+      ), {
         pane: windPane(circle.priority),
-        ...colors,
-        weight: scene.focused ? 1.8 : 1.2,
-        opacity: 0.8,
-        fillOpacity: scene.focused ? 0.13 : 0.08,
+        interactive: true,
         bubblingMouseEvents: false,
       }).addTo(group)
       const payload = (event: L.LeafletEvent) => ({ typhoonId: scene.id, nodeId: circle.nodeId, grade: circle.grade, kind: 'actual' as const, containerPoint: pointerPosition(map, event) })
