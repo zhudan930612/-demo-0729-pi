@@ -38,8 +38,8 @@ web
 
 ## Evidence on Hand
 
-- 地图/地块、详情/保单、台风行为分别以 `docs/需求文档.md`、`docs/地块详情与保单关联V1需求.md`、`docs/灾害风险与台风查看需求.md` 为准。
-- 台风当前行为以 `docs/灾害风险与台风查看需求.md` 和源码为准；V1 实施计划与阶段性验收证据归档在 `docs/archive/`。
+- 项目文档入口为 `docs/README.md`；地图/地块、详情/保单、台风行为分别以 `docs/requirements/需求文档.md`、`docs/requirements/地块详情与保单关联V1需求.md`、`docs/requirements/灾害风险与台风查看需求.md` 为准。
+- 台风当前行为以 `docs/requirements/灾害风险与台风查看需求.md` 和源码为准；V1 实施计划与阶段性验收证据归档在 `docs/archive/`。
 - 地图主装配：`web/src/components/MapView.vue`；台风代理：`server/`。
 - 行政边界、吉林一号影像与 AI 地块数据为本地受限产物，不进入公开仓库。
 

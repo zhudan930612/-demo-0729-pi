@@ -4,10 +4,11 @@
 乡镇级和村级叠加吉林一号 0.5m 高分影像（影像覆盖上虞章镇镇、嵊州三界镇共 17 村）；
 龙江村试点展示 Delineate Anything v2 自动识别的演示地块；省级灾害风险模式展示 APIHz 实时/历史台风路径、预测、风圈、警戒线和时间轴。
 
-- 地图与地块：[docs/需求文档.md](docs/需求文档.md)
-- 地块详情、种植档案与保单：[docs/地块详情与保单关联V1需求.md](docs/地块详情与保单关联V1需求.md)
-- 灾害风险与台风：[docs/灾害风险与台风查看需求.md](docs/灾害风险与台风查看需求.md)
-- 已完成计划与阶段性验收归档：[docs/archive/](docs/archive/)；其中包含台风实施计划、台风 V1 验收记录和 MapView 拆分计划
+- 文档总入口：[docs/README.md](docs/README.md)
+- 地图与地块：[docs/requirements/需求文档.md](docs/requirements/需求文档.md)
+- 地块详情、种植档案与保单：[docs/requirements/地块详情与保单关联V1需求.md](docs/requirements/地块详情与保单关联V1需求.md)
+- 灾害风险与台风：[docs/requirements/灾害风险与台风查看需求.md](docs/requirements/灾害风险与台风查看需求.md)
+- 已完成计划与阶段性验收归档：[docs/archive/](docs/archive/)
 
 ## 技术栈
 
