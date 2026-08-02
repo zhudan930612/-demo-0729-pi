@@ -268,6 +268,7 @@ const typhoonTimelineModel = computed(() => buildTyphoonTimelineViewModel({
   focusedTyphoonId: typhoonStore.focusedTyphoonId,
   selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
   historyPending: typhoonStore.historyLoad.pending,
+  viewportWidth: mapViewport.value.width,
 }))
 const rsVisible = ref(false)
 const rsHint = ref('')
@@ -1051,7 +1052,8 @@ function toggleHistoricalFromTimeline(typhoonId: string) {
     selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
   })
   typhoonLayerController.render(fullSnapshot)
-  typhoonLayerController.fitBoundsForTyphoon(typhoonId, { padding: [48, 48], maxZoom: 7.5 })
+  const firstNode = detail.observationsAsc[0]
+  if (firstNode) typhoonLayerController.setViewForTyphoonNode(typhoonId, firstNode.id, TYPHOON_INITIAL_ZOOM)
   playHistoricalTyphoon(typhoonId)
 }
 

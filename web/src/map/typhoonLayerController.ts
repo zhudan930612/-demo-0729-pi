@@ -468,6 +468,13 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
     return true
   }
 
+  function setViewForTyphoonNode(id: string, nodeId: string, zoom: number) {
+    const node = registry.get(id)?.scene.detail.observationsAsc.find((item) => item.id === nodeId)
+    if (!node || !Number.isFinite(zoom)) return false
+    map.setView([node.lat, node.lon], zoom, { animate: false })
+    return true
+  }
+
   function panNodeIntoView(id: string, nodeId: string, options?: L.PanInsideOptions) {
     const scene = registry.get(id)?.scene
     const node = scene?.detail.observationsAsc.find((item) => item.id === nodeId)
@@ -479,7 +486,7 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
 
   function destroy() { clear() }
 
-  return { boundsForTyphoon, clear, destroy, fitBoundsForTyphoon, panNodeIntoView, removeTyphoon, render, setInitialViewForTyphoon }
+  return { boundsForTyphoon, clear, destroy, fitBoundsForTyphoon, panNodeIntoView, removeTyphoon, render, setInitialViewForTyphoon, setViewForTyphoonNode }
 }
 
 export type TyphoonLayerController = ReturnType<typeof createTyphoonLayerController>

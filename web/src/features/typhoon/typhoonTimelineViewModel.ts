@@ -21,7 +21,6 @@ export interface TyphoonTimelineViewModel {
   months: number[]
   labels: TyphoonTimelineLabelViewModel[]
   laneCount: number
-  trackWidthPx: number
   empty: boolean
   loading: boolean
   limitMessage: string
@@ -35,6 +34,7 @@ export interface TyphoonTimelineSource {
   focusedTyphoonId: TyphoonId | null
   selectedNodeByTyphoon: Readonly<Record<TyphoonId, string | undefined>>
   historyPending: number
+  viewportWidth?: number
 }
 
 function limitMessage(realtimeCount: number, openedCount: number): string {
@@ -44,11 +44,10 @@ function limitMessage(realtimeCount: number, openedCount: number): string {
 }
 
 export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): TyphoonTimelineViewModel {
-  // 第一次只确定月份和标签数量；最终 50px 可点宽度必须在 lane 分配前参与。
-  const sizingModel = buildTimelineModel(source.details, source.nowMs, 0)
-  const months = sizingModel?.months ?? []
-  const trackWidthPx = Math.max(720, months.length * 180, (sizingModel?.labels.length ?? 0) * 100)
-  const model = buildTimelineModel(source.details, source.nowMs, 50 / trackWidthPx)
+  // 起点和原始长度来自真实生命周期；短标签补足到 64px，保证中文名可读。
+  const availableWidthPx = Math.max(320, (source.viewportWidth ?? 1440) - 94)
+  const model = buildTimelineModel(source.details, source.nowMs, 64 / availableWidthPx, 8 / availableWidthPx)
+  const months = model?.months ?? []
   const message = limitMessage(source.realtimeCount, source.openedHistoricalIds.length)
   const detailById = new Map(source.details.map((detail) => [detail.id, detail]))
   const rawLabels = model?.labels ?? []
@@ -63,10 +62,9 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
       ? Math.max(0, Math.min(100, ((selected.epochMs - label.startMs) / duration) * 100))
       : null
     const disabledReason = opened ? '' : message
-    const number = detail.domesticNo || detail.id
     return [{
       id: detail.id,
-      text: `${number} · ${detail.nameCn || '--'}`,
+      text: detail.nameCn || '--',
       title: `${detail.nameCn || '--'}（${detail.nameEn || '--'}）`,
       leftPercent: label.visualStartX * 100,
       widthPercent: (label.visualEndX - label.visualStartX) * 100,
@@ -84,7 +82,6 @@ export function buildTyphoonTimelineViewModel(source: TyphoonTimelineSource): Ty
     months,
     labels,
     laneCount: model?.laneCount ?? 0,
-    trackWidthPx,
     empty: labels.length === 0 && source.historyPending === 0,
     loading: source.historyPending > 0,
     limitMessage: message,
