@@ -1,36 +1,49 @@
 <template>
-  <div class="crumb-bar">
-    <button v-if="store.path.length > 1" type="button" class="back-btn" @click="store.back()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m15 18-6-6 6-6" />
-      </svg>
-      返回上级
-    </button>
-    <nav class="crumbs">
-      <template v-for="(c, i) in store.path" :key="c.code + c.level">
-        <span
-          class="crumb"
-          :class="{ active: i === store.path.length - 1, clickable: i < store.path.length - 1 }"
-          @click="store.backTo(i)"
-        >{{ c.name }}</span>
-        <span v-if="i < store.path.length - 1" class="sep">/</span>
-      </template>
-    </nav>
+  <div class="navigation-status">
+    <div class="crumb-bar">
+      <button v-if="store.path.length > 1" type="button" class="back-btn" @click="store.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        返回上级
+      </button>
+      <nav class="crumbs" aria-label="行政级别">
+        <template v-for="(c, i) in store.path" :key="c.code + c.level">
+          <span
+            class="crumb"
+            :class="{ active: i === store.path.length - 1, clickable: i < store.path.length - 1 }"
+            @click="store.backTo(i)"
+          >{{ c.name }}</span>
+          <span v-if="i < store.path.length - 1" class="sep">/</span>
+        </template>
+      </nav>
+    </div>
+    <output class="zoom-level" aria-live="polite">
+      <span>当前地图视角等级</span>
+      <strong>Z {{ zoom.toFixed(2) }}</strong>
+    </output>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useDrilldownStore } from '../stores/drilldown'
+defineProps<{ zoom: number }>()
 const store = useDrilldownStore()
 </script>
 
 <style scoped>
-.crumb-bar {
+.navigation-status {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+.crumb-bar {
   min-height: 42px;
   display: flex;
   align-items: center;
@@ -42,6 +55,26 @@ const store = useDrilldownStore()
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
   font-size: 13px;
   backdrop-filter: blur(8px);
+}
+.zoom-level {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.96);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+}
+.zoom-level strong {
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 .back-btn {
   height: 34px;
@@ -82,7 +115,8 @@ const store = useDrilldownStore()
 .sep { color: #94a3b8; }
 
 @media (max-width: 720px) {
-  .crumb-bar { right: 12px; overflow: hidden; }
+  .navigation-status { right: 12px; }
+  .crumb-bar { max-width: 100%; overflow: hidden; }
   .crumbs { overflow-x: auto; }
 }
 </style>
