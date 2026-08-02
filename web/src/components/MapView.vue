@@ -234,7 +234,8 @@ const EXIT_ZOOM: Partial<Record<string, number>> = {
 
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
-const DEFAULT_MIN_ZOOM = 7
+const DEFAULT_MIN_ZOOM = 3.5
+const TYPHOON_INITIAL_ZOOM = 4.5
 const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 
 const mapEl = ref<HTMLDivElement>()
@@ -945,10 +946,10 @@ function hideParcelLayersForDisaster() {
   parcelDisplayAreaMu.value = 0
 }
 
-async function waitForProvincePanorama() {
+async function prepareProvinceLayersWithoutMovingCamera() {
   await nextTick()
   if (provinceRenderPromise) await provinceRenderPromise
-  else await render(false)
+  else await render(true)
   hideParcelLayersForDisaster()
 }
 
@@ -966,6 +967,8 @@ function rollbackTyphoonMode(error?: unknown) {
 }
 
 async function enterTyphoonMode() {
+  // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
+  pendingNoFly = true
   const entered = await disasterModeCoordinator.enter({
     hasUnsavedWork: hasUnsavedParcelWork,
     isActive: () => disasterActive.value,
@@ -973,11 +976,16 @@ async function enterTyphoonMode() {
     closeBusinessPanels: closeBusinessForDisaster,
     hideParcelLayers: hideParcelLayersForDisaster,
     resetToProvince: () => store.resetToProvince(),
-    renderProvincePanorama: waitForProvincePanorama,
-    enterRepository: () => { fittedTyphoonSessionId = null; void typhoonRepository.enter() },
+    prepareProvinceLayers: prepareProvinceLayersWithoutMovingCamera,
+    enterRepository: () => {
+      pendingNoFly = false
+      fittedTyphoonSessionId = null
+      map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
+      void typhoonRepository.enter()
+    },
     rollback: rollbackTyphoonMode,
   })
-  if (!entered) provinceRenderPromise = null
+  if (!entered) { pendingNoFly = false; provinceRenderPromise = null }
 }
 
 function focusTyphoonFromUser(typhoonId: string, nodeId?: string) {
@@ -1289,7 +1297,7 @@ watch(() => ({
     visibleObservationCountByTyphoon: state.visibleCounts,
   }))
   if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
-    if (typhoonLayerController.fitBoundsForTyphoon(state.focused!, { padding: [36, 36], maxZoom: 7.5 })) {
+    if (typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
       fittedTyphoonSessionId = state.sessionId
     }
   }

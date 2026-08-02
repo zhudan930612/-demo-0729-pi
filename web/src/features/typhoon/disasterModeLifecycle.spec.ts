@@ -11,7 +11,7 @@ function ports(overrides: Record<string, unknown> = {}) {
       hasUnsavedWork: () => false, isActive: () => active,
       setActive: (value: boolean) => { active = value; events.push(`active:${value}`) },
       closeBusinessPanels: () => events.push('close'), hideParcelLayers: () => events.push('hide'),
-      resetToProvince: async () => true, renderProvincePanorama: async () => {}, enterRepository: () => events.push('repository'),
+      resetToProvince: async () => true, prepareProvinceLayers: async () => {}, enterRepository: () => events.push('repository'),
       rollback: () => { active = false; events.push('rollback') },
       ...overrides,
     },
@@ -23,7 +23,7 @@ describe('disaster mode generation coordinator', () => {
   it('进入中退出后旧任务不能启动 repository', async () => {
     let resolve!: () => void
     const pending = new Promise<void>((done) => { resolve = done })
-    const setup = ports({ renderProvincePanorama: () => pending })
+    const setup = ports({ prepareProvinceLayers: () => pending })
     const coordinator = createDisasterModeCoordinator()
     const entering = coordinator.enter(setup.value)
     await Promise.resolve(); await Promise.resolve()
@@ -35,7 +35,7 @@ describe('disaster mode generation coordinator', () => {
 
   it('退出立即重进时第一轮不能借新 active 复活', async () => {
     let resolveFirst!: () => void
-    const first = ports({ renderProvincePanorama: () => new Promise<void>((done) => { resolveFirst = done }) })
+    const first = ports({ prepareProvinceLayers: () => new Promise<void>((done) => { resolveFirst = done }) })
     const coordinator = createDisasterModeCoordinator()
     const oldEnter = coordinator.enter(first.value)
     await Promise.resolve(); await Promise.resolve()
@@ -53,7 +53,7 @@ describe('disaster mode generation coordinator', () => {
     const rejectedReset = ports({ resetToProvince: async () => false })
     await expect(coordinator.enter(rejectedReset.value)).resolves.toBe(false)
     expect(rejectedReset.events).toContain('rollback')
-    const rejectedRender = ports({ renderProvincePanorama: async () => { throw new Error('render') } })
+    const rejectedRender = ports({ prepareProvinceLayers: async () => { throw new Error('render') } })
     await expect(coordinator.enter(rejectedRender.value)).resolves.toBe(false)
     expect(rejectedRender.events).toContain('rollback')
   })

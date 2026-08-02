@@ -8,7 +8,7 @@ export interface DisasterEnterPorts {
   closeBusinessPanels(): void
   hideParcelLayers(): void
   resetToProvince(): Promise<boolean>
-  renderProvincePanorama(): Promise<void>
+  prepareProvinceLayers(): Promise<void>
   enterRepository(): void
   rollback(error?: unknown): void
 }
@@ -35,7 +35,7 @@ export function createDisasterModeCoordinator() {
       const reset = await ports.resetToProvince()
       if (!current()) return false
       if (!reset) { generation += 1; ports.rollback(); return false }
-      await ports.renderProvincePanorama()
+      await ports.prepareProvinceLayers()
       if (!current()) return false
       ports.enterRepository()
       return true
