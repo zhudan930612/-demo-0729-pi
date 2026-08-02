@@ -151,7 +151,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 
-const emit = defineEmits<{ 'zoom-change': [zoom: number] }>()
 import L from 'leaflet'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
@@ -359,6 +358,7 @@ let workModeController: ParcelWorkModeController
 let typhoonLayerController: TyphoonLayerController
 let typhoonRepository: TyphoonSessionRepository
 let typhoonPlaybackController: TyphoonPlaybackController
+let zoomLevelOutput: HTMLOutputElement | null = null
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
 
@@ -1346,7 +1346,15 @@ onMounted(async () => {
   })
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
   currentZoom.value = map.getZoom()
-  emit('zoom-change', currentZoom.value)
+  const zoomLevelControl = new L.Control({ position: 'bottomright' })
+  zoomLevelControl.onAdd = () => {
+    zoomLevelOutput = L.DomUtil.create('output', 'map-zoom-level') as HTMLOutputElement
+    zoomLevelOutput.setAttribute('aria-live', 'polite')
+    zoomLevelOutput.setAttribute('aria-label', '地图缩放等级')
+    zoomLevelOutput.textContent = `Z ${currentZoom.value.toFixed(2)}`
+    return zoomLevelOutput
+  }
+  zoomLevelControl.addTo(map)
   // 注记独立置顶: 高于高分影像、AI 地块和行政边界
   map.createPane('editDimmingPane')
   map.getPane('editDimmingPane')!.style.zIndex = '350'
@@ -1471,7 +1479,7 @@ onMounted(async () => {
   })
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
-    emit('zoom-change', currentZoom.value)
+    if (zoomLevelOutput) zoomLevelOutput.textContent = `Z ${currentZoom.value.toFixed(2)}`
     onAutoLevel()
   })
   store.setNavigationGuard(async () => {

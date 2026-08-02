@@ -19,16 +19,11 @@
         </template>
       </nav>
     </div>
-    <output class="zoom-level" aria-live="polite">
-      <span>当前地图视角等级</span>
-      <strong>Z {{ zoom.toFixed(2) }}</strong>
-    </output>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useDrilldownStore } from '../stores/drilldown'
-defineProps<{ zoom: number }>()
 const store = useDrilldownStore()
 </script>
 
@@ -40,8 +35,6 @@ const store = useDrilldownStore()
   z-index: 1000;
   display: flex;
   align-items: flex-start;
-  flex-direction: column;
-  gap: 6px;
 }
 .crumb-bar {
   min-height: 42px;
@@ -55,26 +48,6 @@ const store = useDrilldownStore()
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
   font-size: 13px;
   backdrop-filter: blur(8px);
-}
-.zoom-level {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 9px;
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 8px;
-  background: rgba(248, 250, 252, 0.96);
-  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
-  color: #475569;
-  font-size: 12px;
-  line-height: 1.2;
-  backdrop-filter: blur(8px);
-}
-.zoom-level strong {
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
 }
 .back-btn {
   height: 34px;

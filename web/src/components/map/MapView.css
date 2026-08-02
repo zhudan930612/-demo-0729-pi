@@ -2,6 +2,26 @@
 @import './TyphoonVortex.css';
 .map-wrap { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; }
+.map-wrap .leaflet-bottom.leaflet-right { display: flex; align-items: stretch; flex-direction: row-reverse; }
+.map-wrap .leaflet-bottom.leaflet-right .leaflet-control { margin: 0; }
+.map-wrap .leaflet-control-attribution,
+.map-wrap .map-zoom-level {
+  box-sizing: border-box;
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #334155;
+  font-size: 11px;
+  line-height: 18px;
+}
+.map-wrap .map-zoom-level {
+  border-right: 1px solid rgba(148, 163, 184, 0.45);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
 .parcel-editing .map { cursor: grab; }
 .parcel-editing .map:active { cursor: grabbing; }
 .parcel-drawing .map,
