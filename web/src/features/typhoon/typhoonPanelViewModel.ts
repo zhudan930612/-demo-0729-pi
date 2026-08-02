@@ -9,19 +9,6 @@ export interface TyphoonNodeRowViewModel {
   selected: boolean
 }
 
-export interface TyphoonDetailViewModel {
-  number: string
-  nameCn: string
-  nameEn: string
-  time: string
-  position: string
-  pressure: string
-  maximumWind: string
-  movementDirection: string
-  movementSpeed: string
-  windRadiusMessage: string
-}
-
 export interface TyphoonCardViewModel {
   id: TyphoonId
   number: string
@@ -34,12 +21,12 @@ export interface TyphoonCardViewModel {
   expanded: boolean
   selectedNodeId: string | null
   nodes: TyphoonNodeRowViewModel[]
-  detail: TyphoonDetailViewModel | null
 }
 
 export interface TyphoonPathPanelViewModel {
   realtime: TyphoonCardViewModel[]
   historical: TyphoonCardViewModel[]
+  cards: TyphoonCardViewModel[]
   displayedCount: number
 }
 
@@ -52,7 +39,6 @@ export interface TyphoonPanelSource {
   selectedNodeByTyphoon: Readonly<Record<TyphoonId, string | undefined>>
 }
 
-const missing = (value: unknown): string => value === null || value === undefined || value === '' ? '--' : String(value)
 const withUnit = (value: number | undefined, unit: string): string => value === undefined ? '--' : `${value}${unit}`
 
 export function compactBeijingTime(value: string): string {
@@ -66,28 +52,8 @@ export function typhoonWindText(node: ObservationNode): string {
   return strength && speed ? `${strength}（${speed}）` : strength || speed || '--'
 }
 
-function positionText(node: ObservationNode): string {
-  return node.positionText?.trim() || `${node.lon.toFixed(2)}°E / ${node.lat.toFixed(2)}°N`
-}
-
 function displayNumber(detail: TyphoonDetail): string {
   return detail.domesticNo?.trim() || detail.id
-}
-
-function detailView(detail: TyphoonDetail, node: ObservationNode | null): TyphoonDetailViewModel | null {
-  if (!node) return null
-  return {
-    number: displayNumber(detail),
-    nameCn: detail.nameCn || '--',
-    nameEn: detail.nameEn || '--',
-    time: compactBeijingTime(node.timeYmdh),
-    position: positionText(node),
-    pressure: withUnit(node.pressureHpa, 'hPa'),
-    maximumWind: typhoonWindText(node),
-    movementDirection: missing(node.moveDirectionText),
-    movementSpeed: withUnit(node.moveSpeedKmh, 'km/h'),
-    windRadiusMessage: node.windRadii.length ? `已返回 ${node.windRadii.length} 级风圈数据` : '暂无该节点风圈数据',
-  }
 }
 
 function cardView(detail: TyphoonDetail, source: TyphoonPanelSource): TyphoonCardViewModel {
@@ -113,7 +79,6 @@ function cardView(detail: TyphoonDetail, source: TyphoonPanelSource): TyphoonCar
       movementSpeed: withUnit(node.moveSpeedKmh, 'km/h'),
       selected: node.id === effectiveSelectedId,
     })),
-    detail: detailView(detail, selectedNode ?? null),
   }
 }
 
@@ -121,5 +86,5 @@ export function buildTyphoonPathPanelViewModel(source: TyphoonPanelSource): Typh
   const cards = (ids: readonly TyphoonId[]) => ids.flatMap((id) => source.details[id] ? [cardView(source.details[id]!, source)] : [])
   const realtime = cards(source.liveIds)
   const historical = cards(source.openedHistoricalIds)
-  return { realtime, historical, displayedCount: realtime.length + historical.length }
+  return { realtime, historical, cards: [...realtime, ...historical], displayedCount: realtime.length + historical.length }
 }

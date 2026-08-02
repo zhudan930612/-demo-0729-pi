@@ -52,6 +52,7 @@ describe('typhoon path panel view model', () => {
     }))
     expect(vm.realtime.map((item) => item.id)).toEqual(['live-b', 'live-a'])
     expect(vm.historical.map((item) => item.id)).toEqual(['history-a'])
+    expect(vm.cards.map((item) => item.id)).toEqual(['live-b', 'live-a', 'history-a'])
     expect(vm.realtime[0]).toMatchObject({ number: '2609', statusLabel: '实时台风', canClose: false, focused: true, expanded: true })
     expect(vm.historical[0]).toMatchObject({ number: 'history-a', statusLabel: '历史台风', canClose: true })
   })
@@ -65,14 +66,12 @@ describe('typhoon path panel view model', () => {
     }))
     expect(vm.realtime[0]!.nodes.map((row) => row.id)).toEqual(['live-b:1', 'live-b:0'])
     expect(vm.realtime[0]!.nodes[1]).toMatchObject({ pressure: '998', wind: '热带风暴（18m/s）', movementSpeed: '12km/h', selected: true })
-    expect(vm.realtime[0]!.detail).toMatchObject({ pressure: '998hPa', maximumWind: '热带风暴（18m/s）', movementSpeed: '12km/h' })
   })
 
-  it('缺失字段显示 --，无风圈给出明确文案', () => {
+  it('节点表缺失字段显示 --', () => {
     const item = node('history-a:0', 0, { pressureHpa: undefined, intensityText: undefined, moveDirectionText: undefined, moveSpeedKmh: undefined, positionText: undefined })
     const vm = buildTyphoonPathPanelViewModel(source({ 'history-a': detail('history-a', 'stop', [item]) }))
     expect(vm.historical[0]!.nodes[0]).toMatchObject({ pressure: '--', movementSpeed: '--' })
-    expect(vm.historical[0]!.detail).toMatchObject({ pressure: '--', movementDirection: '--', movementSpeed: '--', windRadiusMessage: '暂无该节点风圈数据' })
   })
 
   it('格式化紧凑北京时间，非法时间回退 --', () => {

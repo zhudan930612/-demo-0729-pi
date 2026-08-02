@@ -126,9 +126,7 @@ export const useTyphoonStore = defineStore('typhoon', {
       this.selectedNodeByTyphoon[typhoonId] = nodeId
     },
     toggleExpanded(typhoonId: TyphoonId) {
-      this.expandedIds = this.expandedIds.includes(typhoonId)
-        ? this.expandedIds.filter((id) => id !== typhoonId)
-        : [...this.expandedIds, typhoonId]
+      this.expandedIds = this.expandedIds.includes(typhoonId) ? [] : [typhoonId]
       this.focusedTyphoonId = typhoonId
     },
     setTimelineOpen(open: boolean) {
@@ -139,7 +137,7 @@ export const useTyphoonStore = defineStore('typhoon', {
       if (!detail || detail.status !== 'stop' || this.openedHistoricalIds.includes(typhoonId) || !this.canOpenMoreHistory) return false
       this.openedHistoricalIds.push(typhoonId)
       this.focusedTyphoonId = typhoonId
-      this.expandedIds = [...this.expandedIds.filter((id) => id !== typhoonId), typhoonId]
+      this.expandedIds = [typhoonId]
       // 首个节点由逐点播放 owner 立即写入；store 不自行跳到末节点。
       delete this.selectedNodeByTyphoon[typhoonId]
       return true

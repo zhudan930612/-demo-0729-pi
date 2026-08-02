@@ -34,6 +34,21 @@ describe('typhoon session store', () => {
     expect(store.expandedIds).toEqual(['b'])
   })
 
+  it('卡片使用单开手风琴，打开新卡片自动收起原卡片', () => {
+    const store = useTyphoonStore()
+    store.beginSession(1, 2026)
+    store.receiveSummaries(1, [summary('a', 'start'), summary('b', 'start', 1)])
+    store.receiveLiveDetail(1, detail('a', 'start', 100))
+    store.receiveLiveDetail(1, detail('b', 'start', 200))
+    store.finishLiveLoading(1)
+    store.toggleExpanded('a')
+    expect(store.expandedIds).toEqual(['a'])
+    store.toggleExpanded('b')
+    expect(store.expandedIds).toEqual(['b'])
+    store.toggleExpanded('b')
+    expect(store.expandedIds).toEqual([])
+  })
+
   it('实时达到六条时禁止打开历史', () => {
     const store = useTyphoonStore()
     store.beginSession(1, 2026)
