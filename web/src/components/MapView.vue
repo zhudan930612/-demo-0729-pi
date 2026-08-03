@@ -989,7 +989,7 @@ function currentWeatherQuery(){return defaultWeatherQuery(store.current,selected
 async function enterWeatherMode(){
  if(!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
- closeBusinessForDisaster();weatherStore.open();const skeletonPoint=crumbRepresentativePoint(store.current);if(skeletonPoint)weatherLayerController?.renderLoading(skeletonPoint);await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
+ rosterOpen.value=false;weatherStore.open();const skeletonPoint=selectedParcelFeature()?.properties&&Number.isFinite(Number(selectedParcelFeature()?.properties?.label_lat))&&Number.isFinite(Number(selectedParcelFeature()?.properties?.label_lng))?{lat:Number(selectedParcelFeature()!.properties!.label_lat),lon:Number(selectedParcelFeature()!.properties!.label_lng)}:crumbRepresentativePoint(store.current);if(skeletonPoint)weatherLayerController?.renderLoading(skeletonPoint);await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
 }
 function exitWeatherMode(){weatherRepository.exit();weatherLayerController?.clear();weatherStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
 function refreshWeather(){void weatherRepository.retry()}
