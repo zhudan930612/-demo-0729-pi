@@ -7,6 +7,7 @@ import {
   buildTyphoonScenes,
   createTyphoonSceneRegistry,
   quadrantWindArcPath,
+  sameTyphoonSceneRenderIntent,
   TYPHOON_GUARD_LINES,
   typhoonCenterIconClass,
   TYPHOON_PANES,
@@ -122,6 +123,21 @@ describe('typhoon layer scene builder', () => {
       detail('b', 'start', [node('b', 0), node('b', 1)]),
     ]))
     expect(scenes.map((scene) => [scene.id, scene.actualNodes.length])).toEqual([['a', 1], ['b', 2]])
+  })
+
+  it('历史动画推进时复用未变化的实时台风图层，不重启其实时图标旋转', () => {
+    const realtime = detail('live', 'start', [node('live', 0), node('live', 1)])
+    const historical = detail('history', 'stop', [node('history', 0), node('history', 1)])
+    const initial = buildTyphoonScenes({
+      realtime: [{ detail: realtime }], historical: [{ detail: historical, visibleObservationCount: 1 }],
+      focusedTyphoonId: 'history', selectedNodeByTyphoon: { history: 'history:obs:0' },
+    })
+    const advanced = buildTyphoonScenes({
+      realtime: [{ detail: realtime }], historical: [{ detail: historical, visibleObservationCount: 2 }],
+      focusedTyphoonId: 'history', selectedNodeByTyphoon: { history: 'history:obs:1' },
+    })
+    expect(sameTyphoonSceneRenderIntent(initial[0]!, advanced[0]!)).toBe(true)
+    expect(sameTyphoonSceneRenderIntent(initial[1]!, advanced[1]!)).toBe(false)
   })
 })
 

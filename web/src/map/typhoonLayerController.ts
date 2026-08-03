@@ -266,6 +266,19 @@ export function typhoonCenterIconClass(status: TyphoonDetail['status'], focused:
   return ['typhoon-vortex-marker', status === 'start' ? 'is-live' : 'is-history', focused ? 'is-focused' : ''].filter(Boolean).join(' ')
 }
 
+/**
+ * 历史动画每一步都会触发整张专题图重算；只有绘制意图变化的台风才允许重建图层。
+ * 保留未变化的实时中心 Marker，避免 CSS 旋转动画被反复从零帧重启。
+ */
+export function sameTyphoonSceneRenderIntent(previous: TyphoonScene, next: TyphoonScene): boolean {
+  if (previous.detail !== next.detail || previous.focused !== next.focused || previous.centerNode?.id !== next.centerNode?.id) return false
+  const sameIds = <T extends { id: string }>(left: readonly T[], right: readonly T[]) => left.length === right.length && left.every((item, index) => item.id === right[index]?.id)
+  return sameIds(previous.actualNodes, next.actualNodes)
+    && sameIds(previous.forecastNodes, next.forecastNodes)
+    && previous.windCircles.length === next.windCircles.length
+    && previous.windCircles.every((circle, index) => circle.nodeId === next.windCircles[index]?.nodeId && circle.grade === next.windCircles[index]?.grade)
+}
+
 function typhoonCenterIconHtml(): string {
   return `<span class="typhoon-vortex-glyph" aria-hidden="true"><img src="${typhoonIconUrl}" alt="" draggable="false"></span>`
 }
@@ -434,7 +447,11 @@ export function createTyphoonLayerController(map: L.Map, callbacks: TyphoonLayer
     for (const id of registry.keys()) if (!nextIds.has(id)) registry.remove(id)
     // 同 pane 内最后添加的图层位于上方；焦点台风最后渲染以置顶，但不隐藏或移动其他台风。
     const orderedScenes = [...scenes].sort((left, right) => Number(left.focused) - Number(right.focused))
-    for (const scene of orderedScenes) registry.replace(scene.id, renderScene(scene))
+    for (const scene of orderedScenes) {
+      const previous = registry.get(scene.id)
+      if (previous && sameTyphoonSceneRenderIntent(previous.scene, scene)) continue
+      registry.replace(scene.id, renderScene(scene))
+    }
   }
 
   function removeTyphoon(id: string) { return registry.remove(id) }
