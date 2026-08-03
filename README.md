@@ -129,6 +129,18 @@ APIHZ_CACHE_TTL_MS=30000
 APIHZ_CACHE_MAX_ENTRIES=128
 APIHZ_RATE_LIMIT_PER_MINUTE=60
 APIHZ_RATE_LIMIT_MAX_CLIENTS=2048
+
+# 天气服务（凭据/Host 仅限服务端）
+QWEATHER_AUTH_MODE=api-key
+QWEATHER_API_HOST=你的专属APIHost
+QWEATHER_PROJECT_ID=你的项目ID
+QWEATHER_CREDENTIAL_ID=你的凭据ID
+QWEATHER_API_KEY=轮换后的APIKEY
+WEATHER_DATA_DIR=../web/public/data
+# 可选地址增强线路；不可提交真实线路
+APIHZ_ADDRESS_URL=
+# 仅 loopback 缓存管理接口使用
+WEATHER_ADMIN_TOKEN=本机随机管理令牌
 ```
 
 `server/.env.local` 已被 Git 忽略。服务也兼容 `APIHZ_ID`，但优先读取 `APIHZ_DEVELOPER_ID`。生产环境应直接注入进程环境变量，不依赖文件。
@@ -150,14 +162,19 @@ Vite 将浏览器的 `/api` 请求转发至 `http://127.0.0.1:8787`。如本机�
 ```bash
 curl http://127.0.0.1:8787/healthz
 curl "http://127.0.0.1:8787/api/typhoons?year=2026"
+curl "http://127.0.0.1:8787/api/weather?contextLevel=province&contextCode=330000&target=admin"
 ```
 
 `/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；缓存最多保留 128 条、限流窗口最多跟踪 2048 个直连 IP，均会在后续访问时全量回收过期项，满载时按最旧/LRU 顺序淘汰。这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
+
+天气代理严格消费 `WEATHER_DATA_DIR/weather/index-v1.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内。非法请求在任何上游调用前拒绝。和风天气的预警、实时、分钟降水、24 小时预报独立缓存与返回，地址增强失败只降级地址模块。天气缓存按预警 5 分钟、实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
 
 真实 API 技术探针：
 
 ```bash
 pnpm --dir server probe:apihz
+# 只有确认已轮换泄露的旧 KEY 后才可运行；报告文件为本机忽略产物
+QWEATHER_KEY_ROTATED_CONFIRMED=yes PROBE_WEATHER_LAT=本机测试纬度 PROBE_WEATHER_LON=本机测试经度 pnpm --dir server probe:weather
 ```
 
 探针会安全加载 `server/.env.local`，也可读取已忽略的仓库根 `.env.local`；process environment 始终优先。默认写入当前年度 `server/reports/apihz-probe-summary.json` 脱敏聚合报告，不保存原始响应、台风编号、名称、坐标或凭据。可用非秘密变量 `PROBE_YEAR=2025` 复查某个过去年度；过去年度报告写入带年份文件，不覆盖当前年度主报告。无凭据时安全跳过并返回退出码 2。

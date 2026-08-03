@@ -10,6 +10,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "test": "node --test",
-    "probe:apihz": "node scripts/probe-apihz.js"
+    "probe:apihz": "node scripts/probe-apihz.js",
+    "probe:weather": "node scripts/probe-weather.js"
   }
 }

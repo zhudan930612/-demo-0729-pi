@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import path from 'node:path'
 
 export const DEFAULT_APIHZ_URL = 'https://cn.apihz.cn/api/tianqi/taifeng.php'
 
@@ -27,6 +28,14 @@ function positiveInteger(value, fallback) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function normalizedHttpsOrigin(value) {
+  if (!value) return ''
+  try {
+    const url = new URL(value.includes('://') ? value : `https://${value}`)
+    return url.protocol === 'https:' && url.username === '' && url.password === '' && url.pathname === '/' && !url.search && !url.hash ? url.origin : ''
+  } catch { return '' }
+}
+
 export function readServerConfig(env = process.env) {
   return {
     developerId: env.APIHZ_DEVELOPER_ID || env.APIHZ_ID || '',
@@ -40,5 +49,20 @@ export function readServerConfig(env = process.env) {
     cacheMaxEntries: positiveInteger(env.APIHZ_CACHE_MAX_ENTRIES, 128),
     rateLimitPerMinute: positiveInteger(env.APIHZ_RATE_LIMIT_PER_MINUTE, 60),
     rateLimitMaxClients: positiveInteger(env.APIHZ_RATE_LIMIT_MAX_CLIENTS, 2048),
+    weather: {
+      authMode: env.QWEATHER_AUTH_MODE || 'api-key',
+      apiOrigin: normalizedHttpsOrigin(env.QWEATHER_API_HOST),
+      apiKey: env.QWEATHER_API_KEY || '',
+      projectId: env.QWEATHER_PROJECT_ID || '',
+      credentialId: env.QWEATHER_CREDENTIAL_ID || '',
+      dataDir: env.WEATHER_DATA_DIR ? path.resolve(env.WEATHER_DATA_DIR) : '',
+      addressUrl: env.APIHZ_ADDRESS_URL || '',
+      timeoutMs: positiveInteger(env.QWEATHER_TIMEOUT_MS, 8000),
+      maxNetworkBytes: positiveInteger(env.QWEATHER_MAX_NETWORK_BYTES, 2 * 1024 * 1024),
+      maxDecodedBytes: positiveInteger(env.QWEATHER_MAX_DECODED_BYTES, 4 * 1024 * 1024),
+      cacheMaxEntries: positiveInteger(env.QWEATHER_CACHE_MAX_ENTRIES, 2048),
+      upstreamConcurrency: positiveInteger(env.QWEATHER_UPSTREAM_CONCURRENCY, 6),
+      adminToken: env.WEATHER_ADMIN_TOKEN || '',
+    },
   }
 }

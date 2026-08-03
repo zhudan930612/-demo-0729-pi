@@ -2,6 +2,8 @@ import http from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { createApiHzClient, UpstreamError } from './apihz-client.js'
 import { createIpRateLimiter, createUpstreamBroker, ResourceLimitError } from './resource-manager.js'
+import { createWeatherService } from './weather-service.js'
+import { WeatherSpatialError } from './weather-spatial-index.js'
 
 function beijingYear(now = Date.now()) { return new Date(now + 8 * 60 * 60 * 1000).getUTCFullYear() }
 function responseAlive(response) { return !response.destroyed && !response.writableEnded }
@@ -26,6 +28,13 @@ function publicError(error) {
   }
 }
 function safeLog(logger, level, entry) { const method = logger?.[level]; if (typeof method === 'function') method.call(logger, entry) }
+function isLoopback(address) { return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1' }
+function weatherRequestError(error) {
+  if (!(error instanceof WeatherSpatialError)) return null
+  if (error.kind === 'outside') return { status: 400, code: 'WEATHER_LOCATION_OUT_OF_ZHEJIANG', message: '天气当前仅支持浙江省范围' }
+  if (error.kind === 'unconfigured') return { status: 503, code: 'WEATHER_SERVICE_UNCONFIGURED', message: '天气空间服务尚未配置' }
+  return { status: 400, code: 'INVALID_WEATHER_REQUEST', message: '天气请求参数无效' }
+}
 
 export function createAppServer(config, options = {}) {
   const client = createApiHzClient(config, options)
@@ -37,6 +46,7 @@ export function createAppServer(config, options = {}) {
     cacheMaxEntries: config.cacheMaxEntries ?? 128,
     now,
   })
+  const weather = options.weatherService ?? createWeatherService(config.weather ?? {}, options.weatherOptions ?? options)
   const rateLimiter = options.rateLimiter ?? createIpRateLimiter({
     limit: config.rateLimitPerMinute ?? 60,
     windowMs: 60_000,
@@ -49,20 +59,42 @@ export function createAppServer(config, options = {}) {
     let status = 500
     let routeName = 'not-found'
     let subscription = null
+    let weatherController = null
     let clientGone = false
     const onGone = () => {
       if (response.writableEnded) return
       clientGone = true
       subscription?.release()
+      weatherController?.abort()
     }
     request.once('aborted', onGone)
     response.once('close', onGone)
     try {
       const url = new URL(request.url ?? '/', 'http://localhost')
+      if (url.pathname === '/healthz' && request.method === 'GET') { routeName = 'healthz'; status = 200; sendJson(response, status, { ok: true, configured: Boolean(config.developerId && config.key) }, requestId); return }
+      if (url.pathname === '/api/weather/cache' && request.method === 'DELETE') {
+        routeName = 'weather-cache-clear'
+        const token = request.headers['x-weather-admin-token']
+        if (!isLoopback(request.socket.remoteAddress) || !config.weather?.adminToken || token !== config.weather.adminToken || url.search) { status = 403; sendJson(response, status, { error: { code: 'FORBIDDEN', message: '无权清除天气缓存', requestId } }, requestId); return }
+        weather.clearCache(); status = 204; response.writeHead(status, { 'cache-control': 'no-store', 'x-request-id': requestId }); response.end(); return
+      }
       if (request.method !== 'GET') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
-      if (url.pathname === '/healthz') { routeName = 'healthz'; status = 200; sendJson(response, status, { ok: true, configured: Boolean(config.developerId && config.key) }, requestId); return }
       const ip = request.socket.remoteAddress ?? 'unknown'
       if (!rateLimiter.consume(ip)) { status = 429; sendJson(response, status, { error: { code: 'RATE_LIMITED', message: '请求过于频繁，请稍后重试', requestId } }, requestId); return }
+      if (url.pathname === '/api/weather') {
+        routeName = 'weather'
+        try {
+          const weatherRequest = weather.parse(url)
+          weatherController = new AbortController()
+          const payload = await weather.bundle(weatherRequest, weatherController.signal)
+          if (clientGone) return
+          status = 200; sendJson(response, status, payload, requestId); return
+        } catch (error) {
+          const mapped = weatherRequestError(error)
+          if (!mapped) throw error
+          status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return
+        }
+      }
       let key
       let loader
       if (url.pathname === '/api/typhoons') {
