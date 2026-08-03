@@ -29,7 +29,7 @@ test('spatial index validates strict request contract and point-in-polygon', () 
 
 test('service uses rounded coordinates, fans out alerts, omits township alerts, and degrades address', async () => {
   const calls = []
-  const upstream = { qweather: async (module, lat, lon) => { calls.push({ module, lat, lon }); const raw = payload(module); return module === 'minutely' ? { data: null, metadata: {}, empty: true } : normalizeQWeather(module, raw) }, address: async () => { throw Object.assign(new Error('off'), { kind: 'unconfigured' }) } }
+  const upstream = { qweather: async (module, lat, lon) => { calls.push({ module, lat, lon }); const raw = payload(module); return module === 'minutely' ? { data: null, metadata: {}, empty: true } : normalizeQWeather(module, raw) }, address: async () => { throw new WeatherUpstreamError('unconfigured', 'off') } }
   const service = createWeatherService(config, { upstream })
   const picked = service.parse(url('contextLevel=city&contextCode=330100&target=picked&lat=30.014&lon=120.016'))
   const result = await service.bundle(picked)
@@ -94,5 +94,5 @@ test('alert whitelist removes superseded and cancel messages', () => {
     { id: 'cancel', headline: '取消', messageType: { code: 'Cancel', supersedes: [] } },
   ], metadata: {} }).data
   assert.deepEqual(data.map((item) => item.id), ['new'])
-  assert.deepEqual(Object.keys(data[0]).sort(), ['certainty','color','criteria','description','effectiveTime','eventType','expireTime','headline','icon','id','instruction','issuedTime','messageType','onsetTime','senderName','severity','urgency'].sort())
+  assert.deepEqual(Object.keys(data[0]).sort(), ['certainty','color','criteria','description','effectiveTime','eventType','expireTime','headline','icon','id','instruction','issuedTime','messageType','onsetTime','responseTypes','senderName','severity','urgency'].sort())
 })

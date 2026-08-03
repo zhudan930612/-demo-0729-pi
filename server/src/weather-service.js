@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { loadWeatherSpatialIndex, WeatherSpatialError } from './weather-spatial-index.js'
 import { createWeatherUpstream } from './weather-upstream.js'
 import { createWeatherCache, publicModuleError } from './weather-cache.js'
@@ -10,13 +11,15 @@ function round2(value) { return Math.round((value + Number.EPSILON) * 100) / 100
 function keyCoordinate(value) { return Object.is(value, -0) ? '0' : String(value) }
 function moduleState(result, emptyMessage) {
   if (result.error) return { status: 'error', error: result.error }
-  if (result.value?.empty || (Array.isArray(result.value?.data) && result.value.data.length === 0)) return { status: 'empty', data: result.value.data, message: emptyMessage, metadata: result.value.metadata, fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt }
-  return { status: 'success', data: result.value.data, metadata: result.value.metadata, fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt, ...(result.value.stale ? { stale: true, refreshError: result.value.refreshError } : {}) }
+  const timing = { fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt, ...(result.value.stale ? { stale: true, refreshError: result.value.refreshError } : {}) }
+  if (result.value?.empty || (Array.isArray(result.value?.data) && result.value.data.length === 0)) return { status: 'empty', data: result.value.data, message: emptyMessage, metadata: result.value.metadata, ...timing }
+  return { status: 'success', data: result.value.data, metadata: result.value.metadata, ...timing }
 }
-async function settle(subscription, externalSignal) {
+async function settle(factoryOrSubscription, externalSignal) {
+  let subscription
+  try { subscription = typeof factoryOrSubscription === 'function' ? factoryOrSubscription() : factoryOrSubscription } catch (error) { return { error: publicModuleError(error) } }
   const release = () => subscription.release()
-  externalSignal?.addEventListener('abort', release, { once: true })
-  if (externalSignal?.aborted) release()
+  externalSignal?.addEventListener('abort', release, { once: true }); if (externalSignal?.aborted) release()
   try { return { value: await subscription.promise } } catch (error) { return { error: publicModuleError(error) } } finally { externalSignal?.removeEventListener('abort', release); release() }
 }
 
@@ -51,27 +54,30 @@ export function createWeatherService(config, options = {}) {
     return cache.subscribe(module, key, (signal) => upstream.qweather(module, roundedLat, roundedLon, signal))
   }
   function addressSubscription(lon, lat) {
-    // 地址缓存键使用稳定散列，避免服务内部诊断/统计暴露原始点坐标。
-    let hash = 2166136261
-    for (const char of `${keyCoordinate(lon)},${keyCoordinate(lat)}`) { hash ^= char.codePointAt(0); hash = Math.imul(hash, 16777619) }
-    const key = `address:${(hash >>> 0).toString(16)}`
+    const coordinateKey = `${keyCoordinate(lon)},${keyCoordinate(lat)}`
+    const key = `address:${createHash('sha256').update(coordinateKey).digest('hex')}`
     return cache.subscribe('address', key, (signal) => upstream.address(lon, lat, signal))
   }
   async function alerts(node, externalSignal) {
     const targets = getSpatial().alertNodes(node)
     if (targets.length === 0) return { status: 'empty', data: [], message: '天气预警查看到县级' }
     const regions = await Promise.all(targets.map(async (target) => {
-      const result = await settle(qSubscription('alert', target.representativePoint[1], target.representativePoint[0]), externalSignal)
-      return result.error ? { code: target.code, name: target.name, point: target.representativePoint, status: 'error', error: result.error } : { code: target.code, name: target.name, point: target.representativePoint, status: result.value.data.length ? 'success' : 'empty', alerts: result.value.data, metadata: result.value.metadata, fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt }
+      const result = await settle(() => qSubscription('alert', target.representativePoint[1], target.representativePoint[0]), externalSignal)
+      if (result.error) return { code: target.code, name: target.name, point: target.representativePoint, status: 'error', error: result.error }
+      const timing = { fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt, ...(result.value.stale ? { stale: true, refreshError: result.value.refreshError } : {}) }
+      return { code: target.code, name: target.name, point: target.representativePoint, status: result.value.data.length ? 'success' : 'empty', alerts: result.value.data, metadata: result.value.metadata, ...timing }
     }))
-    return { status: regions.every((r) => r.status === 'empty') ? 'empty' : regions.every((r) => r.status === 'error') ? 'error' : 'success', data: regions, ...(regions.every((r) => r.status === 'empty') ? { message: '当前层级各代表点未查询到生效天气预警' } : {}) }
+    const byId = new Map()
+    for (const region of regions) for (const alert of region.alerts ?? []) { const existing = byId.get(alert.id); if (existing) existing.matchedContextCodes.push(region.code); else byId.set(alert.id, { ...alert, matchedContextCodes: [region.code] }) }
+    const allEmpty = regions.every((r) => r.status === 'empty'), allError = regions.every((r) => r.status === 'error'), anyError = regions.some((r) => r.status === 'error')
+    return { status: allEmpty ? 'empty' : allError ? 'error' : anyError ? 'partial' : 'success', data: regions, details: [...byId.values()], ...(allEmpty ? { message: '当前层级各代表点未查询到生效天气预警' } : {}) }
   }
   return {
     parse(url) { return parseWeatherRequest(url, getSpatial()) },
     async bundle(request, externalSignal) {
       const rounded = { lat: round2(request.lat), lon: round2(request.lon) }
       const [current, minutely, hourly, address, alertResult] = await Promise.all([
-        settle(qSubscription('current', request.lat, request.lon), externalSignal), settle(qSubscription('minutely', request.lat, request.lon), externalSignal), settle(qSubscription('hourly', request.lat, request.lon), externalSignal), settle(addressSubscription(request.lon, request.lat), externalSignal), alerts(request.node, externalSignal),
+        settle(() => qSubscription('current', request.lat, request.lon), externalSignal), settle(() => qSubscription('minutely', request.lat, request.lon), externalSignal), settle(() => qSubscription('hourly', request.lat, request.lon), externalSignal), settle(() => addressSubscription(request.lon, request.lat), externalSignal), alerts(request.node, externalSignal),
       ])
       return { contextLevel: request.contextLevel, contextCode: request.contextCode, target: request.target, location: rounded, originalLocation: { lat: request.lat, lon: request.lon }, fetchedAt: new Date((options.now ?? Date.now)()).toISOString(), address: moduleState(address, '地址增强暂无结果'), current: moduleState(current, '实时天气暂无结果'), alerts: alertResult, minutely: moduleState(minutely, '当前查询位置暂无分钟级降水预报'), hourly: moduleState(hourly, '未来 24 小时预报暂无结果'), attributions: [...(current.value?.metadata?.attributions ?? []), ...(hourly.value?.metadata?.attributions ?? [])] }
     },
