@@ -9,6 +9,7 @@
 - [地图与地块需求](./requirements/需求文档.md)
 - [地块详情、种植档案与保单关联 V1 需求](./requirements/地块详情与保单关联V1需求.md)
 - [灾害风险与台风查看需求](./requirements/灾害风险与台风查看需求.md)
+- [天气查看与和风天气 API 接入需求](./requirements/天气查看与和风天气API接入需求.md)
 
 目录入口：[requirements/](./requirements/)
 
