@@ -6,7 +6,7 @@
       v-if="weatherActive"
       :context-name="store.current.name" :context-level="store.current.level" :phase="weatherStore.phase"
       :alerts="weatherStore.bundle?.alerts ?? null" :selection="weatherStore.selection" :attributions="weatherStore.bundle?.attributions ?? []"
-      :partial-failure="weatherStore.hasPartialFailure" @refresh="refreshWeather" @retry-alerts="refreshWeather" @close="exitWeatherMode"
+      :partial-failure="weatherStore.hasPartialFailure" :last-fetched-at="weatherStore.bundle?.fetchedAt" :stale="weatherStore.bundle ? weatherBundleStale : false" @refresh="refreshWeather" @retry-alerts="refreshWeather" @close="exitWeatherMode"
       @select-alert="selectWeatherAlert" @select-region="weatherStore.selection=null"
     />
     <div v-if="weatherActive" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
@@ -168,6 +168,7 @@
 import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 
 import L from 'leaflet'
+import pointOnFeature from '@turf/point-on-feature'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
@@ -276,6 +277,7 @@ const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'
 const weatherPopupPosition=ref({x:0,y:0})
 const selectedWeatherAlert=computed(()=>selectedAlert(weatherStore.bundle,weatherStore.selection))
 const weatherLocationTitle=computed(()=>weatherStore.bundle?locationTitle(weatherStore.bundle,store.current.name,weatherStore.query?.target==='parcel'):'天气')
+const weatherBundleStale=computed(()=>Boolean(weatherStore.bundle&&[weatherStore.bundle.address,weatherStore.bundle.current,weatherStore.bundle.minutely,weatherStore.bundle.hourly].some(module=>module.stale)||weatherStore.bundle?.alerts.data.some(region=>region.stale)))
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
 const typhoonRevealToken = ref(0)
 const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
@@ -551,12 +553,14 @@ async function selectParcel(parcel: ParcelSummaryInput) {
     }
   }
   renderParcelLayer()
+  if(weatherActive.value){weatherLayerController?.clearPicked();weatherStore.locationPopup='none';void weatherRepository.load(currentWeatherQuery())}
 }
 
 async function requestCloseDetail() {
   if (cultivationEditing.value && !await openManualDialog('关闭地块详情', '当前种植档案尚未保存，是否确认放弃？', '确认放弃')) return
   clearSelection()
   renderParcelLayer()
+  if(weatherActive.value){weatherLayerController?.clearPicked();weatherStore.locationPopup='none';void weatherRepository.load(currentWeatherQuery())}
 }
 
 async function requestRestoreCultivation() {
@@ -971,6 +975,11 @@ function hasUnsavedParcelWork(): boolean {
   return pendingChangeCount.value > 0
 }
 
+function crumbRepresentativePoint(crumb: typeof store.current){
+ const geometry=crumb.geometry??provinceGeometry
+ if(geometry){const [lon,lat]=pointOnFeature({type:'Feature',properties:{},geometry}).geometry.coordinates;return{lat,lon}}
+ return null
+}
 function selectedParcelFeature(): Feature | null {
   if(!selectedParcel.value)return null
   const id=selectedParcel.value.id
@@ -980,7 +989,7 @@ function currentWeatherQuery(){return defaultWeatherQuery(store.current,selected
 async function enterWeatherMode(){
  if(!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
- closeBusinessForDisaster();weatherStore.open();await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
+ closeBusinessForDisaster();weatherStore.open();const skeletonPoint=crumbRepresentativePoint(store.current);if(skeletonPoint)weatherLayerController?.renderLoading(skeletonPoint);await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
 }
 function exitWeatherMode(){weatherRepository.exit();weatherLayerController?.clear();weatherStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
 function refreshWeather(){void weatherRepository.retry()}
