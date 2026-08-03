@@ -1,5 +1,6 @@
 @import './ParcelPolicy.css';
 @import './TyphoonVortex.css';
+@import 'qweather-icons/font/qweather-icons.css';
 .map-wrap { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; }
 .map-wrap .leaflet-bottom.leaflet-right { display: flex; align-items: stretch; flex-direction: row-reverse; }
@@ -46,6 +47,7 @@
   pointer-events: none;
   white-space: nowrap;
 }
+.weather-shortcut-hint{position:absolute;top:12px;left:50%;z-index:1010;display:flex;align-items:center;gap:7px;transform:translateX(-50%);padding:7px 11px;border:1px solid rgba(148,163,184,.42);border-radius:8px;background:rgba(248,250,252,.96);box-shadow:0 6px 18px rgba(15,23,42,.16);color:#475569;font-size:12px;font-weight:600;pointer-events:none}.weather-shortcut-hint kbd{padding:2px 6px;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:5px;background:#fff;color:#0f172a;font:inherit}.weather-edit-notice{position:absolute;left:12px;bottom:76px;z-index:1010;padding:7px 9px;border-radius:7px;background:rgba(248,250,252,.94);box-shadow:0 4px 14px rgba(15,23,42,.16);color:#475569;font-size:11px;font-weight:600}.map-wrap .weather-marker-wrap,.map-wrap .weather-alert-badge-wrap{border:0;background:transparent}.weather-marker{width:72px;height:34px;display:flex;align-items:center;justify-content:center;gap:5px;border:1px solid rgba(37,99,235,.45);border-radius:8px;background:rgba(248,250,252,.97);box-shadow:0 5px 14px rgba(15,23,42,.24);color:#0f172a;font:inherit;cursor:pointer}.weather-marker-wrap.picked .weather-marker{border-color:#7e22ce;box-shadow:0 0 0 3px rgba(126,34,206,.2),0 5px 14px rgba(15,23,42,.24)}.weather-marker i{font-size:19px}.weather-marker strong{font-size:12px;font-variant-numeric:tabular-nums}.weather-alert-badge{width:88px;min-height:64px;display:grid;grid-template-rows:1fr 22px;padding:0;border:2px solid var(--warning);border-radius:7px;background:#fff;box-shadow:0 5px 14px rgba(15,23,42,.24);overflow:hidden;color:#0f172a;cursor:pointer}.weather-alert-main{display:grid;grid-template-columns:32px 1fr;align-items:center}.weather-alert-main i{font-size:22px;color:var(--warning)}.weather-alert-main b{font-size:11px;line-height:1.2;word-break:break-all}.weather-alert-level{display:grid;place-items:center;background:var(--warning);color:#fff;font-size:10px;font-weight:750}.weather-alert-badge.selected{outline:3px solid rgba(37,99,235,.55);outline-offset:2px}@media(max-width:720px){.weather-shortcut-hint{top:8px;font-size:11px}.weather-edit-notice{display:none}}@media(max-width:520px){.weather-shortcut-hint{max-width:calc(100vw - 24px);white-space:normal;text-align:center}}
 .draw-shortcut-hint kbd {
   min-width: 24px;
   padding: 3px 6px;

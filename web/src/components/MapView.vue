@@ -2,6 +2,18 @@
   <div class="map-wrap" :class="{ 'parcel-editing': parcelMode !== 'idle', 'parcel-drawing': parcelMode === 'drawing', 'typhoon-timeline-open': disasterActive && typhoonStore.timelineOpen }">
     <div ref="mapEl" class="map"></div>
 
+    <WeatherPanel
+      v-if="weatherActive"
+      :context-name="store.current.name" :context-level="store.current.level" :phase="weatherStore.phase"
+      :alerts="weatherStore.bundle?.alerts ?? null" :selection="weatherStore.selection" :attributions="weatherStore.bundle?.attributions ?? []"
+      :partial-failure="weatherStore.hasPartialFailure" @refresh="refreshWeather" @retry-alerts="refreshWeather" @close="exitWeatherMode"
+      @select-alert="selectWeatherAlert" @select-region="weatherStore.selection=null"
+    />
+    <div v-if="weatherActive" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
+    <div v-if="weatherActive" class="weather-edit-notice">天气查看中可查看地块，编辑操作暂不可用</div>
+    <WeatherPopup v-if="weatherActive && weatherStore.selection && selectedWeatherAlert" kind="alert" :title="selectedWeatherAlert.alert.headline || '预警标题暂缺'" :alert="selectedWeatherAlert.alert" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="weatherStore.selectAlert(null)" @retry="refreshWeather" />
+    <WeatherPopup v-if="weatherActive && weatherStore.locationPopup !== 'none' && weatherStore.bundle" kind="location" :title="weatherLocationTitle" :bundle="weatherStore.bundle" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
+
     <TyphoonPathPanel
       v-if="disasterActive"
       :phase="typhoonStore.phase"
@@ -123,7 +135,7 @@
     />
 
     <MapControlStack
-      :basemap="basemap"
+      ref="mapControlRef" :basemap="basemap"
       :rs-visible="rsVisible"
       :rs-on="rsOn"
       :parcel-visible="parcelVisible"
@@ -131,17 +143,21 @@
       :mode="parcelMode"
       :can-zoom-in="canZoomIn"
       :can-zoom-out="canZoomOut"
-      :parcel-tools-visible="store.current.level === 'village' || disasterActive"
-      :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive"
+      :parcel-tools-visible="store.current.level === 'village' || disasterActive || weatherActive"
+      :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive || weatherActive"
       :has-filterable-parcels="hasFilterableParcels"
-      :disaster-entry-disabled="disasterEntryDisabled"
+      :disaster-entry-disabled="disasterEntryDisabled || weatherActive"
       :disaster-active="disasterActive"
+      :weather-entry-disabled="!weatherEntry.enabled"
+      :weather-entry-reason="weatherEntry.reason"
+      :weather-active="weatherActive"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
       @start-manual="startManualDrawing"
       @start-filter="startParcelEditing"
       @open-typhoon="enterTyphoonMode"
+      @open-weather="enterWeatherMode"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
     />
@@ -161,6 +177,8 @@ import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
 import TyphoonTimelineDrawer from './typhoon/TyphoonTimelineDrawer.vue'
 import TyphoonHoverPopup from './typhoon/TyphoonHoverPopup.vue'
+import WeatherPanel from './weather/WeatherPanel.vue'
+import WeatherPopup from './weather/WeatherPopup.vue'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
 import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
@@ -175,6 +193,8 @@ import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
 import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
+import { createWeatherLayerController } from '../map/weatherLayerController'
+import { createWeatherInteractionController } from '../map/weatherInteractionController'
 import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
 import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapshot, shouldAutoFitTyphoon } from '../features/typhoon/disasterModeLifecycle'
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
@@ -183,6 +203,11 @@ import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarge
 import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
+import { useWeatherStore } from '../stores/weather'
+import { createWeatherRepository, type WeatherRepository } from '../features/weather/weatherRepository'
+import { defaultWeatherQuery, pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
+import { locationTitle, selectedAlert } from '../features/weather/weatherAdapter'
+import type { WeatherSelection } from '../features/weather/weatherTypes'
 import {
   addPendingManualParcel,
   commitManualBatch,
@@ -240,10 +265,17 @@ const TYPHOON_INITIAL_ZOOM = 4.5
 const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 
 const mapEl = ref<HTMLDivElement>()
+const mapControlRef = ref<InstanceType<typeof MapControlStack>>()
 const store = useDrilldownStore()
 const typhoonStore = useTyphoonStore()
+const weatherStore = useWeatherStore()
 const disasterActive = ref(false)
+const weatherActive = computed(()=>weatherStore.isOpen)
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
+const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':weatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
+const weatherPopupPosition=ref({x:0,y:0})
+const selectedWeatherAlert=computed(()=>selectedAlert(weatherStore.bundle,weatherStore.selection))
+const weatherLocationTitle=computed(()=>weatherStore.bundle?locationTitle(weatherStore.bundle,store.current.name,weatherStore.query?.target==='parcel'):'天气')
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
 const typhoonRevealToken = ref(0)
 const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
@@ -356,6 +388,10 @@ let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
 let workModeController: ParcelWorkModeController
 let typhoonLayerController: TyphoonLayerController
+let weatherLayerController: ReturnType<typeof createWeatherLayerController>
+let weatherInteractionController: ReturnType<typeof createWeatherInteractionController>
+let weatherRepository: WeatherRepository
+let provinceGeometry: Geometry | null = null
 let typhoonRepository: TyphoonSessionRepository
 let typhoonPlaybackController: TyphoonPlaybackController
 let zoomLevelOutput: HTMLOutputElement | null = null
@@ -935,6 +971,22 @@ function hasUnsavedParcelWork(): boolean {
   return pendingChangeCount.value > 0
 }
 
+function selectedParcelFeature(): Feature | null {
+  if(!selectedParcel.value)return null
+  const id=selectedParcel.value.id
+  return [...(parcelSource?.features??[]),...manualParcels].find(feature=>parcelId(feature)===id)??null
+}
+function currentWeatherQuery(){return defaultWeatherQuery(store.current,selectedParcel.value?{feature:selectedParcelFeature()}:null)}
+async function enterWeatherMode(){
+ if(!weatherEntry.value.enabled)return
+ if(disasterActive.value)exitTyphoonMode(false)
+ closeBusinessForDisaster();weatherStore.open();await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
+}
+function exitWeatherMode(){weatherRepository.exit();weatherLayerController?.clear();weatherStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function refreshWeather(){void weatherRepository.retry()}
+function selectWeatherAlert(selection:WeatherSelection){weatherStore.selectAlert(selection);const region=weatherStore.bundle?.alerts.data.find(r=>r.code===selection.contextCode);if(region){const p=map.latLngToContainerPoint([region.point[1],region.point[0]]);weatherPopupPosition.value={x:p.x,y:p.y}}}
+function closeWeatherLocation(){const picked=weatherStore.closeLocation();if(picked){weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle)}}
+function loadPickedWeather(lat:number,lon:number){weatherStore.closeLocation();weatherLayerController.clearPicked();void weatherRepository.load(pickedWeatherQuery(store.current,lat,lon)).then(()=>{if(weatherStore.bundle?.target==='picked'){weatherLayerController.renderPicked(weatherStore.bundle);const p=map.latLngToContainerPoint([lat,lon]);weatherPopupPosition.value={x:p.x,y:p.y};weatherStore.openLocation('picked')}})}
 function closeBusinessForDisaster() {
   clearSelection()
   rosterOpen.value = false
@@ -960,6 +1012,7 @@ function rollbackTyphoonMode(error?: unknown) {
 }
 
 async function enterTyphoonMode() {
+  if(weatherActive.value)return
   // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
   pendingNoFly = true
   const entered = await disasterModeCoordinator.enter({
@@ -1089,6 +1142,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 function onManualKeydown(event: KeyboardEvent) {
   if (isTypingTarget(event.target)) return
+  if(event.key==='Escape'&&weatherActive.value&&(weatherStore.locationPopup!=='none'||weatherStore.selection)){event.preventDefault();if(weatherStore.locationPopup!=='none')closeWeatherLocation();else weatherStore.selectAlert(null);return}
   if (event.key === 'Escape' && typhoonPopupState.value.pinned) {
     event.preventDefault()
     typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
@@ -1261,6 +1315,7 @@ async function render(noFly = false) {
 }
 
 watch(() => store.path.length, () => {
+  if(weatherActive.value){weatherLayerController?.clearPicked();weatherStore.locationPopup='none';weatherStore.selection=null;void weatherRepository.load(currentWeatherQuery())}
   const nf = pendingNoFly
   pendingNoFly = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
@@ -1274,6 +1329,9 @@ watch(() => store.path.length, () => {
   manualDraftDirty.value = false
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
+
+watch(() => weatherStore.bundle,(bundle)=>{if(!weatherActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle);else weatherLayerController?.renderDefault(bundle);weatherLayerController?.renderAlerts(bundle.alerts.data,weatherStore.selection)})
+watch(()=>weatherStore.selection,selection=>{if(weatherStore.bundle)weatherLayerController?.renderAlerts(weatherStore.bundle.alerts.data,selection)})
 
 watch(() => ({
   active: disasterActive.value,
@@ -1343,6 +1401,8 @@ onMounted(async () => {
     renderer: canvasRenderer, // 矢量图层默认走 Canvas
   })
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
+  const provinceData=await fetchJSON<FeatureCollection>('/data/boundary/province.geojson').catch(()=>null)
+  provinceGeometry=provinceData?.features[0]?.geometry??null
   currentZoom.value = map.getZoom()
   const zoomLevelControl = new L.Control({ position: 'bottomright' })
   zoomLevelControl.onAdd = () => {
@@ -1441,6 +1501,9 @@ onMounted(async () => {
     typhoonPopupState.value = pinPopup(typhoonPopupState.value, target)
     typhoonHoverPosition.value = point
   }
+  weatherLayerController=createWeatherLayerController(map,{onLocationClick:(kind,point)=>{weatherPopupPosition.value=point;weatherStore.openLocation(kind)},onAlertClick:(selection,point)=>{weatherPopupPosition.value=point;weatherStore.selectAlert(selection)}})
+  weatherInteractionController=createWeatherInteractionController(map,{active:()=>weatherActive.value,editing:()=>parcelMode.value!=='idle',provinceGeometry:()=>provinceGeometry,onPicked:loadPickedWeather,onOutside:()=>showNotice('天气当前仅支持浙江省范围',true)})
+  weatherRepository=createWeatherRepository(weatherStore)
   typhoonLayerController = createTyphoonLayerController(map, {
     onTyphoonClick: ({ typhoonId }) => revealTyphoon(typhoonId),
     onNodeClick: ({ typhoonId, nodeId, kind, containerPoint }) => {
@@ -1494,6 +1557,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  exitWeatherMode()
   exitTyphoonMode(false)
   disposed = true
   flySeq += 1
@@ -1503,6 +1567,8 @@ onBeforeUnmount(() => {
   store.setNavigationGuard(null)
   typhoonPlaybackController?.destroy()
   typhoonLayerController?.destroy()
+  weatherInteractionController?.destroy()
+  weatherLayerController?.destroy()
   workModeController?.destroy()
   manualDrawingController?.destroy()
   parcelLayerController?.destroy()
