@@ -22,26 +22,36 @@
         {
           "url": "https://www.dongyang.gov.cn/art/2023/1/5/art_1229163140_59594641.html",
           "published": "2023-01-05",
-          "accessed": "2026-08-03"
+          "accessed": "2026-08-03",
+          "publisher": "东阳市人民政府",
+          "reason": "用于核验该修正规则所述行政归属或区划代码。"
         },
         {
           "url": "http://xzqh.org/show/china/2023/33/330783.html",
           "published": "2023",
-          "accessed": "2026-08-03"
+          "accessed": "2026-08-03",
+          "publisher": "区划地名网",
+          "reason": "用于核验该修正规则所述行政归属或区划代码。"
         },
         {
           "url": "http://www.xzqh.org/show/china/2021/33/330783.html",
           "published": "2021",
-          "accessed": "2026-08-03"
+          "accessed": "2026-08-03",
+          "publisher": "区划地名网",
+          "reason": "用于核验该修正规则所述行政归属或区划代码。"
         },
         {
           "url": "http://xzqh.org/show/china/2025/33/330783.html",
           "published": "2025",
-          "accessed": "2026-08-03"
+          "accessed": "2026-08-03",
+          "publisher": "区划地名网",
+          "reason": "用于核验该修正规则所述行政归属或区划代码。"
         },
         {
           "url": "http://www.lanxi.gov.cn/col/col1229287661/index.html",
-          "accessed": "2026-08-03"
+          "accessed": "2026-08-03",
+          "publisher": "兰溪市人民政府",
+          "reason": "用于核验该修正规则所述行政归属或区划代码。"
         }
       ]
     }

@@ -1,1 +1,1 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330101"},"geometry":{"type":"Polygon","coordinates":[[[119.7,29.7],[120.3,29.7],[120.3,30.3],[119.7,30.3],[119.7,29.7]]]}}]}
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330101","name":"示例县"},"geometry":{"type":"Polygon","coordinates":[[[119.7,29.7],[120.3,29.7],[120.3,30.3],[119.7,30.3],[119.7,29.7]]]}}]}

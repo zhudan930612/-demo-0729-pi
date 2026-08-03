@@ -1,1 +1,1 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330101001000"},"geometry":{"type":"Polygon","coordinates":[[[119.8,29.8],[120.2,29.8],[120.2,30.2],[119.8,30.2],[119.8,29.8]]]}}]}
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330101001000","name":"示例乡"},"geometry":{"type":"Polygon","coordinates":[[[119.8,29.8],[120.2,29.8],[120.2,30.2],[119.8,30.2],[119.8,29.8]]]}}]}

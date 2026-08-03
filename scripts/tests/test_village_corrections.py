@@ -65,7 +65,10 @@ class VillageCorrectionsTest(unittest.TestCase):
                     "villageName": "测试村",
                 },
                 "reason": "测试审计规则",
-                "sources": [{"url": "https://example.test/source"}],
+                "sources": [{
+                    "url": "https://example.test/source", "publisher": "测试发布主体",
+                    "accessed": "2026-08-03", "reason": "测试规则来源",
+                }],
             }],
         }, ensure_ascii=False), encoding="utf-8")
 

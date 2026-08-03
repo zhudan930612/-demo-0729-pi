@@ -42,8 +42,8 @@ export function geometryCovers(geometry, point) {
 
 export function loadWeatherSpatialIndex(dataDir) {
   if (!dataDir) fail('WEATHER_DATA_DIR 未配置')
-  const root = path.resolve(dataDir), index = readJson(path.join(root, 'weather', 'index-v1.json'))
-  if (index?.schemaVersion !== 1 || index?.provinceCode !== '330000' || !Array.isArray(index.nodes) || index.nodes.length === 0) fail('天气空间索引版本无效')
+  const root = path.resolve(dataDir), index = readJson(path.join(root, 'weather', 'index-v2.json'))
+  if (index?.schemaVersion !== 2 || index?.provinceCode !== '330000' || !Array.isArray(index.nodes) || index.nodes.length === 0) fail('天气空间索引版本无效')
   const rawNodes = new Map()
   for (const raw of index.nodes) {
     const code = typeof raw?.code === 'string' ? raw.code : '', children = raw?.childrenCodes
@@ -75,8 +75,9 @@ export function loadWeatherSpatialIndex(dataDir) {
       const features = new Map()
       for (const feature of collection.features) {
         const code = typeof feature?.properties?.code === 'string' ? feature.properties.code : String(feature?.properties?.code ?? '')
-        if (!code || features.has(code) || !validGeometry(feature?.geometry)) fail('天气边界要素无效')
-        features.set(code, feature.geometry)
+        const name = typeof feature?.properties?.name === 'string' ? feature.properties.name.trim() : ''
+        if (!code || !name || features.has(code) || !validGeometry(feature?.geometry)) fail('天气边界要素无效')
+        features.set(code, { name, geometry: feature.geometry })
       }
       featureFiles.set(relative, features)
     }
@@ -85,14 +86,32 @@ export function loadWeatherSpatialIndex(dataDir) {
   for (const raw of rawNodes.values()) {
     const relative = raw.boundary?.path
     if (raw.boundary?.featureCode !== raw.code) fail('天气边界索引不一致')
-    const geometry = featuresFor(relative).get(raw.code)
-    if (!geometry || !geometryCovers(geometry, raw.representativePoint)) fail('天气代表点与边界不一致')
-    verified.set(raw.code, Object.freeze({ code: raw.code, name: raw.name, level: raw.level, parentCode: raw.parentCode, childrenCodes: Object.freeze([...raw.childrenCodes]), representativePoint: Object.freeze([...raw.representativePoint]), geometry }))
+    const feature = featuresFor(relative).get(raw.code)
+    if (!feature || feature.name !== raw.name || !geometryCovers(feature.geometry, raw.representativePoint)) fail('天气索引名称、代表点与边界不一致')
+    verified.set(raw.code, Object.freeze({ code: raw.code, name: raw.name, level: raw.level, parentCode: raw.parentCode, childrenCodes: Object.freeze([...raw.childrenCodes]), representativePoint: Object.freeze([...raw.representativePoint]), geometry: feature.geometry }))
   }
   const rootNode = verified.get('330000')
+  for (const node of verified.values()) {
+    if (!geometryCovers(rootNode.geometry, node.representativePoint)) fail('天气代表点越出浙江省界')
+    let parent = node.parentCode ? verified.get(node.parentCode) : null
+    while (parent) {
+      if (!geometryCovers(parent.geometry, node.representativePoint)) fail('天气代表点越出父级行政链')
+      parent = parent.parentCode ? verified.get(parent.parentCode) : null
+    }
+  }
   return Object.freeze({
     get(code, level) { const node = verified.get(code); if (!node || node.level !== level) throw new WeatherSpatialError('outside', '行政代码不属于当前层级或浙江省'); return node },
-    covers(node, lon, lat) { return verified.get(node?.code) === node && geometryCovers(node.geometry, [lon, lat]) },
+    covers(node, lon, lat) {
+      if (verified.get(node?.code) !== node) return false
+      const point = [lon, lat]
+      if (!geometryCovers(rootNode.geometry, point)) return false
+      let current = node
+      while (current) {
+        if (!geometryCovers(current.geometry, point)) return false
+        current = current.parentCode ? verified.get(current.parentCode) : null
+      }
+      return true
+    },
     province() { return rootNode },
     alertNodes(node) { if (verified.get(node?.code) !== node) fail('天气空间节点未验证'); if (node.level === 'province' || node.level === 'city') return node.childrenCodes.map((code) => verified.get(code)); return node.level === 'county' ? [node] : [] },
   })

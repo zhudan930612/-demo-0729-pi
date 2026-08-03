@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from correction_schema import validate_sources
+
 
 class VillageCorrectionError(ValueError):
     """修正规则、源签名或目标记录与审计基线不一致。"""
@@ -62,10 +64,9 @@ class VillageCorrections:
                 or action not in {"drop", "recode"}
                 or not isinstance(expected, dict)
                 or not rule.get("reason")
-                or not isinstance(rule.get("sources"), list)
-                or not rule["sources"]
             ):
                 raise VillageCorrectionError(f"修正规则结构无效：{object_id or index}")
+            validate_sources(rule.get("sources"), f"村界修正规则 {object_id}", VillageCorrectionError)
             if action == "recode" and not isinstance(rule.get("replacement"), dict):
                 raise VillageCorrectionError(f"recode 缺少 replacement：{object_id}")
             self._by_index[index] = rule

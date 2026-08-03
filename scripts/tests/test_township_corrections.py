@@ -41,7 +41,10 @@ class TownshipCorrectionsTest(unittest.TestCase):
                 "action": "drop",
                 "expected": {"code": "duplicate", "name": "错误乡"},
                 "reason": "测试",
-                "sources": [{"url": "https://example.test"}],
+                "sources": [{
+                    "url": "https://example.test", "publisher": "测试发布主体",
+                    "accessed": "2026-08-03", "reason": "测试规则来源",
+                }],
             }],
         }, ensure_ascii=False), encoding="utf-8")
 

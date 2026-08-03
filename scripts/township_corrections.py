@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from correction_schema import validate_sources
+
 
 class TownshipCorrectionError(ValueError):
     """乡镇修正规则或源数据偏离审计基线。"""
@@ -31,9 +33,9 @@ class TownshipCorrections:
                 or rule.get("action") != "drop"
                 or not isinstance(rule.get("expected"), dict)
                 or not rule.get("reason")
-                or not rule.get("sources")
             ):
                 raise TownshipCorrectionError(f"乡镇修正规则结构无效：{index}")
+            validate_sources(rule.get("sources"), f"乡镇修正规则 {index}", TownshipCorrectionError)
             self._by_index[index] = rule
 
     def apply(self, index: int, feature: dict[str, Any]) -> dict[str, Any] | None:

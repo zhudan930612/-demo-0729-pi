@@ -50,11 +50,15 @@ web/public/
 │   ├── boundary/
 │   ├── villages/
 │   ├── manifest.json
-│   ├── weather/
-│   │   └── index-v1.json
 │   └── rs.json
 └── tiles/
     └── rs/
+
+.dev-runtime/weather-data/       # 服务端私有副本，由预处理脚本生成
+├── boundary/
+├── villages/
+├── manifest.json
+└── weather/index-v2.json
 ```
 
 没有这些数据时，前端可以启动，但行政区划下钻和高分影像无法正常展示。
@@ -136,7 +140,7 @@ QWEATHER_API_HOST=你的专属APIHost
 QWEATHER_PROJECT_ID=你的项目ID
 QWEATHER_CREDENTIAL_ID=你的凭据ID
 QWEATHER_API_KEY=轮换后的APIKEY
-WEATHER_DATA_DIR=../web/public/data
+WEATHER_DATA_DIR=../.dev-runtime/weather-data
 # 可选地址增强线路；不可提交真实线路
 APIHZ_ADDRESS_URL=
 # 仅 loopback 缓存管理接口使用
@@ -167,7 +171,7 @@ curl "http://127.0.0.1:8787/api/weather?contextLevel=province&contextCode=330000
 
 `/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；缓存最多保留 128 条、限流窗口最多跟踪 2048 个直连 IP，均会在后续访问时全量回收过期项，满载时按最旧/LRU 顺序淘汰。这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
 
-天气代理严格消费 `WEATHER_DATA_DIR/weather/index-v1.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内。非法请求在任何上游调用前拒绝。和风天气的预警、实时、分钟降水、24 小时预报独立缓存与返回，地址增强失败只降级地址模块。天气缓存按预警 5 分钟、实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
+天气代理严格消费服务端私有的 `WEATHER_DATA_DIR/weather/index-v2.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内。非法请求在任何上游调用前拒绝。和风天气的预警、实时、分钟降水、24 小时预报独立缓存与返回，地址增强失败只降级地址模块。天气缓存按预警 5 分钟、实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
 
 真实 API 技术探针：
 
@@ -205,8 +209,8 @@ pnpm --dir web preview --host 0.0.0.0
 ```bash
 pip install pyshp shapely rasterio pillow numpy
 
-python scripts/prepare-boundaries.py     # 边界拆分 + 天气可信空间索引 -> web/public/data/
-python scripts/weather_spatial_index.py --validate-only  # 校验天气索引、边界引用与代表点 covers
+python scripts/prepare-boundaries.py     # 前端边界 -> web/public/data/；服务端天气副本 -> .dev-runtime/weather-data/
+python scripts/weather_spatial_index.py --validate-only  # 校验私有天气索引、边界引用与完整父链 covers
 python -m unittest discover -s scripts/tests -p "test_*.py"  # 非敏感小型 fixture 测试
 python scripts/prepare-rs-tiles.py       # 影像切片 -> web/public/tiles/
 python scripts/validate-data.py          # 数据链路校验(13 项)
@@ -219,7 +223,7 @@ pnpm install
 pnpm dev
 ```
 
-`weather/index-v1.json` 只保存五级父子关系、最终边界文件引用和每个可信行政面的内部代表点，不复制几何。服务端必须同时读取该索引与其引用的最终 GeoJSON，并用面几何做授权校验；索引或边界缺失、损坏、几何无效、行政代码重复/名称冲突、代表点不被对应几何 `covers` 时应拒绝加载，不能用包围盒降级放行。已确认的源数据错码/错归属只能通过受版本控制的 `scripts/data/weather-village-corrections-v1.json` 修正：规则记录源文件签名、记录序号、伴随源的 `objectid`、旧值、新值/丢弃动作、理由和公开来源；生成器仅在所有签名与旧值精确匹配时应用，源数据漂移或规则未命中均 fail closed。当前规则将凤凰村修正为统计用区划码 `330182108264`，丢弃错误归入三都镇的湖岑畈村重复记录，并将更楼街道湖岑畈村由源旧码 `330182003009` 修正为连续多期区划目录代码 `330182003206`；仓库已提交数据中没有旧码引用。四级边界源中的已确认乡镇错标同样必须经 `scripts/data/weather-township-corrections-v1.json` 的 ZIP/成员签名和要素旧值精确匹配修正；当前规则只丢弃误标为东阳市 `330783005000` 的“赤溪街道”小面，保留该代码的江北街道和兰溪市 `330781005000` 的赤溪街道。村界源还混有末三位为 `000` 的乡镇本级/围垦面记录；生成器按 12 位统计用区划代码结构排除这些非村级记录并输出计数，避免其冒充村节点。不得绕过这些规则文件在脚本中增加静默特殊判断。索引与边界同属未提交的 `web/public/data/` 运行数据。
+私有 `weather/index-v2.json` 只保存五级父子关系、最终边界文件引用和每个可信行政面在“自身 + 完整父链 + 浙江省界”共同交集内的代表点，不复制几何。服务端必须同时读取私有索引与其引用的最终 GeoJSON，并用完整父链面几何做授权校验；索引或边界缺失、损坏、几何无效、行政代码重复/名称冲突、代表点越出自身或任一父级时应拒绝加载，不能用包围盒降级放行。已确认的源数据错码/错归属只能通过受版本控制的 `scripts/data/weather-village-corrections-v1.json` 修正：规则记录源文件签名、记录序号、伴随源的 `objectid`、旧值、新值/丢弃动作、理由和公开来源；生成器仅在所有签名与旧值精确匹配时应用，源数据漂移或规则未命中均 fail closed。当前规则将凤凰村修正为统计用区划码 `330182108264`，丢弃错误归入三都镇的湖岑畈村重复记录，并将更楼街道湖岑畈村由源旧码 `330182003009` 修正为连续多期区划目录代码 `330182003206`；仓库已提交数据中没有旧码引用。四级边界源中的已确认乡镇错标同样必须经 `scripts/data/weather-township-corrections-v1.json` 的 ZIP/成员签名和要素旧值精确匹配修正；当前规则只丢弃误标为东阳市 `330783005000` 的“赤溪街道”小面，保留该代码的江北街道和兰溪市 `330781005000` 的赤溪街道。村界源还混有末三位为 `000` 的乡镇本级/围垦面记录；生成器按 12 位统计用区划代码结构排除这些非村级记录并输出计数，避免其冒充村节点。其余经源签名、行政代码结构和现役四级边界父链交叉核验确认的错归属记录同样写入版本化修正规则；无法可靠归属的省界外/海岛杂面 fail closed 丢弃。无村面文件的 38 个乡镇由 `scripts/data/weather-missing-villages-allowlist-v1.json` 精确约束，集合漂移即拒绝生成。不得绕过规则文件在脚本中增加静默特殊判断。前端边界位于未提交的 `web/public/data/`；天气代理只使用未提交的 `.dev-runtime/weather-data/` 私有副本，防止浏览器取得服务端授权索引。
 
 ## 版权说明
 

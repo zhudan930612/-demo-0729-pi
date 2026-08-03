@@ -59,6 +59,7 @@ def create_fixture(root: Path):
     write_json(root, "boundary/county/330100.geojson", collection(feature("330101", "测试县", polygon(2, 2, 8, 8))))
     write_json(root, "boundary/township/330101.geojson", collection(feature("330101001000", "测试乡", polygon(3, 3, 7, 7))))
     write_json(root, "villages/330101001000.geojson", collection(feature("330101001001", "测试村", polygon(4, 4, 6, 6))))
+    write_json(root, "allowlist.json", {"schemaVersion": 1, "sourceType": "测试", "source": {"url": "https://example.test", "publisher": "测试", "accessed": "2026-08-03", "reason": "测试"}, "entries": []})
 
 
 class WeatherSpatialIndexTest(unittest.TestCase):
@@ -70,8 +71,12 @@ class WeatherSpatialIndexTest(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_preprocessor_removes_legacy_public_weather_index(self):
+        source = (SCRIPTS / "prepare-boundaries.py").read_text(encoding="utf-8")
+        self.assertIn("shutil.rmtree(OUT / 'weather', ignore_errors=True)", source)
+
     def test_builds_complete_five_level_tree_and_village(self):
-        index = build_weather_spatial_index(self.data)
+        index = build_weather_spatial_index(self.data, self.data / "allowlist.json")
         by_code = {node["code"]: node for node in index["nodes"]}
         self.assertEqual(
             [by_code[code]["level"] for code in ("330000", "330100", "330101", "330101001000", "330101001001")],
@@ -82,8 +87,8 @@ class WeatherSpatialIndexTest(unittest.TestCase):
         self.assertEqual(by_code["330101001001"]["boundary"]["path"], "villages/330101001000.geojson")
 
     def test_generated_representative_points_are_covered_by_final_boundaries(self):
-        write_weather_spatial_index(self.data)
-        nodes = load_trusted_weather_spatial_index(self.data)
+        write_weather_spatial_index(self.data, self.data / "private", self.data / "allowlist.json")
+        nodes = load_trusted_weather_spatial_index(self.data / "private")
         self.assertEqual(len(nodes), 5)
 
     def test_invalid_geometry_fails_closed(self):
@@ -97,7 +102,21 @@ class WeatherSpatialIndexTest(unittest.TestCase):
             collection(feature("330101001000", "测试乡", bow_tie)),
         )
         with self.assertRaisesRegex(WeatherSpatialIndexError, "为空或无效"):
-            build_weather_spatial_index(self.data)
+            build_weather_spatial_index(self.data, self.data / "allowlist.json")
+
+    def test_disjoint_child_geometry_fails_closed(self):
+        write_json(
+            self.data,
+            "villages/330101001000.geojson",
+            collection(feature("330101001001", "测试村", polygon(20, 20, 21, 21))),
+        )
+        with self.assertRaisesRegex(WeatherSpatialIndexError, "与父级完全不相交"):
+            build_weather_spatial_index(self.data, self.data / "allowlist.json")
+
+    def test_missing_village_allowlist_must_match_exactly(self):
+        (self.data / "villages/330101001000.geojson").unlink()
+        with self.assertRaisesRegex(WeatherSpatialIndexError, "无村界乡镇集合漂移"):
+            build_weather_spatial_index(self.data, self.data / "allowlist.json")
 
     def test_duplicate_code_with_conflicting_names_fails_closed(self):
         village_path = "villages/330101001000.geojson"
@@ -109,27 +128,27 @@ class WeatherSpatialIndexTest(unittest.TestCase):
                 feature("330101001001", "测试村乙", polygon(5, 5, 6, 6)),
             ),
         )
-        with self.assertRaisesRegex(WeatherSpatialIndexError, "空或重复行政代码"):
-            build_weather_spatial_index(self.data)
+        with self.assertRaisesRegex(WeatherSpatialIndexError, "空、重复代码或空名称"):
+            build_weather_spatial_index(self.data, self.data / "allowlist.json")
 
     def test_missing_boundary_fails_closed(self):
         (self.data / "boundary/county/330100.geojson").unlink()
         with self.assertRaisesRegex(WeatherSpatialIndexError, "无法读取 JSON"):
-            build_weather_spatial_index(self.data)
+            build_weather_spatial_index(self.data, self.data / "allowlist.json")
 
     def test_corrupt_index_and_outside_point_fail_closed(self):
-        index_path = write_weather_spatial_index(self.data)
+        index_path = write_weather_spatial_index(self.data, self.data / "private", self.data / "allowlist.json")
         index_path.write_text("{not-json", encoding="utf-8")
         with self.assertRaisesRegex(WeatherSpatialIndexError, "无法读取 JSON"):
-            load_trusted_weather_spatial_index(self.data)
+            load_trusted_weather_spatial_index(self.data / "private")
 
-        write_weather_spatial_index(self.data)
+        write_weather_spatial_index(self.data, self.data / "private", self.data / "allowlist.json")
         index = json.loads(index_path.read_text(encoding="utf-8"))
         village = next(node for node in index["nodes"] if node["level"] == "village")
         village["representativePoint"] = [0, 0]
         index_path.write_text(json.dumps(index), encoding="utf-8")
-        with self.assertRaisesRegex(WeatherSpatialIndexError, "不在最终可信边界内"):
-            load_trusted_weather_spatial_index(self.data)
+        with self.assertRaisesRegex(WeatherSpatialIndexError, "不在自身、父链和浙江省界共同范围内"):
+            load_trusted_weather_spatial_index(self.data / "private")
 
 
 if __name__ == "__main__":

@@ -1,1 +1,1 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330100"},"geometry":{"type":"Polygon","coordinates":[[[119.5,29.5],[120.5,29.5],[120.5,30.5],[119.5,30.5],[119.5,29.5]]]}}]}
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330100","name":"杭州市"},"geometry":{"type":"Polygon","coordinates":[[[119.5,29.5],[120.5,29.5],[120.5,30.5],[119.5,30.5],[119.5,29.5]]]}}]}

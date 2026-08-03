@@ -4,8 +4,8 @@
   1. 解压 11 个地市 zip -> 按层级拆分 GeoJSON（剥离冗余 geom WKB 属性）
   2. 村界 SHP -> 按乡镇码拆分 villages/{乡镇码}.geojson（简化 ~1m 精度）
   3. 生成 manifest.json（五级层级树，仅 code+name）
-  4. 生成 weather/index-v1.json（服务端可信父子关系、面内代表点与边界引用）
-产物: web/public/data/
+  4. 将边界复制到服务端私有运行目录并生成 weather/index-v2.json（父链内代表点）
+前端产物: web/public/data/
   boundary/province.geojson
   boundary/city/330000.geojson
   boundary/county/{cityCode}.geojson
@@ -25,7 +25,7 @@ from shapely.ops import unary_union
 from shapely.prepared import prep
 from shapely import make_valid, simplify as shp_simplify
 
-from weather_spatial_index import write_weather_spatial_index
+from weather_spatial_index import DEFAULT_PRIVATE_DATA_DIR, write_weather_spatial_index
 from village_corrections import load_verified_village_corrections
 from township_corrections import load_township_corrections_for_zip
 
@@ -267,8 +267,8 @@ def main():
     # 只清理本脚本产物, 不碰 rs.json / tiles (脚本间幂等)
     boundary_only = '--boundary-only' in sys.argv
     shutil.rmtree(OUT / 'boundary', ignore_errors=True)
+    shutil.rmtree(OUT / 'weather', ignore_errors=True)  # v1 曾公开生成；天气授权索引现只写服务端私有目录
     (OUT / 'manifest.json').unlink(missing_ok=True)
-    (OUT / 'weather' / 'index-v1.json').unlink(missing_ok=True)
     if not boundary_only:
         shutil.rmtree(OUT / 'villages', ignore_errors=True)
     print('[1/2] 四级边界拆分...')
@@ -281,8 +281,8 @@ def main():
         print(f'村界: {ntown} 乡镇 / {nvil} 村')
     (OUT / 'manifest.json').write_text(
         json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8')
-    weather_index = write_weather_spatial_index(OUT)
-    print(f'天气空间索引: {weather_index}')
+    weather_index = write_weather_spatial_index(OUT, DEFAULT_PRIVATE_DATA_DIR)
+    print(f'天气私有空间索引: {weather_index}')
     print(f'完成: {len(manifest["cities"])} 市')
     print(f'产物目录: {OUT}')
 

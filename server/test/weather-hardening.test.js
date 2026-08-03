@@ -47,11 +47,22 @@ test('alert fan-out settles subscription creation failures as region errors and 
 test('spatial index eagerly rejects unreachable node and malformed geometry', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'weather-index-'))
   fs.mkdirSync(path.join(root, 'weather')); fs.mkdirSync(path.join(root, 'boundary'))
-  const polygon = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330000' }, geometry: { type: 'Polygon', coordinates: [[[119,29],[121,29],[121,31],[119,31],[119,29]]] } }] }
+  const polygon = { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330000', name: '浙江省' }, geometry: { type: 'Polygon', coordinates: [[[119,29],[121,29],[121,31],[119,31],[119,29]]] } }] }
   fs.writeFileSync(path.join(root, 'boundary/p.geojson'), JSON.stringify(polygon))
-  fs.writeFileSync(path.join(root, 'weather/index-v1.json'), JSON.stringify({ schemaVersion: 1, provinceCode: '330000', nodes: [{ code: '330000', name: '浙江省', level: 'province', parentCode: null, childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330000' } }, { code: '330100', name: '孤儿', level: 'city', parentCode: '330000', childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330100' } }] }))
+  fs.writeFileSync(path.join(root, 'weather/index-v2.json'), JSON.stringify({ schemaVersion: 2, provinceCode: '330000', nodes: [{ code: '330000', name: '浙江省', level: 'province', parentCode: null, childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330000' } }, { code: '330100', name: '孤儿', level: 'city', parentCode: '330000', childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330100' } }] }))
   assert.throws(() => loadWeatherSpatialIndex(root), WeatherSpatialError)
-  polygon.features[0].geometry.coordinates[0].pop(); fs.writeFileSync(path.join(root, 'boundary/p.geojson'), JSON.stringify(polygon)); fs.writeFileSync(path.join(root, 'weather/index-v1.json'), JSON.stringify({ schemaVersion: 1, provinceCode: '330000', nodes: [{ code: '330000', name: '浙江省', level: 'province', parentCode: null, childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330000' } }] }))
+  polygon.features[0].geometry.coordinates[0].pop(); fs.writeFileSync(path.join(root, 'boundary/p.geojson'), JSON.stringify(polygon)); fs.writeFileSync(path.join(root, 'weather/index-v2.json'), JSON.stringify({ schemaVersion: 2, provinceCode: '330000', nodes: [{ code: '330000', name: '浙江省', level: 'province', parentCode: null, childrenCodes: [], representativePoint: [120,30], boundary: { path: 'boundary/p.geojson', featureCode: '330000' } }] }))
+  assert.throws(() => loadWeatherSpatialIndex(root), WeatherSpatialError)
+})
+
+test('spatial index rejects a representative point outside its parent chain', () => {
+  const source = path.resolve('test/fixtures/weather-data')
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'weather-parent-chain-'))
+  fs.cpSync(source, root, { recursive: true })
+  const cityPath = path.join(root, 'boundary/city.geojson')
+  const city = JSON.parse(fs.readFileSync(cityPath, 'utf8'))
+  city.features[0].geometry.coordinates = [[[130,40],[131,40],[131,41],[130,41],[130,40]]]
+  fs.writeFileSync(cityPath, JSON.stringify(city))
   assert.throws(() => loadWeatherSpatialIndex(root), WeatherSpatialError)
 })
 
