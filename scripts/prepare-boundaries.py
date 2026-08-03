@@ -4,6 +4,7 @@
   1. 解压 11 个地市 zip -> 按层级拆分 GeoJSON（剥离冗余 geom WKB 属性）
   2. 村界 SHP -> 按乡镇码拆分 villages/{乡镇码}.geojson（简化 ~1m 精度）
   3. 生成 manifest.json（五级层级树，仅 code+name）
+  4. 生成 weather/index-v1.json（服务端可信父子关系、面内代表点与边界引用）
 产物: web/public/data/
   boundary/province.geojson
   boundary/city/330000.geojson
@@ -19,9 +20,12 @@ import zipfile
 from pathlib import Path
 
 import shapefile  # pyshp
-from shapely.geometry import mapping, shape
+from shapely.geometry import GeometryCollection, mapping, shape
+from shapely.ops import unary_union
 from shapely.prepared import prep
-from shapely import simplify as shp_simplify
+from shapely import make_valid, simplify as shp_simplify
+
+from weather_spatial_index import write_weather_spatial_index
 
 ROOT = Path(__file__).resolve().parent.parent
 ZIP_DIR = ROOT / '01-行政区划' / '浙江四级边界加村点'
@@ -42,18 +46,44 @@ def round_coords(coords, dp=COORD_DP):
     return [round_coords(c, dp) for c in coords]
 
 
+def normalize_polygonal_geometry(geom, reference):
+    """修复源几何并在坐标圆整后再次校验，输出可用于授权的最终面几何。"""
+    if geom.is_empty:
+        raise ValueError(f'空几何: {reference}')
+    if not geom.is_valid:
+        geom = make_valid(geom)
+    if isinstance(geom, GeometryCollection):
+        polygonal = [part for part in geom.geoms if part.geom_type in {'Polygon', 'MultiPolygon'}]
+        geom = unary_union(polygonal) if polygonal else geom
+    if geom.geom_type not in {'Polygon', 'MultiPolygon'} or geom.is_empty or not geom.is_valid:
+        raise ValueError(f'无法修复为有效面几何: {reference}')
+
+    rounded = mapping(geom)
+    rounded['coordinates'] = round_coords(rounded['coordinates'])
+    geom = shape(rounded)
+    if not geom.is_valid:
+        geom = make_valid(geom)
+        if isinstance(geom, GeometryCollection):
+            polygonal = [part for part in geom.geoms if part.geom_type in {'Polygon', 'MultiPolygon'}]
+            geom = unary_union(polygonal) if polygonal else geom
+    if geom.geom_type not in {'Polygon', 'MultiPolygon'} or geom.is_empty or not geom.is_valid:
+        raise ValueError(f'坐标圆整后无法得到有效面几何: {reference}')
+    return geom
+
+
 def clean_feature(feature, code_key, name_key, tol):
-    """提取 code/name, 剥离冗余属性, 简化+圆整几何 -> 精简 feature"""
+    """提取 code/name, 剥离冗余属性, 简化、修复并圆整为最终可信面。"""
     props = feature['properties']
+    code = str(props[code_key]).strip()
     geom = shape(feature['geometry'])
     if tol:
         geom = shp_simplify(geom, TOL_BOUNDARY if tol == 'boundary' else TOL_VILLAGE,
                             preserve_topology=True)
+    geom = normalize_polygonal_geometry(geom, code)
     g = mapping(geom)
-    g['coordinates'] = round_coords(g['coordinates'])
     return {
         'type': 'Feature',
-        'properties': {'code': str(props[code_key]).strip(), 'name': str(props[name_key]).strip()},
+        'properties': {'code': code, 'name': str(props[name_key]).strip()},
         'geometry': g,
     }
 
@@ -153,8 +183,8 @@ def process_villages():
             continue
         geom = shape(sr.shape.__geo_interface__)
         geom = shp_simplify(geom, TOL_VILLAGE, preserve_topology=True)
+        geom = normalize_polygonal_geometry(geom, str(rec[i_vcode]).strip())
         g = mapping(geom)
-        g['coordinates'] = round_coords(g['coordinates'])
         by_town.setdefault(tcode, []).append({
             'type': 'Feature',
             'properties': {'code': str(rec[i_vcode]).strip(), 'name': str(rec[i_vname]).strip()},
@@ -165,7 +195,24 @@ def process_villages():
             print(f'  村界处理中... {n}')
 
     for tcode, feats in by_town.items():
-        write_geojson(OUT / 'villages' / f'{tcode}.geojson', feats)
+        # 同一行政村可能由多个要素组成；按 code 溶解为单一可信边界，避免索引歧义。
+        merged = []
+        by_code = {}
+        for feat in feats:
+            code = feat['properties']['code']
+            entry = by_code.setdefault(code, {'name': feat['properties']['name'], 'geometries': []})
+            if entry['name'] != feat['properties']['name']:
+                raise ValueError(f'源数据存在同一村代码对应不同名称，无法建立可信唯一节点: '
+                                 f'{code} ({entry["name"]} / {feat["properties"]["name"]})')
+            entry['geometries'].append(shape(feat['geometry']))
+        for code, entry in sorted(by_code.items()):
+            geom = normalize_polygonal_geometry(unary_union(entry['geometries']), code)
+            merged.append({
+                'type': 'Feature',
+                'properties': {'code': code, 'name': entry['name']},
+                'geometry': mapping(geom),
+            })
+        write_geojson(OUT / 'villages' / f'{tcode}.geojson', merged)
     return len(by_town), n
 
 
@@ -174,6 +221,7 @@ def main():
     boundary_only = '--boundary-only' in sys.argv
     shutil.rmtree(OUT / 'boundary', ignore_errors=True)
     (OUT / 'manifest.json').unlink(missing_ok=True)
+    (OUT / 'weather' / 'index-v1.json').unlink(missing_ok=True)
     if not boundary_only:
         shutil.rmtree(OUT / 'villages', ignore_errors=True)
     print('[1/2] 四级边界拆分...')
@@ -186,6 +234,8 @@ def main():
         print(f'村界: {ntown} 乡镇 / {nvil} 村')
     (OUT / 'manifest.json').write_text(
         json.dumps(manifest, ensure_ascii=False, indent=1), encoding='utf-8')
+    weather_index = write_weather_spatial_index(OUT)
+    print(f'天气空间索引: {weather_index}')
     print(f'完成: {len(manifest["cities"])} 市')
     print(f'产物目录: {OUT}')
 

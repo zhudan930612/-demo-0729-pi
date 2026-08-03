@@ -50,6 +50,8 @@ web/public/
 │   ├── boundary/
 │   ├── villages/
 │   ├── manifest.json
+│   ├── weather/
+│   │   └── index-v1.json
 │   └── rs.json
 └── tiles/
     └── rs/
@@ -186,7 +188,9 @@ pnpm --dir web preview --host 0.0.0.0
 ```bash
 pip install pyshp shapely rasterio pillow numpy
 
-python scripts/prepare-boundaries.py     # 边界拆分 -> web/public/data/
+python scripts/prepare-boundaries.py     # 边界拆分 + 天气可信空间索引 -> web/public/data/
+python scripts/weather_spatial_index.py --validate-only  # 校验天气索引、边界引用与代表点 covers
+python -m unittest discover -s scripts/tests -p "test_*.py"  # 非敏感小型 fixture 测试
 python scripts/prepare-rs-tiles.py       # 影像切片 -> web/public/tiles/
 python scripts/validate-data.py          # 数据链路校验(13 项)
 python scripts/prepare-parcel-pilot.py prepare  # 龙江村试点裁片（模型推理需独立 Python 3.11 环境）
@@ -197,6 +201,8 @@ cp .env.local.example .env.local         # 填入 VITE_TIANDITU_TOKEN
 pnpm install
 pnpm dev
 ```
+
+`weather/index-v1.json` 只保存五级父子关系、最终边界文件引用和每个可信行政面的内部代表点，不复制几何。服务端必须同时读取该索引与其引用的最终 GeoJSON，并用面几何做授权校验；索引或边界缺失、损坏、几何无效、行政代码重复/名称冲突、代表点不被对应几何 `covers` 时应拒绝加载，不能用包围盒降级放行。当前本地村界源数据存在重复行政代码且名称冲突，生成器会明确 fail closed；必须由外部权威数据修正后才能生成全量天气索引，不得在脚本中手工改码或静默选名。该索引与边界同属未提交的 `web/public/data/` 运行数据。
 
 ## 版权说明
 
