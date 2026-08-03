@@ -171,7 +171,7 @@ curl "http://127.0.0.1:8787/api/weather?contextLevel=province&contextCode=330000
 
 `/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；缓存最多保留 128 条、限流窗口最多跟踪 2048 个直连 IP，均会在后续访问时全量回收过期项，满载时按最旧/LRU 顺序淘汰。这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
 
-天气首期前后端代码已实现；真实链路仍需先轮换已暴露的旧和风天气 KEY，再运行脱敏探针和真实浏览器验收，当前不得据此宣称真实链路通过。前端仅请求本站 `/api/weather`，天气与台风模式互斥；天气保持当前行政视角，支持行政/地块默认点、桌面 `Ctrl + 左键单击` 临时点、模块独立失败与每 10 分钟刷新。QWeather Icons 通过 npm 包 `qweather-icons` 本地构建，不使用运行时 CDN；包代码为 MIT License，图标资源许可见包内声明。
+天气首期前后端代码已实现；真实链路仍需先轮换已暴露的旧和风天气 KEY，再运行脱敏探针和真实浏览器验收，当前不得据此宣称真实链路通过。前端仅请求本站 `/api/weather`，天气与台风模式互斥；天气保持当前行政视角，支持行政/地块默认点、桌面 `Ctrl + 左键单击` 临时点、模块独立失败与每 10 分钟刷新。QWeather Icons 通过 npm 包 `qweather-icons` 本地构建，不使用运行时 CDN；包代码与随包图标/字体资源的 MIT License 原文和归属保存在 [`web/THIRD_PARTY_NOTICES.md`](./web/THIRD_PARTY_NOTICES.md)，构建时同步复制到 `web/dist/THIRD_PARTY_NOTICES.md`。该声明不代表或变更另行提供的 CC BY 4.0 设计源文件许可。
 
 天气代理严格消费服务端私有的 `WEATHER_DATA_DIR/weather/index-v2.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内。非法请求在任何上游调用前拒绝。和风天气的预警、实时、分钟降水、24 小时预报独立缓存与返回，地址增强失败只降级地址模块。天气缓存按预警 5 分钟、实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
 

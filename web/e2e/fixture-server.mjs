@@ -20,11 +20,19 @@ function weatherBundle(target = 'admin') {
     fetchedAt: '2026-08-03T12:00:00+08:00',
     address: { status: 'success', data: { address: picked ? '杭州市西湖区测试点' : '浙江省行政中心', hctype: 1, jd: null }, fetchedAt: '2026-08-03T12:00:00+08:00' },
     current: { status: 'success', data: { condition: { code: '305', text: '小雨' }, temperature: { value: 26, unit: '°C' }, feelsLike: { value: 28, unit: '°C' }, precipitation: { amount: { value: 1.2, unit: 'mm' }, intensity: { value: 0.8, unit: 'mm/h' }, type: 'rain' }, humidity: 0.86 }, fetchedAt: '2026-08-03T12:00:00+08:00' },
-    alerts: { status: 'success', data: [{ code: '330100', name: '杭州市', point: [120.15, 30.25], status: 'success', alerts: [{ id: 'alert-1', headline: '杭州市发布暴雨红色预警', issuedTime: '2026-08-03T11:20:00+08:00', urgency: 'Immediate', severity: 'Extreme', certainty: 'Observed', description: '预计未来三小时部分地区有强降雨，请注意防范。', criteria: '三小时累计降雨量达到暴雨红色预警标准。', instruction: '停止户外作业，远离低洼地带。', senderName: '测试机构', eventType: { name: '暴雨', code: '1010' }, icon: '1010', color: { code: '红色预警', red: 220, green: 38, blue: 38, alpha: 1 } }] }] },
+    alerts: { status: 'success', data: [{ code: '330100', name: '杭州市', point: [120.15, 30.25], status: 'success', alerts: [{ id: 'alert-1', headline: '杭州市发布暴雨红色预警', issuedTime: '2026-08-03T11:20:00+08:00', urgency: 'immediate', severity: 'extreme', certainty: 'observed', description: '预计未来三小时部分地区有强降雨，请注意防范。', criteria: '三小时累计降雨量达到暴雨红色预警标准。', instruction: '停止户外作业，远离低洼地带。', senderName: '测试机构', eventType: { name: '暴雨', code: '1010' }, icon: '1010', color: { code: 'red', red: 220, green: 38, blue: 38, alpha: 1 } }] }] },
     minutely: { status: 'success', data: { updateTime: '2026-08-03T12:00:00+08:00', summary: '20分钟后降雨逐渐增强', minutely, refer: { sources: ['QWeather fixture'], license: ['测试数据，不用于生产'] } }, fetchedAt: '2026-08-03T12:00:00+08:00' },
     hourly: { status: 'success', data: hours, fetchedAt: '2026-08-03T12:00:00+08:00' },
     attributions: [{ name: '和风天气测试归因', url: 'https://example.test/attribution' }],
   }
+}
+function staleBundle() {
+  const bundle = weatherBundle('admin'), refreshError = { code: 'WEATHER_UPSTREAM_TIMEOUT', message: '刷新超时' }
+  bundle.current = { ...bundle.current, stale: true, refreshError }
+  bundle.minutely = { ...bundle.minutely, stale: true, refreshError }
+  bundle.hourly = { ...bundle.hourly, stale: true, refreshError }
+  bundle.alerts.data[0] = { ...bundle.alerts.data[0], stale: true, fetchedAt: '2026-08-03T12:00:00+08:00', refreshError }
+  return bundle
 }
 function failedBundle() {
   return {
@@ -40,7 +48,9 @@ const server = http.createServer((request, response) => {
   if (url.pathname === '/healthz') return json(response, { ok: true })
   if (url.pathname === '/api/weather') {
     const target = url.searchParams.get('target') === 'picked' ? 'picked' : 'admin'
-    return json(response, url.searchParams.get('fixture') === 'failed' ? failedBundle() : weatherBundle(target))
+    const fixture=url.searchParams.get('fixture')
+    if(fixture==='request-error'){response.writeHead(503,{'content-type':'application/json'});return response.end(JSON.stringify({error:{code:'WEATHER_SERVICE_BUSY',message:'天气服务繁忙'}}))}
+    return json(response, fixture === 'failed' ? failedBundle() : fixture==='stale' ? staleBundle() : weatherBundle(target))
   }
   response.writeHead(404, { 'content-type': 'application/json' })
   response.end('{"error":"fixture route not found"}')

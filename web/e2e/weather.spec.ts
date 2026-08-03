@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { cities, province } from './fixtures'
 
-async function installFixtures(page: Page, options: { failed?: boolean } = {}) {
+async function installFixtures(page: Page, options: { fixture?: 'failed'|'stale'|'request-error' } = {}) {
   const requests: string[] = []
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url())
@@ -10,7 +10,7 @@ async function installFixtures(page: Page, options: { failed?: boolean } = {}) {
     if (url.pathname === '/data/rs.json') return route.fulfill({ status: 404, body: '' })
     if (url.pathname === '/api/weather') {
       requests.push(url.search)
-      if (options.failed) url.searchParams.set('fixture', 'failed')
+      if (options.fixture) url.searchParams.set('fixture', options.fixture)
       return route.continue({ url: `http://127.0.0.1:4173${url.pathname}${url.search}` })
     }
     if (url.hostname.endsWith('tianditu.gov.cn')) return route.fulfill({ status: 204, body: '' })
@@ -19,11 +19,12 @@ async function installFixtures(page: Page, options: { failed?: boolean } = {}) {
   return requests
 }
 
-async function openWeather(page: Page) {
+async function openWeather(page: Page, waitForReady = true) {
   await page.goto('/')
   await page.getByRole('button', { name: '查看天气' }).click()
   await expect(page.getByRole('heading', { name: '天气', exact: true })).toBeVisible()
   await expect(page.locator('.weather-marker')).toBeVisible()
+  if(waitForReady)await expect(page.locator('.weather-marker-wrap.loading')).toHaveCount(0)
 }
 
 test('进入和退出天气保持地图视角，并恢复入口焦点', async ({ page }) => {
@@ -62,6 +63,17 @@ test('成功响应展示预警详情和完整位置天气，两个浮窗互斥',
   await expect(popup).toBeHidden()
 })
 
+test('1280x720 浮窗完整位于视口且保留可达标题栏与关闭按钮', async ({ page }) => {
+  await page.setViewportSize({width:1280,height:720});await installFixtures(page);await openWeather(page);await page.locator('.weather-marker').click()
+  const popup=page.getByRole('dialog',{name:'位置天气详情'}),box=await popup.boundingBox(),close=popup.getByRole('button',{name:'关闭天气浮窗'}),closeBox=await close.boundingBox()
+  expect(box).not.toBeNull();expect(box!.x).toBeGreaterThanOrEqual(11);expect(box!.y).toBeGreaterThanOrEqual(11);expect(box!.x+box!.width).toBeLessThanOrEqual(1270);expect(box!.y+box!.height).toBeLessThanOrEqual(710)
+  await expect(popup.locator('header')).toBeVisible();await expect(popup.locator('.popup-body')).toBeVisible();expect(closeBox).not.toBeNull();expect(closeBox!.x+closeBox!.width).toBeLessThanOrEqual(1280);expect(closeBox!.y+closeBox!.height).toBeLessThanOrEqual(720)
+})
+
+test('首次请求失败显示错误标记、失败浮窗和重试而非加载中',async({page})=>{await installFixtures(page,{fixture:'request-error'});await openWeather(page,false);const marker=page.locator('.weather-marker-wrap.error .weather-marker');await expect(marker).toHaveAccessibleName(/天气加载失败/);await marker.click();const popup=page.getByRole('dialog',{name:'位置天气详情'});await expect(popup).toContainText('位置天气加载失败');await expect(popup).toContainText('天气服务繁忙');await expect(popup).not.toContainText('正在加载新位置天气');await expect(popup.getByRole('button',{name:'重试'})).toBeVisible()})
+
+test('stale 模块保留成功数据并分别显示上次成功时间和重试',async({page})=>{await installFixtures(page,{fixture:'stale'});await openWeather(page);await expect(page.getByText('部分数据更新失败')).toBeVisible();await expect(page.getByText('预警更新失败')).toBeVisible();await page.locator('.weather-marker').click();const popup=page.getByRole('dialog',{name:'位置天气详情'});await expect(popup.getByText(/实时天气更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText(/未来两小时降水更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText(/未来 24 小时预报更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText('小雨 26 °C')).toBeVisible();await expect(popup.getByText('20分钟后降雨逐渐增强')).toBeVisible();await expect(popup.locator('.hour-strip article')).toHaveCount(24);await expect(popup.getByRole('button',{name:'重试'})).toHaveCount(3)})
+
 test('Ctrl 点选仅刷新临时位置，Esc 恢复默认标记且不改变层级', async ({ page }) => {
   const requests = await installFixtures(page)
   await openWeather(page)
@@ -80,7 +92,7 @@ test('Ctrl 点选仅刷新临时位置，Esc 恢复默认标记且不改变层�
 
 test('部分失败在 520px 视口保留成功模块与可达重试/关闭操作', async ({ page }) => {
   await page.setViewportSize({ width: 500, height: 760 })
-  await installFixtures(page, { failed: true })
+  await installFixtures(page, { fixture: 'failed' })
   await openWeather(page)
   await expect(page.getByText('部分数据更新失败')).toBeVisible()
   await expect(page.getByText('数据获取失败')).toBeVisible()
@@ -92,7 +104,13 @@ test('部分失败在 520px 视口保留成功模块与可达重试/关闭操作
   const box = await popup.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.x).toBeGreaterThanOrEqual(11)
-  expect(box!.x + box!.width).toBeLessThanOrEqual(489)
-  await expect(popup.getByRole('button', { name: '关闭天气浮窗' })).toBeVisible()
+  expect(box!.y).toBeGreaterThanOrEqual(11)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(490)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(750)
+  const close=popup.getByRole('button', { name: '关闭天气浮窗' }),closeBox=await close.boundingBox()
+  await expect(close).toBeVisible()
+  expect(closeBox).not.toBeNull()
+  expect(closeBox!.x).toBeGreaterThanOrEqual(0);expect(closeBox!.y).toBeGreaterThanOrEqual(0)
+  expect(closeBox!.x+closeBox!.width).toBeLessThanOrEqual(500);expect(closeBox!.y+closeBox!.height).toBeLessThanOrEqual(760)
   await expect(page.getByRole('button', { name: '退出天气查看' })).toBeVisible()
 })
