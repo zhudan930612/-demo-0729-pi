@@ -1,3 +1,4 @@
+import { formatBeijingDateTime, parseBeijingDateTime } from './typhoonTime'
 import { windRadiusPriority } from './typhoonWindCircle'
 import type { ForecastNode, ObservationNode, TyphoonDetail, WindRadius } from './typhoonTypes'
 
@@ -73,6 +74,13 @@ function compactNodeTime(value: string): string {
   return match ? `${Number(match[2])}月${Number(match[3])}日${match[4]}时` : value || '--'
 }
 
+/** 预测节点时刻由观测发布时间加预报时效确定；不信任会重复发布时间的 target_time_ymdh。 */
+function forecastTargetTime(origin: ObservationNode, forecast: ForecastNode): string {
+  const originEpochMs = parseBeijingDateTime(origin.timeYmdh)
+  if (originEpochMs === null || !Number.isFinite(forecast.forecastHour)) return `${forecast.forecastHour}小时后`
+  return compactNodeTime(formatBeijingDateTime(originEpochMs + forecast.forecastHour * 60 * 60 * 1000) ?? '')
+}
+
 function centerModel(detail: TyphoonDetail, node: ObservationNode): TyphoonCenterHoverViewModel {
   const movement = [node.moveSpeedKmh === undefined ? '' : `${node.moveSpeedKmh}公里/小时`, node.moveDirectionText ?? '']
     .filter(Boolean).join('，') || '--'
@@ -110,7 +118,7 @@ function forecastModel(detail: TyphoonDetail, forecast: ForecastNode, origin: Ob
     title: `${detail.domesticNo || detail.id} ${detail.nameCn || '--'}`,
     provider: '中国预报',
     publishedTime: compactNodeTime(origin.timeYmdh),
-    futureTime: forecast.targetTimeYmdh ? compactNodeTime(forecast.targetTimeYmdh) : `${forecast.forecastHour}小时后`,
+    futureTime: forecastTargetTime(origin, forecast),
     position: forecast.positionText?.trim() || `${forecast.lon.toFixed(2)}° / ${forecast.lat.toFixed(2)}°`,
     windSpeed: `${forecast.windSpeedMs}米/秒`,
     pressure: forecast.pressureHpa === undefined ? '--' : `${forecast.pressureHpa}百帕`,

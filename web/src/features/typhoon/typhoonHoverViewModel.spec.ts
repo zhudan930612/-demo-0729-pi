@@ -35,7 +35,7 @@ describe('typhoon hover view model', () => {
     const model = buildTyphoonHoverViewModel({ a: d }, { kind: 'forecast', typhoonId: 'a', nodeId: forecastId })
     expect(model).toMatchObject({
       kind: 'forecast', title: '202613 中文a', provider: '中国预报', publishedTime: '8月1日20时',
-      futureTime: '12小时后', position: '155.00° / 22.00°', windSpeed: '55米/秒', pressure: '--', intensity: '--',
+      futureTime: '8月2日08时', position: '155.00° / 22.00°', windSpeed: '55米/秒', pressure: '--', intensity: '--',
     })
   })
 
@@ -45,6 +45,17 @@ describe('typhoon hover view model', () => {
     expect(center?.kind === 'center' && center.radius10).toBe('--')
     const wind = buildTyphoonHoverViewModel({ a: d }, { kind: 'wind', typhoonId: 'a', nodeId: 'a:n', grade: '7' })
     expect(wind?.kind === 'wind' && [wind.northwest, wind.northeast, wind.southwest, wind.southeast]).toEqual(['190 km', '200 km', '160 km', '180 km'])
+  })
+
+  it('按发布时间加预测时效显示节点对应的未来时刻，不使用重复的 API 时间字段', () => {
+    const observation = node('a:n', {
+      forecastSnapshot: {
+        observationId: 'a:n', maxForecastHour: 12, historicalVersionConfirmed: true,
+        nodes: [{ id: 'a:n:f', sourceIndex: 0, forecastHour: 12, lat: 22, lon: 155, windSpeedMs: 55, targetTimeYmdh: '202608012000' }],
+      },
+    })
+    const model = buildTyphoonHoverViewModel({ a: detail('a', observation) }, { kind: 'forecast', typhoonId: 'a', nodeId: 'a:n:f' })
+    expect(model?.kind === 'forecast' && model.futureTime).toBe('8月2日08时')
   })
 
   it('预测点不会污染 actual selected node，历史实际点返回完整可见数量', () => {
