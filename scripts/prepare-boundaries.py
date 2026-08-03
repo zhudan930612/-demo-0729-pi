@@ -26,10 +26,14 @@ from shapely.prepared import prep
 from shapely import make_valid, simplify as shp_simplify
 
 from weather_spatial_index import write_weather_spatial_index
+from village_corrections import load_verified_village_corrections
+from township_corrections import load_township_corrections_for_zip
 
 ROOT = Path(__file__).resolve().parent.parent
 ZIP_DIR = ROOT / '01-行政区划' / '浙江四级边界加村点'
 SHP_PATH = ROOT / '01-行政区划' / '浙江村界数据' / '3浙江村界-备注省市县乡' / '浙江村界.shp'
+VILLAGE_CORRECTIONS_PATH = ROOT / 'scripts' / 'data' / 'weather-village-corrections-v1.json'
+TOWNSHIP_CORRECTIONS_PATH = ROOT / 'scripts' / 'data' / 'weather-township-corrections-v1.json'
 OUT = ROOT / 'web' / 'public' / 'data'
 
 PROVINCE_GEOJSON = ZIP_DIR / '330000-浙江省-省界.geojson'
@@ -113,7 +117,18 @@ def process_zip_boundaries():
 
             city_gj = json.loads(z.read(city_file).decode('utf-8'))
             county_gj = json.loads(z.read(county_file).decode('utf-8'))
-            town_gj = json.loads(z.read(town_file).decode('utf-8'))
+            town_raw = z.read(town_file)
+            town_gj = json.loads(town_raw.decode('utf-8'))
+            corrections = load_township_corrections_for_zip(
+                ROOT, zp, town_file, town_raw, TOWNSHIP_CORRECTIONS_PATH)
+            if corrections is not None:
+                corrected_features = []
+                for feature_index, feature in enumerate(town_gj['features']):
+                    corrected = corrections.apply(feature_index, feature)
+                    if corrected is not None:
+                        corrected_features.append(corrected)
+                corrections.verify_complete()
+                town_gj['features'] = corrected_features
 
             city_feat = clean_feature(city_gj['features'][0], '区划码', '地名', 'boundary')
             city_code, city_name = city_feat['properties']['code'], city_feat['properties']['name']
@@ -167,32 +182,64 @@ def process_zip_boundaries():
     return manifest
 
 
+def is_village_level_code(code):
+    """村级记录必须是 12 位且末三位非 000；000 表示乡级/类似乡级单位本身。"""
+    return len(code) == 12 and code.isdigit() and code[-3:] != '000'
+
+
 def process_villages():
-    """村界 SHP -> villages/{乡镇码}.geojson; 返回 (乡镇数, 村总数)"""
-    r = shapefile.Reader(str(SHP_PATH), encoding='gbk', encodingErrors='replace')
+    """村界 SHP -> villages/{乡镇码}.geojson; 返回 (乡镇数, 村总数)。"""
+    source_path, identity_path, corrections = load_verified_village_corrections(
+        ROOT, VILLAGE_CORRECTIONS_PATH)
+    if source_path != SHP_PATH.resolve():
+        raise ValueError(f'修正规则源路径与配置的 SHP_PATH 不一致: {source_path}')
+    r = shapefile.Reader(str(source_path), encoding='gbk', encodingErrors='replace')
+    identity_reader = shapefile.Reader(str(identity_path), encoding='utf-8', encodingErrors='strict')
     fields = [f[0] for f in r.fields[1:]]
+    identity_fields = [f[0] for f in identity_reader.fields[1:]]
     i_tcode, i_tname = fields.index('乡镇码'), fields.index('乡镇级')
     i_vcode, i_vname = fields.index('村代码'), fields.index('村级')
+    i_object_id = identity_fields.index('objectid')
+    if len(r) != len(identity_reader):
+        raise ValueError('村界源数据与 objectid identity 数据记录数不一致')
 
     by_town = {}
     n = 0
-    for sr in r.iterShapeRecords():
+    excluded_non_village = 0
+    for record_index, (sr, identity_record) in enumerate(zip(
+            r.iterShapeRecords(), identity_reader.iterRecords(), strict=True)):
         rec = sr.record
-        tcode = str(rec[i_tcode]).strip()
+        corrected = corrections.apply(record_index, str(identity_record[i_object_id]), {
+            'townshipCode': str(rec[i_tcode]).strip(),
+            'townshipName': str(rec[i_tname]).strip(),
+            'villageCode': str(rec[i_vcode]).strip(),
+            'villageName': str(rec[i_vname]).strip(),
+        })
+        if corrected is None:
+            continue
+        tcode = corrected['townshipCode']
         if not tcode:
+            continue
+        if not is_village_level_code(corrected['villageCode']):
+            excluded_non_village += 1
             continue
         geom = shape(sr.shape.__geo_interface__)
         geom = shp_simplify(geom, TOL_VILLAGE, preserve_topology=True)
-        geom = normalize_polygonal_geometry(geom, str(rec[i_vcode]).strip())
+        geom = normalize_polygonal_geometry(geom, corrected['villageCode'])
         g = mapping(geom)
         by_town.setdefault(tcode, []).append({
             'type': 'Feature',
-            'properties': {'code': str(rec[i_vcode]).strip(), 'name': str(rec[i_vname]).strip()},
+            'properties': {
+                'code': corrected['villageCode'],
+                'name': corrected['villageName'],
+            },
             'geometry': g,
         })
         n += 1
         if n % 5000 == 0:
             print(f'  村界处理中... {n}')
+    corrections.verify_complete()
+    print(f'  排除非村级面记录: {excluded_non_village}')
 
     for tcode, feats in by_town.items():
         # 同一行政村可能由多个要素组成；按 code 溶解为单一可信边界，避免索引歧义。

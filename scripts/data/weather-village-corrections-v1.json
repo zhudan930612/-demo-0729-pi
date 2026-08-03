@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "path": "01-行政区划/浙江村界数据/3浙江村界-备注省市县乡/浙江村界.shp",
+    "files": {
+      ".shp": {
+        "size": 440006332,
+        "sha256": "7ba5146d93f71c3cc1e55c7eed659362331b00dc81177789c59ac0d36a476c6d"
+      },
+      ".shx": {
+        "size": 273900,
+        "sha256": "350ff7e773a29423adcd2c115bd5bb252c7985caa5548b4cdaa5226c9e878d45"
+      },
+      ".dbf": {
+        "size": 71941304,
+        "sha256": "d7c36dca0e55cc64e0fefb4e60cc71866270b35de17b22389bf2732c0ecb99f2"
+      },
+      ".prj": {
+        "size": 176,
+        "sha256": "b10dbe4d6d1de908d340f892c90b3d31a552630af3742bb515bfe1bd26124f2c"
+      }
+    }
+  },
+  "identityDataset": {
+    "path": "01-行政区划/浙江村界数据/1浙江省村界/浙江村界.shp",
+    "objectIdField": "objectid",
+    "files": {
+      ".shp": {
+        "size": 440006332,
+        "sha256": "be54a6cc79322062b506d43a92fd618bfa71635a0a0477e4e356d81029965531"
+      },
+      ".shx": {
+        "size": 273900,
+        "sha256": "44f29ee29c4dd935126983c53438763f5e68352cf9bb4908f7f8dc43edbda019"
+      },
+      ".dbf": {
+        "size": 35149269,
+        "sha256": "5121a5dccf0ee27a235196275dc0131365b8bfcec03eb23636005a3bd24dd7b3"
+      },
+      ".prj": {
+        "size": 176,
+        "sha256": "b10dbe4d6d1de908d340f892c90b3d31a552630af3742bb515bfe1bd26124f2c"
+      }
+    }
+  },
+  "corrections": [
+    {
+      "objectId": "1702840",
+      "recordIndex": 16137,
+      "action": "recode",
+      "expected": {
+        "townshipCode": "330182108000",
+        "townshipName": "三都镇",
+        "villageCode": "330182008012",
+        "villageName": "凤凰村"
+      },
+      "replacement": {
+        "townshipCode": "330182108000",
+        "townshipName": "三都镇",
+        "villageCode": "330182108264",
+        "villageName": "凤凰村"
+      },
+      "reason": "源记录的乡镇归属与村代码前缀矛盾；建德市政府确认凤凰村属于三都镇，2019、2021、2023 区划目录均将凤凰村列为 330182108264。",
+      "sources": [
+        {
+          "url": "https://www.jiande.gov.cn/art/2024/8/30/art_1229535708_4294804.html",
+          "published": "2024-08-30",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2023/33/330182.html",
+          "published": "2023",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2021/33/330182.html",
+          "published": "2021",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://www.xzqh.org/show/china/2019/33/330182.html",
+          "published": "2019",
+          "accessed": "2026-08-03"
+        }
+      ]
+    },
+    {
+      "objectId": "1702843",
+      "recordIndex": 17470,
+      "action": "drop",
+      "expected": {
+        "townshipCode": "330182108000",
+        "townshipName": "三都镇",
+        "villageCode": "330182008012",
+        "villageName": "湖岑畈村"
+      },
+      "reason": "该记录把湖岑畈村错误归入三都镇；建德市政府资料确认湖岑畈村属于更楼街道，同一源数据另有更楼街道下的独立湖岑畈村记录，故只丢弃此错误归属记录。",
+      "sources": [
+        {
+          "url": "https://www.jiande.gov.cn/art/2025/2/7/art_1229535798_4330609.html",
+          "published": "2025-02-07",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "https://www.jiande.gov.cn/art/2023/3/23/art_1229415995_59121352.html",
+          "published": "2023-03-23",
+          "accessed": "2026-08-03"
+        }
+      ]
+    },
+    {
+      "objectId": "1710559",
+      "recordIndex": 23320,
+      "action": "recode",
+      "expected": {
+        "townshipCode": "330182003000",
+        "townshipName": "更楼街道",
+        "villageCode": "330182003009",
+        "villageName": "湖岑畈村"
+      },
+      "replacement": {
+        "townshipCode": "330182003000",
+        "townshipName": "更楼街道",
+        "villageCode": "330182003206",
+        "villageName": "湖岑畈村"
+      },
+      "reason": "源记录的乡镇和名称正确，但村代码与连续多年的统计用区划目录不一致；2019、2021、2023 区划目录均将更楼街道湖岑畈村列为 330182003206。仓库无已提交业务数据引用旧码。",
+      "sources": [
+        {
+          "url": "https://www.jiande.gov.cn/art/2025/2/7/art_1229535798_4330609.html",
+          "published": "2025-02-07",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2023/33/330182.html",
+          "published": "2023",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2021/33/330182.html",
+          "published": "2021",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://www.xzqh.org/show/china/2019/33/330182.html",
+          "published": "2019",
+          "accessed": "2026-08-03"
+        }
+      ]
+    }
+  ]
+}

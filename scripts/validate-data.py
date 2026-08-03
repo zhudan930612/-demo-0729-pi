@@ -65,8 +65,10 @@ def main():
           f'{n_county_file}/11')
     check('乡级文件全部存在且要素数匹配', not [b for b in bad if b.startswith('township')],
           f'{n_town_file} 个')
-    expect_missing = 11  # 已知无村域的中心城区街道
-    check(f'村界文件缺失数 = {expect_missing}(已知无村域街道)', len(missing_vil) == expect_missing,
+    # 11 个中心城区街道在村界源中完全缺失；另有 27 个乡镇只出现末三位 000 的
+    # 乡镇本级/围垦面，没有有效村级要素。预处理会排除这些非村记录，不生成空文件。
+    expect_missing = 38
+    check(f'村界文件缺失数 = {expect_missing}(无有效村级面)', len(missing_vil) == expect_missing,
           f'缺失 {len(missing_vil)}: {[m[0] for m in missing_vil]}')
     total_towns = sum(len(c['townships']) for city in manifest['cities'] for c in city['counties'])
     check(f'村界文件 = 乡总数({total_towns}) - {expect_missing}', n_vil_file == total_towns - expect_missing,

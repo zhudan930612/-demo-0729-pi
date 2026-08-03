@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "dataset": {
+    "path": "01-行政区划/浙江四级边界加村点/330700-金华市-四级边界加村点-GeoJSON.zip",
+    "size": 4147601,
+    "sha256": "5027b31562cb11a0f7d3d6db7015c28c29b182ba91bafec15d2369a887a9b27b",
+    "member": "乡镇/乡镇边界_330700.geojson",
+    "memberSize": 23709241,
+    "memberSha256": "6502423be3198169e46ee7f81fb31236356023ee70c08ab7b054bfe0c6c63b9c"
+  },
+  "corrections": [
+    {
+      "featureIndex": 10,
+      "featureId": "9772",
+      "action": "drop",
+      "expected": {
+        "code": "330783005000",
+        "name": "赤溪街道"
+      },
+      "reason": "该要素被错误归入东阳市并与江北街道共用 330783005000；东阳市政府现役行政信息及 2021、2023、2025 区划目录均确认东阳市辖江北街道、不辖赤溪街道。兰溪市政府确认赤溪街道属于兰溪市；同一源文件另有代码 330781005000 的兰溪市赤溪街道完整要素。故只丢弃此东阳市错误小面要素。",
+      "sources": [
+        {
+          "url": "https://www.dongyang.gov.cn/art/2023/1/5/art_1229163140_59594641.html",
+          "published": "2023-01-05",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2023/33/330783.html",
+          "published": "2023",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://www.xzqh.org/show/china/2021/33/330783.html",
+          "published": "2021",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://xzqh.org/show/china/2025/33/330783.html",
+          "published": "2025",
+          "accessed": "2026-08-03"
+        },
+        {
+          "url": "http://www.lanxi.gov.cn/col/col1229287661/index.html",
+          "accessed": "2026-08-03"
+        }
+      ]
+    }
+  ]
+}
