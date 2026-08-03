@@ -1,0 +1,3 @@
+import {describe,expect,it} from 'vitest'
+import {createWeatherApiClient,weatherRequestKey} from './weather'
+describe('weather api',()=>{it('构造完整请求 key 且 admin 不传坐标',async()=>{const seen:string[]=[];const fetcher=async(input:RequestInfo|URL)=>{seen.push(String(input));return Response.json({contextCode:'330100'})};const api=createWeatherApiClient(fetcher as typeof fetch);await api.bundle({contextLevel:'city',contextCode:'330100',contextName:'杭州',target:'admin'});expect(seen[0]).toBe('/api/weather?contextLevel=city&contextCode=330100&target=admin');expect(weatherRequestKey({contextLevel:'city',contextCode:'330100',contextName:'杭州',target:'picked',lat:30,lon:120})).toContain('lat=30')})})
