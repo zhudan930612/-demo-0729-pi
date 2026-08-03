@@ -26,6 +26,7 @@ export function selectedAlert(bundle: WeatherBundle | null, selection: WeatherSe
   const region=bundle.alerts.data.find(r=>r.code===selection.contextCode), alert=region?.alerts?.find(a=>a.id===selection.alertId)
   return region&&alert?{region,alert}:null
 }
+export function moduleHasRefreshFailure(module:WeatherModule<unknown>):boolean{return module.status==='error'||Boolean(module.stale&&module.refreshError)}
 export function minutelyState(module: WeatherModule<MinutelyForecast>): 'loading'|'error'|'empty'|'zero'|'data' {
   if (module.status==='error') return 'error'; if (module.status==='empty'||!module.data) return 'empty'
   if (!module.data.minutely.length) return 'empty'
@@ -45,7 +46,11 @@ export function locationTitle(bundle: WeatherBundle, contextName: string, parcel
 export function iconClass(code:string|null|undefined, fallback='999'): string {
   return /^\d{3,4}$/.test(code??'')?`qi-${code}`:`qi-${fallback}`
 }
+const warningColorMap:Record<string,string>={红:'#dc2626',红色:'#dc2626',红色预警:'#dc2626',橙:'#ea580c',橙色:'#ea580c',橙色预警:'#ea580c',黄:'#ca8a04',黄色:'#ca8a04',黄色预警:'#ca8a04',蓝:'#2563eb',蓝色:'#2563eb',蓝色预警:'#2563eb',白:'#e2e8f0',白色:'#e2e8f0'}
 export function warningColor(alert:WeatherAlert): string {
-  const c=alert.color; return c&&[c.red,c.green,c.blue].every(Number.isFinite)?`rgba(${c.red},${c.green},${c.blue},${c.alpha==null?1:Math.max(0,Math.min(1,c.alpha))})`:'#64748b'
+  const c=alert.color;if(c&&[c.red,c.green,c.blue].every(Number.isFinite))return`rgba(${c.red},${c.green},${c.blue},${c.alpha==null?1:Math.max(0,Math.min(1,c.alpha))})`
+  return warningColorMap[c?.code??'']??'#64748b'
 }
+export function warningForeground(alert:WeatherAlert):'#fff'|'#0f172a'{const c=alert.color;if(c&&[c.red,c.green,c.blue].every(Number.isFinite)){const luminance=(.2126*(c.red??0)+.7152*(c.green??0)+.0722*(c.blue??0))/255;return luminance>.58?'#0f172a':'#fff'}return['黄','黄色','黄色预警','白','白色'].includes(c?.code??'')?'#0f172a':'#fff'}
+export function hourTimeLabel(value:string,firstValue:string,index:number):string{if(Number.isNaN(Date.parse(value)))return'--';const d=new Date(value),first=new Date(firstValue);const fmt=(options:Intl.DateTimeFormatOptions)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',...options}).format(d);const time=fmt({hour:'2-digit',minute:'2-digit',hour12:false});const dayKey=(date:Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);if(index===0&&dayKey(d)!==dayKey(new Date()))return`${fmt({month:'2-digit',day:'2-digit'})} ${time}`;if(index>0&&dayKey(d)!==dayKey(first))return`明天 ${time}`;return time}
 export function precipitationType(value:string|null|undefined):string { return ({rain:'雨',snow:'雪',none:'无降水',sleet:'雨夹雪',ice:'冰粒/冻雨',mixed:'混合降水'} as Record<string,string>)[value??'']??(value?'其他降水':'--') }

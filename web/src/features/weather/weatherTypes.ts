@@ -2,7 +2,6 @@ import type { Level } from '../../stores/drilldown'
 
 export type DisasterViewMode = 'none' | 'weather' | 'typhoon'
 export type WeatherTarget = 'admin' | 'parcel' | 'picked'
-export type ModuleStatus = 'success' | 'empty' | 'error'
 
 export interface WeatherQuery {
   contextLevel: Level
@@ -16,19 +15,14 @@ export interface UnitValue { value: number | null; unit: string | null }
 export interface WeatherCondition { code: string | null; text: string | null }
 export interface Attribution { name: string | null; url: string | null }
 export interface ModuleError { code: string; message: string }
-export interface WeatherModule<T> {
-  status: ModuleStatus
-  data: T | null
-  message?: string
-  error?: ModuleError
-  metadata?: { tag?: string | null; zeroResult?: boolean; attributions?: Attribution[]; refer?: MinutelyRefer }
-  fetchedAt?: string
-  expiresAt?: string
-  stale?: boolean
-  refreshError?: ModuleError
-}
+export interface MinutelyRefer { sources: string[]; license: string[] }
+export interface WeatherMetadata { tag?: string | null; zeroResult?: boolean; attributions?: Attribution[]; refer?: MinutelyRefer }
+export interface WeatherTiming { fetchedAt?: string; expiresAt?: string; stale?: boolean; refreshError?: ModuleError }
+export type WeatherModule<T> =
+  | ({ status: 'success'; data: T; metadata?: WeatherMetadata } & WeatherTiming)
+  | ({ status: 'empty'; data: T | null; message: string; metadata?: WeatherMetadata } & WeatherTiming)
+  | { status: 'error'; error: ModuleError }
 export interface CurrentWeather {
-  observationTime: string
   condition: WeatherCondition
   temperature: UnitValue
   feelsLike: UnitValue | null
@@ -36,7 +30,6 @@ export interface CurrentWeather {
   humidity: number | null
 }
 export interface MinutelyItem { fxTime: string; precip: number; type: string | null }
-export interface MinutelyRefer { sources: string[]; license: string[] }
 export interface MinutelyForecast { updateTime: string | null; summary: string | null; minutely: MinutelyItem[]; refer: MinutelyRefer }
 export interface HourlyItem { forecastTime: string; condition: WeatherCondition; temperature: UnitValue; precipitation: { probability: number | null; amount: UnitValue | null } | null }
 export interface AddressData { address: string; hctype: number | null; jd: string | null }
@@ -56,17 +49,14 @@ export interface WeatherAlert {
   color: { code: string | null; red: number | null; green: number | null; blue: number | null; alpha: number | null } | null
   matchedContextCodes?: string[]
 }
-export interface AlertRegion {
+export interface AlertRegion extends WeatherTiming {
   code: string
   name: string
   point: [number, number]
   status: 'success' | 'empty' | 'error'
   alerts?: WeatherAlert[]
   error?: ModuleError
-  fetchedAt?: string
-  expiresAt?: string
-  stale?: boolean
-  refreshError?: ModuleError
+  metadata?: WeatherMetadata
 }
 export interface AlertModule {
   status: 'success' | 'empty' | 'error' | 'partial'

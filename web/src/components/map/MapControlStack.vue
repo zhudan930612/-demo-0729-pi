@@ -61,7 +61,7 @@ const firstParcelActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false)
 const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'查看台风')
 const weatherTip=computed(()=>props.weatherActive?'天气查看模式已开启':props.weatherEntryReason)
-const parcelTip=computed(()=>props.disasterActive?'天气查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
+const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
 function closeMenus(){parcelMenuOpen.value=false}
 function toggleParcelMenu(){if(props.parcelToolsDisabled)return;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
