@@ -11,10 +11,10 @@ const dataDir = path.resolve('test/fixtures/weather-data')
 const config = { authMode: 'api-key', apiOrigin: 'https://weather.example', apiKey: 'secret-key', projectId: 'project', credentialId: 'credential', dataDir, addressUrl: '', timeoutMs: 100, maxNetworkBytes: 1024 * 1024, maxDecodedBytes: 1024 * 1024, cacheMaxEntries: 100 }
 function url(query) { return new URL(`/api/weather?${query}`, 'http://localhost') }
 function payload(module) {
-  if (module === 'alert') return { alerts: [], metadata: { zeroResult: true, attributions: [] } }
-  if (module === 'current') return { current: { observationTime: '2026-08-03T10:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, feelsLike: { value: 27, unit: '°C' }, precipitation: { amount: { value: 0, unit: 'mm' }, intensity: { value: 0, unit: 'mm/h' }, type: 'none' }, humidity: 0.8 }, metadata: { attributions: [] } }
-  if (module === 'hourly') return { hourly: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 27, unit: '°C' }, precipitation: { probability: 0.1, amount: { value: 0, unit: 'mm' } } }], metadata: { attributions: [] } }
-  return { code: '204' }
+  if (module === 'alert') return { alerts: [], metadata: { zeroResult: true, attributions: ['https://dev.qweather.com/attribution.html', '预警声明'] } }
+  if (module === 'current') return { condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, feelsLike: { value: 27, unit: '°C' }, precipitation: { amount: { value: 0, unit: 'mm' }, intensity: { value: 0, unit: 'mm/h' }, type: 'none' }, humidity: 0.8, metadata: { attributions: ['https://dev.qweather.com/attribution.html', '天气声明'] } }
+  if (module === 'hourly') return { hours: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 27, unit: '°C' }, precipitation: { probability: 0.1, amount: { value: 0, unit: 'mm' } } }], metadata: { attributions: ['天气声明'] } }
+  return { code: '200', updateTime: '2026-08-03T10:00:00+08:00', summary: '未来两小时有雨', minutely: [{ fxTime: '2026-08-03T10:05:00+08:00', precip: '0.15', type: 'rain' }], refer: { sources: ['数据源'], license: ['https://example.com/license'] } }
 }
 
 test('spatial index validates strict request contract and point-in-polygon', () => {
@@ -54,6 +54,16 @@ test('QWeather client constructs safe endpoint/query/header and address preserve
   assert.equal(seen[0].url.pathname, '/weather/v1/current/30.01/120.02'); assert.equal(seen[0].url.searchParams.get('localTime'), 'true'); assert.equal(seen[0].init.headers['X-QW-Api-Key'], 'secret-key')
   assert.equal(seen[1].url.searchParams.get('hours'), '24'); assert.equal(seen[2].url.searchParams.get('location'), '120.02,30.01'); assert.equal(seen[2].url.searchParams.get('lang'), 'zh')
   assert.equal(seen[3].url.searchParams.get('lon'), '120.016789'); assert.equal(seen[3].url.searchParams.get('lat'), '30.014321')
+})
+
+test('official root DTO, string precipitation and text/url attributions normalize without invented timestamps', async () => {
+  const current = normalizeQWeather('current', payload('current'))
+  assert.equal(current.data.condition.text, '晴'); assert.equal('observationTime' in current.data, false)
+  assert.deepEqual(current.metadata.attributions, [{ name: null, url: 'https://dev.qweather.com/attribution.html' }, { name: '天气声明', url: null }])
+  const hourly = normalizeQWeather('hourly', payload('hourly')); assert.equal(hourly.data.length, 1)
+  const client = createWeatherUpstream(config, { fetchImpl: async () => Response.json(payload('minutely')) })
+  const minutely = await client.qweather('minutely', 30, 120); assert.equal(minutely.data.minutely[0].precip, 0.15)
+  for (const precip of ['', null, false, '-1', 'NaN']) await assert.rejects(createWeatherUpstream(config, { fetchImpl: async () => Response.json({ ...payload('minutely'), minutely: [{ ...payload('minutely').minutely[0], precip }] }) }).qweather('minutely', 30, 120), (e) => e.kind === 'structure')
 })
 
 test('cache merges in-flight, applies TTL, stale-on-refresh and shared retry-after cooldown', async () => {

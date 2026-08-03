@@ -9,6 +9,17 @@ function strictOne(params, name) { const values = params.getAll(name); return va
 function coordinate(value, min, max) { if (typeof value !== 'string' || value.trim() === '') return null; const number = Number(value); return Number.isFinite(number) && number >= min && number <= max ? number : null }
 function round2(value) { return Math.round((value + Number.EPSILON) * 100) / 100 }
 function keyCoordinate(value) { return Object.is(value, -0) ? '0' : String(value) }
+function attributionKey(value) { return `${value?.url ?? ''}\u0000${value?.name ?? ''}` }
+function mergeAttributions(...groups) {
+  const merged = new Map()
+  for (const value of groups.flat()) if (value && (value.name || value.url)) merged.set(attributionKey(value), value)
+  return [...merged.values()]
+}
+function referAttributions(refer) {
+  return [...(refer?.sources ?? []), ...(refer?.license ?? [])].map((value) => {
+    try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? { name: null, url: value } : { name: value, url: null } } catch { return { name: value, url: null } }
+  })
+}
 function moduleState(result, emptyMessage) {
   if (result.error) return { status: 'error', error: result.error }
   const timing = { fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt, ...(result.value.stale ? { stale: true, refreshError: result.value.refreshError } : {}) }
@@ -79,7 +90,12 @@ export function createWeatherService(config, options = {}) {
       const [current, minutely, hourly, address, alertResult] = await Promise.all([
         settle(() => qSubscription('current', request.lat, request.lon), externalSignal), settle(() => qSubscription('minutely', request.lat, request.lon), externalSignal), settle(() => qSubscription('hourly', request.lat, request.lon), externalSignal), settle(() => addressSubscription(request.lon, request.lat), externalSignal), alerts(request.node, externalSignal),
       ])
-      return { contextLevel: request.contextLevel, contextCode: request.contextCode, target: request.target, location: rounded, originalLocation: { lat: request.lat, lon: request.lon }, fetchedAt: new Date((options.now ?? Date.now)()).toISOString(), address: moduleState(address, '地址增强暂无结果'), current: moduleState(current, '实时天气暂无结果'), alerts: alertResult, minutely: moduleState(minutely, '当前查询位置暂无分钟级降水预报'), hourly: moduleState(hourly, '未来 24 小时预报暂无结果'), attributions: [...(current.value?.metadata?.attributions ?? []), ...(hourly.value?.metadata?.attributions ?? [])] }
+      const attributions = mergeAttributions(
+        current.value?.metadata?.attributions ?? [], hourly.value?.metadata?.attributions ?? [],
+        alertResult.data?.flatMap((region) => region.metadata?.attributions ?? []) ?? [],
+        referAttributions(minutely.value?.metadata?.refer),
+      )
+      return { contextLevel: request.contextLevel, contextCode: request.contextCode, target: request.target, location: rounded, originalLocation: { lat: request.lat, lon: request.lon }, fetchedAt: new Date((options.now ?? Date.now)()).toISOString(), address: moduleState(address, '地址增强暂无结果'), current: moduleState(current, '实时天气暂无结果'), alerts: alertResult, minutely: moduleState(minutely, '当前查询位置暂无分钟级降水预报'), hourly: moduleState(hourly, '未来 24 小时预报暂无结果'), attributions }
     },
     clearCache() { cache.clear() },
     stats() { return cache.stats() },

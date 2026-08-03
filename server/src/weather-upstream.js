@@ -13,21 +13,35 @@ function ratio(value) { const number = finite(value); return number !== null && 
 function text(value) { return typeof value === 'string' && value.trim() !== '' ? value : null }
 function unitValue(value, required = false) { if (!object(value)) return required ? undefined : null; const normalized = { value: finite(value.value), unit: text(value.unit) }; return required && (normalized.value === null || !normalized.unit) ? undefined : normalized }
 function condition(value, required = false) { if (!object(value)) return required ? undefined : null; const normalized = { code: text(value.code), text: text(value.text) }; return required && (!normalized.code || !normalized.text) ? undefined : normalized }
-function attribution(value) { return object(value) ? { name: text(value.name), url: text(value.url) } : null }
+function attribution(value) {
+  if (typeof value === 'string') {
+    const normalized = text(value)
+    if (!normalized) return null
+    try { const url = new URL(normalized); return ['http:', 'https:'].includes(url.protocol) ? { name: null, url: normalized } : { name: normalized, url: null } } catch { return { name: normalized, url: null } }
+  }
+  if (!object(value)) return null
+  const normalized = { name: text(value.name), url: text(value.url) }
+  return normalized.name || normalized.url ? normalized : null
+}
 function metadata(value) { return object(value) ? { tag: text(value.tag), zeroResult: value.zeroResult === true, attributions: Array.isArray(value.attributions) ? value.attributions.map(attribution).filter(Boolean) : [] } : { tag: null, zeroResult: false, attributions: [] } }
 function iso(value) { return typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null }
+function decimalString(value) {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
 
 export function normalizeQWeather(module, payload) {
   if (!object(payload)) throw new WeatherUpstreamError('structure', '天气响应结构异常')
   const meta = metadata(payload.metadata)
   if (module === 'current') {
-    const current = payload.current, currentCondition = condition(current?.condition, true), temperature = unitValue(current?.temperature, true)
-    if (!object(current) || !iso(current.observationTime) || !currentCondition || !temperature) throw new WeatherUpstreamError('structure', '实时天气响应结构异常')
-    return { data: { observationTime: current.observationTime, condition: currentCondition, temperature, feelsLike: unitValue(current.feelsLike), precipitation: object(current.precipitation) ? { amount: unitValue(current.precipitation.amount), intensity: unitValue(current.precipitation.intensity), type: text(current.precipitation.type) } : null, humidity: ratio(current.humidity) }, metadata: meta }
+    const currentCondition = condition(payload.condition, true), temperature = unitValue(payload.temperature, true)
+    if (!currentCondition || !temperature) throw new WeatherUpstreamError('structure', '实时天气响应结构异常')
+    return { data: { condition: currentCondition, temperature, feelsLike: unitValue(payload.feelsLike), precipitation: object(payload.precipitation) ? { amount: unitValue(payload.precipitation.amount), intensity: unitValue(payload.precipitation.intensity), type: text(payload.precipitation.type) } : null, humidity: ratio(payload.humidity) }, metadata: meta }
   }
   if (module === 'hourly') {
-    if (!Array.isArray(payload.hourly) || payload.hourly.length === 0) throw new WeatherUpstreamError('structure', '逐小时天气响应结构异常')
-    return { data: payload.hourly.map((item) => {
+    if (!Array.isArray(payload.hours) || payload.hours.length === 0) throw new WeatherUpstreamError('structure', '逐小时天气响应结构异常')
+    return { data: payload.hours.map((item) => {
       const itemCondition = condition(item?.condition, true), temperature = unitValue(item?.temperature, true)
       if (!object(item) || !iso(item.forecastTime) || !itemCondition || !temperature) throw new WeatherUpstreamError('structure', '逐小时天气项异常')
       return { forecastTime: item.forecastTime, condition: itemCondition, temperature, precipitation: object(item.precipitation) ? { probability: ratio(item.precipitation.probability), amount: unitValue(item.precipitation.amount) } : null }
@@ -50,7 +64,7 @@ export function normalizeMinutely(payload) {
   if (!object(payload)) throw new WeatherUpstreamError('structure', '分钟降水响应结构异常')
   const refer = object(payload.refer) ? { sources: Array.isArray(payload.refer.sources) ? payload.refer.sources.filter((v) => text(v)) : [], license: Array.isArray(payload.refer.license) ? payload.refer.license.filter((v) => text(v)) : [] } : { sources: [], license: [] }
   if (!Array.isArray(payload.minutely)) { if (payload.code === '204') return { data: null, metadata: { ...metadata(null), refer }, empty: true }; throw new WeatherUpstreamError('structure', '分钟降水响应结构异常') }
-  return { data: { updateTime: iso(payload.updateTime), summary: text(payload.summary), minutely: payload.minutely.map((item) => { if (!object(item) || !iso(item.fxTime) || finite(item.precip) === null) throw new WeatherUpstreamError('structure', '分钟降水项异常'); return { fxTime: item.fxTime, precip: item.precip, type: text(item.type) } }), refer }, metadata: { ...metadata(null), refer }, empty: payload.minutely.length === 0 }
+  return { data: { updateTime: iso(payload.updateTime), summary: text(payload.summary), minutely: payload.minutely.map((item) => { const precip = decimalString(item?.precip); if (!object(item) || !iso(item.fxTime) || precip === null) throw new WeatherUpstreamError('structure', '分钟降水项异常'); return { fxTime: item.fxTime, precip, type: text(item.type) } }), refer }, metadata: { ...metadata(null), refer }, empty: payload.minutely.length === 0 }
 }
 
 function retryAfter(value, now) { if (!value) return null; const seconds = Number(value); if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000); const date = Date.parse(value); return Number.isFinite(date) ? Math.max(0, date - now()) : null }

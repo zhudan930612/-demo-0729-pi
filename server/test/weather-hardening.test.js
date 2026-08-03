@@ -15,8 +15,8 @@ const servers = []
 afterEach(async () => Promise.all(servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))))
 const dataDir = path.resolve('test/fixtures/weather-data')
 const baseConfig = { authMode: 'api-key', apiOrigin: 'https://weather.example', apiKey: 'secret', projectId: 'project', credentialId: 'credential', dataDir, addressUrl: '', timeoutMs: 1000, maxNetworkBytes: 1024 * 1024, maxDecodedBytes: 1024 * 1024, cacheMaxEntries: 100, upstreamConcurrency: 6 }
-function currentPayload() { return { current: { observationTime: '2026-08-03T10:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, humidity: 0.5 }, metadata: {} } }
-function responseFor(module) { if (module === 'alert') return { data: [{ id: 'shared', headline: '预警', messageType: { code: 'Alert', supersedes: [] }, responseTypes: ['Prepare'] }], metadata: {} }; if (module === 'current') return normalizeQWeather('current', currentPayload()); if (module === 'hourly') return normalizeQWeather('hourly', { hourly: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 27, unit: '°C' } }], metadata: {} }); return { data: null, metadata: {}, empty: true } }
+function currentPayload() { return { condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, humidity: 0.5, metadata: {} } }
+function responseFor(module) { if (module === 'alert') return { data: [{ id: 'shared', headline: '预警', messageType: { code: 'Alert', supersedes: [] }, responseTypes: ['Prepare'] }], metadata: {} }; if (module === 'current') return normalizeQWeather('current', currentPayload()); if (module === 'hourly') return normalizeQWeather('hourly', { hours: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 27, unit: '°C' } }], metadata: {} }); return { data: null, metadata: {}, empty: true } }
 
 test('province eleven-region fan-out waits at configured concurrency and settles every region', async () => {
   const children = Array.from({ length: 11 }, (_, i) => Object.freeze({ code: `330${String(i + 1).padStart(3, '0')}`, name: `市${i}`, level: 'city', representativePoint: Object.freeze([120 + i / 100, 30]), childrenCodes: Object.freeze([]) }))
@@ -67,8 +67,8 @@ test('spatial index rejects a representative point outside its parent chain', ()
 })
 
 test('normalization rejects coercion and invalid ratios while preserving responseTypes', () => {
-  assert.throws(() => normalizeQWeather('current', { current: { observationTime: '2026-08-03T10:00:00+08:00', condition: { code: '', text: '晴' }, temperature: { value: null, unit: '°C' } } }), (e) => e.kind === 'structure')
-  const current = normalizeQWeather('current', { current: { observationTime: '2026-08-03T10:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 1, unit: '°C' }, feelsLike: { value: false, unit: '°C' }, humidity: 2 } }).data
+  assert.throws(() => normalizeQWeather('current', { condition: { code: '', text: '晴' }, temperature: { value: null, unit: '°C' } }), (e) => e.kind === 'structure')
+  const current = normalizeQWeather('current', { condition: { code: '100', text: '晴' }, temperature: { value: 1, unit: '°C' }, feelsLike: { value: false, unit: '°C' }, humidity: 2 }).data
   assert.equal(current.feelsLike.value, null); assert.equal(current.humidity, null)
   const alert = normalizeQWeather('alert', { alerts: [{ id: 'a', messageType: {}, responseTypes: ['Prepare', '', false] }] }).data[0]
   assert.deepEqual(alert.responseTypes, ['Prepare'])
