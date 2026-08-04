@@ -8,7 +8,6 @@ function markerHtml(alarm: NationalWeatherAlarm, selected: boolean) {
 }
 export interface NationalAlarmLayerCallbacks {
   onOpen(alarm: NationalWeatherAlarm, point: { x: number; y: number }): void
-  onClose(alarm: NationalWeatherAlarm): void
 }
 export function createNationalAlarmLayerController(map: L.Map, callbacks: NationalAlarmLayerCallbacks) {
   // Place alerts above geographic labels/annotations (450), beneath Vue popups (1040).
@@ -22,17 +21,9 @@ export function createNationalAlarmLayerController(map: L.Map, callbacks: Nation
       const index = offsets.get(alarm.adminCode ?? alarm.id) ?? 0; offsets.set(alarm.adminCode ?? alarm.id, index + 1)
       const marker = L.marker([point[1], point[0]], { pane: 'nationalAlarmPane', bubblingMouseEvents: false, keyboard: true, icon: L.divIcon({ className: 'national-alarm-marker-wrap', iconSize: [34, 26], iconAnchor: [17 - index * 7, 13], html: markerHtml(alarm, selectedId === alarm.id) }) })
       const open = () => { const p = map.latLngToContainerPoint(marker.getLatLng()); callbacks.onOpen(alarm, { x: p.x, y: p.y }) }
-      // Listen before insertion: Leaflet fires `add` synchronously during addTo.
-      const close = () => callbacks.onClose(alarm)
-      marker.on('add', () => {
-        const button = marker.getElement()?.querySelector<HTMLButtonElement>('.national-alarm-marker')
-        if (!button) return
-        button.addEventListener('mouseenter', open)
-        button.addEventListener('mouseleave', close)
-        button.addEventListener('focus', open)
-        button.addEventListener('blur', close)
-        button.addEventListener('click', (event) => { event.stopPropagation(); open() })
-      })
+      // A marker only opens details on explicit activation; it must not react
+      // to hover or focus because the popup stays open until Esc or its close button.
+      marker.on('click', (event) => { L.DomEvent.stopPropagation(event.originalEvent); open() })
       marker.addTo(layer)
     }
   }

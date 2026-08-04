@@ -1032,8 +1032,7 @@ async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  if(!county){showNotice('该预警暂无法定位到当前地图',true);return}
  await store.drill({level:'county',code:alarm.adminCode,name:String(county.properties?.name??''),geometry:county.geometry})
 }
-function selectNationalAlarmFromMap(alarm:NationalWeatherAlarm,point:{x:number;y:number}){nationalAlarmPopupPosition.value=point;const same=nationalAlarmStore.selection?.id===alarm.id&&nationalAlarmStore.selection.source==='map';nationalAlarmStore.select({id:alarm.id,source:'map'});if(!same)void nationalAlarmRepository.detail(alarm.id)}
-function closeNationalAlarmHover(alarm:NationalWeatherAlarm){if(nationalAlarmStore.selection?.source==='map'&&nationalAlarmStore.selection.id===alarm.id)nationalAlarmStore.select(null)}
+function selectNationalAlarmFromMap(alarm:NationalWeatherAlarm,point:{x:number;y:number}){const same=nationalAlarmStore.selection?.id===alarm.id&&nationalAlarmStore.selection.source==='map';if(same){nationalAlarmStore.select(null);return}nationalAlarmPopupPosition.value=point;nationalAlarmStore.select({id:alarm.id,source:'map'});void nationalAlarmRepository.detail(alarm.id)}
 function retryNationalAlarmDetail(){const id=nationalAlarmStore.selection?.id;if(id)void nationalAlarmRepository.detail(id,true)}
 function refreshWeather(){void weatherRepository.retry()}
 function closeWeatherLocation(){const picked=weatherStore.closeLocation();if(picked){weatherRepository.restore(weatherStore.defaultQuery);weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle)}}
@@ -1564,7 +1563,7 @@ onMounted(async () => {
   weatherInteractionController=createWeatherInteractionController(map,{active:()=>weatherCurrentActive.value,editing:()=>parcelMode.value!=='idle',provinceGeometry:()=>provinceGeometry,onPicked:loadPickedWeather,onOutside:()=>showNotice('天气当前仅支持浙江省范围',true)})
   weatherRepository=createWeatherRepository(weatherStore)
   nationalAlarmRepository=createNationalAlarmRepository(nationalAlarmStore)
-  nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap,onClose:closeNationalAlarmHover})
+  nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap})
   typhoonLayerController = createTyphoonLayerController(map, {
     onTyphoonClick: ({ typhoonId }) => revealTyphoon(typhoonId),
     onNodeClick: ({ typhoonId, nodeId, kind, containerPoint }) => {
