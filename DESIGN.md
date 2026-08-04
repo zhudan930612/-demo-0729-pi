@@ -214,8 +214,8 @@ components:
 
 ### Weather & Alarm Panels（雾白浮层）
 - **Weather Panel:** 右上 378px 雾白面板，选中地区行 `{colors.hover-blue}` 底 + 左侧 3px 蓝竖条；预警 chips 用预警等级色边框（`--warning` 动态色）与浅色底标签。
-- **Weather Marker:** 72×34 白色胶囊、`{colors.action-blue}` 边框；`Ctrl` 临时点改紫边框 + 紫色外圈；失败态红边框 + 浅红底。
-- **Weather Popup:** 360px 白色浮窗、底部箭头锚点、头部浅灰；预警模式下头部用等级色填充。
+- **Weather Marker:** 108×42 紧凑双栏地图标牌：左侧 42px 实色天气图标块，右侧白底依次显示城市/当前行政名称与未来 24 小时最高/最低温度（如 `35/26°C`）；整体使用 `{colors.action-blue}` 边框，锚点在左下角以保持图标对应查询点。`Ctrl` 临时点显示“地图点选”、改紫色图标块 + 紫色外圈；失败态红色图标块 + 浅红底。
+- **Weather Popup:** 360px 白色浮窗、头部浅灰；位置天气浮窗优先停靠在天气标牌右侧，保留至少 12px 间距且不覆盖标牌，右侧空间不足时切到标牌左侧；预警模式下头部用等级色填充。
 - **National Alarm Panel:** 右上 360×520px 固定雾白面板，行 hover/selected 为 `{colors.hover-blue}` 底 + 浅蓝边框；刷新按钮旋转态。
 - **National Alarm Popup:** 360px 白色浮窗、`{colors.action-blue}` 头部白字，正文保留段落换行；重试按钮为蓝色。
 - **Alarm Icon:** 地图图标为 34×26 方形官方 PNG，drop-shadow 落地；hover/selected 黄边、键盘焦点蓝边。

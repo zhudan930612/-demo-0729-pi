@@ -1,5 +1,5 @@
 <template>
-  <section ref="dialog" class="weather-popup" :class="[kind, placement]" :style="positionStyle" role="dialog" aria-modal="false" tabindex="-1" :aria-label="kind === 'alert' ? '天气预警详情' : '位置天气详情'" @click.stop>
+  <section ref="dialog" class="weather-popup" :class="[kind, placement, side]" :style="positionStyle" role="dialog" aria-modal="false" tabindex="-1" :aria-label="kind === 'alert' ? '天气预警详情' : '位置天气详情'" @click.stop>
     <header :style="kind === 'alert' ? { '--warning': alertColor } : {}">
       <strong>{{ title }}</strong>
       <button type="button" aria-label="关闭天气浮窗" @click="emit('close')">×</button>
@@ -99,6 +99,7 @@ const hourCanRight = ref(false)
 const measuredWidth = ref(360)
 const measuredHeight = ref(320)
 const placement = ref<'above' | 'below'>('above')
+const side = ref<'left' | 'right'>('right')
 const viewport = ref({ width: window.innerWidth, height: window.innerHeight })
 const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
 let resizeObserver: ResizeObserver | null = null
@@ -111,6 +112,7 @@ function measure() {
   measuredHeight.value = rect.height
   viewport.value = { width: window.innerWidth, height: window.innerHeight }
   placement.value = props.y - measuredHeight.value - 12 >= 12 ? 'above' : 'below'
+  side.value = props.x + 120 + measuredWidth.value <= window.innerWidth - 12 ? 'right' : 'left'
 }
 function onResize() { measure() }
 onMounted(() => nextTick(() => {
@@ -130,11 +132,14 @@ onBeforeUnmount(() => {
 const positionStyle = computed(() => {
   const narrow = viewport.value.width <= 520
   const pad = 12
-  const arrow = 12
+  const markerWidth = 108
+  const gap = 12
   const width = narrow ? viewport.value.width - pad * 2 : measuredWidth.value
-  const left = narrow ? pad : Math.max(pad, Math.min(props.x - width / 2, viewport.value.width - pad - width))
-  const unclampedTop = placement.value === 'above' ? props.y - measuredHeight.value - arrow : props.y + arrow
-  const top = Math.max(pad, Math.min(unclampedTop, viewport.value.height - pad - measuredHeight.value - 2))
+  const preferredLeft = side.value === 'right' ? props.x + markerWidth + gap : props.x - width - gap
+  const left = narrow ? pad : Math.max(pad, Math.min(preferredLeft, viewport.value.width - pad - width))
+  const top = narrow
+    ? Math.max(pad, Math.min(props.y + 12, viewport.value.height - pad - measuredHeight.value - 2))
+    : Math.max(pad, Math.min(props.y - measuredHeight.value / 2, viewport.value.height - pad - measuredHeight.value - 2))
   const anchor = Math.max(14, Math.min(props.x - left, width - 14))
   return { left: `${left}px`, top: `${top}px`, '--anchor-x': `${anchor}px` }
 })
@@ -208,6 +213,7 @@ function onHourWheel(event: WheelEvent) {
   transform: translateX(-50%) rotate(45deg);
 }
 .weather-popup.below::after { top: -9px; bottom: auto; transform: translateX(-50%) rotate(225deg); }
+.weather-popup.location::after { display: none; }
 .weather-popup > header {
   flex: none;
   display: flex;

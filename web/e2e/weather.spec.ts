@@ -36,7 +36,11 @@ test('进入和退出天气保持地图视角，并恢复入口焦点', async ({
   await page.getByRole('button', { name: '实时天气' }).click()
   await expect(page.getByText('Ctrl', { exact: true })).toBeVisible()
   await expect(page.getByText('左键单击可以按点选查询天气')).toBeVisible()
-  await expect(page.locator('.weather-marker')).toHaveAccessibleName(/小雨.*26/)
+  const weatherMarker = page.locator('.weather-marker')
+  await expect(weatherMarker).toHaveAccessibleName(/浙江省.*小雨.*最高29.*最低26/)
+  await expect(weatherMarker.locator('.weather-marker-icon')).toBeVisible()
+  await expect(weatherMarker.locator('.weather-marker-detail b')).toHaveText('浙江省')
+  await expect(weatherMarker.locator('.weather-marker-detail strong')).toHaveText('29/26°C')
   expect(await page.locator('.map-zoom-level').textContent()).toBe(before)
   await page.getByRole('button', { name: '当前：实时天气，点击切换' }).click()
   await page.getByRole('button', { name: '气象预警' }).click()
@@ -54,6 +58,7 @@ test('气象预警与实时天气模块互斥，实时天气保留完整位置�
   await page.locator('.weather-marker').click()
   const popup = page.getByRole('dialog', { name: '位置天气详情' })
   await expect(popup.locator('header strong')).toHaveText('实时天气')
+  await expect(popup).toHaveClass(/(left|right)/)
   await expect(popup.locator('.query-context')).toHaveText('浙江省行政中心')
   await expect(popup.locator('.query-context')).not.toContainText(/°[NE]|\d+\.\d{2}/)
   await expect(popup.locator('.query-context')).toHaveCount(1)
@@ -114,10 +119,10 @@ test('1280x720 浮窗完整位于视口且保留可达标题栏与关闭按钮',
   await page.setViewportSize({width:1280,height:720});await installFixtures(page);await openWeather(page);await page.locator('.weather-marker').click()
   const popup=page.getByRole('dialog',{name:'位置天气详情'}),box=await popup.boundingBox(),close=popup.getByRole('button',{name:'关闭天气浮窗'}),closeBox=await close.boundingBox()
   expect(box).not.toBeNull();expect(box!.x).toBeGreaterThanOrEqual(11);expect(box!.y).toBeGreaterThanOrEqual(11);expect(box!.x+box!.width).toBeLessThanOrEqual(1270);expect(box!.y+box!.height).toBeLessThanOrEqual(710)
-  await expect(popup.locator('header')).toBeVisible();await expect(popup.locator('.popup-body')).toBeVisible();expect(closeBox).not.toBeNull();expect(closeBox!.x+closeBox!.width).toBeLessThanOrEqual(1280);expect(closeBox!.y+closeBox!.height).toBeLessThanOrEqual(720)
+  await expect(popup.locator('header')).toBeVisible();await expect(popup.locator('.popup-body')).toBeVisible();expect(closeBox).not.toBeNull();expect(closeBox!.x+closeBox!.width).toBeLessThanOrEqual(1280);expect(closeBox!.y+closeBox!.height).toBeLessThanOrEqual(720);const markerBox=await page.locator('.weather-marker').boundingBox();expect(markerBox).not.toBeNull();const overlaps=box!.x<markerBox!.x+markerBox!.width&&box!.x+box!.width>markerBox!.x&&box!.y<markerBox!.y+markerBox!.height&&box!.y+box!.height>markerBox!.y;expect(overlaps).toBe(false)
 })
 
-test('首次请求失败显示错误标记、失败浮窗和重试而非加载中',async({page})=>{await installFixtures(page,{fixture:'request-error'});await openWeather(page,false);const marker=page.locator('.weather-marker-wrap.error .weather-marker');await expect(marker).toHaveAccessibleName(/天气加载失败/);await marker.click();const popup=page.getByRole('dialog',{name:'位置天气详情'});await expect(popup).toContainText('位置天气加载失败');await expect(popup).toContainText('天气服务繁忙');await expect(popup).not.toContainText('正在加载新位置天气');await expect(popup.getByRole('button',{name:'重试'})).toBeVisible()})
+test('首次请求失败显示错误标记、失败浮窗和重试而非加载中',async({page})=>{await installFixtures(page,{fixture:'request-error'});await openWeather(page,false);const marker=page.locator('.weather-marker-wrap.error .weather-marker');await expect(marker).toHaveAccessibleName(/天气加载失败/);await expect(marker.locator('.weather-marker-detail b')).toHaveText('加载失败');await expect(marker.locator('.weather-marker-detail strong')).toHaveText('--');await marker.click();const popup=page.getByRole('dialog',{name:'位置天气详情'});await expect(popup).toContainText('位置天气加载失败');await expect(popup).toContainText('天气服务繁忙');await expect(popup).not.toContainText('正在加载新位置天气');await expect(popup.getByRole('button',{name:'重试'})).toBeVisible()})
 
 test('stale 模块保留成功数据并分别显示上次成功时间和重试',async({page})=>{await installFixtures(page,{fixture:'stale'});await openWeather(page);await page.locator('.weather-marker').click();const popup=page.getByRole('dialog',{name:'位置天气详情'});await expect(popup.getByText(/实时天气更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText(/未来两小时降水更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText(/未来 24 小时预报更新失败，上次成功于/)).toBeVisible();await expect(popup.getByText('小雨 26 °C')).toBeVisible();await expect(popup.getByText('20分钟后降雨逐渐增强')).toBeVisible();await expect(popup.locator('.hour-strip article')).toHaveCount(24);await expect(popup.getByRole('button',{name:'重试'})).toHaveCount(3)})
 
