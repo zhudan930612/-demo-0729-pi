@@ -6,7 +6,6 @@
     <NationalAlarmPopup v-if="nationalAlarmsActive && selectedNationalAlarm && nationalAlarmStore.selection?.source==='map'" :alarm="selectedNationalAlarm" :detail="nationalAlarmStore.detail" :x="nationalAlarmPopupPosition.x" :y="nationalAlarmPopupPosition.y" @close="nationalAlarmStore.select(null)" @retry="retryNationalAlarmDetail" />
     <div v-if="nationalAlarmMapNotice" class="save-notice national-alarm-map-notice" role="status">{{ nationalAlarmMapNotice }}</div>
     <div v-if="weatherCurrentActive" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
-    <div v-if="anyWeatherActive" class="weather-edit-notice">天气查看中可查看地块，编辑操作暂不可用</div>
     <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" :title="weatherLocationTitle" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.query?.contextName" :parcel-id="weatherStore.query?.target==='parcel'?selectedParcel?.id:undefined" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
     <TyphoonPathPanel
