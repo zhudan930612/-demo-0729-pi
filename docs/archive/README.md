@@ -17,5 +17,6 @@
 - 地块详情、种植档案与保单：[../requirements/地块详情与保单关联V1需求.md](../requirements/地块详情与保单关联V1需求.md)
 - 灾害风险与台风行为：[../requirements/灾害风险与台风查看需求.md](../requirements/灾害风险与台风查看需求.md)
 - 天气查看行为：[../requirements/天气查看与和风天气API接入需求.md](../requirements/天气查看与和风天气API接入需求.md)
+- 浙江省气象预警（NMC）行为：[../requirements/全国气象预警数据接入需求.md](../requirements/全国气象预警数据接入需求.md)
 - 当前架构与实现：`web/src/`、`server/` 和相应测试
 - 本地运行、数据准备与版权约束：[../../README.md](../../README.md)
