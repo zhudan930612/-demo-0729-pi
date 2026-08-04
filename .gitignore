@@ -21,6 +21,9 @@ test-results/
 # ---- 本地开发运行时文件 ----
 .dev-runtime/
 server/reports/weather-probe-summary.local.json
+.runtime-server*.log
+.vite-*.log
+.tmp-*.png
 
 # ---- Impeccable 实时设计运行时文件（仅保留可复用配置） ----
 .impeccable/live/*
