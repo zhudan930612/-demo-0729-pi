@@ -10,6 +10,7 @@
 - [地块详情、种植档案与保单关联 V1 需求](./requirements/地块详情与保单关联V1需求.md)
 - [灾害风险与台风查看需求](./requirements/灾害风险与台风查看需求.md)
 - [天气查看与和风天气 API 接入需求](./requirements/天气查看与和风天气API接入需求.md)
+- [浙江省气象预警数据接入需求](./requirements/全国气象预警数据接入需求.md)
 
 目录入口：[requirements/](./requirements/)
 
