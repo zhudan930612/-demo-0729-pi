@@ -26,7 +26,7 @@ function publicRecord(record, node, groupCount) {
   return {
     id: record.id, issuedAt: record.issuedAt, title: record.title, iconUrl: record.iconUrl, adminCode: record.adminCode,
     adminLevel: mapped ? node.level : 'unknown', provinceCode: '33', provinceName: '浙江省', eventType: eventType(record.title), severity: severity(record.title), mappableInZhejiang: mapped,
-    mapLocation: mapped ? { status: 'mapped', point: [...node.representativePoint], groupCount } : { status: 'unmapped' },
+    mapLocation: mapped ? { status: 'mapped', point: [...node.governmentSeatPoint], groupCount } : { status: 'unmapped' },
   }
 }
 function sorted(records) { return [...records].sort((a, b) => (Date.parse(b.issuedAt ?? 0) - Date.parse(a.issuedAt ?? 0)) || a.id.localeCompare(b.id)) }

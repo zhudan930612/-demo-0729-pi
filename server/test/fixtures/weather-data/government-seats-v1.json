@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "provinceCode": "330000",
+  "generatedAt": "2026-08-04T00:00:00.000Z",
+  "source": "fixture",
+  "entries": [
+    { "code": "330000", "name": "浙江省", "level": "province", "governmentName": "浙江省人民政府", "query": "浙江省人民政府", "point": [120, 30], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" },
+    { "code": "330100", "name": "杭州市", "level": "city", "governmentName": "杭州市人民政府", "query": "杭州市人民政府", "point": [120, 30], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" },
+    { "code": "330101", "name": "示例县", "level": "county", "governmentName": "杭州市示例县人民政府", "query": "杭州市示例县人民政府", "point": [120.1, 30.1], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" }
+  ]
+}
