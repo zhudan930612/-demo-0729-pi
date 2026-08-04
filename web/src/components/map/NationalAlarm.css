@@ -1,0 +1,7 @@
+.map-wrap .national-alarm-marker-wrap { border: 0; background: transparent; }
+.map-wrap .national-alarm-marker { display:grid;place-items:center;box-sizing:border-box;width:34px;height:26px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:#b45309;font-size:16px;cursor:pointer;overflow:visible; }
+/* The NMC icon itself is 125×94 (4:3). The Leaflet hit box matches its rendered
+   34×26 footprint exactly, avoiding a larger white frame around the official icon. */
+.map-wrap .national-alarm-marker img { display:block;width:34px;height:26px;object-fit:fill;image-rendering:auto;filter:drop-shadow(0 1px 2px rgba(15,23,42,.45)); }
+.map-wrap .national-alarm-marker:hover,.map-wrap .national-alarm-marker.selected { outline:2px solid rgba(250,204,21,.78);outline-offset:2px; }
+.map-wrap .national-alarm-marker:focus-visible { outline:2px solid rgba(37,99,235,.78);outline-offset:3px; }

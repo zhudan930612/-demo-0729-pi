@@ -11,6 +11,15 @@ const minutely = Array.from({ length: 24 }, (_, index) => ({
   precip: index < 4 ? 0 : Number(((index % 6) * 0.12).toFixed(2)),
   type: index % 8 === 0 ? 'snow' : 'rain',
 }))
+const nationalAlarm = {
+  id: '330100000001', issuedAt: '2026-08-03T03:20:00Z', title: '杭州市发布暴雨红色预警信号',
+  iconUrl: 'https://image.nmc.cn/assets/img/alarm/p0012001.png', adminCode: '330100', adminLevel: 'city', provinceCode: '33', provinceName: '浙江省', eventType: '暴雨', severity: 'red', mappableInZhejiang: true,
+  mapLocation: { status: 'mapped', point: [120.15, 30.25], groupCount: 1 },
+}
+const nationalSnapshot = {
+  items: [nationalAlarm], summary: { total: 1, snapshotTotal: 1 }, fetchedAt: '2026-08-03T04:00:00Z', expiresAt: '2026-08-03T04:05:00Z', source: '中央气象台（NMC），仅展示浙江省预警',
+}
+const nationalDetail = { id: nationalAlarm.id, issuedAt: nationalAlarm.issuedAt, body: '预计未来三小时部分地区有强降雨，请注意防范。' }
 function weatherBundle(target = 'admin') {
   const picked = target === 'picked'
   return {
@@ -52,6 +61,9 @@ const server = http.createServer((request, response) => {
     if(fixture==='request-error'){response.writeHead(503,{'content-type':'application/json'});return response.end(JSON.stringify({error:{code:'WEATHER_SERVICE_BUSY',message:'天气服务繁忙'}}))}
     return json(response, fixture === 'failed' ? failedBundle() : fixture==='stale' ? staleBundle() : weatherBundle(target))
   }
+  if (url.pathname === '/api/national-weather-alarms') return json(response, nationalSnapshot)
+  if (url.pathname === `/api/national-weather-alarms/${nationalAlarm.id}`) return json(response, nationalDetail)
+  if (url.pathname === '/api/national-weather-alarms/refresh' && request.method === 'POST') return json(response, nationalSnapshot)
   response.writeHead(404, { 'content-type': 'application/json' })
   response.end('{"error":"fixture route not found"}')
 })
