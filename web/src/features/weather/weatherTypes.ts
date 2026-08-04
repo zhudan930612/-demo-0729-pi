@@ -1,6 +1,7 @@
 import type { Level } from '../../stores/drilldown'
 
 export type DisasterViewMode = 'none' | 'weather' | 'typhoon'
+export type WeatherModuleKind = 'alerts' | 'current'
 export type WeatherTarget = 'admin' | 'parcel' | 'picked'
 
 export interface WeatherQuery {

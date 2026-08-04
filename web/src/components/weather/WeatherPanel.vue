@@ -13,7 +13,7 @@
   <div v-if="failedRegions.length" class="failed"><strong>数据获取失败</strong><span>{{failedRegions.map(x=>x.name).join('、')}}</span><button type="button" @click="emit('retry-alerts')">重试</button></div>
   <div v-if="alertRefreshFailures.length" class="failed alert-refresh-failure"><strong>预警更新失败</strong><span>上次成功于 {{formatBeijing(alertRefreshFailures[0]?.fetchedAt)}}</span><button type="button" @click="emit('retry-alerts')">重试</button></div>
  </section>
- <footer><p>基于行政区域代表点查询，预警覆盖范围以发布机构原文为准。</p><p v-for="a in attributions" :key="`${a.name}-${a.url}`"><a v-if="a.url" :href="a.url" target="_blank" rel="noreferrer">{{a.name||a.url}}</a><span v-else>{{a.name}}</span></p></footer>
+ <footer><p v-for="a in attributions" :key="`${a.name}-${a.url}`"><a v-if="a.url" :href="a.url" target="_blank" rel="noreferrer">{{a.name||a.url}}</a><span v-else>{{a.name}}</span></p></footer>
 </section>
 </template>
 <script setup lang="ts">
