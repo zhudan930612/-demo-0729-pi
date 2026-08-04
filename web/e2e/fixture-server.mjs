@@ -43,6 +43,9 @@ function staleBundle() {
   bundle.alerts.data[0] = { ...bundle.alerts.data[0], stale: true, fetchedAt: '2026-08-03T12:00:00+08:00', refreshError }
   return bundle
 }
+function addressUnavailableBundle(target = 'admin') {
+  return { ...weatherBundle(target), address: { status: 'error', error: { code: 'ADDRESS_UNAVAILABLE', message: '地址增强未配置' } } }
+}
 function failedBundle() {
   return {
     ...weatherBundle('admin'),
@@ -59,7 +62,7 @@ const server = http.createServer((request, response) => {
     const target = url.searchParams.get('target') === 'picked' ? 'picked' : 'admin'
     const fixture=url.searchParams.get('fixture')
     if(fixture==='request-error'){response.writeHead(503,{'content-type':'application/json'});return response.end(JSON.stringify({error:{code:'WEATHER_SERVICE_BUSY',message:'天气服务繁忙'}}))}
-    return json(response, fixture === 'failed' ? failedBundle() : fixture==='stale' ? staleBundle() : weatherBundle(target))
+    return json(response, fixture === 'failed' ? failedBundle() : fixture === 'stale' ? staleBundle() : fixture === 'address-unavailable' ? addressUnavailableBundle(target) : weatherBundle(target))
   }
   if (url.pathname === '/api/national-weather-alarms') return json(response, nationalSnapshot)
   if (url.pathname === `/api/national-weather-alarms/${nationalAlarm.id}`) return json(response, nationalDetail)

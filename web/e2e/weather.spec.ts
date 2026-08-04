@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { cities, province } from './fixtures'
 
-async function installFixtures(page: Page, options: { fixture?: 'failed'|'stale'|'request-error' } = {}) {
+async function installFixtures(page: Page, options: { fixture?: 'failed'|'stale'|'request-error'|'address-unavailable' } = {}) {
   const requests: string[] = []
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url())
@@ -53,13 +53,22 @@ test('气象预警与实时天气模块互斥，实时天气保留完整位置�
   await expect(page.locator('.weather-panel')).toBeHidden()
   await page.locator('.weather-marker').click()
   const popup = page.getByRole('dialog', { name: '位置天气详情' })
-  await expect(popup).toContainText('浙江省行政中心附近')
-  await expect(popup.locator('.query-context')).toContainText('浙江省行政中心')
+  await expect(popup.locator('header strong')).toHaveText('实时天气')
+  await expect(popup.locator('.query-context')).toHaveText('浙江省行政中心')
   await expect(popup.locator('.query-context')).not.toContainText(/°[NE]|\d+\.\d{2}/)
+  await expect(popup.locator('.query-context')).toHaveCount(1)
+  await expect(popup.locator('.refer')).toHaveCount(0)
   await expect(popup).toContainText('当前天气')
   await expect(popup).toContainText('未来两小时降水')
   await expect(popup).toContainText('未来 24 小时预报')
   await expect(popup.locator('.hour-strip article')).toHaveCount(24)
+  await expect(popup.getByRole('button', { name: '查看后面的小时预报' })).toBeVisible()
+  expect(await popup.locator('.hour-strip').evaluate((element) => getComputedStyle(element).scrollbarWidth)).toBe('none')
+  await popup.getByRole('button', { name: '查看后面的小时预报' }).click()
+  await expect.poll(() => popup.locator('.hour-strip').evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+  await expect(popup.getByRole('button', { name: '查看前面的小时预报' })).toBeVisible()
+  await popup.getByRole('button', { name: '查看前面的小时预报' }).click()
+  await expect.poll(() => popup.locator('.hour-strip').evaluate((element) => element.scrollLeft)).toBe(0)
   await page.getByRole('button', { name: '当前：实时天气，点击切换' }).click()
   await page.getByRole('button', { name: '气象预警' }).click()
   await expect(page.locator('.weather-marker')).toHaveCount(0)
@@ -85,6 +94,22 @@ test('气象预警与实时天气模块互斥，实时天气保留完整位置�
   await expect(popup).toBeHidden()
 })
 
+test('地址增强失败时按层级路径降级且不泄露坐标', async ({ page }) => {
+  await installFixtures(page, { fixture: 'address-unavailable' })
+  await openWeather(page)
+  await page.locator('.weather-marker').click()
+  const popup = page.getByRole('dialog', { name: '位置天气详情' })
+  await expect(popup.locator('header strong')).toHaveText('实时天气')
+  await expect(popup.locator('.query-context')).toHaveText('浙江省')
+  await expect(popup.locator('.query-context')).not.toContainText(/°[NE]|\d+\.\d{2}|代表点|附近/)
+
+  await page.keyboard.press('Escape')
+  await expect(popup).toBeHidden()
+  await page.locator('.map').click({ position: { x: 500, y: 330 }, modifiers: ['Control'] })
+  await expect(popup.locator('.query-context')).toHaveText('浙江省内地图点选位置')
+  await expect(popup.locator('.query-context')).not.toContainText(/°[NE]|\d+\.\d{2}/)
+})
+
 test('1280x720 浮窗完整位于视口且保留可达标题栏与关闭按钮', async ({ page }) => {
   await page.setViewportSize({width:1280,height:720});await installFixtures(page);await openWeather(page);await page.locator('.weather-marker').click()
   const popup=page.getByRole('dialog',{name:'位置天气详情'}),box=await popup.boundingBox(),close=popup.getByRole('button',{name:'关闭天气浮窗'}),closeBox=await close.boundingBox()
@@ -101,8 +126,8 @@ test('Ctrl 点选仅刷新临时位置，Esc 恢复默认标记且不改变层�
   await openWeather(page)
   await page.locator('.map').click({ position: { x: 500, y: 330 }, modifiers: ['Control'] })
   const popup = page.getByRole('dialog', { name: '位置天气详情' })
-  await expect(popup).toContainText('杭州市西湖区测试点附近')
-  await expect(popup).toContainText('地图点选位置')
+  await expect(popup.locator('.query-context')).toHaveText('杭州市西湖区测试点')
+  await expect(popup.locator('.query-context')).not.toContainText('地图点选位置')
   expect(requests.filter((query) => query.includes('target=picked'))).toHaveLength(1)
   expect(requests.filter((query) => query.includes('target=picked'))[0]).not.toContain('key=')
   await page.keyboard.press('Escape')

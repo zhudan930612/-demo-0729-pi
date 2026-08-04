@@ -38,6 +38,7 @@ export function hourlyCards(module: WeatherModule<HourlyItem[]>): { items:Hourly
   const indexed=module.data.map((item,index)=>({item,index})).sort((a,b)=>Date.parse(a.item.forecastTime)-Date.parse(b.item.forecastTime)||a.index-b.index)
   return {items:indexed.map(x=>x.item),incomplete:indexed.length<24}
 }
+/** @deprecated 位置天气浮窗已固定标题为“实时天气”；保留导出以兼容热更新中的旧模块图。 */
 export function locationTitle(bundle: WeatherBundle, contextName: string, parcel:boolean): string {
   const address=bundle.address.status==='success'&&bundle.address.data?.address?.trim()
   if(address)return `${address}附近`

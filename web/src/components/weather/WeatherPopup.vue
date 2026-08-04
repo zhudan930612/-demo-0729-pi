@@ -19,10 +19,7 @@
       </template>
 
       <template v-else-if="bundle">
-        <div class="query-context">
-          <strong>{{ queryObject }}</strong>
-          <span>{{ locationContext }}</span>
-        </div>
+        <p class="query-context">{{ locationContext }}</p>
 
         <section class="current">
           <h3>当前天气</h3>
@@ -39,7 +36,7 @@
             <div><dt>降水类型</dt><dd>{{ precipitationType(bundle.current.data.precipitation?.type) }}</dd></div>
             <div><dt>湿度</dt><dd>{{ percentage(bundle.current.data.humidity) }}</dd></div>
           </dl>
-          <small v-if="bundle.current.status !== 'error'" class="data-freshness">本站获取 {{ formatBeijing(bundle.current.fetchedAt) }}</small>
+          <small v-if="bundle.current.status !== 'error'" class="data-freshness">获取时间 {{ formatBeijing(bundle.current.fetchedAt) }}</small>
         </section>
 
         <section class="minutely">
@@ -63,7 +60,7 @@
           <div v-if="bundle.hourly.status === 'error' || !hourly.items.length" class="module-error">未来 24 小时预报加载失败 <button @click="emit('retry', 'hourly')">重试</button></div>
           <div v-if="bundle.hourly.status !== 'error' && bundle.hourly.stale && bundle.hourly.refreshError" class="module-error refresh-error">未来 24 小时预报更新失败，上次成功于 {{ formatBeijing(bundle.hourly.fetchedAt) }} <button @click="emit('retry', 'hourly')">重试</button></div>
           <div v-if="bundle.hourly.status !== 'error' && hourly.items.length" class="hour-shell">
-            <span v-show="hourCanLeft" class="hour-hint left" aria-hidden="true">‹</span>
+            <button v-show="hourCanLeft" type="button" class="hour-hint left" aria-label="查看前面的小时预报" @click="scrollHours(-1)">‹</button>
             <div ref="hours" class="hour-strip" tabindex="0" aria-label="未来24小时天气，可使用左右方向键浏览" @scroll="updateHourHints" @keydown.left.prevent="scrollHours(-1)" @keydown.right.prevent="scrollHours(1)" @wheel="onHourWheel">
               <article v-for="(item, index) in hourly.items" :key="`${item.forecastTime}-${index}`">
                 <time>{{ hourTimeLabel(item.forecastTime, hourly.items[0]?.forecastTime || item.forecastTime, index) }}</time>
@@ -74,12 +71,11 @@
                 <span>{{ unitText(item.precipitation?.amount) }}</span>
               </article>
             </div>
-            <span v-show="hourCanRight" class="hour-hint right" aria-hidden="true">›</span>
+            <button v-show="hourCanRight" type="button" class="hour-hint right" aria-label="查看后面的小时预报" @click="scrollHours(1)">›</button>
           </div>
         </section>
 
-        <p class="responsibility">约 1 km 查询点附近信息，仅供风险辅助；不代表整块地块或整个行政区域实测，不作定损或理赔依据。</p>
-        <div class="refer"><span>数据来源</span><template v-for="a in bundle.attributions" :key="`${a.name}-${a.url}`"><span>{{ a.name }}</span></template><span v-for="s in minutelyData?.refer.sources || []" :key="s">{{ s }}</span><span v-for="l in minutelyData?.refer.license || []" :key="l">{{ l }}</span></div>
+        <p class="responsibility">查询约 1 km 附近的信息，不代表地块或行政区域实测，仅供风险辅助。</p>
       </template>
 
       <div v-else-if="phase === 'error'" class="popup-loading popup-request-error" role="alert"><i class="qi-999" aria-hidden="true"></i><strong>位置天气加载失败</strong><span>{{ errorMessage || '请稍后重试' }}</span><button type="button" @click="emit('retry', 'current')">重试</button></div>
@@ -94,7 +90,7 @@ import type { WeatherAlert, WeatherBundle } from '../../features/weather/weather
 import { formatBeijing, hourlyCards, hourTimeLabel, minutelyState, percentage, precipitationType, unitText, warningColor, weatherEnumZh } from '../../features/weather/weatherAdapter'
 import QWeatherIcon from './QWeatherIcon.vue'
 
-const props = defineProps<{ kind: 'alert' | 'location'; title: string; bundle?: WeatherBundle | null; alert?: WeatherAlert | null; x: number; y: number; contextName?: string; contextPath?: string[]; parcelId?: string; phase?: string; errorMessage?: string }>()
+const props = defineProps<{ kind: 'alert' | 'location'; title: string; bundle?: WeatherBundle | null; alert?: WeatherAlert | null; x: number; y: number; contextName?: string; contextPath?: string[]; phase?: string; errorMessage?: string }>()
 const emit = defineEmits<{ close: []; retry: [module: 'current' | 'minutely' | 'hourly'] }>()
 const dialog = ref<HTMLElement | null>(null)
 const hours = ref<HTMLElement | null>(null)
@@ -154,7 +150,6 @@ const minuteTicks = computed(() => {
 })
 const minuteA11y = computed(() => `未来两小时实际返回 ${minutelyData.value?.minutely.length || 0} 个时点`)
 const maxPrecip = computed(() => Math.max(0, ...(minutelyData.value?.minutely.map(item => item.precip) || [])))
-const queryObject = computed(() => props.bundle?.target === 'picked' ? '地图点选位置' : props.bundle?.target === 'parcel' ? `${props.contextName || '当前村'}${props.parcelId ? ` · 地块 ${props.parcelId}` : ''}` : props.contextName || '当前行政区域')
 const locationContext = computed(() => {
   const address = props.bundle?.address.status === 'success' ? props.bundle.address.data?.address?.trim() : ''
   if (address) return address
@@ -255,9 +250,8 @@ function onHourWheel(event: WheelEvent) {
 .popup-loading { min-height: 140px; display: grid; place-items: center; align-content: center; gap: 8px; color: #475569; font-size: 12px; }
 .popup-loading i { font-size: 28px; }
 .popup-loading button { padding: 5px 9px; border: 0; border-radius: 5px; background: #2563eb; color: #fff; cursor: pointer; }
-.query-context { display: grid; gap: 2px; margin-bottom: 10px; padding: 7px 8px; border-radius: 7px; background: #f1f5f9; font-size: 11px; }
-.query-context strong { font-size: 12px; }
-.query-context span, .data-freshness, .minutely-meta small { color: #64748b; font-variant-numeric: tabular-nums; }
+.query-context { margin: 0 0 10px !important; padding: 7px 8px; overflow-wrap: anywhere; border-radius: 7px; background: #f1f5f9; color: #475569; font-size: 12px !important; line-height: 1.45 !important; }
+.data-freshness, .minutely-meta small { color: #64748b; font-variant-numeric: tabular-nums; }
 .current-main { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 5px 0 7px; font-size: 16px; }
 .current-main > i { color: #2563eb; font-size: 25px; }
 .current-main b { margin-left: 3px; font-size: 20px; font-variant-numeric: tabular-nums; }
@@ -286,16 +280,16 @@ function onHourWheel(event: WheelEvent) {
 .minute-axis { display: flex; justify-content: space-between; margin-top: 3px; color: #64748b; font-size: 9px; font-variant-numeric: tabular-nums; }
 .zero { padding-top: 5px; color: #166534; }
 .hour-shell { position: relative; }
-.hour-strip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 1px 8px; overscroll-behavior: contain; }
-.hour-hint { position: absolute; top: 50%; z-index: 2; display: grid; width: 18px; height: 32px; place-items: center; transform: translateY(-50%); border-radius: 4px; background: rgba(15, 23, 42, .72); color: #fff; pointer-events: none; }
+.hour-strip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 1px 8px; scrollbar-width: none; overscroll-behavior: contain; }
+.hour-strip::-webkit-scrollbar { display: none; }
+.hour-hint { position: absolute; top: 50%; z-index: 2; display: grid; width: 34px; height: 34px; place-items: center; padding: 0; transform: translateY(-50%); border: 0; border-radius: 7px; background: rgba(15, 23, 42, .78); color: #fff; font-size: 19px; line-height: 1; cursor: pointer; }
+.hour-hint:hover { background: #1d4ed8; }
 .hour-hint.left { left: 2px; }
 .hour-hint.right { right: 2px; }
 .hour-strip article { flex: 0 0 96px; display: grid; justify-items: center; gap: 3px; padding: 7px 4px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 10px; }
 .hour-strip article i { color: #2563eb; font-size: 19px; }
 .hour-strip time, .hour-strip b { font-variant-numeric: tabular-nums; }
 .responsibility { margin-top: 10px !important; padding-top: 8px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 10px !important; line-height: 1.45 !important; }
-.refer { display: flex; flex-wrap: wrap; gap: 4px 6px; padding-top: 5px; color: #94a3b8; font-size: 10px; }
-.refer span + span::before { content: '·'; margin-right: 6px; color: #cbd5e1; }
 @media (max-width: 520px) {
   .weather-popup { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
   .weather-popup::after { display: block; }

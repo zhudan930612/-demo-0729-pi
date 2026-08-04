@@ -6,7 +6,7 @@
     <NationalAlarmPopup v-if="nationalAlarmsActive && selectedNationalAlarm && nationalAlarmStore.selection?.source==='map'" :alarm="selectedNationalAlarm" :detail="nationalAlarmStore.detail" :x="nationalAlarmPopupPosition.x" :y="nationalAlarmPopupPosition.y" @close="nationalAlarmStore.select(null)" @retry="retryNationalAlarmDetail" />
     <div v-if="nationalAlarmMapNotice" class="save-notice national-alarm-map-notice" role="status">{{ nationalAlarmMapNotice }}</div>
     <div v-if="weatherCurrentActive" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
-    <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" :title="weatherLocationTitle" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.query?.contextName" :context-path="store.path.map((crumb) => crumb.name)" :parcel-id="weatherStore.query?.target==='parcel'?selectedParcel?.id:undefined" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
+    <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.query?.contextName" :context-path="store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
     <TyphoonPathPanel
       v-if="disasterActive"
@@ -208,7 +208,6 @@ import { alarmsForMap, mapNotice } from '../features/national-alarms/nationalAla
 import type { NationalWeatherAlarm } from '../features/national-alarms/nationalAlarmTypes'
 import { createNationalAlarmLayerController } from '../map/nationalAlarmLayerController'
 import { defaultWeatherQuery, pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
-import { locationTitle } from '../features/weather/weatherAdapter'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import {
   addPendingManualParcel,
@@ -285,7 +284,6 @@ const weatherCurrentActive = computed(()=>weatherActive.value&&weatherStore.modu
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
 const weatherPopupPosition=ref({x:0,y:0})
-const weatherLocationTitle=computed(()=>weatherStore.bundle?locationTitle(weatherStore.bundle,store.current.name,weatherStore.query?.target==='parcel'):'天气')
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
 const typhoonRevealToken = ref(0)
 const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
