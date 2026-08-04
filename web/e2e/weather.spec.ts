@@ -54,6 +54,8 @@ test('气象预警与实时天气模块互斥，实时天气保留完整位置�
   await page.locator('.weather-marker').click()
   const popup = page.getByRole('dialog', { name: '位置天气详情' })
   await expect(popup).toContainText('浙江省行政中心附近')
+  await expect(popup.locator('.query-context')).toContainText('浙江省行政中心')
+  await expect(popup.locator('.query-context')).not.toContainText(/°[NE]|\d+\.\d{2}/)
   await expect(popup).toContainText('当前天气')
   await expect(popup).toContainText('未来两小时降水')
   await expect(popup).toContainText('未来 24 小时预报')
