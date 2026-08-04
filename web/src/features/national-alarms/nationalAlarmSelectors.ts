@@ -13,7 +13,6 @@ export function alarmsForMap(items: readonly NationalWeatherAlarm[], context: Na
 }
 export function mapNotice(items: readonly NationalWeatherAlarm[], context: NationalAlarmMapContext) {
   const visible = alarmsForMap(items, context)
-  if (['township', 'village'].includes(context.level)) return '预警地图查看到县级'
   if (context.level === 'province' && !visible.length && items.some((item) => item.adminLevel === 'county')) return '当前层级无预警图标；请从右上列表进入市县查看'
   return ''
 }
