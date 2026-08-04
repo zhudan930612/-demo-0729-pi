@@ -18,30 +18,14 @@ const baseConfig = { authMode: 'api-key', apiOrigin: 'https://weather.example', 
 function currentPayload() { return { condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, humidity: 0.5, metadata: {} } }
 function responseFor(module) { if (module === 'alert') return { data: [{ id: 'shared', headline: '预警', messageType: { code: 'Alert', supersedes: [] }, responseTypes: ['Prepare'] }], metadata: {} }; if (module === 'current') return normalizeQWeather('current', currentPayload()); if (module === 'hourly') return normalizeQWeather('hourly', { hours: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 27, unit: '°C' } }], metadata: {} }); return { data: null, metadata: {}, empty: true } }
 
-test('province eleven-region fan-out waits at configured concurrency and settles every region', async () => {
-  const children = Array.from({ length: 11 }, (_, i) => Object.freeze({ code: `330${String(i + 1).padStart(3, '0')}`, name: `市${i}`, level: 'city', representativePoint: Object.freeze([120 + i / 100, 30]), childrenCodes: Object.freeze([]) }))
-  const province = Object.freeze({ code: '330000', name: '浙江省', level: 'province', representativePoint: Object.freeze([120, 30]), childrenCodes: Object.freeze(children.map((x) => x.code)) })
-  const spatial = { get: () => province, province: () => province, alertNodes: () => children, covers: () => true }
-  let active = 0, peak = 0, alertCalls = 0
-  const upstream = { async qweather(module) { active++; peak = Math.max(peak, active); await new Promise((resolve) => setTimeout(resolve, 8)); active--; if (module === 'alert') alertCalls++; return responseFor(module) }, async address() { throw new WeatherUpstreamError('unconfigured', 'off') } }
-  const service = createWeatherService({ ...baseConfig, upstreamConcurrency: 6 }, { upstream, loadSpatial: () => spatial })
+test('QWeather alert fan-out is disabled after Zhejiang NMC alarms take over', async () => {
+  const province = Object.freeze({ code: '330000', name: '浙江省', level: 'province', representativePoint: Object.freeze([120, 30]), childrenCodes: Object.freeze([]) })
+  const spatial = { get: () => province, province: () => province, alertNodes: () => { throw new Error('must not query QWeather alert targets') }, covers: () => true }
+  let alertCalls = 0
+  const upstream = { async qweather(module) { if (module === 'alert') alertCalls++; return responseFor(module) }, async address() { throw new WeatherUpstreamError('unconfigured', 'off') } }
+  const service = createWeatherService(baseConfig, { upstream, loadSpatial: () => spatial })
   const result = await service.bundle(service.parse(new URL('http://local/api/weather?contextLevel=province&contextCode=330000&target=admin')))
-  assert.equal(alertCalls, 11); assert.equal(result.alerts.data.length, 11); assert.equal(result.alerts.status, 'success'); assert.equal(peak, 6)
-  assert.equal(result.alerts.details.length, 1); assert.deepEqual(result.alerts.details[0].matchedContextCodes, children.map((x) => x.code))
-  assert.ok(result.alerts.data.every((region) => region.fetchedAt && region.expiresAt))
-})
-
-test('alert fan-out settles subscription creation failures as region errors and reports partial/all failure', async () => {
-  const children = Array.from({ length: 2 }, (_, i) => Object.freeze({ code: `33010${i}`, name: `市${i}`, level: 'city', representativePoint: Object.freeze([120 + i, 30]), childrenCodes: Object.freeze([]) }))
-  const province = Object.freeze({ code: '330000', name: '浙江省', level: 'province', representativePoint: Object.freeze([120, 30]), childrenCodes: Object.freeze(children.map((x) => x.code)) })
-  const spatial = { get: () => province, province: () => province, alertNodes: () => children, covers: () => true }
-  let failAll = false
-  const cache = { subscribe(module, key, loader) { if (module === 'alert' && (failAll || key.includes('121'))) throw new WeatherUpstreamError('busy', 'busy'); return { promise: Promise.resolve(responseFor(module)), release() {} } }, clear() {}, stats() { return {} } }
-  const upstream = { async address() { throw new WeatherUpstreamError('unconfigured', 'off') } }
-  const service = createWeatherService(baseConfig, { upstream, cache, loadSpatial: () => spatial })
-  const request = service.parse(new URL('http://local/api/weather?contextLevel=province&contextCode=330000&target=admin'))
-  const partial = await service.bundle(request); assert.equal(partial.alerts.status, 'partial'); assert.deepEqual(partial.alerts.data.map((x) => x.status), ['success','error'])
-  failAll = true; const failed = await service.bundle(request); assert.equal(failed.alerts.status, 'error'); assert.ok(failed.alerts.data.every((x) => x.status === 'error'))
+  assert.equal(alertCalls, 0); assert.equal(result.alerts.status, 'empty'); assert.equal(result.alerts.data.length, 0)
 })
 
 test('spatial index eagerly rejects unreachable node and malformed geometry', () => {

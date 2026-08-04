@@ -113,6 +113,10 @@ export function loadWeatherSpatialIndex(dataDir) {
       return true
     },
     province() { return rootNode },
+    findAlarmNode(code) {
+      const node = verified.get(code)
+      return node && ['province', 'city', 'county'].includes(node.level) ? node : null
+    },
     alertNodes(node) { if (verified.get(node?.code) !== node) fail('天气空间节点未验证'); if (node.level === 'province' || node.level === 'city') return node.childrenCodes.map((code) => verified.get(code)); return node.level === 'county' ? [node] : [] },
   })
 }

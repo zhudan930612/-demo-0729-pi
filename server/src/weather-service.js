@@ -69,20 +69,8 @@ export function createWeatherService(config, options = {}) {
     const key = `address:${createHash('sha256').update(coordinateKey).digest('hex')}`
     return cache.subscribe('address', key, (signal) => upstream.address(lon, lat, signal))
   }
-  async function alerts(node, externalSignal) {
-    const targets = getSpatial().alertNodes(node)
-    if (targets.length === 0) return { status: 'empty', data: [], message: '天气预警查看到县级' }
-    const regions = await Promise.all(targets.map(async (target) => {
-      const result = await settle(() => qSubscription('alert', target.representativePoint[1], target.representativePoint[0]), externalSignal)
-      if (result.error) return { code: target.code, name: target.name, point: target.representativePoint, status: 'error', error: result.error }
-      const timing = { fetchedAt: result.value.fetchedAt, expiresAt: result.value.expiresAt, ...(result.value.stale ? { stale: true, refreshError: result.value.refreshError } : {}) }
-      return { code: target.code, name: target.name, point: target.representativePoint, status: result.value.data.length ? 'success' : 'empty', alerts: result.value.data, metadata: result.value.metadata, ...timing }
-    }))
-    const byId = new Map()
-    for (const region of regions) for (const alert of region.alerts ?? []) { const existing = byId.get(alert.id); if (existing) existing.matchedContextCodes.push(region.code); else byId.set(alert.id, { ...alert, matchedContextCodes: [region.code] }) }
-    const allEmpty = regions.every((r) => r.status === 'empty'), allError = regions.every((r) => r.status === 'error'), anyError = regions.some((r) => r.status === 'error')
-    return { status: allEmpty ? 'empty' : allError ? 'error' : anyError ? 'partial' : 'success', data: regions, details: [...byId.values()], ...(allEmpty ? { message: '当前层级各代表点未查询到生效天气预警' } : {}) }
-  }
+  // NMC 浙江预警已独立接管；实时天气不再请求和风预警，避免混用两套空间语义。
+  async function alerts() { return { status: 'empty', data: [], message: '气象预警请使用浙江省气象预警入口' } }
   return {
     parse(url) { return parseWeatherRequest(url, getSpatial()) },
     async bundle(request, externalSignal) {

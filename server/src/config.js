@@ -1,7 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const DEFAULT_APIHZ_URL = 'https://cn.apihz.cn/api/tianqi/taifeng.php'
+const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 export function loadEnvFile(filePath, target = process.env) {
   if (!fs.existsSync(filePath)) return false
@@ -55,7 +57,7 @@ export function readServerConfig(env = process.env) {
       apiKey: env.QWEATHER_API_KEY || '',
       projectId: env.QWEATHER_PROJECT_ID || '',
       credentialId: env.QWEATHER_CREDENTIAL_ID || '',
-      dataDir: env.WEATHER_DATA_DIR ? path.resolve(env.WEATHER_DATA_DIR) : '',
+      dataDir: env.WEATHER_DATA_DIR ? path.resolve(SERVER_DIR, env.WEATHER_DATA_DIR) : '',
       addressUrl: env.APIHZ_ADDRESS_URL || '',
       timeoutMs: positiveInteger(env.QWEATHER_TIMEOUT_MS, 8000),
       maxNetworkBytes: positiveInteger(env.QWEATHER_MAX_NETWORK_BYTES, 2 * 1024 * 1024),
@@ -63,6 +65,12 @@ export function readServerConfig(env = process.env) {
       cacheMaxEntries: positiveInteger(env.QWEATHER_CACHE_MAX_ENTRIES, 2048),
       upstreamConcurrency: positiveInteger(env.QWEATHER_UPSTREAM_CONCURRENCY, 6),
       adminToken: env.WEATHER_ADMIN_TOKEN || '',
+    },
+    nationalAlarms: {
+      dataDir: env.WEATHER_DATA_DIR ? path.resolve(SERVER_DIR, env.WEATHER_DATA_DIR) : '',
+      timeoutMs: positiveInteger(env.NATIONAL_ALARM_TIMEOUT_MS, 10_000),
+      listMaxBytes: positiveInteger(env.NATIONAL_ALARM_LIST_MAX_BYTES, 3 * 1024 * 1024),
+      detailMaxBytes: positiveInteger(env.NATIONAL_ALARM_DETAIL_MAX_BYTES, 512 * 1024),
     },
   }
 }

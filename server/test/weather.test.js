@@ -27,7 +27,7 @@ test('spatial index validates strict request contract and point-in-polygon', () 
   assert.throws(() => parseWeatherRequest(url('contextLevel=village&contextCode=330101001001&target=parcel&lat=30.5&lon=120'), spatial), (e) => e.kind === 'outside')
 })
 
-test('service uses rounded coordinates, fans out alerts, omits township alerts, and degrades address', async () => {
+test('service uses rounded coordinates, disables QWeather alerts, and degrades address', async () => {
   const calls = []
   const upstream = { qweather: async (module, lat, lon) => { calls.push({ module, lat, lon }); const raw = payload(module); return module === 'minutely' ? { data: null, metadata: {}, empty: true } : normalizeQWeather(module, raw) }, address: async () => { throw new WeatherUpstreamError('unconfigured', 'off') } }
   const service = createWeatherService(config, { upstream })
@@ -35,11 +35,9 @@ test('service uses rounded coordinates, fans out alerts, omits township alerts, 
   const result = await service.bundle(picked)
   assert.deepEqual(result.location, { lat: 30.01, lon: 120.02 })
   assert.equal(result.current.status, 'success'); assert.equal(result.minutely.status, 'empty'); assert.equal(result.address.status, 'error')
-  assert.equal(result.alerts.data.length, 1)
+  assert.equal(result.alerts.data.length, 0)
+  assert.equal(result.alerts.message, '气象预警请使用浙江省气象预警入口')
   assert.ok(calls.filter((c) => ['current', 'hourly', 'minutely'].includes(c.module)).every((c) => c.lat === 30.01 && c.lon === 120.02))
-  calls.length = 0
-  const township = service.parse(url('contextLevel=township&contextCode=330101001000&target=admin'))
-  assert.equal((await service.bundle(township)).alerts.message, '天气预警查看到县级')
   assert.equal(calls.some((c) => c.module === 'alert'), false)
 })
 

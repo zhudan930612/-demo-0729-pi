@@ -4,6 +4,7 @@ import { createApiHzClient, UpstreamError } from './apihz-client.js'
 import { createIpRateLimiter, createUpstreamBroker, ResourceLimitError } from './resource-manager.js'
 import { createWeatherService } from './weather-service.js'
 import { WeatherSpatialError } from './weather-spatial-index.js'
+import { createNationalAlarmService, NationalAlarmError } from './national-alarm-service.js'
 
 function beijingYear(now = Date.now()) { return new Date(now + 8 * 60 * 60 * 1000).getUTCFullYear() }
 function responseAlive(response) { return !response.destroyed && !response.writableEnded }
@@ -35,6 +36,13 @@ function weatherRequestError(error) {
   if (error.kind === 'unconfigured') return { status: 503, code: 'WEATHER_SERVICE_UNCONFIGURED', message: '天气空间服务尚未配置' }
   return { status: 400, code: 'INVALID_WEATHER_REQUEST', message: '天气请求参数无效' }
 }
+function nationalAlarmError(error) {
+  if (!(error instanceof NationalAlarmError)) return null
+  if (error.kind === 'not-found') return { status: 404, code: 'NATIONAL_ALARM_NOT_FOUND', message: '浙江预警记录不存在' }
+  if (error.kind === 'detail-unavailable') return { status: 502, code: 'NATIONAL_ALARM_DETAIL_UNAVAILABLE', message: '预警正文暂不可用' }
+  return { status: 503, code: 'NATIONAL_ALARM_UNAVAILABLE', message: '浙江预警数据暂不可用' }
+}
+function noBody(request) { return !Number(request.headers['content-length'] ?? 0) && !request.headers['transfer-encoding'] }
 
 export function createAppServer(config, options = {}) {
   const client = createApiHzClient(config, options)
@@ -47,6 +55,7 @@ export function createAppServer(config, options = {}) {
     now,
   })
   const weather = options.weatherService ?? createWeatherService(config.weather ?? {}, options.weatherOptions ?? options)
+  const nationalAlarms = options.nationalAlarmService ?? createNationalAlarmService(config.nationalAlarms ?? {}, options.nationalAlarmOptions ?? options)
   const rateLimiter = options.rateLimiter ?? createIpRateLimiter({
     limit: config.rateLimitPerMinute ?? 60,
     windowMs: 60_000,
@@ -77,6 +86,29 @@ export function createAppServer(config, options = {}) {
         const token = request.headers['x-weather-admin-token']
         if (!isLoopback(request.socket.remoteAddress) || !config.weather?.adminToken || token !== config.weather.adminToken || url.search) { status = 403; sendJson(response, status, { error: { code: 'FORBIDDEN', message: '无权清除天气缓存', requestId } }, requestId); return }
         weather.clearCache(); status = 204; response.writeHead(status, { 'cache-control': 'no-store', 'x-request-id': requestId }); response.end(); return
+      }
+      if (url.pathname === '/api/national-weather-alarms/refresh') {
+        routeName = 'national-alarm-refresh'
+        if (request.method !== 'POST') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求', requestId } }, requestId); return }
+        if (url.search || !noBody(request)) { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警刷新请求参数无效', requestId } }, requestId); return }
+        try { const payload = await nationalAlarms.forceRefresh(); status = 200; sendJson(response, status, payload, requestId); return } catch (error) { const mapped = nationalAlarmError(error); if (!mapped) throw error; status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return }
+      }
+      if (url.pathname === '/api/national-weather-alarms' && request.method !== 'GET') {
+        routeName = 'national-alarm-list'; status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return
+      }
+      if (url.pathname === '/api/national-weather-alarms' && request.method === 'GET') {
+        routeName = 'national-alarm-list'
+        if (url.search) { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警列表请求参数无效', requestId } }, requestId); return }
+        try { const payload = await nationalAlarms.list(); status = 200; sendJson(response, status, payload, requestId); return } catch (error) { const mapped = nationalAlarmError(error); if (!mapped) throw error; status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return }
+      }
+      const nationalDetail = url.pathname.match(/^\/api\/national-weather-alarms\/([^/]+)$/)
+      if (nationalDetail && request.method !== 'GET') { routeName = 'national-alarm-detail'; status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
+      if (nationalDetail && request.method === 'GET') {
+        routeName = 'national-alarm-detail'
+        let alertId
+        try { alertId = decodeURIComponent(nationalDetail[1]) } catch { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警详情请求参数无效', requestId } }, requestId); return }
+        if (url.search || !/^[^\u0000-\u001F]{1,128}$/.test(alertId)) { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警详情请求参数无效', requestId } }, requestId); return }
+        try { const payload = await nationalAlarms.detail(alertId); status = 200; sendJson(response, status, payload, requestId); return } catch (error) { const mapped = nationalAlarmError(error); if (!mapped) throw error; status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return }
       }
       if (request.method !== 'GET') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
       const ip = request.socket.remoteAddress ?? 'unknown'
