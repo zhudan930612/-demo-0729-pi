@@ -1,32 +1,307 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-31T05:37:17.111Z",
+  "generatedAt": "2026-08-04T07:47:39.000Z",
   "title": "Design System: 农险双精准地图 Demo",
   "extensions": {
     "colorMeta": {
-      "action-blue": { "role": "primary", "displayName": "行动蓝", "canonical": "#2563eb", "tonalRamp": ["oklch(20% 0.08 260)", "oklch(30% 0.12 260)", "oklch(40% 0.16 260)", "oklch(50% 0.19 260)", "#2563eb", "oklch(65% 0.17 260)", "oklch(78% 0.11 260)", "oklch(93% 0.03 260)"] },
-      "map-cyan": { "role": "secondary", "displayName": "空间青", "canonical": "#38bdf8", "tonalRamp": ["oklch(20% 0.05 230)", "oklch(30% 0.08 230)", "oklch(42% 0.12 230)", "oklch(55% 0.15 230)", "#38bdf8", "oklch(73% 0.13 230)", "oklch(84% 0.08 230)", "oklch(96% 0.02 230)"] },
-      "drawing-purple": { "role": "tertiary", "displayName": "绘制紫", "canonical": "#7e22ce", "tonalRamp": ["oklch(20% 0.09 310)", "oklch(30% 0.14 310)", "#7e22ce", "oklch(48% 0.19 310)", "oklch(58% 0.19 310)", "oklch(70% 0.15 310)", "oklch(84% 0.09 310)", "oklch(96% 0.025 310)"] },
-      "canvas-slate": { "role": "neutral", "displayName": "深石墨", "canonical": "#0f172a", "tonalRamp": ["#0f172a", "oklch(24% 0.02 255)", "oklch(34% 0.02 255)", "oklch(47% 0.018 255)", "oklch(60% 0.015 255)", "oklch(73% 0.012 255)", "oklch(86% 0.008 255)", "oklch(97% 0.004 255)"] },
-      "panel-slate": { "role": "neutral", "displayName": "雾白浮层", "canonical": "rgba(248, 250, 252, 0.96)", "tonalRamp": ["oklch(30% 0.01 255)", "oklch(42% 0.01 255)", "oklch(55% 0.01 255)", "oklch(68% 0.008 255)", "oklch(78% 0.006 255)", "oklch(87% 0.005 255)", "oklch(94% 0.004 255)", "rgba(248, 250, 252, 0.96)"] }
+      "action-blue": {
+        "role": "primary",
+        "displayName": "行动蓝",
+        "canonical": "#2563eb",
+        "tonalRamp": [
+          "oklch(20% 0.08 260)",
+          "oklch(30% 0.12 260)",
+          "oklch(40% 0.16 260)",
+          "oklch(50% 0.19 260)",
+          "#2563eb",
+          "oklch(65% 0.17 260)",
+          "oklch(78% 0.11 260)",
+          "oklch(93% 0.03 260)"
+        ]
+      },
+      "map-cyan": {
+        "role": "secondary",
+        "displayName": "空间青",
+        "canonical": "#38bdf8",
+        "tonalRamp": [
+          "oklch(20% 0.05 230)",
+          "oklch(30% 0.08 230)",
+          "oklch(42% 0.12 230)",
+          "oklch(55% 0.15 230)",
+          "#38bdf8",
+          "oklch(73% 0.13 230)",
+          "oklch(84% 0.08 230)",
+          "oklch(96% 0.02 230)"
+        ]
+      },
+      "drawing-purple": {
+        "role": "tertiary",
+        "displayName": "绘制紫",
+        "canonical": "#7e22ce",
+        "tonalRamp": [
+          "oklch(20% 0.09 310)",
+          "oklch(30% 0.14 310)",
+          "#7e22ce",
+          "oklch(48% 0.19 310)",
+          "oklch(58% 0.19 310)",
+          "oklch(70% 0.15 310)",
+          "oklch(84% 0.09 310)",
+          "oklch(96% 0.025 310)"
+        ]
+      },
+      "canvas-slate": {
+        "role": "neutral",
+        "displayName": "深石墨",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#0f172a",
+          "oklch(24% 0.02 255)",
+          "oklch(34% 0.02 255)",
+          "oklch(47% 0.018 255)",
+          "oklch(60% 0.015 255)",
+          "oklch(73% 0.012 255)",
+          "oklch(86% 0.008 255)",
+          "oklch(97% 0.004 255)"
+        ]
+      },
+      "panel-slate": {
+        "role": "neutral",
+        "displayName": "雾白浮层",
+        "canonical": "rgba(248, 250, 252, 0.96)",
+        "tonalRamp": [
+          "oklch(30% 0.01 255)",
+          "oklch(42% 0.01 255)",
+          "oklch(55% 0.01 255)",
+          "oklch(68% 0.008 255)",
+          "oklch(78% 0.006 255)",
+          "oklch(87% 0.005 255)",
+          "oklch(94% 0.004 255)",
+          "rgba(248, 250, 252, 0.96)"
+        ]
+      },
+      "typhoon-deep": {
+        "role": "primary",
+        "displayName": "深化蓝",
+        "canonical": "#1e40af",
+        "tonalRamp": [
+          "oklch(18% 0.09 260)",
+          "oklch(26% 0.12 260)",
+          "oklch(34% 0.15 260)",
+          "oklch(42% 0.17 260)",
+          "oklch(50% 0.19 260)",
+          "oklch(60% 0.17 260)",
+          "oklch(74% 0.12 260)",
+          "oklch(92% 0.04 260)"
+        ]
+      },
+      "guard-blue": {
+        "role": "secondary",
+        "displayName": "警戒蓝",
+        "canonical": "#3b82f6",
+        "tonalRamp": [
+          "oklch(20% 0.09 255)",
+          "oklch(30% 0.13 255)",
+          "oklch(40% 0.17 255)",
+          "oklch(50% 0.19 255)",
+          "#3b82f6",
+          "oklch(67% 0.15 255)",
+          "oklch(80% 0.10 255)",
+          "oklch(95% 0.03 255)"
+        ]
+      },
+      "forecast-orange": {
+        "role": "tertiary",
+        "displayName": "预测橙",
+        "canonical": "#f97316",
+        "tonalRamp": [
+          "oklch(22% 0.06 40)",
+          "oklch(33% 0.10 45)",
+          "oklch(44% 0.15 45)",
+          "oklch(55% 0.18 45)",
+          "#f97316",
+          "oklch(70% 0.15 45)",
+          "oklch(84% 0.09 45)",
+          "oklch(96% 0.03 45)"
+        ]
+      },
+      "alarm-amber": {
+        "role": "tertiary",
+        "displayName": "预警琥珀",
+        "canonical": "#b45309",
+        "tonalRamp": [
+          "oklch(20% 0.05 55)",
+          "oklch(30% 0.08 55)",
+          "oklch(40% 0.10 55)",
+          "oklch(50% 0.12 55)",
+          "#b45309",
+          "oklch(68% 0.12 60)",
+          "oklch(82% 0.08 60)",
+          "oklch(95% 0.03 60)"
+        ]
+      },
+      "hover-blue": {
+        "role": "neutral",
+        "displayName": "悬停蓝底",
+        "canonical": "#eff6ff",
+        "tonalRamp": [
+          "oklch(40% 0.05 250)",
+          "oklch(52% 0.06 250)",
+          "oklch(64% 0.05 250)",
+          "oklch(76% 0.04 250)",
+          "oklch(86% 0.03 250)",
+          "#eff6ff",
+          "oklch(95% 0.015 250)",
+          "oklch(98% 0.005 250)"
+        ]
+      },
+      "active-blue": {
+        "role": "neutral",
+        "displayName": "激活蓝底",
+        "canonical": "#dbeafe",
+        "tonalRamp": [
+          "oklch(45% 0.07 250)",
+          "oklch(57% 0.08 250)",
+          "oklch(68% 0.07 250)",
+          "oklch(78% 0.06 250)",
+          "#dbeafe",
+          "oklch(90% 0.04 250)",
+          "oklch(96% 0.02 250)",
+          "oklch(99% 0.005 250)"
+        ]
+      },
+      "row-hover-cyan": {
+        "role": "neutral",
+        "displayName": "表格行选中青",
+        "canonical": "#ecfeff",
+        "tonalRamp": [
+          "oklch(50% 0.03 210)",
+          "oklch(62% 0.035 210)",
+          "oklch(73% 0.03 210)",
+          "oklch(83% 0.025 210)",
+          "#ecfeff",
+          "oklch(95% 0.015 210)",
+          "oklch(98% 0.008 210)",
+          "oklch(99.5% 0.003 210)"
+        ]
+      },
+      "error-text": {
+        "role": "neutral",
+        "displayName": "错误文字",
+        "canonical": "#991b1b",
+        "tonalRamp": [
+          "oklch(20% 0.05 25)",
+          "oklch(30% 0.08 25)",
+          "oklch(40% 0.10 25)",
+          "oklch(50% 0.12 25)",
+          "#991b1b",
+          "oklch(68% 0.10 25)",
+          "oklch(82% 0.06 25)",
+          "oklch(95% 0.02 25)"
+        ]
+      },
+      "error-bg": {
+        "role": "neutral",
+        "displayName": "错误浅底",
+        "canonical": "#fef2f2",
+        "tonalRamp": [
+          "oklch(45% 0.05 25)",
+          "oklch(57% 0.055 25)",
+          "oklch(68% 0.05 25)",
+          "oklch(78% 0.04 25)",
+          "oklch(88% 0.03 25)",
+          "#fef2f2",
+          "oklch(97% 0.01 25)",
+          "oklch(99% 0.005 25)"
+        ]
+      },
+      "policy-purple": {
+        "role": "neutral",
+        "displayName": "保单团体紫",
+        "canonical": "#6d28d9",
+        "tonalRamp": [
+          "oklch(20% 0.09 300)",
+          "oklch(30% 0.13 300)",
+          "oklch(40% 0.16 300)",
+          "oklch(50% 0.18 300)",
+          "#6d28d9",
+          "oklch(68% 0.15 300)",
+          "oklch(82% 0.09 300)",
+          "oklch(95% 0.03 300)"
+        ]
+      }
     },
     "typographyMeta": {
-      "body": { "displayName": "系统中文正文", "purpose": "地图操作、路径、说明与状态的稳定桌面阅读。" },
-      "control": { "displayName": "操作标签", "purpose": "按钮、工具条、面包屑与普通状态。" },
-      "metric": { "displayName": "空间指标", "purpose": "地块数量、面积与批次统计；与 tabular-nums 搭配。" }
+      "body": {
+        "displayName": "系统中文正文",
+        "purpose": "地图操作、路径、说明与状态的稳定桌面阅读。"
+      },
+      "control": {
+        "displayName": "操作标签",
+        "purpose": "按钮、工具条、面包屑与普通状态。"
+      },
+      "metric": {
+        "displayName": "空间指标",
+        "purpose": "地块数量、面积与批次统计；与 tabular-nums 搭配。"
+      }
     },
     "shadows": [
-      { "name": "tool-panel", "value": "0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12)", "purpose": "地图边缘的面包屑、工具条与控制栈。" },
-      { "name": "status-card", "value": "0 4px 14px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.1)", "purpose": "持续展示但优先级较低的统计和图例。" },
-      { "name": "dialog", "value": "0 22px 50px rgba(15, 23, 42, 0.3)", "purpose": "中断地图操作的确认对话框。" }
+      {
+        "name": "tool-panel",
+        "value": "0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12)",
+        "purpose": "地图边缘的面包屑、工具条与控制栈。"
+      },
+      {
+        "name": "status-card",
+        "value": "0 4px 14px rgba(15, 23, 42, 0.16), 0 1px 2px rgba(15, 23, 42, 0.1)",
+        "purpose": "持续展示但优先级较低的统计和图例。"
+      },
+      {
+        "name": "dialog",
+        "value": "0 22px 50px rgba(15, 23, 42, 0.3)",
+        "purpose": "中断地图操作的确认对话框。"
+      },
+      {
+        "name": "typhoon-panel",
+        "value": "0 7px 22px rgba(15, 23, 42, 0.24)",
+        "purpose": "台风路径面板与悬浮浮窗。"
+      },
+      {
+        "name": "side-drawer",
+        "value": "-10px 18px 48px rgba(15, 23, 42, 0.22)",
+        "purpose": "地块详情与保单抽屉。"
+      },
+      {
+        "name": "detail-popup",
+        "value": "0 12px 30px rgba(15, 23, 42, 0.25)",
+        "purpose": "天气/预警详情浮窗。"
+      },
+      {
+        "name": "notice",
+        "value": "0 8px 22px rgba(15, 23, 42, 0.22), 0 2px 5px rgba(15, 23, 42, 0.16)",
+        "purpose": "保存成功与业务错误横幅。"
+      }
     ],
     "motion": [
-      { "name": "control-state", "value": "160ms ease", "purpose": "按钮和图标的背景、颜色及阴影状态切换。" },
-      { "name": "notice-enter", "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "保存提示从上方轻微进入。" }
+      {
+        "name": "control-state",
+        "value": "160ms ease",
+        "purpose": "按钮和图标的背景、颜色及阴影状态切换。"
+      },
+      {
+        "name": "notice-enter",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "保存提示从上方轻微进入。"
+      }
     ],
     "breakpoints": [
-      { "name": "compact", "value": "720px" },
-      { "name": "narrow", "value": "520px" }
+      {
+        "name": "compact",
+        "value": "720px"
+      },
+      {
+        "name": "narrow",
+        "value": "520px"
+      }
     ]
   },
   "components": [
@@ -77,18 +352,90 @@
       "description": "放弃或确认人工地块批次操作的高优先级确认面板。",
       "html": "<section class=\"ds-dialog\"><span class=\"ds-dialog-icon\">!</span><div><strong>确认放弃修改？</strong><p>未保存的地块将被移除。</p></div><div class=\"ds-dialog-actions\"><button>取消</button><button>确认</button></div></section>",
       "css": ".ds-dialog { display: grid; grid-template-columns: 42px 1fr; gap: 14px; width: min(420px, 100%); padding: 20px; border-radius: 14px; background: #fff; box-shadow: 0 22px 50px rgba(15, 23, 42, .3); color: #0f172a; font: 13px/1.65 'PingFang SC', 'Microsoft YaHei', sans-serif; } .ds-dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: #faf5ff; color: #9333ea; font-size: 22px; font-weight: 700; } .ds-dialog strong { font-size: 16px; line-height: 1.25; } .ds-dialog p { margin: 7px 0 0; color: #475569; } .ds-dialog-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; } .ds-dialog-actions button { height: 34px; padding: 0 13px; border: 0; border-radius: 7px; background: #f1f5f9; color: #475569; font: 650 13px 'PingFang SC', 'Microsoft YaHei', sans-serif; cursor: pointer; } .ds-dialog-actions button:last-child { background: #7e22ce; color: #fff; } .ds-dialog-actions button:hover { background: #e2e8f0; color: #0f172a; } .ds-dialog-actions button:last-child:hover { background: #6b21a8; color: #fff; }"
+    },
+    {
+      "name": "Typhoon Path Panel",
+      "kind": "custom",
+      "refersTo": "typhoon-panel",
+      "description": "台风实时/历史列表的蓝边框专题面板。",
+      "html": "<section class=\"ds-typhoon-panel\"><header><h2>台风路径</h2><button aria-label=\"关闭\">×</button></header><div class=\"ds-tp-cards\"><article><strong>贝碧嘉</strong><span>2026-08-04 09:00</span></article></div></section>",
+      "css": ".ds-typhoon-panel { width: 390px; max-width: calc(100% - 24px); box-sizing: border-box; border: 5px solid #2563eb; border-radius: 10px; background: #2563eb; box-shadow: 0 7px 22px rgba(15,23,42,.24); color: #0f172a; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; } .ds-typhoon-panel header { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px 0 7px; color: #fff; } .ds-typhoon-panel h2 { margin: 0; font-size: 14px; } .ds-typhoon-panel header button { width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: #bfdbfe; font-size: 18px; cursor: pointer; } .ds-typhoon-panel header button:hover { background: rgba(255,255,255,.16); color: #fff; } .ds-typhoon-panel header button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; } .ds-tp-cards { display: grid; gap: 7px; padding: 5px; background: #fff; } .ds-tp-cards article { display: grid; gap: 2px; padding: 7px; border-radius: 7px; } .ds-tp-cards strong { color: #475569; font-size: 13px; font-weight: 500; } .ds-tp-cards span { color: #64748b; font-size: 12px; }"
+    },
+    {
+      "name": "Weather Marker",
+      "kind": "custom",
+      "refersTo": "map-panel",
+      "description": "默认天气点标记，Ctrl 临时点换紫边。",
+      "html": "<button class=\"ds-weather-marker\"><i>☔</i><strong>26℃</strong></button>",
+      "css": ".ds-weather-marker { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 72px; height: 34px; border: 1px solid rgba(37,99,235,.45); border-radius: 8px; background: rgba(248,250,252,.97); box-shadow: 0 5px 14px rgba(15,23,42,.24); color: #0f172a; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; cursor: pointer; } .ds-weather-marker i { font-size: 19px; } .ds-weather-marker strong { font-size: 12px; font-variant-numeric: tabular-nums; } .ds-weather-marker.picked { border-color: #7e22ce; box-shadow: 0 0 0 3px rgba(126,34,206,.2), 0 5px 14px rgba(15,23,42,.24); } .ds-weather-marker.error { border-color: #b91c1c; background: #fff7ed; color: #991b1b; } .ds-weather-marker:focus-visible { outline: 3px solid rgba(37,99,235,.55); outline-offset: 2px; }"
+    },
+    {
+      "name": "National Alarm Panel",
+      "kind": "custom",
+      "refersTo": "map-panel",
+      "description": "NMC 浙江预警的固定高度列表面板。",
+      "html": "<section class=\"ds-alarm-panel\"><header><div><h2>气象预警</h2><p>数据时间：2026/08/04 10:00</p></div><button aria-label=\"刷新\">↻</button></header><div class=\"ds-alarm-records\"><button class=\"selected\"><img alt=\"\"><strong>杭州市发布暴雨黄色预警信号</strong></button></div><footer>数据来源：中央气象台（NMC）</footer></section>",
+      "css": ".ds-alarm-panel { display: flex; flex-direction: column; width: 360px; height: 520px; box-sizing: border-box; border: 1px solid rgba(148,163,184,.34); border-radius: 10px; background: rgba(248,250,252,.96); box-shadow: 0 6px 20px rgba(15,23,42,.18), 0 1px 2px rgba(15,23,42,.12); backdrop-filter: blur(8px); color: #0f172a; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; } .ds-alarm-panel header { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; } .ds-alarm-panel h2, .ds-alarm-panel p { margin: 0; } .ds-alarm-panel h2 { font-size: 16px; } .ds-alarm-panel header p { margin-top: 5px; font-size: 11px; color: #64748b; } .ds-alarm-panel header button { width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: #475569; font-size: 20px; cursor: pointer; } .ds-alarm-panel header button:hover { background: #e2e8f0; } .ds-alarm-records { flex: 1; overflow-y: auto; padding: 6px; } .ds-alarm-records button { width: 100%; display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 6px; align-items: center; padding: 8px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #334155; text-align: left; font-family: inherit; font-size: 12px; cursor: pointer; } .ds-alarm-records button:hover, .ds-alarm-records button.selected { border-color: #93c5fd; background: #eff6ff; } .ds-alarm-records img { width: 20px; height: 20px; object-fit: contain; } .ds-alarm-panel footer { padding: 8px 12px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; }"
+    },
+    {
+      "name": "Policy Chip",
+      "kind": "chip",
+      "refersTo": "policy-chip-large",
+      "description": "保单类型的全圆角 chip，三种语义色。",
+      "html": "<span class=\"ds-policy-chip large\">大额保单</span><span class=\"ds-policy-chip group\">团体保单</span><span class=\"ds-policy-chip uninsured\">未投保</span>",
+      "css": ".ds-policy-chip { display: inline-block; padding: 4px 9px; border: 1px solid; border-radius: 999px; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; font-size: 11px; font-weight: 800; letter-spacing: .04em; } .ds-policy-chip.large { border-color: #86efac; background: #dcfce7; color: #166534; } .ds-policy-chip.group { border-color: #c4b5fd; background: #f3e8ff; color: #6d28d9; } .ds-policy-chip.uninsured { border-color: #cbd5e1; background: #f1f5f9; color: #475569; }"
+    },
+    {
+      "name": "Timeline Label",
+      "kind": "custom",
+      "refersTo": "typhoon-panel",
+      "description": "台风时间轴的月份胶囊标签。",
+      "html": "<button class=\"ds-timeline-label focused\">8月</button>",
+      "css": ".ds-timeline-label { display: inline-block; padding: 0 7px; height: 27px; border: 0; border-radius: 12px; background: #3b82f6; color: #fff; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; font-size: 11px; font-weight: 700; line-height: 27px; text-align: center; cursor: pointer; } .ds-timeline-label:hover { background: #1d4ed8; } .ds-timeline-label.opened { background: #1e40af; } .ds-timeline-label.focused { border: 2px solid #fbbf24; background: #1d4ed8; line-height: 23px; } .ds-timeline-label.disabled { cursor: not-allowed; background: #94a3b8; } .ds-timeline-label:focus-visible { outline: 3px solid rgba(37,99,235,.32); outline-offset: 2px; }"
     }
   ],
   "narrative": {
     "northStar": "清晰的空间工具",
-    "overview": "这是一个以地图为主角的内部技术验证工作台。空间影像、行政边界和地块几何是视觉主体；界面只以轻量、半透明的控制浮层停靠在地图边缘，不抢占地图的注意力。信息密度紧凑，但每个动作、状态与反馈都必须能快速扫读。\n\n主操作以蓝色建立单一行动路径；地块绘制以紫色形成与查看、筛选明确分离的工作模式；成功、警告、危险与地图悬停保持各自稳定的语义。桌面是主使用场景，窄视口时工具条保留触达性并允许横向滚动，而非压缩成难以辨认的图标堆。",
-    "keyCharacteristics": ["地图优先：UI 贴边悬浮，避免占据中心视野。", "轻量层次：雾白面板、细边界与柔和阴影共同区分工具层。", "操作可辨：蓝色用于提交与导航，紫色用于人工绘制，状态颜色保留语义。", "数值可靠：计数、面积和状态数量使用等宽数字，避免跳动和误读。"],
-    "rules": [
-      { "name": "Semantic Color Rule", "body": "蓝色、紫色、绿/黄/红的含义在所有地图状态、工具条、通知与图例中必须保持一致；不得因美化目的互换它们。", "section": "colors" },
-      { "name": "Numbers Stay Still Rule", "body": "任何会变化的数量、面积、批次统计必须使用等宽数字；不要用动画或比例字体制造视觉跳动。", "section": "typography" },
-      { "name": "Edge-First Rule", "body": "工具和状态信息固定在地图边缘；只有短时通知与对话框可以进入中心区域。", "section": "elevation" }
+    "overview": "这是一个以地图为主角的内部技术验证工作台。空间影像、行政边界、地块几何与台风路径是视觉主体；界面只以轻量、半透明的控制浮层停靠在地图边缘，不抢占地图的注意力。信息密度紧凑，但每个动作、状态与反馈都必须能快速扫读。\n\n主操作以蓝色建立单一行动路径；地块绘制以紫色形成与查看、筛选明确分离的工作模式；台风以蓝边框面板营造专题态势的沉浸感；预警等级色、风圈色与状态色保持各自稳定的语义。桌面是主使用场景，窄视口时工具条保留触达性并允许横向滚动。",
+    "keyCharacteristics": [
+      "地图优先：UI 贴边悬浮，避免占据中心视野。",
+      "轻量层次：雾白面板、细边界与柔和阴影共同区分工具层。",
+      "操作可辨：蓝色用于提交与导航，紫色用于人工绘制，状态颜色不挪作装饰。",
+      "模式带边框：台风、时间轴、悬浮浮窗用蓝实线边框包裹整块，与雾白浮层形成明确模式区分。",
+      "数值可靠：计数、面积、风力、温度和状态数量使用等宽数字，避免跳动和误读。"
     ],
-    "dos": ["Do 让地图、边界和地块始终是最大面积的视觉主体，工具仅贴边出现。", "Do 使用 {colors.action-blue} 表达主操作和可回跳导航，并保留悬停、禁用与键盘焦点状态。", "Do 让人工绘制始终使用 {colors.drawing-purple}，让图例、顶点、工具条与提示保持同步。", "Do 将状态颜色与明确文字、图标或线型一起使用，尤其是隐藏、恢复、失败与警告。", "Do 保持浮层紧凑、半透明、可读，并在窄屏保留操作触达性。"],
-    "donts": ["Don't 用大标题、营销式横幅、装饰性渐变或全屏卡片压过地图画布。", "Don't 把蓝色、紫色或状态色当作可互换的装饰色。", "Don't 将地块统计、图例和图层控制散落在中心地图区域。", "Don't 只靠颜色区分地块状态，或在状态计数中使用比例数字。", "Don't 为追求“玻璃感”牺牲文字对比度或让面板不透明到遮蔽空间信息。"]
+    "rules": [
+      {
+        "name": "The Semantic Color Rule",
+        "body": "蓝色、紫色、绿/黄/红的含义在所有地图状态、工具条、通知与图例中必须保持一致；不得因美化目的互换它们。",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Stay Still Rule",
+        "body": "任何会变化的数量、面积、风力等级、温度或批次统计必须使用等宽数字；不要用动画或比例字体制造视觉跳动。",
+        "section": "typography"
+      },
+      {
+        "name": "The Edge-First Rule",
+        "body": "工具和状态信息固定在地图边缘；只有短时通知与对话框可以进入中心区域。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "让地图、边界和地块始终是最大面积的视觉主体，工具仅贴边出现。",
+      "使用行动蓝表达主操作和可回跳导航，并保留悬停、禁用与键盘焦点状态。",
+      "让人工绘制始终使用绘制紫，让图例、顶点、工具条与提示保持同步。",
+      "用蓝色实线边框包裹专题模式（台风面板、时间轴、悬浮浮窗），与雾白浮层明确区分。",
+      "将状态颜色与明确文字、图标或线型一起使用，尤其是隐藏、恢复、失败与警告。",
+      "保持浮层紧凑、半透明、可读，并在窄屏保留操作触达性。"
+    ],
+    "donts": [
+      "用大标题、营销式横幅、装饰性渐变或全屏卡片压过地图画布。",
+      "把蓝色、紫色或状态色当作可互换的装饰色。",
+      "将地块统计、图例和图层控制散落在中心地图区域。",
+      "只靠颜色区分地块或台风状态，或在状态计数中使用比例数字。",
+      "为追求玻璃感牺牲文字对比度或让面板不透明到遮蔽空间信息。",
+      "在台风与天气/预警之间引入第二套品牌蓝，破坏模式间的同一性。"
+    ]
   }
 }
