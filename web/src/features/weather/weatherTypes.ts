@@ -2,7 +2,7 @@ import type { Level } from '../../stores/drilldown'
 
 export type DisasterViewMode = 'none' | 'weather' | 'typhoon'
 export type WeatherModuleKind = 'alerts' | 'current'
-export type WeatherTarget = 'admin' | 'parcel' | 'picked'
+export type WeatherTarget = 'admin' | 'parcel' | 'picked' | 'seat'
 
 export interface WeatherQuery {
   contextLevel: Level
@@ -82,3 +82,30 @@ export interface WeatherBundle {
 }
 export type LocationPopupKind = 'none' | 'default' | 'picked'
 export interface WeatherSelection { contextCode: string; alertId: string }
+
+// ---- 多级政府驻地天气标牌（/api/weather/markers）----
+export type WeatherMarkerLevel = 'city' | 'county' | 'township'
+export interface WeatherMarkerTarget {
+  code: string
+  level: WeatherMarkerLevel
+  name: string
+  /** 可信政府驻地坐标（服务端校验后返回，不含查询词/评分/来源） */
+  location: { lat: number; lon: number }
+}
+export interface WeatherMarkerSummary {
+  condition: WeatherCondition | null
+  temperature: UnitValue | null
+  high: UnitValue | null
+  low: UnitValue | null
+  fetchedAt: string
+}
+export type WeatherMarkerPhase = 'loading' | 'ready' | 'error'
+export interface WeatherMarkerState {
+  phase: WeatherMarkerPhase
+  summary?: WeatherMarkerSummary
+  error?: ModuleError
+}
+export type WeatherMarkersEvent =
+  | { type: 'targets'; contextLevel: Level; contextCode: string; total: number; targets: WeatherMarkerTarget[] }
+  | { type: 'ready'; code: string; summary: WeatherMarkerSummary }
+  | { type: 'error'; code: string; error: ModuleError }
