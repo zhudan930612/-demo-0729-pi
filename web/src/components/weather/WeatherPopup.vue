@@ -21,14 +21,21 @@
       <template v-else-if="bundle">
         <p class="query-context"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.1-7-11a7 7 0 0 1 14 0c0 5.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg><span>{{ locationContext }}</span></p>
 
-        <section class="current" :class="{ hero: bundle?.current.status === 'success' }">
+        <section class="current">
+          <div class="hero-head"><h3>当前天气</h3></div>
+          <div v-if="bundle.current.status === 'success'" class="current-main">
+            <QWeatherIcon :code="bundle.current.data.condition.code" />
+            <span class="hero-cond">{{ bundle.current.data.condition.text || '--' }}</span>
+            <b class="hero-temp">{{ temperatureText(bundle.current.data.temperature) }}</b>
+          </div>
+          <div v-if="tempRange" class="temp-bar" aria-hidden="true">
+            <span class="temp-label">{{ tempRange.lowText }}</span>
+            <div class="temp-track"><i class="temp-fill" :style="{ left: `${tempRange.left}%`, width: `${tempRange.width}%` }"></i></div>
+            <span class="temp-label">{{ tempRange.highText }}</span>
+          </div>
+          <div v-else-if="bundle.current.status === 'error'" class="module-error">实时天气加载失败 <button @click="emit('retry', 'current')">重试</button></div>
+          <div v-if="bundle.current.status !== 'error' && bundle.current.stale && bundle.current.refreshError" class="module-error refresh-error">实时天气更新失败，上次成功于 {{ formatBeijing(bundle.current.fetchedAt) }} <button @click="emit('retry', 'current')">重试</button></div>
           <template v-if="bundle.current.status === 'success'">
-            <div class="hero-head"><h3>当前天气</h3><span v-if="currentRange" class="current-range">{{ currentRange }}</span></div>
-            <div class="current-main">
-              <QWeatherIcon :code="bundle.current.data.condition.code" />
-              <span class="hero-cond">{{ bundle.current.data.condition.text || '--' }}</span>
-              <b class="hero-temp">{{ temperatureText(bundle.current.data.temperature) }}</b>
-            </div>
             <dl class="weather-metrics">
               <div><dt>体感温度</dt><dd>{{ temperatureText(bundle.current.data.feelsLike) }}</dd></div>
               <div><dt>近一小时降水</dt><dd>{{ unitText(bundle.current.data.precipitation?.amount) }}</dd></div>
@@ -38,8 +45,6 @@
             </dl>
             <small class="data-freshness">获取时间 {{ formatBeijing(bundle.current.fetchedAt) }}</small>
           </template>
-          <div v-else-if="bundle.current.status === 'error'" class="module-error">实时天气加载失败 <button @click="emit('retry', 'current')">重试</button></div>
-          <div v-if="bundle.current.status !== 'error' && bundle.current.stale && bundle.current.refreshError" class="module-error refresh-error">实时天气更新失败，上次成功于 {{ formatBeijing(bundle.current.fetchedAt) }} <button @click="emit('retry', 'current')">重试</button></div>
         </section>
 
         <section class="minutely">
@@ -54,7 +59,6 @@
               <button v-for="item in minutelyData.minutely" :key="item.fxTime" type="button" role="listitem" :aria-label="`${formatBeijing(item.fxTime, false)}，5分钟累计${item.precip}毫米，${precipitationType(item.type)}`" :title="`${formatBeijing(item.fxTime, false)} ${item.precip} mm ${precipitationType(item.type)}`"><i :class="item.type || 'other'" :style="{ height: `${barHeight(item.precip)}%` }"></i></button>
             </div>
             <div class="minute-axis"><time v-for="index in minuteTicks" :key="index">{{ formatBeijing(minutelyData.minutely[index]?.fxTime, false) }}</time></div>
-            <p v-if="minutelyKind === 'zero'" class="zero">未来两小时暂无降水</p>
           </template>
         </section>
 
@@ -65,7 +69,7 @@
           <div v-if="bundle.hourly.status !== 'error' && hourly.items.length" class="hour-shell">
             <button v-show="hourCanLeft" type="button" class="hour-hint left" aria-label="查看前面的小时预报" @click="scrollHours(-1)">‹</button>
             <div ref="hours" class="hour-strip" tabindex="0" aria-label="未来24小时天气，可使用左右方向键浏览" @scroll="updateHourHints" @keydown.left.prevent="scrollHours(-1)" @keydown.right.prevent="scrollHours(1)" @wheel="onHourWheel">
-              <article v-for="(item, index) in hourly.items" :key="`${item.forecastTime}-${index}`" :class="{ now: index === 0 }">
+              <article v-for="(item, index) in hourly.items" :key="`${item.forecastTime}-${index}`">
                 <span class="hour-row top"><time>{{ hourTimeLabel(item.forecastTime, hourly.items[0]?.forecastTime || item.forecastTime, index) }}</time><QWeatherIcon :code="item.condition.code" /></span>
                 <span class="hour-row mid"><strong :title="item.condition.text || '--'">{{ item.condition.text || '--' }}</strong><b>{{ temperatureText(item.temperature) }}</b></span>
                 <span class="hour-row bottom"><span>降水 {{ percentage(item.precipitation?.probability) }}</span><span>{{ unitText(item.precipitation?.amount) }}</span></span>
@@ -155,15 +159,15 @@ const minuteTicks = computed(() => {
 })
 const minuteA11y = computed(() => `未来两小时实际返回 ${minutelyData.value?.minutely.length || 0} 个时点`)
 const maxPrecip = computed(() => Math.max(0, ...(minutelyData.value?.minutely.map(item => item.precip) || [])))
-const currentRange = computed(() => {
+const tempRange = computed(() => {
   const data = props.bundle?.current.status === 'success' ? props.bundle.current.data : null
-  if (!data) return ''
-  const high = data.high, low = data.low
-  if ((!high || high.value == null) && (!low || low.value == null)) return ''
-  const unit = high?.unit ?? low?.unit ?? ''
-  const highText = high?.value != null ? String(Math.round(high.value)) : '--'
-  const lowText = low?.value != null ? String(Math.round(low.value)) : '--'
-  return `${highText}/${lowText}${unit}`
+  if (!data) return null
+  const high = data.high?.value, low = data.low?.value
+  if (typeof high !== 'number' || typeof low !== 'number' || high < low) return null
+  const span = Math.max(1, high - low)
+  const pad = Math.max(2, Math.round(span * .25))
+  const total = span + pad * 2
+  return { lowText: `${Math.round(low)}°`, highText: `${Math.round(high)}°`, left: Math.round(pad / total * 100), width: Math.round(span / total * 100) }
 })
 const locationContext = computed(() => {
   const address = props.bundle?.address.status === 'success' ? props.bundle.address.data?.address?.trim() : ''
@@ -256,7 +260,7 @@ function onHourWheel(event: WheelEvent) {
 .popup-body section { margin: 0; padding: 12px; border: 1px solid #eef2f7; border-radius: 12px; background: #f8fafc; }
 .popup-body section + section { margin-top: 10px; }
 .popup-body h3, .popup-body p { margin: 0; }
-.popup-body h3 { font-size: 13px; line-height: 1.3; }
+.popup-body h3 { margin: 0 0 8px; font-size: 13px; line-height: 1.3; }
 .popup-body h3 small { margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-weight: 600; font-size: 10px; }
 .popup-body h3 em { display: block; margin-top: 2px; color: #b45309; font-size: 10px; font-style: normal; }
 .popup-body p { white-space: pre-wrap; font-size: 12px; line-height: 1.5; }
@@ -271,23 +275,22 @@ function onHourWheel(event: WheelEvent) {
 .query-context svg { flex: none; color: #2563eb; }
 .query-context span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .data-freshness, .minutely-meta small { color: #64748b; font-variant-numeric: tabular-nums; }
-.current-main { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 0 8px; }
-.current-main > i { flex: none; color: #2563eb; font-size: 30px; }
-.current.hero .current-main > i { color: #fff; font-size: 34px; }
-.hero-cond { min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.25; }
-.current.hero .hero-cond { color: rgba(255, 255, 255, .85); }
-.hero-temp { margin-left: auto; font-size: 32px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.current-range { flex: none; margin-left: 2px; padding: 2px 8px; border: 1px solid #e2e8f0; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.current.hero { padding: 14px; background: #0f172a; border-color: #0f172a; color: #fff; }
+.popup-body section.current { background: #50aadf; border-color: #50aadf; }
+.current-main { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 0 2px; }
+.current-main > i { flex: none; color: #1e40af; font-size: 32px; }
+.hero-cond { min-width: 0; font-size: 15px; font-weight: 600; color: #0f172a; line-height: 1.25; }
+.hero-temp { margin-left: auto; font-size: 30px; font-weight: 700; color: #0f172a; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hero-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.hero-head h3 { color: rgba(255, 255, 255, .9); }
-.current.hero .current-range { border-color: rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .12); color: #fff; }
-.current.hero .weather-metrics div { border-top-color: rgba(255, 255, 255, .1); }
-.current.hero .weather-metrics dt { color: rgba(255, 255, 255, .6); }
-.current.hero .weather-metrics dd { color: #fff; }
-.current.hero .data-freshness { color: rgba(255, 255, 255, .45); }
-.current.hero .module-error { background: rgba(127, 29, 29, .9); color: #fecaca; }
-.current.hero .module-error button { background: #fecaca; color: #7f1d1d; }
+.hero-head h3 { color: #0f172a; }
+.temp-bar { display: flex; align-items: center; gap: 8px; padding: 4px 0 10px; }
+.temp-label { flex: none; min-width: 26px; color: #1e3a5f; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.temp-track { position: relative; flex: 1; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .55); }
+.temp-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: #facc15; }
+.temp-fill::after { content: ''; position: absolute; top: 50%; right: -3px; width: 7px; height: 7px; transform: translateY(-50%); border-radius: 50%; background: #fff; border: 2px solid #facc15; }
+.current .module-error { margin-top: 8px; }
+.current .weather-metrics dt { color: #1e3a5f; }
+.current .weather-metrics div { border-top-color: rgba(30, 64, 175, .14); }
+.current .data-freshness { color: #1e3a5f; opacity: .78; }
 .weather-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; margin: 4px 0 0; }
 .weather-metrics div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; padding: 6px 0; border-top: 1px solid #f1f5f9; font-size: 11px; }
 .weather-metrics dd { overflow: hidden; color: #1e293b; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -295,8 +298,8 @@ function onHourWheel(event: WheelEvent) {
 .module-error { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; background: #fef2f2; color: #991b1b; font-size: 12px; }
 .module-error button { flex: none; border: 0; border-radius: 5px; background: #b91c1c; color: #fff; cursor: pointer; }
 .section-heading { display: flex; justify-content: space-between; align-items: baseline; }
-.minutely-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 5px; }
-.minutely-meta p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.minutely-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 0; }
+.minutely-meta p { overflow: hidden; color: #475569; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .minutely-meta small { flex: none; font-size: 10px; }
 .rain-legend { display: flex; gap: 10px; margin: 6px 0 5px; color: #64748b; font-size: 10px; }
 .rain-legend span { display: inline-flex; align-items: center; gap: 4px; }
@@ -312,9 +315,8 @@ function onHourWheel(event: WheelEvent) {
 .bars i.snow { background: #94a3b8; }
 .bars i.other { background: #64748b; }
 .minute-axis { display: flex; justify-content: space-between; margin-top: 4px; padding: 0 7px; color: #64748b; font-size: 10px; font-variant-numeric: tabular-nums; }
-.zero { padding-top: 5px; color: #166534; }
 .hour-shell { position: relative; }
-.hour-strip { display: flex; gap: 6px; overflow-x: auto; padding: 4px 1px 8px; scrollbar-width: none; overscroll-behavior: contain; }
+.hour-strip { display: flex; gap: 6px; overflow-x: auto; padding: 0 1px 8px; scrollbar-width: none; overscroll-behavior: contain; }
 .hour-strip::-webkit-scrollbar { display: none; }
 .hour-hint { position: absolute; top: 50%; z-index: 2; display: grid; width: 22px; height: 22px; place-items: center; padding: 0; transform: translateY(-50%); border: 0; border-radius: 50%; background: rgba(15, 23, 42, .55); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; }
 .hour-hint:hover { background: #1d4ed8; }
@@ -322,12 +324,6 @@ function onHourWheel(event: WheelEvent) {
 .hour-hint.right { right: 2px; }
 .hour-strip article { flex: 0 0 110px; display: grid; gap: 4px; padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 10px; transition: border-color 150ms ease-out, background-color 150ms ease-out; }
 .hour-strip article:hover { border-color: #93c5fd; }
-.hour-strip article.now { border-color: #2563eb; background: #2563eb; box-shadow: inset 0 0 0 1px #3b82f6; }
-.hour-strip article.now time { color: #fff; font-weight: 700; }
-.hour-strip article.now strong { color: #fff; }
-.hour-strip article.now b { color: #fff; }
-.hour-strip article.now i { color: #fff; }
-.hour-strip article.now .hour-row.top, .hour-strip article.now .hour-row.bottom { color: rgba(255, 255, 255, .78); }
 .hour-strip article i { color: #2563eb; font-size: 17px; }
 .hour-strip time, .hour-strip b { font-variant-numeric: tabular-nums; }
 .hour-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
