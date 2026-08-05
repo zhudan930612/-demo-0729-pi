@@ -113,6 +113,30 @@ export function createAppServer(config, options = {}) {
       if (request.method !== 'GET') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
       const ip = request.socket.remoteAddress ?? 'unknown'
       if (!rateLimiter.consume(ip)) { status = 429; sendJson(response, status, { error: { code: 'RATE_LIMITED', message: '请求过于频繁，请稍后重试', requestId } }, requestId); return }
+      if (url.pathname === '/api/weather/markers') {
+        routeName = 'weather-markers'
+        try {
+          const markersRequest = weather.parseMarkers(url)
+          weatherController = new AbortController()
+          const stream = weather.markers(markersRequest, weatherController.signal)
+          response.writeHead(200, {
+            'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'x-request-id': requestId,
+          })
+          for await (const event of stream) {
+            if (clientGone || !responseAlive(response)) break
+            response.write(`${JSON.stringify(event)}\n`)
+          }
+          status = 200
+          response.end()
+          return
+        } catch (error) {
+          const mapped = weatherRequestError(error)
+          if (!mapped) throw error
+          if (response.headersSent) { response.destroy(); return }
+          status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return
+        }
+      }
       if (url.pathname === '/api/weather') {
         routeName = 'weather'
         try {

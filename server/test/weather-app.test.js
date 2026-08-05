@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import { afterEach, test } from 'node:test'
 import { createAppServer } from '../src/app.js'
+import { createWeatherService } from '../src/weather-service.js'
+import { normalizeQWeather } from '../src/weather-upstream.js'
 import { WeatherSpatialError } from '../src/weather-spatial-index.js'
 
 const servers = []
@@ -41,4 +44,41 @@ test('weather response and protected local cache clear route work without anonym
   assert.equal((await fetch(`${base}/api/weather/cache`, { method: 'DELETE', headers: { 'x-weather-admin-token': 'wrong' } })).status, 403)
   assert.equal((await fetch(`${base}/api/weather/cache`, { method: 'DELETE', headers: { 'x-weather-admin-token': 'admin-secret' } })).status, 204)
   assert.equal(cleared, 1)
+})
+
+test('markers route streams NDJSON skeleton then per-target events with strict parameter whitelist', async () => {
+  const upstream = {
+    async qweather(module, lat, lon) { const raw = module === 'hourly' ? { hours: [{ forecastTime: '2026-08-03T11:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 32, unit: '°C' } }, { forecastTime: '2026-08-03T12:00:00+08:00', condition: { code: '100', text: '晴' }, temperature: { value: 22, unit: '°C' } }], metadata: {} } : { condition: { code: '100', text: '晴' }, temperature: { value: 26, unit: '°C' }, humidity: 0.5, metadata: {} }; return normalizeQWeather(module, raw) },
+    async address() { throw new Error('markers 不请求地址') },
+  }
+  const weatherService = createWeatherService({ authMode: 'api-key', apiOrigin: 'https://weather.example', apiKey: 'k', projectId: 'p', credentialId: 'c', dataDir: path.resolve('test/fixtures/weather-data'), seatsFile: 'test/fixtures/weather-data/government-seats-markers-v1.json', addressUrl: '', timeoutMs: 1000, maxNetworkBytes: 1024 * 1024, maxDecodedBytes: 1024 * 1024, cacheMaxEntries: 100, upstreamConcurrency: 6 }, { upstream })
+  const base = await start(weatherService)
+  const response = await fetch(`${base}/api/weather/markers?contextLevel=county&contextCode=330101`, { headers: { accept: 'application/x-ndjson' } })
+  assert.equal(response.status, 200)
+  assert.match(response.headers.get('content-type'), /application\/x-ndjson/)
+  const lines = (await response.text()).trim().split('\n').map((line) => JSON.parse(line))
+  assert.equal(lines[0].type, 'targets')
+  assert.equal(lines[0].total, 2)
+  assert.deepEqual(lines[0].targets.map((t) => t.code), ['330101001000', '330101002000'])
+  assert.deepEqual(Object.keys(lines[0].targets[0]).sort(), ['code', 'level', 'location', 'name'])
+  const ready = lines.filter((line) => line.type === 'ready')
+  assert.equal(ready.length, 2)
+  assert.deepEqual(ready[0].summary.high, { value: 32, unit: '°C' })
+  assert.deepEqual(ready[0].summary.low, { value: 22, unit: '°C' })
+})
+
+test('markers route rejects unknown params, non-GET and empty child levels safely', async () => {
+  const weatherService = { parse() { return {} }, parseMarkers() { throw new WeatherSpatialError('parameters', '天气标牌请求参数无效') }, async markers() { throw new Error('must not stream') }, clearCache() {} }
+  const base = await start(weatherService)
+  assert.equal((await fetch(`${base}/api/weather/markers?contextLevel=county&contextCode=330101&x=1`)).status, 400)
+  assert.equal((await fetch(`${base}/api/weather/markers?contextLevel=county&contextCode=330101`, { method: 'POST' })).status, 405)
+})
+
+test('markers route returns empty targets skeleton for village context', async () => {
+  const weatherService = createWeatherService({ authMode: 'api-key', apiOrigin: 'https://weather.example', apiKey: 'k', projectId: 'p', credentialId: 'c', dataDir: path.resolve('test/fixtures/weather-data'), seatsFile: 'test/fixtures/weather-data/government-seats-markers-v1.json', addressUrl: '', timeoutMs: 1000, maxNetworkBytes: 1024 * 1024, maxDecodedBytes: 1024 * 1024, cacheMaxEntries: 100, upstreamConcurrency: 6 }, { upstream: { async qweather() { throw new Error('no calls') }, async address() { throw new Error('no calls') } } })
+  const base = await start(weatherService)
+  const response = await fetch(`${base}/api/weather/markers?contextLevel=village&contextCode=330101001001`)
+  assert.equal(response.status, 200)
+  const lines = (await response.text()).trim().split('\n').map((line) => JSON.parse(line))
+  assert.deepEqual(lines, [{ type: 'targets', contextLevel: 'village', contextCode: '330101001001', total: 0, targets: [] }])
 })

@@ -65,6 +65,7 @@ export function readServerConfig(env = process.env) {
       cacheMaxEntries: positiveInteger(env.QWEATHER_CACHE_MAX_ENTRIES, 2048),
       upstreamConcurrency: positiveInteger(env.QWEATHER_UPSTREAM_CONCURRENCY, 6),
       adminToken: env.WEATHER_ADMIN_TOKEN || '',
+      seatsFile: env.GOVERNMENT_SEATS_FILE || '',
     },
     nationalAlarms: {
       dataDir: env.WEATHER_DATA_DIR ? path.resolve(SERVER_DIR, env.WEATHER_DATA_DIR) : '',

@@ -1,1 +1,141 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"code":"330101001000","name":"示例乡"},"geometry":{"type":"Polygon","coordinates":[[[119.8,29.8],[120.2,29.8],[120.2,30.2],[119.8,30.2],[119.8,29.8]]]}}]}
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "330101001000",
+    "name": "示例乡"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       119.8,
+       29.8
+      ],
+      [
+       120.2,
+       29.8
+      ],
+      [
+       120.2,
+       30.2
+      ],
+      [
+       119.8,
+       30.2
+      ],
+      [
+       119.8,
+       29.8
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "330101002000",
+    "name": "示例乡乙"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       119.9,
+       29.7
+      ],
+      [
+       120.1,
+       29.7
+      ],
+      [
+       120.1,
+       29.8
+      ],
+      [
+       119.9,
+       29.8
+      ],
+      [
+       119.9,
+       29.7
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "330101003000",
+    "name": "示例乡丙"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120.25,
+       30.05
+      ],
+      [
+       120.3,
+       30.05
+      ],
+      [
+       120.3,
+       30.15
+      ],
+      [
+       120.25,
+       30.15
+      ],
+      [
+       120.25,
+       30.05
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "code": "330101004000",
+    "name": "示例乡丁"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       120.2,
+       30.25
+      ],
+      [
+       120.3,
+       30.25
+      ],
+      [
+       120.3,
+       30.3
+      ],
+      [
+       120.2,
+       30.3
+      ],
+      [
+       120.2,
+       30.25
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

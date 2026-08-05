@@ -2,10 +2,136 @@
  "schemaVersion": 2,
  "provinceCode": "330000",
  "nodes": [
-  {"code":"330000","name":"浙江省","level":"province","parentCode":null,"childrenCodes":["330100"],"representativePoint":[120,30],"boundary":{"path":"boundary/province.geojson","featureCode":"330000"}},
-  {"code":"330100","name":"杭州市","level":"city","parentCode":"330000","childrenCodes":["330101"],"representativePoint":[120,30],"boundary":{"path":"boundary/city.geojson","featureCode":"330100"}},
-  {"code":"330101","name":"示例县","level":"county","parentCode":"330100","childrenCodes":["330101001000"],"representativePoint":[120,30],"boundary":{"path":"boundary/county.geojson","featureCode":"330101"}},
-  {"code":"330101001000","name":"示例乡","level":"township","parentCode":"330101","childrenCodes":["330101001001"],"representativePoint":[120,30],"boundary":{"path":"boundary/township.geojson","featureCode":"330101001000"}},
-  {"code":"330101001001","name":"示例村","level":"village","parentCode":"330101001000","childrenCodes":[],"representativePoint":[120,30],"boundary":{"path":"villages/330101001000.geojson","featureCode":"330101001001"}}
+  {
+   "code": "330000",
+   "name": "浙江省",
+   "level": "province",
+   "parentCode": null,
+   "childrenCodes": [
+    "330100"
+   ],
+   "representativePoint": [
+    120,
+    30
+   ],
+   "boundary": {
+    "path": "boundary/province.geojson",
+    "featureCode": "330000"
+   }
+  },
+  {
+   "code": "330100",
+   "name": "杭州市",
+   "level": "city",
+   "parentCode": "330000",
+   "childrenCodes": [
+    "330101"
+   ],
+   "representativePoint": [
+    120,
+    30
+   ],
+   "boundary": {
+    "path": "boundary/city.geojson",
+    "featureCode": "330100"
+   }
+  },
+  {
+   "code": "330101",
+   "name": "示例县",
+   "level": "county",
+   "parentCode": "330100",
+   "childrenCodes": [
+    "330101001000",
+    "330101002000",
+    "330101003000",
+    "330101004000"
+   ],
+   "representativePoint": [
+    120,
+    30
+   ],
+   "boundary": {
+    "path": "boundary/county.geojson",
+    "featureCode": "330101"
+   }
+  },
+  {
+   "code": "330101001000",
+   "name": "示例乡",
+   "level": "township",
+   "parentCode": "330101",
+   "childrenCodes": [
+    "330101001001"
+   ],
+   "representativePoint": [
+    120,
+    30
+   ],
+   "boundary": {
+    "path": "boundary/township.geojson",
+    "featureCode": "330101001000"
+   }
+  },
+  {
+   "code": "330101001001",
+   "name": "示例村",
+   "level": "village",
+   "parentCode": "330101001000",
+   "childrenCodes": [],
+   "representativePoint": [
+    120,
+    30
+   ],
+   "boundary": {
+    "path": "villages/330101001000.geojson",
+    "featureCode": "330101001001"
+   }
+  },
+  {
+   "code": "330101002000",
+   "name": "示例乡乙",
+   "level": "township",
+   "parentCode": "330101",
+   "childrenCodes": [],
+   "representativePoint": [
+    120.0,
+    29.75
+   ],
+   "boundary": {
+    "path": "boundary/township.geojson",
+    "featureCode": "330101002000"
+   }
+  },
+  {
+   "code": "330101003000",
+   "name": "示例乡丙",
+   "level": "township",
+   "parentCode": "330101",
+   "childrenCodes": [],
+   "representativePoint": [
+    120.275,
+    30.1
+   ],
+   "boundary": {
+    "path": "boundary/township.geojson",
+    "featureCode": "330101003000"
+   }
+  },
+  {
+   "code": "330101004000",
+   "name": "示例乡丁",
+   "level": "township",
+   "parentCode": "330101",
+   "childrenCodes": [],
+   "representativePoint": [
+    120.25,
+    30.275
+   ],
+   "boundary": {
+    "path": "boundary/township.geojson",
+    "featureCode": "330101004000"
+   }
+  }
  ]
 }
