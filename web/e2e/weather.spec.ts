@@ -109,7 +109,7 @@ test('进入和退出天气保持地图视角：省级展示 11 个市级标牌�
   const hangzhou = seatMarkers.filter({ hasText: '杭州市' })
   await expect(hangzhou.locator('.weather-marker')).toHaveAccessibleName(/杭州市.*小雨.*最高29.*最低26/)
   await expect(hangzhou.locator('.weather-marker-detail b')).toHaveText('杭州市')
-  await expect(hangzhou.locator('.weather-marker-detail strong')).toHaveText('29/26°C')
+  await expect(hangzhou.locator('.weather-marker-detail strong')).toHaveText('26/29°C')
   expect(await page.locator('.map-zoom-level').textContent()).toBe(before)
   await page.getByRole('button', { name: '当前：实时天气，点击切换' }).click()
   await page.getByRole('button', { name: '气象预警' }).click()
