@@ -17,7 +17,7 @@ function validModule(value: unknown): boolean {
 }
 export function isWeatherBundle(value: unknown): value is WeatherBundle {
   const root = record(value), location = record(root?.location), original = record(root?.originalLocation), alerts = record(root?.alerts)
-  return Boolean(root && typeof root.contextCode === 'string' && typeof root.contextLevel === 'string' && ['admin','parcel','picked'].includes(String(root.target))
+  return Boolean(root && typeof root.contextCode === 'string' && typeof root.contextLevel === 'string' && ['admin','parcel','picked','seat'].includes(String(root.target))
     && Number.isFinite(location?.lat) && Number.isFinite(location?.lon) && Number.isFinite(original?.lat) && Number.isFinite(original?.lon)
     && typeof root.fetchedAt === 'string' && validModule(root.address) && validModule(root.current) && validModule(root.minutely) && validModule(root.hourly)
     && alerts && ['success','empty','error','partial'].includes(String(alerts.status)) && Array.isArray(alerts.data) && Array.isArray(root.attributions))
@@ -25,7 +25,7 @@ export function isWeatherBundle(value: unknown): value is WeatherBundle {
 
 function queryParams(query: WeatherQuery): URLSearchParams {
   const params = new URLSearchParams({ contextLevel: query.contextLevel, contextCode: query.contextCode, target: query.target })
-  if (query.target !== 'admin') {
+  if (query.target !== 'admin' && query.target !== 'seat') {
     if (!Number.isFinite(query.lat) || !Number.isFinite(query.lon)) throw new WeatherApiError('INVALID_WEATHER_TARGET', 400, '天气查询点无效')
     params.set('lat', String(query.lat)); params.set('lon', String(query.lon))
   }
