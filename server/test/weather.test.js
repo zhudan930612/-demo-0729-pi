@@ -35,6 +35,9 @@ test('service uses rounded coordinates, disables QWeather alerts, and degrades a
   const result = await service.bundle(picked)
   assert.deepEqual(result.location, { lat: 30.01, lon: 120.02 })
   assert.equal(result.current.status, 'success'); assert.equal(result.minutely.status, 'empty'); assert.equal(result.address.status, 'error')
+  assert.deepEqual(result.current.data.high, { value: 27, unit: '°C' }, 'bundle 应附带逐小时计算的最高气温')
+  assert.deepEqual(result.current.data.low, { value: 27, unit: '°C' }, 'bundle 应附带逐小时计算的最低气温')
+  assert.equal(result.current.data.temperature.value, 26)
   assert.equal(result.alerts.data.length, 0)
   assert.equal(result.alerts.message, '气象预警请使用浙江省气象预警入口')
   assert.ok(calls.filter((c) => ['current', 'hourly', 'minutely'].includes(c.module)).every((c) => c.lat === 30.01 && c.lon === 120.02))
@@ -93,6 +96,15 @@ test('gzip is decoded and compressed/decoded limits fail closed', async () => {
   await assert.rejects(decoded.qweather('current', 30, 120), (e) => e.kind === 'too-large')
   const broken = createWeatherUpstream(config, { fetchImpl: async () => new Response(Buffer.from([0x1f, 0x8b, 1]), { headers: { 'content-encoding': 'gzip' } }) })
   await assert.rejects(broken.qweather('current', 30, 120), (e) => e.kind === 'decompression')
+})
+
+test('bundle keeps high/low null when hourly forecast fails', async () => {
+  const upstream = { qweather: async (module) => { if (module === 'hourly') throw new WeatherUpstreamError('timeout', 'timeout'); const raw = payload(module); return module === 'minutely' ? { data: null, metadata: {}, empty: true } : normalizeQWeather(module, raw) }, address: async () => ({ data: { address: '测试', hctype: null, jd: null }, metadata: {} }) }
+  const service = createWeatherService(config, { upstream })
+  const result = await service.bundle(service.parse(url('contextLevel=city&contextCode=330100&target=admin')))
+  assert.equal(result.current.status, 'success')
+  assert.deepEqual(result.current.data.high, null)
+  assert.deepEqual(result.current.data.low, null)
 })
 
 test('alert whitelist removes superseded and cancel messages', () => {

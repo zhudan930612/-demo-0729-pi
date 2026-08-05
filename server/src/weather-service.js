@@ -74,18 +74,22 @@ export function parseWeatherMarkersRequest(url, spatial) {
   return { contextLevel, contextCode, node }
 }
 
+function hourlyRange(module) {
+  // 由逐小时预报计算未来 24 小时最高/最低气温（整数），无有效数据时返回 null。
+  if (module?.status !== 'success' || !Array.isArray(module.data) || module.data.length === 0) return { high: null, low: null }
+  const temperatures = module.data.map((item) => item.temperature?.value).filter((value) => typeof value === 'number' && Number.isFinite(value))
+  if (!temperatures.length) return { high: null, low: null }
+  const unit = module.data.find((item) => item.temperature?.unit)?.temperature?.unit ?? null
+  return { high: { value: Math.round(Math.max(...temperatures)), unit }, low: { value: Math.round(Math.min(...temperatures)), unit } }
+}
+
 function markerSummary(current, hourly) {
   // 仅返回标牌所需字段：当前天气现象/温度 + 由逐小时计算的未来 24 小时最高/最低（整数）。
   const currentOk = current?.status === 'success' && current.data != null
-  const hourlyOk = hourly?.status === 'success' && Array.isArray(hourly.data) && hourly.data.length > 0
-  const items = hourlyOk ? hourly.data : []
-  const temperatures = items.map((item) => item.temperature?.value).filter((value) => typeof value === 'number' && Number.isFinite(value))
-  const hourlyUnit = items.find((item) => item.temperature?.unit)?.temperature?.unit ?? null
   const temperature = currentOk ? { value: current.data.temperature.value, unit: current.data.temperature.unit } : null
   const condition = currentOk ? { code: current.data.condition.code, text: current.data.condition.text } : null
-  const high = temperatures.length ? { value: Math.round(Math.max(...temperatures)), unit: hourlyUnit } : null
-  const low = temperatures.length ? { value: Math.round(Math.min(...temperatures)), unit: hourlyUnit } : null
-  return { condition, temperature, high, low, fetchedAt: (currentOk && current.fetchedAt) ? current.fetchedAt : (hourlyOk && hourly.fetchedAt) ? hourly.fetchedAt : new Date().toISOString() }
+  const { high, low } = hourlyRange(hourly)
+  return { condition, temperature, high, low, fetchedAt: (currentOk && current.fetchedAt) ? current.fetchedAt : (hourly?.status === 'success' && hourly.fetchedAt) ? hourly.fetchedAt : new Date().toISOString() }
 }
 
 function markerError(current, hourly) {
@@ -161,7 +165,12 @@ export function createWeatherService(config, options = {}) {
         alertResult.data?.flatMap((region) => region.metadata?.attributions ?? []) ?? [],
         referAttributions(minutely.value?.metadata?.refer),
       )
-      return { contextLevel: request.contextLevel, contextCode: request.contextCode, target: request.target, location: rounded, originalLocation: { lat: request.lat, lon: request.lon }, fetchedAt: new Date((options.now ?? Date.now)()).toISOString(), address: moduleState(address, '地址增强暂无结果'), current: moduleState(current, '实时天气暂无结果'), alerts: alertResult, minutely: moduleState(minutely, '当前查询位置暂无分钟级降水预报'), hourly: moduleState(hourly, '未来 24 小时预报暂无结果'), attributions }
+      const currentState = moduleState(current, '实时天气暂无结果')
+      const hourlyState = moduleState(hourly, '未来 24 小时预报暂无结果')
+      // 实时天气弹窗需要最高/最低气温：由逐小时预报计算（整数），浅拷贝避免污染缓存对象。
+      const { high, low } = hourlyRange(hourlyState)
+      if (currentState.status === 'success') currentState.data = { ...currentState.data, high, low }
+      return { contextLevel: request.contextLevel, contextCode: request.contextCode, target: request.target, location: rounded, originalLocation: { lat: request.lat, lon: request.lon }, fetchedAt: new Date((options.now ?? Date.now)()).toISOString(), address: moduleState(address, '地址增强暂无结果'), current: currentState, alerts: alertResult, minutely: moduleState(minutely, '当前查询位置暂无分钟级降水预报'), hourly: hourlyState, attributions }
     },
     clearCache() { cache.clear() },
     stats() { return cache.stats() },

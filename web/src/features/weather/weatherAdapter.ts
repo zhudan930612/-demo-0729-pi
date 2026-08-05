@@ -9,6 +9,7 @@ function normalizedEnum(value:string|null|undefined):string{return value?.trim()
 export function weatherEnumZh(value: string | null | undefined): string { return value ? enumZh[normalizedEnum(value)] ?? '未知' : '--' }
 export function percentage(value: number | null | undefined): string { return value == null || !Number.isFinite(value) || value < 0 || value > 1 ? '--' : `${Math.round(value * 100)}%` }
 export function unitText(value: { value:number|null; unit:string|null } | null | undefined): string { return value?.value == null ? '--' : `${value.value}${value.unit ? ` ${value.unit}` : ''}` }
+export function temperatureText(value: { value:number|null; unit:string|null } | null | undefined): string { return value?.value == null ? '--' : `${Math.round(value.value)}${value.unit ? ` ${value.unit}` : ''}` }
 export function formatBeijing(value: string | null | undefined, withDate = true): string {
   if (!value || Number.isNaN(Date.parse(value))) return '--'
   return new Intl.DateTimeFormat('zh-CN', { timeZone:'Asia/Shanghai', ...(withDate ? { year:'numeric',month:'2-digit',day:'2-digit' } : {}), hour:'2-digit',minute:'2-digit',hour12:false }).format(new Date(value)).replaceAll('/','/')

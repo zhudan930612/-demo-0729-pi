@@ -26,6 +26,9 @@ export type WeatherModule<T> =
 export interface CurrentWeather {
   condition: WeatherCondition
   temperature: UnitValue
+  /** 未来 24 小时最高/最低气温（服务端由逐小时预报计算，整数），缺失时为 null */
+  high: UnitValue | null
+  low: UnitValue | null
   feelsLike: UnitValue | null
   precipitation: { amount: UnitValue | null; intensity: UnitValue | null; type: string | null } | null
   humidity: number | null

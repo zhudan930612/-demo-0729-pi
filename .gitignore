@@ -23,6 +23,7 @@ test-results/
 # 政府驻地坐标表是受控版本化资产，位于仓库内 server/data/，不在此目录。
 .dev-runtime/
 server/reports/weather-probe-summary.local.json
+server/*.log
 .runtime-server*.log
 .vite-*.log
 .tmp-*.png
