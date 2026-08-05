@@ -19,6 +19,8 @@ test-results/
 *.local
 
 # ---- 本地开发运行时文件 ----
+# 整体忽略 .dev-runtime/（服务端私有索引、锐多宝派生边界、大体积村界/瓦片）。
+# 政府驻地坐标表是受控版本化资产，位于仓库内 server/data/，不在此目录。
 .dev-runtime/
 server/reports/weather-probe-summary.local.json
 .runtime-server*.log
