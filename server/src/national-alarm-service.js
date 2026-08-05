@@ -60,7 +60,7 @@ export function createNationalAlarmService(config = {}, options = {}) {
   let refreshTask = null
   let lastForcedAt = -Infinity
   const detailCache = new Map()
-  const getSpatial = () => { if (!spatial) spatial = loadSpatial(config.dataDir); return spatial }
+  const getSpatial = () => { if (!spatial) spatial = loadSpatial(config.dataDir, config.seatsFile || undefined); return spatial }
   async function getSpatialAsync() {
     if (spatial) return spatial
     if (!spatialTask) spatialTask = Promise.resolve().then(getSpatial)

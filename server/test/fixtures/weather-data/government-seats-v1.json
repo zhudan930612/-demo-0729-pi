@@ -4,8 +4,95 @@
   "generatedAt": "2026-08-04T00:00:00.000Z",
   "source": "fixture",
   "entries": [
-    { "code": "330000", "name": "浙江省", "level": "province", "governmentName": "浙江省人民政府", "query": "浙江省人民政府", "point": [120, 30], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" },
-    { "code": "330100", "name": "杭州市", "level": "city", "governmentName": "杭州市人民政府", "query": "杭州市人民政府", "point": [120, 30], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" },
-    { "code": "330101", "name": "示例县", "level": "county", "governmentName": "杭州市示例县人民政府", "query": "杭州市示例县人民政府", "point": [120.1, 30.1], "score": 100, "geocoder": "fixture", "httpStatus": 200, "status": "candidate" }
+    {
+      "code": "330000",
+      "name": "浙江省",
+      "level": "province",
+      "governmentName": "浙江省人民政府",
+      "query": "浙江省人民政府",
+      "point": [
+        120,
+        30
+      ],
+      "score": 100,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "candidate"
+    },
+    {
+      "code": "330100",
+      "name": "杭州市",
+      "level": "city",
+      "governmentName": "杭州市人民政府",
+      "query": "杭州市人民政府",
+      "point": [
+        120,
+        30
+      ],
+      "score": 100,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "candidate"
+    },
+    {
+      "code": "330101",
+      "name": "示例县",
+      "level": "county",
+      "governmentName": "杭州市示例县人民政府",
+      "query": "杭州市示例县人民政府",
+      "point": [
+        120.1,
+        30.1
+      ],
+      "score": 100,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "candidate"
+    },
+    {
+      "code": "330101001000",
+      "name": "示例街道",
+      "level": "township",
+      "governmentName": "示例县示例街道办事处",
+      "query": "示例县示例街道办事处",
+      "point": [
+        120.2,
+        30.2
+      ],
+      "score": 80,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "candidate"
+    },
+    {
+      "code": "330101002000",
+      "name": "示例乡",
+      "level": "township",
+      "governmentName": "示例县示例乡人民政府",
+      "query": "示例县示例乡人民政府",
+      "point": [
+        119.0,
+        29.0
+      ],
+      "score": 30,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "unresolved"
+    },
+    {
+      "code": "330101003001",
+      "name": "示例村",
+      "level": "village",
+      "governmentName": "示例街道示例村",
+      "query": "示例街道示例村",
+      "point": [
+        120.3,
+        30.3
+      ],
+      "score": 55,
+      "geocoder": "fixture",
+      "httpStatus": 200,
+      "status": "candidate"
+    }
   ]
 }

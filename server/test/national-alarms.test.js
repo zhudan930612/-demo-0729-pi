@@ -11,7 +11,7 @@ const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const spatial = { findAlarmNode(code) { return code === '330100' ? { level: 'city', representativePoint: [120, 30], governmentSeatPoint: [120.1, 30.1] } : code === '330000' ? { level: 'province', representativePoint: [120, 29], governmentSeatPoint: [120.1, 29.1] } : null } }
 const rows = [{ alertid: '330100000001', issuetime: '2026-08-04 10:00:00', title: '杭州市发布暴雨黄色预警信号', url: '/publish/alarm/a.html', pic: 'https://image.nmc.cn/a.png' }, { alertid: '310000000001', issuetime: '2026-08-04 11:00:00', title: '上海市发布预警', url: '/publish/alarm/b.html' }]
 test('national alarm spatial index loads only map-relevant Zhejiang levels', () => {
-  const index = loadNationalAlarmSpatialIndex(path.resolve('test/fixtures/weather-data'))
+  const index = loadNationalAlarmSpatialIndex(path.resolve('test/fixtures/weather-data'), 'test/fixtures/weather-data/government-seats-v1.json')
   assert.equal(index.findAlarmNode('330000').level, 'province'); assert.equal(index.findAlarmNode('330100').level, 'city'); assert.equal(index.findAlarmNode('330101').level, 'county'); assert.deepEqual(index.findAlarmNode('330101').governmentSeatPoint, [120.1, 30.1]); assert.equal(index.findAlarmNode('330101001000'), null)
 })
 test('server data directory is resolved from server source, not the launch directory', () => {

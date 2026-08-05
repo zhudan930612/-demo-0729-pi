@@ -1,8 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { geometryCovers, WeatherSpatialError } from './weather-spatial-index.js'
 
 const TARGET_LEVELS = new Set(['province', 'city', 'county'])
+const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const GOVERNMENT_SEATS_FILE = 'government-seats-v1.json'
 function fail(message = '浙江预警空间数据不可用') { throw new WeatherSpatialError('unconfigured', message) }
 function json(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { fail() } }
@@ -13,12 +15,18 @@ function safePath(root, relative) {
   if (!resolved.startsWith(`${base}${path.sep}`)) fail('预警边界引用越界')
   return resolved
 }
-function governmentSeats(root) {
-  const payload = json(path.join(root, GOVERNMENT_SEATS_FILE))
+function governmentSeats(root, seatsFile) {
+  // 政府驻地表是受控版本化资产（仓库内 server/data/），不随 WEATHER_DATA_DIR 走：
+  // 默认读 SERVER_DIR/data/government-seats-v1.json，可用 GOVERNMENT_SEATS_FILE 覆盖（相对 SERVER_DIR 解析）。
+  const resolved = seatsFile ? safePath(SERVER_DIR, seatsFile) : path.join(SERVER_DIR, 'data', GOVERNMENT_SEATS_FILE)
+  const payload = json(resolved)
   if (payload?.schemaVersion !== 1 || payload?.provinceCode !== '330000' || !Array.isArray(payload.entries)) fail('政府驻地坐标表无效')
   const seats = new Map()
   for (const entry of payload.entries) {
-    if (typeof entry?.code !== 'string' || !TARGET_LEVELS.has(entry.level) || typeof entry.name !== 'string' || !entry.name.trim() || !point(entry.point) || entry.status !== 'candidate' || !Number.isFinite(entry.score) || entry.score < 99 || seats.has(entry.code)) fail('政府驻地坐标记录无效')
+    // The table may carry township/village entries (future data-source reserve);
+    // the alarm index only consumes province/city/county and ignores the rest.
+    if (!TARGET_LEVELS.has(entry.level)) continue
+    if (typeof entry?.code !== 'string' || typeof entry.name !== 'string' || !entry.name.trim() || !point(entry.point) || entry.status !== 'candidate' || !Number.isFinite(entry.score) || entry.score < 99 || seats.has(entry.code)) fail('政府驻地坐标记录无效')
     seats.set(entry.code, entry)
   }
   return seats
@@ -26,11 +34,11 @@ function governmentSeats(root) {
 
 // Alert placement only needs province/city/county records. Loading all 35k township
 // and village features delayed the first NMC response by about a minute.
-export function loadNationalAlarmSpatialIndex(dataDir) {
+export function loadNationalAlarmSpatialIndex(dataDir, seatsFile) {
   if (!dataDir) fail('WEATHER_DATA_DIR 未配置')
   const root = path.resolve(dataDir), index = json(path.join(root, 'weather', 'index-v2.json'))
   if (index?.schemaVersion !== 2 || index?.provinceCode !== '330000' || !Array.isArray(index.nodes)) fail('预警空间索引版本无效')
-  const seats = governmentSeats(root)
+  const seats = governmentSeats(root, seatsFile)
   const raw = new Map()
   for (const node of index.nodes) {
     if (typeof node?.code !== 'string' || !/^33\d{4,10}$/.test(node.code) || raw.has(node.code)) fail('预警空间索引节点无效')

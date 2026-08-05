@@ -68,6 +68,7 @@ export function readServerConfig(env = process.env) {
     },
     nationalAlarms: {
       dataDir: env.WEATHER_DATA_DIR ? path.resolve(SERVER_DIR, env.WEATHER_DATA_DIR) : '',
+      seatsFile: env.GOVERNMENT_SEATS_FILE || '',
       timeoutMs: positiveInteger(env.NATIONAL_ALARM_TIMEOUT_MS, 10_000),
       listMaxBytes: positiveInteger(env.NATIONAL_ALARM_LIST_MAX_BYTES, 3 * 1024 * 1024),
       detailMaxBytes: positiveInteger(env.NATIONAL_ALARM_DETAIL_MAX_BYTES, 512 * 1024),
