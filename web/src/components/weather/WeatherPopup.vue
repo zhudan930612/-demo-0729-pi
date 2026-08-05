@@ -132,7 +132,7 @@ onBeforeUnmount(() => {
 const positionStyle = computed(() => {
   const narrow = viewport.value.width <= 520
   const pad = 12
-  const markerWidth = 108
+  const markerWidth = 84
   const gap = 12
   const width = narrow ? viewport.value.width - pad * 2 : measuredWidth.value
   const preferredLeft = side.value === 'right' ? props.x + markerWidth + gap : props.x - width - gap

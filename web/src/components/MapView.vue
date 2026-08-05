@@ -5,8 +5,8 @@
     <NationalAlarmPanel v-if="nationalAlarmsActive" :phase="nationalAlarmStore.phase" :snapshot="nationalAlarmStore.snapshot" :selection="nationalAlarmStore.selection" :error-message="nationalAlarmStore.errorMessage" @refresh="refreshNationalAlarms" @close="exitNationalAlarms" @select="selectNationalAlarmFromList" />
     <NationalAlarmPopup v-if="nationalAlarmsActive && selectedNationalAlarm && nationalAlarmStore.selection?.source==='map'" :alarm="selectedNationalAlarm" :detail="nationalAlarmStore.detail" :x="nationalAlarmPopupPosition.x" :y="nationalAlarmPopupPosition.y" @close="nationalAlarmStore.select(null)" @retry="retryNationalAlarmDetail" />
     <div v-if="nationalAlarmMapNotice" class="save-notice national-alarm-map-notice" role="status">{{ nationalAlarmMapNotice }}</div>
-    <div v-if="weatherCurrentActive" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
-    <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.query?.contextName" :context-path="store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
+    <div v-if="weatherPickHintVisible" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
+    <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.selectedSeatCode ? weatherMarkersStore.list.find((m) => m.code === weatherStore.selectedSeatCode)?.name : weatherStore.query?.contextName" :context-path="weatherStore.selectedSeatCode ? seatContextPath : store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
     <TyphoonPathPanel
       v-if="disasterActive"
@@ -163,7 +163,6 @@
 import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
 
 import L from 'leaflet'
-import pointOnFeature from '@turf/point-on-feature'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
@@ -192,6 +191,7 @@ import { createParcelWorkModeController, type ParcelWorkModeController } from '.
 import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
 import { createWeatherLayerController } from '../map/weatherLayerController'
 import { createWeatherInteractionController } from '../map/weatherInteractionController'
+import { createWeatherMarkerLayerController } from '../map/weatherMarkerLayerController'
 import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
 import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapshot, shouldAutoFitTyphoon } from '../features/typhoon/disasterModeLifecycle'
 import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
@@ -201,13 +201,15 @@ import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hov
 import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
 import { useTyphoonStore } from '../stores/typhoon'
 import { useWeatherStore } from '../stores/weather'
+import { useWeatherMarkersStore } from '../stores/weatherMarkers'
 import { useNationalAlarmStore } from '../stores/nationalAlarms'
 import { createWeatherRepository, type WeatherRepository } from '../features/weather/weatherRepository'
+import { createWeatherMarkerRepository, type WeatherMarkerRepository } from '../features/weather/weatherMarkerRepository'
 import { createNationalAlarmRepository } from '../features/national-alarms/nationalAlarmRepository'
 import { alarmsForMap, mapNotice } from '../features/national-alarms/nationalAlarmSelectors'
 import type { NationalWeatherAlarm } from '../features/national-alarms/nationalAlarmTypes'
 import { createNationalAlarmLayerController } from '../map/nationalAlarmLayerController'
-import { defaultWeatherQuery, pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
+import { pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import {
   addPendingManualParcel,
@@ -270,6 +272,7 @@ const mapControlRef = ref<InstanceType<typeof MapControlStack>>()
 const store = useDrilldownStore()
 const typhoonStore = useTyphoonStore()
 const weatherStore = useWeatherStore()
+const weatherMarkersStore = useWeatherMarkersStore()
 const nationalAlarmStore = useNationalAlarmStore()
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
@@ -281,6 +284,8 @@ const disasterActive = ref(false)
 const weatherActive = computed(()=>weatherStore.isOpen)
 const anyWeatherActive = computed(()=>weatherActive.value||nationalAlarmsActive.value)
 const weatherCurrentActive = computed(()=>weatherActive.value&&weatherStore.module==='current')
+// 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
+const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
 const weatherPopupPosition=ref({x:0,y:0})
@@ -397,8 +402,10 @@ let manualDrawingController: ManualDrawingController
 let workModeController: ParcelWorkModeController
 let typhoonLayerController: TyphoonLayerController
 let weatherLayerController: ReturnType<typeof createWeatherLayerController>
+let weatherMarkerLayerController: ReturnType<typeof createWeatherMarkerLayerController>
 let weatherInteractionController: ReturnType<typeof createWeatherInteractionController>
 let weatherRepository: WeatherRepository
+let weatherMarkerRepository: WeatherMarkerRepository
 let nationalAlarmRepository: ReturnType<typeof createNationalAlarmRepository>
 let nationalAlarmLayerController: ReturnType<typeof createNationalAlarmLayerController>
 let provinceGeometry: Geometry | null = null
@@ -561,14 +568,14 @@ async function selectParcel(parcel: ParcelSummaryInput) {
     }
   }
   renderParcelLayer()
-  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.locationPopup='none';void weatherRepository.load(currentWeatherQuery())}
+  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.selectedSeatCode=null;weatherStore.locationPopup='none'}
 }
 
 async function requestCloseDetail() {
   if (cultivationEditing.value && !await openManualDialog('关闭地块详情', '当前种植档案尚未保存，是否确认放弃？', '确认放弃')) return
   clearSelection()
   renderParcelLayer()
-  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.locationPopup='none';void weatherRepository.load(currentWeatherQuery())}
+  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.selectedSeatCode=null;weatherStore.locationPopup='none'}
 }
 
 async function requestRestoreCultivation() {
@@ -983,29 +990,22 @@ function hasUnsavedParcelWork(): boolean {
   return pendingChangeCount.value > 0
 }
 
-function crumbRepresentativePoint(crumb: typeof store.current){
- const geometry=crumb.geometry??provinceGeometry
- if(geometry){const [lon,lat]=pointOnFeature({type:'Feature',properties:{},geometry}).geometry.coordinates;return{lat,lon}}
- return null
-}
-function selectedParcelFeature(): Feature | null {
-  if(!selectedParcel.value)return null
-  const id=selectedParcel.value.id
-  return [...(parcelSource?.features??[]),...manualParcels].find(feature=>parcelId(feature)===id)??null
-}
-function currentWeatherQuery(){return defaultWeatherQuery(store.current,selectedParcel.value?{feature:selectedParcelFeature()}:null)}
 function weatherMarkerPlaceName(){return weatherStore.query?.contextName||store.current.name}
+const seatContextPath=computed(()=>{const marker=weatherMarkersStore.list.find((entry)=>entry.code===weatherStore.selectedSeatCode);return marker?[...store.path.map((crumb)=>crumb.name),marker.name]:[]})
 async function enterWeatherMode(module:WeatherModuleKind){
  if(module==='alerts'){ void enterNationalAlarms(); return }
  if(weatherActive.value&&weatherStore.module===module)return
  if(nationalAlarmsActive.value)exitNationalAlarms()
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
- weatherRepository.exit();weatherLayerController?.clear();rosterOpen.value=false;weatherStore.open(module)
- if(module==='current'){const skeletonPoint=selectedParcelFeature()?.properties&&Number.isFinite(Number(selectedParcelFeature()?.properties?.label_lat))&&Number.isFinite(Number(selectedParcelFeature()?.properties?.label_lng))?{lat:Number(selectedParcelFeature()!.properties!.label_lat),lon:Number(selectedParcelFeature()!.properties!.label_lng)}:crumbRepresentativePoint(store.current);if(skeletonPoint){weatherLayerController?.renderLoading(skeletonPoint,'default',weatherMarkerPlaceName());const p=map.latLngToContainerPoint([skeletonPoint.lat,skeletonPoint.lon]);weatherPopupPosition.value={x:p.x,y:p.y}}}
- await weatherRepository.load(currentWeatherQuery());weatherRepository.startAutoRefresh()
+ weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();rosterOpen.value=false;weatherStore.open(module)
+ if(module==='current'){
+   // 多级政府驻地标牌：打开实时天气即按当前层级拉取骨架与逐项摘要；乡镇/村/地块无预置标牌。
+   weatherMarkerRepository?.open(store.current.level,store.current.code)
+   weatherMarkerRepository?.startAutoRefresh()
+ }
 }
-function exitWeatherMode(){weatherRepository.exit();weatherLayerController?.clear();weatherStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function exitWeatherMode(){weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();weatherStore.close();weatherMarkersStore.clear();void nextTick(()=>mapControlRef.value?.focusWeather())}
 async function enterNationalAlarms(){
  if(nationalAlarmsActive.value)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
@@ -1032,10 +1032,11 @@ async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
 }
 function selectNationalAlarmFromMap(alarm:NationalWeatherAlarm,point:{x:number;y:number}){const same=nationalAlarmStore.selection?.id===alarm.id&&nationalAlarmStore.selection.source==='map';if(same){nationalAlarmStore.select(null);return}nationalAlarmPopupPosition.value=point;nationalAlarmStore.select({id:alarm.id,source:'map'});void nationalAlarmRepository.detail(alarm.id)}
 function retryNationalAlarmDetail(){const id=nationalAlarmStore.selection?.id;if(id)void nationalAlarmRepository.detail(id,true)}
-function refreshWeather(){void weatherRepository.retry()}
-function closeWeatherLocation(){const picked=weatherStore.closeLocation();if(picked){weatherRepository.restore(weatherStore.defaultQuery);weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle,weatherMarkerPlaceName())}}
-function loadPickedWeather(lat:number,lon:number){if(!weatherCurrentActive.value)return;weatherStore.closeLocation();weatherLayerController.clearPicked();weatherLayerController.renderLoading({lat,lon},'picked','地图点选');const p=map.latLngToContainerPoint([lat,lon]);weatherPopupPosition.value={x:p.x,y:p.y};weatherStore.openLocation('picked');void weatherRepository.load(pickedWeatherQuery(store.current,lat,lon)).then(()=>{if(weatherStore.bundle?.target==='picked')weatherLayerController.renderPicked(weatherStore.bundle,'地图点选')})}
-function updateWeatherPopupPosition(){if(!weatherCurrentActive.value||weatherStore.locationPopup==='none'||!weatherStore.bundle)return;const point=weatherStore.bundle.target==='picked'?weatherStore.bundle.originalLocation:weatherStore.bundle.location;const p=map.latLngToContainerPoint([point.lat,point.lon]);weatherPopupPosition.value={x:p.x,y:p.y}}
+function refreshWeather(){void weatherMarkerRepository?.retry();void weatherRepository.retry()}
+function closeWeatherLocation(){weatherStore.selectedSeatCode=null;const picked=weatherStore.closeLocation();if(picked){weatherRepository.restore(weatherStore.defaultQuery);weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle,weatherMarkerPlaceName())}}
+function loadPickedWeather(lat:number,lon:number){if(!weatherCurrentActive.value)return;weatherStore.selectedSeatCode=null;weatherStore.closeLocation();weatherLayerController.clearPicked();weatherLayerController.renderLoading({lat,lon},'picked','地图点选');const p=map.latLngToContainerPoint([lat,lon]);weatherPopupPosition.value={x:p.x,y:p.y};weatherStore.openLocation('picked');void weatherRepository.load(pickedWeatherQuery(store.current,lat,lon)).then(()=>{if(weatherStore.bundle?.target==='picked')weatherLayerController.renderPicked(weatherStore.bundle,'地图点选')})}
+function onSeatMarkerClick(code:string,point:{x:number;y:number}){if(!weatherCurrentActive.value)return;const item=weatherMarkersStore.list.find((entry)=>entry.code===code);if(!item)return;weatherPopupPosition.value=point;weatherStore.selectedSeatCode=code;weatherStore.openLocation('default');void weatherRepository.load({contextLevel:item.level,contextCode:item.code,contextName:item.name,target:'seat'})}
+function updateWeatherPopupPosition(){if(!weatherCurrentActive.value||weatherStore.locationPopup==='none')return;if(weatherStore.bundle?.target==='seat'&&weatherStore.selectedSeatCode){const display=weatherMarkerLayerController?.displayPoint(weatherStore.selectedSeatCode);if(display){weatherPopupPosition.value=display;return}}if(!weatherStore.bundle)return;const point=weatherStore.bundle.target==='picked'?weatherStore.bundle.originalLocation:weatherStore.bundle.location;const p=map.latLngToContainerPoint([point.lat,point.lon]);weatherPopupPosition.value={x:p.x,y:p.y}}
 function updateNationalAlarmPopupPosition(){const alarm=selectedNationalAlarm.value;if(!nationalAlarmsActive.value||nationalAlarmStore.selection?.source!=='map'||!alarm?.mapLocation.point)return;const [lon,lat]=alarm.mapLocation.point;const p=map.latLngToContainerPoint([lat,lon]);nationalAlarmPopupPosition.value={x:p.x,y:p.y}}
 function updateMapPopupPositions(){updateWeatherPopupPosition();updateNationalAlarmPopupPosition()}
 function closeBusinessForDisaster() {
@@ -1368,7 +1369,7 @@ async function render(noFly = false) {
 
 watch(() => store.path.length, () => {
   if(nationalAlarmsActive.value){if(nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null);nationalAlarmLayerController?.clear()}
-  if(weatherActive.value){weatherStore.selection=null;weatherStore.locationPopup='none';const query=currentWeatherQuery();if(weatherCurrentActive.value){weatherLayerController?.clearPicked();const point=crumbRepresentativePoint(store.current);if(point)weatherLayerController.renderLoading(point,'default',weatherMarkerPlaceName())}void weatherRepository.load(query)}
+  if(weatherActive.value){weatherStore.selection=null;weatherStore.locationPopup='none';weatherStore.selectedSeatCode=null;if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherMarkerLayerController?.clear();weatherMarkerRepository?.open(store.current.level,store.current.code)}}
   const nf = pendingNoFly
   pendingNoFly = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
@@ -1383,8 +1384,10 @@ watch(() => store.path.length, () => {
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
 
-watch(() => weatherStore.bundle,(bundle)=>{if(!weatherCurrentActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle,'地图点选');else weatherLayerController?.renderDefault(bundle,weatherMarkerPlaceName())})
-watch(()=>weatherStore.phase,phase=>{if(!weatherCurrentActive.value||phase!=='error'||weatherStore.bundle)return;const query=weatherStore.query,point=query?.lat!=null&&query.lon!=null?{lat:query.lat,lon:query.lon}:crumbRepresentativePoint(store.current);if(point)weatherLayerController?.renderError(point,query?.target==='picked'?'picked':'default',query?.target==='picked'?'地图点选':weatherMarkerPlaceName())})
+watch(() => weatherStore.bundle,(bundle)=>{if(!weatherCurrentActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle,'地图点选')})
+watch(()=>weatherStore.phase,phase=>{if(!weatherCurrentActive.value||phase!=='error'||weatherStore.bundle)return;const query=weatherStore.query;if(query?.target!=='picked')return;if(query.lat!=null&&query.lon!=null)weatherLayerController?.renderError({lat:query.lat,lon:query.lon},'picked','地图点选')})
+// 多级政府驻地标牌：骨架/逐项成功/失败/选中变化都重建集合；旧层级流事件不会进入新层级（store generation 守卫）。
+watch(()=>[weatherMarkersStore.phase,weatherMarkersStore.list,weatherStore.selectedSeatCode] as const,()=>{if(!weatherCurrentActive.value||weatherMarkersStore.phase==='closed'){weatherMarkerLayerController?.clear();return}weatherMarkerLayerController?.render(weatherMarkersStore.list,weatherStore.selectedSeatCode)},{deep:true})
 // Do not rebuild markers when hover selection changes: replacing the button beneath
 // a stationary pointer emits a new mouseover and immediately reopens a just-closed popup.
 watch(()=>[nationalAlarmsActive.value,nationalAlarmStore.snapshot,store.current.code] as const,()=>{if(!nationalAlarmsActive.value){nationalAlarmLayerController?.clear();return}nationalAlarmLayerController?.render(nationalAlarmMapItems.value,nationalAlarmStore.selection?.id??null)},{deep:true})
@@ -1561,8 +1564,10 @@ onMounted(async () => {
     typhoonHoverPosition.value = point
   }
   weatherLayerController=createWeatherLayerController(map,{onLocationClick:(kind,point)=>{weatherPopupPosition.value=point;weatherStore.openLocation(kind)},onAlertClick:(selection,point)=>{weatherPopupPosition.value=point;weatherStore.selectAlert(selection)}})
+  weatherMarkerLayerController=createWeatherMarkerLayerController(map,{onMarkerClick:(code,point)=>{onSeatMarkerClick(code,point)}})
   weatherInteractionController=createWeatherInteractionController(map,{active:()=>weatherCurrentActive.value,editing:()=>parcelMode.value!=='idle',provinceGeometry:()=>provinceGeometry,onPicked:loadPickedWeather,onOutside:()=>showNotice('天气当前仅支持浙江省范围',true)})
   weatherRepository=createWeatherRepository(weatherStore)
+  weatherMarkerRepository=createWeatherMarkerRepository({begin:(level,code)=>weatherMarkersStore.begin(level,code),targets:(g,l,c,t)=>weatherMarkersStore.setTargets(g,l,c,t),ready:(g,c,s)=>weatherMarkersStore.setReady(g,c,s),fail:(g,c,e)=>weatherMarkersStore.setFail(g,c,e),streamFail:(g,e)=>weatherMarkersStore.setStreamFail(g,e)})
   nationalAlarmRepository=createNationalAlarmRepository(nationalAlarmStore)
   nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap})
   typhoonLayerController = createTyphoonLayerController(map, {
