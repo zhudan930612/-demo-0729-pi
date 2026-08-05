@@ -21,7 +21,7 @@
       <template v-else-if="bundle">
         <p class="query-context"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-5.1-7-11a7 7 0 0 1 14 0c0 5.9-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg><span>{{ locationContext }}</span></p>
 
-        <section class="current">
+        <section class="current" :class="{ night }">
           <div class="hero-head"><h3>当前天气</h3></div>
           <div v-if="bundle.current.status === 'success'" class="current-main">
             <QWeatherIcon :code="bundle.current.data.condition.code" />
@@ -72,7 +72,7 @@
               <article v-for="(item, index) in hourly.items" :key="`${item.forecastTime}-${index}`">
                 <span class="hour-row top"><time>{{ hourTimeLabel(item.forecastTime, hourly.items[0]?.forecastTime || item.forecastTime, index) }}</time><QWeatherIcon :code="item.condition.code" /></span>
                 <span class="hour-row mid"><strong :title="item.condition.text || '--'">{{ item.condition.text || '--' }}</strong><b>{{ temperatureText(item.temperature) }}</b></span>
-                <span class="hour-row bottom"><span>降水 {{ percentage(item.precipitation?.probability) }}</span><span>{{ unitText(item.precipitation?.amount) }}</span></span>
+                <span class="hour-row bottom" :title="`降水概率${percentage(item.precipitation?.probability)}，降水量${unitText(item.precipitation?.amount)}`"><span>{{ percentage(item.precipitation?.probability) }}</span><span>{{ unitText(item.precipitation?.amount) }}</span></span>
               </article>
             </div>
             <button v-show="hourCanRight" type="button" class="hour-hint right" aria-label="查看后面的小时预报" @click="scrollHours(1)">›</button>
@@ -91,7 +91,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref } from 'vue'
 import type { WeatherAlert, WeatherBundle } from '../../features/weather/weatherTypes'
-import { formatBeijing, hourlyCards, hourTimeLabel, minutelyState, percentage, precipitationType, temperatureText, unitText, warningColor, weatherEnumZh } from '../../features/weather/weatherAdapter'
+import { formatBeijing, hourlyCards, hourTimeLabel, isNightHour, minutelyState, percentage, precipitationType, temperatureText, unitText, warningColor, weatherEnumZh } from '../../features/weather/weatherAdapter'
 import QWeatherIcon from './QWeatherIcon.vue'
 
 const props = defineProps<{ kind: 'alert' | 'location'; title: string; bundle?: WeatherBundle | null; alert?: WeatherAlert | null; x: number; y: number; contextName?: string; contextPath?: string[]; phase?: string; errorMessage?: string }>()
@@ -119,6 +119,8 @@ function measure() {
   side.value = props.x + 120 + measuredWidth.value <= window.innerWidth - 12 ? 'right' : 'left'
 }
 function onResize() { measure() }
+const night = ref(isNightHour(new Date().getHours()))
+let nightTimer: number | null = null
 onMounted(() => nextTick(() => {
   dialog.value?.focus()
   updateHourHints()
@@ -126,8 +128,10 @@ onMounted(() => nextTick(() => {
   resizeObserver = new ResizeObserver(measure)
   if (dialog.value) resizeObserver.observe(dialog.value)
   window.addEventListener('resize', onResize)
+  nightTimer = window.setInterval(() => { night.value = isNightHour(new Date().getHours()) }, 60000)
 }))
 onBeforeUnmount(() => {
+  if (nightTimer !== null) window.clearInterval(nightTimer)
   resizeObserver?.disconnect()
   window.removeEventListener('resize', onResize)
   previousFocus?.focus()
@@ -276,21 +280,23 @@ function onHourWheel(event: WheelEvent) {
 .query-context span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .data-freshness, .minutely-meta small { color: #64748b; font-variant-numeric: tabular-nums; }
 .popup-body section.current { background: #50aadf; border-color: #50aadf; }
+.popup-body section.current.night { background: #1e3a5f; border-color: #1e3a5f; }
 .current-main { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 0 2px; }
-.current-main > i { flex: none; color: #1e40af; font-size: 32px; }
-.hero-cond { min-width: 0; font-size: 15px; font-weight: 600; color: #0f172a; line-height: 1.25; }
-.hero-temp { margin-left: auto; font-size: 30px; font-weight: 700; color: #0f172a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.current-main > i { flex: none; color: #fff; font-size: 34px; line-height: 1; }
+.hero-cond { min-width: 0; font-size: 15px; font-weight: 600; color: #fff; line-height: 1.25; }
+.hero-temp { margin-left: auto; font-size: 30px; font-weight: 700; color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .hero-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.hero-head h3 { color: #0f172a; }
+.hero-head h3 { color: #fff; }
 .temp-bar { display: flex; align-items: center; gap: 8px; padding: 4px 0 10px; }
-.temp-label { flex: none; min-width: 26px; color: #1e3a5f; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.temp-track { position: relative; flex: 1; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .55); }
+.temp-label { flex: none; min-width: 26px; color: rgba(255, 255, 255, .85); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.temp-track { position: relative; flex: 1; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .35); }
 .temp-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: #facc15; }
 .temp-fill::after { content: ''; position: absolute; top: 50%; right: -3px; width: 7px; height: 7px; transform: translateY(-50%); border-radius: 50%; background: #fff; border: 2px solid #facc15; }
 .current .module-error { margin-top: 8px; }
-.current .weather-metrics dt { color: #1e3a5f; }
-.current .weather-metrics div { border-top-color: rgba(30, 64, 175, .14); }
-.current .data-freshness { color: #1e3a5f; opacity: .78; }
+.current .weather-metrics dt { color: rgba(255, 255, 255, .78); }
+.current .weather-metrics div { border-top-color: rgba(255, 255, 255, .22); }
+.current .weather-metrics dd { color: #fff; }
+.current .data-freshness { color: rgba(255, 255, 255, .65); }
 .weather-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; margin: 4px 0 0; }
 .weather-metrics div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; padding: 6px 0; border-top: 1px solid #f1f5f9; font-size: 11px; }
 .weather-metrics dd { overflow: hidden; color: #1e293b; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -322,7 +328,7 @@ function onHourWheel(event: WheelEvent) {
 .hour-hint:hover { background: #1d4ed8; }
 .hour-hint.left { left: 2px; }
 .hour-hint.right { right: 2px; }
-.hour-strip article { flex: 0 0 110px; display: grid; gap: 4px; padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 10px; transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.hour-strip article { flex: 0 0 112px; display: grid; gap: 4px; padding: 7px 8px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 10px; transition: border-color 150ms ease-out, background-color 150ms ease-out; }
 .hour-strip article:hover { border-color: #93c5fd; }
 .hour-strip article i { color: #2563eb; font-size: 17px; }
 .hour-strip time, .hour-strip b { font-variant-numeric: tabular-nums; }

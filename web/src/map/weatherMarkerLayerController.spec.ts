@@ -20,10 +20,10 @@ describe('weather marker layer', () => {
     expect(html).toContain('>--<')
     expect(html).toContain('aria-label="示例乡 天气加载中"')
   })
-  it('成功态显示天气现象与最高/最低整数温度', () => {
+  it('成功态显示天气现象与最低/最高整数温度', () => {
     const html = buildWeatherMarkerHtml(item({ state: { phase: 'ready', summary: { condition: { code: '100', text: '晴' }, temperature: { value: 26.4, unit: '°C' }, high: { value: 32.6, unit: '°C' }, low: { value: 23.5, unit: '°C' }, fetchedAt: 'x' } } }))
     expect(html).toContain('qi-100')
-    expect(html).toContain('33/24°C')
+    expect(html).toContain('24/33°C')
     expect(html).toContain('最高33')
     expect(html).toContain('最低24')
   })

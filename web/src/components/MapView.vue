@@ -1384,7 +1384,9 @@ watch(() => store.path.length, () => {
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
 
-watch(() => weatherStore.bundle,(bundle)=>{if(!weatherCurrentActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle,'地图点选')})
+watch(() => weatherStore.bundle,(bundle)=>{if(!weatherCurrentActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle,'地图点选')
+// 浮窗与标牌共用政府驻地坐标：bundle 刷新后同步对应标牌，避免上游天气变化后浮窗新、标牌旧导致图标不一致。
+if(bundle.target==='seat'&&weatherStore.selectedSeatCode){const current=bundle.current;if(current.status==='success')weatherMarkersStore.setReady(weatherMarkersStore.generation,weatherStore.selectedSeatCode,{condition:current.data.condition,temperature:current.data.temperature,high:current.data.high,low:current.data.low,fetchedAt:bundle.fetchedAt})}})
 watch(()=>weatherStore.phase,phase=>{if(!weatherCurrentActive.value||phase!=='error'||weatherStore.bundle)return;const query=weatherStore.query;if(query?.target!=='picked')return;if(query.lat!=null&&query.lon!=null)weatherLayerController?.renderError({lat:query.lat,lon:query.lon},'picked','地图点选')})
 // 多级政府驻地标牌：骨架/逐项成功/失败/选中变化都重建集合；旧层级流事件不会进入新层级（store generation 守卫）。
 watch(()=>[weatherMarkersStore.phase,weatherMarkersStore.list,weatherStore.selectedSeatCode] as const,()=>{if(!weatherCurrentActive.value||weatherMarkersStore.phase==='closed'){weatherMarkerLayerController?.clear();return}weatherMarkerLayerController?.render(weatherMarkersStore.list,weatherStore.selectedSeatCode)},{deep:true})

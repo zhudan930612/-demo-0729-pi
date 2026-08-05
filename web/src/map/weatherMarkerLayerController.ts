@@ -24,7 +24,7 @@ export function buildWeatherMarkerHtml(item: WeatherMarkerItem): string {
   const temperature = state.phase === 'ready' ? state.summary?.temperature : null
   const unit = high?.unit ?? temperature?.unit ?? ''
   const range = high || low
-    ? `${integer(high?.value)}/${integer(low?.value)}${unit}`
+    ? `${integer(low?.value)}/${integer(high?.value)}${unit}`
     : temperature?.value != null ? `${integer(temperature.value)}${unit}` : '--'
   const city = failed ? '加载失败' : item.name
   const label = failed
