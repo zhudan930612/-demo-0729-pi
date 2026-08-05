@@ -1036,6 +1036,8 @@ function refreshWeather(){void weatherRepository.retry()}
 function closeWeatherLocation(){const picked=weatherStore.closeLocation();if(picked){weatherRepository.restore(weatherStore.defaultQuery);weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle,weatherMarkerPlaceName())}}
 function loadPickedWeather(lat:number,lon:number){if(!weatherCurrentActive.value)return;weatherStore.closeLocation();weatherLayerController.clearPicked();weatherLayerController.renderLoading({lat,lon},'picked','地图点选');const p=map.latLngToContainerPoint([lat,lon]);weatherPopupPosition.value={x:p.x,y:p.y};weatherStore.openLocation('picked');void weatherRepository.load(pickedWeatherQuery(store.current,lat,lon)).then(()=>{if(weatherStore.bundle?.target==='picked')weatherLayerController.renderPicked(weatherStore.bundle,'地图点选')})}
 function updateWeatherPopupPosition(){if(!weatherCurrentActive.value||weatherStore.locationPopup==='none'||!weatherStore.bundle)return;const point=weatherStore.bundle.target==='picked'?weatherStore.bundle.originalLocation:weatherStore.bundle.location;const p=map.latLngToContainerPoint([point.lat,point.lon]);weatherPopupPosition.value={x:p.x,y:p.y}}
+function updateNationalAlarmPopupPosition(){const alarm=selectedNationalAlarm.value;if(!nationalAlarmsActive.value||nationalAlarmStore.selection?.source!=='map'||!alarm?.mapLocation.point)return;const [lon,lat]=alarm.mapLocation.point;const p=map.latLngToContainerPoint([lat,lon]);nationalAlarmPopupPosition.value={x:p.x,y:p.y}}
+function updateMapPopupPositions(){updateWeatherPopupPosition();updateNationalAlarmPopupPosition()}
 function closeBusinessForDisaster() {
   clearSelection()
   rosterOpen.value = false
@@ -1512,6 +1514,7 @@ onMounted(async () => {
   map.on('click', (event) => {
     if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
+    if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
     if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
     const target = event.originalEvent.target
     // Canvas 矢量地块共用地图 canvas；点击 canvas 不等同于地图空白，不能用于关闭详情。
@@ -1596,7 +1599,7 @@ onMounted(async () => {
   map.getContainer().addEventListener('pointermove', () => {
     typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)
   })
-  map.on('move zoom',updateWeatherPopupPosition)
+  map.on('move zoom',updateMapPopupPositions)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
     if (zoomLevelOutput) zoomLevelOutput.textContent = `Z ${currentZoom.value.toFixed(2)}`

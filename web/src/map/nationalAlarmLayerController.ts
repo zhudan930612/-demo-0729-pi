@@ -1,5 +1,6 @@
 import L from 'leaflet'
 import type { NationalWeatherAlarm } from '../features/national-alarms/nationalAlarmTypes'
+import { groupMarkerOffset, NATIONAL_ALARM_MARKER_HEIGHT, NATIONAL_ALARM_MARKER_WIDTH } from './nationalAlarmMarkerLayout'
 
 function esc(value: string) { return value.replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]!)) }
 function markerHtml(alarm: NationalWeatherAlarm, selected: boolean) {
@@ -15,11 +16,11 @@ export function createNationalAlarmLayerController(map: L.Map, callbacks: Nation
   const pane = map.getPane('nationalAlarmPane') ?? map.createPane('nationalAlarmPane'); pane.style.zIndex = '460'
   const layer = L.layerGroup().addTo(map)
   function render(alarms: readonly NationalWeatherAlarm[], selectedId: string | null) {
-    layer.clearLayers(); const offsets = new Map<string, number>()
-    for (const alarm of alarms) {
+    layer.clearLayers(); const groups = new Map<string, NationalWeatherAlarm[]>()
+    for (const alarm of alarms) { const key = alarm.adminCode ?? alarm.id; const group = groups.get(key) ?? []; group.push(alarm); groups.set(key, group) }
+    for (const group of groups.values()) for (const [index, alarm] of group.entries()) {
       const point = alarm.mapLocation.point; if (!point) continue
-      const index = offsets.get(alarm.adminCode ?? alarm.id) ?? 0; offsets.set(alarm.adminCode ?? alarm.id, index + 1)
-      const marker = L.marker([point[1], point[0]], { pane: 'nationalAlarmPane', bubblingMouseEvents: false, keyboard: true, icon: L.divIcon({ className: 'national-alarm-marker-wrap', iconSize: [34, 26], iconAnchor: [17 - index * 7, 13], html: markerHtml(alarm, selectedId === alarm.id) }) })
+      const marker = L.marker([point[1], point[0]], { pane: 'nationalAlarmPane', bubblingMouseEvents: false, keyboard: true, icon: L.divIcon({ className: 'national-alarm-marker-wrap', iconSize: [NATIONAL_ALARM_MARKER_WIDTH, NATIONAL_ALARM_MARKER_HEIGHT], iconAnchor: [NATIONAL_ALARM_MARKER_WIDTH / 2 - groupMarkerOffset(index, group.length), NATIONAL_ALARM_MARKER_HEIGHT / 2], html: markerHtml(alarm, selectedId === alarm.id) }) })
       const open = () => { const p = map.latLngToContainerPoint(marker.getLatLng()); callbacks.onOpen(alarm, { x: p.x, y: p.y }) }
       // A marker only opens details on explicit activation; it must not react
       // to hover or focus because the popup stays open until Esc or its close button.
