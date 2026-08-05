@@ -430,6 +430,7 @@ let disposed = false
 let firstRender = true
 let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
 let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
+let lastZoom = DEFAULT_MIN_ZOOM // 上一次 zoomend 的缩放级, 用于区分放大/缩小方向
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 let manualDialogResolve: ((confirmed: boolean) => void) | null = null
@@ -1258,7 +1259,20 @@ async function render(noFly = false) {
   if (!noFly && bounds.isValid()) {
     // zoomend 早于 moveend：保持抑制到本次程序化移动完全结束，防止点击下钻后被自动退出逻辑撤销。
     suppressAutoZoom = true
-    map.once('moveend', () => { if (isCurrent()) suppressAutoZoom = false })
+    map.once('moveend', () => {
+      if (!isCurrent()) return
+      suppressAutoZoom = false
+      // 下钻/返回后若视野仍落在本层级"缩小退回"区间(大区域或小视口时 fitBounds 缩放级过低),
+      // 抬升到退出阈值之上, 否则用户随后的任意缩放都会被误判为退回上级。
+      const exitZ = EXIT_ZOOM[store.current.level]
+      const floor = exitZ !== undefined ? exitZ + 0.25 : -Infinity
+      if (map.getZoom() < floor) {
+        suppressAutoZoom = true
+        map.once('zoomend', () => { if (isCurrent()) suppressAutoZoom = false })
+        setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 500)
+        map.setZoom(floor)
+      }
+    })
     setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 1500)
     if (firstRender) {
       // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
@@ -1445,11 +1459,14 @@ function onAutoLevel() {
     return
   }
 
-  // 缩小: 退回上级
-  const exitZ = EXIT_ZOOM[crumb.level]
-  if (exitZ !== undefined && z <= exitZ && store.path.length > 1) {
-    pendingNoFly = true
-    store.back()
+  // 缩小: 仅在真正缩小时退回上级。下钻后视野可能仍落在退出区(大区域/小视口 fitBounds 缩放级过低),
+  // 若放大也触发退出会把用户误退回上级, 故先按 zoom 变化方向过滤。
+  if (z < lastZoom) {
+    const exitZ = EXIT_ZOOM[crumb.level]
+    if (exitZ !== undefined && z <= exitZ && store.path.length > 1) {
+      pendingNoFly = true
+      store.back()
+    }
   }
 }
 
@@ -1611,6 +1628,7 @@ onMounted(async () => {
     currentZoom.value = map.getZoom()
     if (zoomLevelOutput) zoomLevelOutput.textContent = `Z ${currentZoom.value.toFixed(2)}`
     onAutoLevel()
+    lastZoom = map.getZoom()
   })
   store.setNavigationGuard(async () => {
     if (!hasUnsavedParcelWork()) { clearSelection(); return true }
