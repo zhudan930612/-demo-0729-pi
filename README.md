@@ -174,9 +174,9 @@ curl "http://127.0.0.1:8787/api/national-weather-alarms"
 
 `/healthz` 只返回进程状态和是否已配置，不回显凭据或资源限制数值。代理默认不开放 CORS，错误统一为 `{ "error": { "code", "message", "requestId" } }`，且不会记录完整上游 URL、查询参数或原始响应。服务默认限制 6 个全局上游请求、每 IP 每分钟 60 次请求，并对同一列表/详情请求做 in-flight 合并和 30 秒成功结果缓存；缓存最多保留 128 条、限流窗口最多跟踪 2048 个直连 IP，均会在后续访问时全量回收过期项，满载时按最旧/LRU 顺序淘汰。这些服务端优化不改变前端“进入模式时取得单次快照”的语义。失败响应不会缓存。
 
-天气首期已实现：和风天气的实时、分钟降水与 24 小时预报已完成脱敏真实探针和真实 Chrome 关键链路验收，验收摘要见 [`docs/archive/天气查看V1验收记录.md`](./docs/archive/天气查看V1验收记录.md)；"气象预警"模块已由 NMC 浙江预警接管并取代（服务端新增 `/api/national-weather-alarms` 列表/详情/手动刷新路由，固定全省完整列表、图标锚定经核验政府驻地坐标、浮窗仅标题/发布时间/官方正文且无外链，行为以 [`docs/requirements/全国气象预警数据接入需求.md`](docs/requirements/全国气象预警数据接入需求.md) 为准），和风预警请求已下线。可选 `APIHZ_ADDRESS_URL` 当前未配置，地址增强真实链路尚未验收，界面按行政对象、地块或地图点选位置文案降级，不阻断实时天气三个模块。前端仅请求本站 `/api/weather` 与 `/api/national-weather-alarms`，天气与台风模式互斥；天气保持当前行政视角，支持行政/地块默认点、桌面 `Ctrl + 左键单击` 临时点、模块独立失败与每 10 分钟刷新。QWeather Icons 通过 npm 包 `qweather-icons` 本地构建，不使用运行时 CDN；包代码与随包图标/字体资源的 MIT License 原文和归属保存在 [`web/THIRD_PARTY_NOTICES.md`](./web/THIRD_PARTY_NOTICES.md)，构建时同步复制到 `web/dist/THIRD_PARTY_NOTICES.md`。该声明不代表或变更另行提供的 CC BY 4.0 设计源文件许可。
+天气首期已实现：和风天气的实时、分钟降水与 24 小时预报已完成脱敏真实探针和真实 Chrome 关键链路验收，验收摘要见 [`docs/archive/天气查看V1验收记录.md`](./docs/archive/天气查看V1验收记录.md)；"气象预警"模块已由 NMC 浙江预警接管并取代（服务端新增 `/api/national-weather-alarms` 列表/详情/手动刷新路由，固定全省完整列表、图标锚定经核验政府驻地坐标、浮窗仅标题/发布时间/官方正文且无外链，行为以 [`docs/requirements/全国气象预警数据接入需求.md`](docs/requirements/全国气象预警数据接入需求.md) 为准），和风预警请求已下线。实时天气已升级为多级政府驻地标牌：服务端 `/api/weather/markers` 按当前层级以 NDJSON 流返回子级目标骨架与逐项摘要（省→11 市、市→区县、县→乡镇，乡镇/村/地块无预置标牌只可 `Ctrl + 左键`），标牌坐标来自边界校验后的政府驻地表；点击标牌请求 `target=seat` 完整详情，服务端自行取同一可信坐标。可选 `APIHZ_ADDRESS_URL` 当前未配置，地址增强真实链路尚未验收，界面按标牌完整行政路径或地图点选位置文案降级，不阻断实时天气三个模块。前端仅请求本站 `/api/weather`、`/api/weather/markers` 与 `/api/national-weather-alarms`，天气与台风模式互斥；天气保持当前行政视角，支持多级常驻标牌、桌面 `Ctrl + 左键单击` 临时点、标牌摘要与浮窗独立失败及每 10 分钟刷新。QWeather Icons 通过 npm 包 `qweather-icons` 本地构建，不使用运行时 CDN；包代码与随包图标/字体资源的 MIT License 原文和归属保存在 [`web/THIRD_PARTY_NOTICES.md`](./web/THIRD_PARTY_NOTICES.md)，构建时同步复制到 `web/dist/THIRD_PARTY_NOTICES.md`。该声明不代表或变更另行提供的 CC BY 4.0 设计源文件许可。
 
-天气代理严格消费服务端私有的 `WEATHER_DATA_DIR/weather/index-v2.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内。非法请求在任何上游调用前拒绝。和风天气的实时、分钟降水、24 小时预报独立缓存与返回（“气象预警”模块已由 NMC 浙江预警接管，和风预警请求下线，见下方预警代理说明），地址增强失败只降级地址模块。天气缓存按实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
+天气代理严格消费服务端私有的 `WEATHER_DATA_DIR/weather/index-v2.json` 及其边界引用：`target=admin` 不接受浏览器坐标；`target=parcel` 要求村上下文且点在村界内；`target=picked` 要求点在浙江省真实省界内；`target=seat` 只接受市/县/乡镇代码，坐标由服务端从边界校验后的政府驻地表（`server/data/government-seats-v1.json`）解析，不接受浏览器坐标。`/api/weather/markers` 只接受 `contextLevel/contextCode`，首个事件为目标骨架后逐项 `ready/error`，断连即取消。非法请求在任何上游调用前拒绝。和风天气的实时、分钟降水、24 小时预报独立缓存与返回（“气象预警”模块已由 NMC 浙江预警接管，和风预警请求下线，见下方预警代理说明），地址增强失败只降级地址模块。天气缓存按实时 10 分钟、分钟降水 5 分钟、逐小时 30 分钟、地址 30 天新鲜期管理；到期刷新失败可保留上次成功结果。清缓存只允许 loopback 使用 `DELETE /api/weather/cache` 并携带 `X-Weather-Admin-Token`，未配置令牌或匿名请求均拒绝。
 
 天气关键路径可用非敏感 fixture 在系统 Chrome 中回归，不访问和风天气、APIHz 或天地图：
 
@@ -230,6 +230,7 @@ python scripts/prepare-parcel-pilot.py enrich   # 为现有前端地块补面积
 TIANDITU_GEOCODER_KEY=... node scripts/generate-government-seats.mjs  # 一次性生成政府驻地坐标表（省/市/县 102 条）写入 server/data/government-seats-v1.json（天地图地理编码；密钥只从环境变量读取）
 TIANDITU_GEOCODER_KEY=... node scripts/generate-government-seats.mjs --full  # 追加乡镇级坐标（1390 乡镇）至同一表；天地图乡镇级重名地名常返回省外同名点，匹配分 <60 的乡镇标记 unresolved 不参与定位；断点续跑+每200条checkpoint
 node scripts/generate-government-seats.mjs --output-only              # 离线校验坐标表结构与覆盖范围（不访问天地图；--full 时校验全量）
+python scripts/check-government-seats.py  # 政府驻地表 vs 天气空间索引：代码/名称/层级匹配、评分门槛、候选驻地点位于自身+完整父链+省界范围内，输出各层级可用数与最大单县乡镇数（无坐标明细）
 
 cd web
 cp .env.local.example .env.local         # 填入 VITE_TIANDITU_TOKEN
