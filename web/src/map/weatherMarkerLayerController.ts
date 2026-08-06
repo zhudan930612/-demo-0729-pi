@@ -126,6 +126,8 @@ export function createWeatherMarkerLayerController(map: L.Map, callbacks: Weathe
     registry.clear()
     offsets.clear()
     selectedCode = null
+    // 清除残留快照：否则地图 zoom/move 触发的 render(lastItems) 会把已退出的天气标牌重新画回地图。
+    lastItems = []
   }
   const onMove = () => applyPositions()
   const onZoom = () => render(lastItems, selectedCode)

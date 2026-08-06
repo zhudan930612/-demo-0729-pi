@@ -11,7 +11,8 @@ export function isZhejiangCrumb(crumb:Crumb|null):boolean{
 }
 export function weatherEntryState(input:{mode:DisasterViewMode;crumb:Crumb|null;hasUnsavedWork:boolean}){
  if(input.hasUnsavedWork)return{enabled:false,reason:'请先保存或取消当前未完成操作'}
- if(input.mode!=='none')return{enabled:false,reason:input.mode==='weather'?'天气查看模式已开启':'请先退出台风查看'}
+ if(input.mode==='typhoon')return{enabled:false,reason:'请先退出台风查看'}
+ // 天气模块（实时天气/气象预警）之间允许叠加开启；只有台风模式与天气互斥。
  if(!isZhejiangCrumb(input.crumb))return{enabled:false,reason:'天气当前仅支持浙江省范围'}
  return{enabled:true,reason:'查看天气'}
 }

@@ -11,8 +11,8 @@
       </button>
       <Transition name="tool-menu">
         <div v-if="weatherMenuOpen" id="weather-tool-menu" class="tool-menu" aria-label="选择天气查看模块">
-          <button ref="firstWeatherActionRef" type="button" class="menu-action" :class="{ selected: weatherModule === 'alerts' }" @click="chooseWeatherModule('alerts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3.5 7.4v5.2c0 4.5 3.2 7.4 8.5 8.9 5.3-1.5 8.5-4.4 8.5-8.9V7.4L12 3Z"/><path d="M12 7.5v5M12 16.5h.01"/></svg><span>气象预警</span></button>
-          <button type="button" class="menu-action" :class="{ selected: weatherModule === 'current' }" @click="chooseWeatherModule('current')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/></svg><span>实时天气</span></button>
+          <button ref="firstWeatherActionRef" type="button" class="menu-action" :class="{ selected: weatherModules.includes('alerts') }" :title="weatherModules.includes('alerts') ? '退出气象预警查看' : '进入气象预警查看'" @click="chooseWeatherModule('alerts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3.5 7.4v5.2c0 4.5 3.2 7.4 8.5 8.9 5.3-1.5 8.5-4.4 8.5-8.9V7.4L12 3Z"/><path d="M12 7.5v5M12 16.5h.01"/></svg><span>气象预警</span></button>
+          <button type="button" class="menu-action" :class="{ selected: weatherModules.includes('current') }" :title="weatherModules.includes('current') ? '退出实时天气查看' : '进入实时天气查看'" @click="chooseWeatherModule('current')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/></svg><span>实时天气</span></button>
         </div>
       </Transition>
     </div>
@@ -64,20 +64,20 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParcelMode } from '../../features/parcels/parcelTypes'
 type WeatherModule = 'alerts' | 'current'
-const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModule:WeatherModule|null }>()
-const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[] }>()
+const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[] }>()
+const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), parcelToolButtonRef=ref<HTMLButtonElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false)
 const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'查看台风')
-const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModule==='alerts'?'气象预警':'实时天气'}，点击切换`:props.weatherEntryReason)
+const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModules.map((module)=>module==='alerts'?'气象预警':'实时天气').join('、')}，点击菜单项可退出`:props.weatherEntryReason)
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
 function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false}
 function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
 function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
 function chooseParcelMode(mode:'manual'|'filter'){parcelMenuOpen.value=false;if(mode==='manual')emit('start-manual');else emit('start-filter')}
-function chooseWeatherModule(module:WeatherModule){weatherMenuOpen.value=false;emit('open-weather',module)}
+function chooseWeatherModule(module:WeatherModule){weatherMenuOpen.value=false;if(props.weatherModules.includes(module)){emit('close-weather',module);return}emit('open-weather',module)}
 function closeOnOutside(event:PointerEvent){if((parcelMenuOpen.value||weatherMenuOpen.value)&&!controlStackRef.value?.contains(event.target as Node))closeMenus()}
 function onKeydown(event:KeyboardEvent){if(event.key!=='Escape'||(!parcelMenuOpen.value&&!weatherMenuOpen.value))return;event.preventDefault();event.stopImmediatePropagation();const focusWeather=weatherMenuOpen.value;closeMenus();void nextTick(()=>focusWeather?weatherButtonRef.value?.focus():parcelToolButtonRef.value?.focus())}
 watch(()=>[props.parcelToolsVisible,props.parcelToolsDisabled,props.weatherEntryDisabled] as const,()=>{if(!props.parcelToolsVisible||props.parcelToolsDisabled)parcelMenuOpen.value=false;if(props.weatherEntryDisabled)weatherMenuOpen.value=false})

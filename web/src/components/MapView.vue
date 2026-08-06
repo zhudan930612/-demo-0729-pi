@@ -143,9 +143,9 @@
       :disaster-entry-disabled="disasterEntryDisabled || anyWeatherActive"
       :disaster-active="disasterActive"
       :weather-entry-disabled="!weatherEntry.enabled && !anyWeatherActive"
-      :weather-entry-reason="anyWeatherActive ? '切换天气查看模块' : weatherEntry.reason"
+      :weather-entry-reason="anyWeatherActive ? '选择天气查看模块' : weatherEntry.reason"
       :weather-active="anyWeatherActive"
-      :weather-module="nationalAlarmsActive ? 'alerts' : weatherStore.module"
+      :weather-modules="activeWeatherModules"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
@@ -153,6 +153,7 @@
       @start-filter="startParcelEditing"
       @open-typhoon="enterTyphoonMode"
       @open-weather="enterWeatherMode"
+      @close-weather="closeWeatherFromToolbar"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
     />
@@ -284,6 +285,7 @@ const disasterActive = ref(false)
 const weatherActive = computed(()=>weatherStore.isOpen)
 const anyWeatherActive = computed(()=>weatherActive.value||nationalAlarmsActive.value)
 const weatherCurrentActive = computed(()=>weatherActive.value&&weatherStore.module==='current')
+const activeWeatherModules = computed<WeatherModuleKind[]>(()=>{const list:WeatherModuleKind[]=[];if(weatherActive.value&&weatherStore.module)list.push(weatherStore.module);if(nationalAlarmsActive.value)list.push('alerts');return list})
 // 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
@@ -996,7 +998,6 @@ const seatContextPath=computed(()=>{const marker=weatherMarkersStore.list.find((
 async function enterWeatherMode(module:WeatherModuleKind){
  if(module==='alerts'){ void enterNationalAlarms(); return }
  if(weatherActive.value&&weatherStore.module===module)return
- if(nationalAlarmsActive.value)exitNationalAlarms()
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
  weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();rosterOpen.value=false;weatherStore.open(module)
@@ -1010,11 +1011,11 @@ function exitWeatherMode(){weatherRepository.exit();weatherMarkerRepository?.exi
 async function enterNationalAlarms(){
  if(nationalAlarmsActive.value)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
- if(weatherActive.value)exitWeatherMode()
  if(disasterActive.value)exitTyphoonMode(false)
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
 function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();nationalAlarmStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function closeWeatherFromToolbar(module:WeatherModuleKind){if(module==='alerts')exitNationalAlarms();else exitWeatherMode()}
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  nationalAlarmStore.select({id:alarm.id,source:'list'})
