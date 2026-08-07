@@ -60,9 +60,23 @@ else
   python scripts/prepare-rs-tiles.py
 fi
 
-# 4.5 龙江村地块导出（从 LFS 内模型输出 gpkg 生成前端 parcels，标准库读取，无需 fiona/GDAL）
-step "prepare-parcel-pilot.py export（龙江村地块）"
-python scripts/prepare-parcel-pilot.py export 05-遥感数据/parcel-pilot/330604102014/delineated/Longjiang.gpkg
+# 4.5 地块导出（从模型输出 gpkg 生成前端 parcels，标准库读取，无需 fiona/GDAL）
+# 默认导出龙江村；可通过 PARCEL_VILLAGES="330604102016 330604102017" 指定多个村。
+step "prepare-parcel-pilot.py export（地块导出）"
+PARCEL_VILLAGES="${PARCEL_VILLAGES:-330604102014}"
+for vcode in $PARCEL_VILLAGES; do
+  # 推理输出 gpk 按 batch 配置写入 {村代码}/delineated/{目录名}.gpkg
+  gpk=$(ls 05-遥感数据/parcel-pilot/$vcode/delineated/*.gpkg 2>/dev/null | head -1 || true)
+  if [ -z "$gpk" ]; then
+    echo "跳过 $vcode：未找到模型输出 gpkg"
+    continue
+  fi
+  python scripts/prepare-parcel-pilot.py export "$gpk" --village $vcode
+  # 有保单产物时同步校验
+  if [ -f "web/src/data/policy-$vcode.json" ]; then
+    python scripts/validate-policy-fixture.py --village $vcode
+  fi
+done
 
 # 5. 数据链路校验
 step "validate-data.py（13 项）"
