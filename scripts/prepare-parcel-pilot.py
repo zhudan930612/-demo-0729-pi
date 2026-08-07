@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
-"""准备 Delineate Anything 龙江村试点输入，并将模型结果裁回村界/导出 GeoJSON。
+"""准备 Delineate Anything 试点裁片，并将模型结果裁回村界/导出 GeoJSON。
 
 用法：
-  python scripts/prepare-parcel-pilot.py prepare
-  python scripts/prepare-parcel-pilot.py export <模型输出.gpkg>
+  python scripts/prepare-parcel-pilot.py prepare [--village 330604102014]
+  python scripts/prepare-parcel-pilot.py export <模型输出.gpkg> [--village 330604102014]
+  python scripts/prepare-parcel-pilot.py enrich [--village 330604102014]
 
 源影像、试点裁片、模型产物和前端 GeoJSON 均受 .gitignore 排除，不公开提交。
+多村化：--village 指定村代码（默认 330604102014 保持向后兼容）；村所属乡镇
+自动从 web/public/data/villages/*.geojson 按 code 匹配（村码前缀 ≠ 乡镇码，
+禁止前缀推导）。
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -21,24 +26,52 @@ from shapely.ops import transform as transform_shape
 from pyproj import Geod, Transformer
 
 ROOT = Path(__file__).resolve().parent.parent
-VILLAGE_CODE = "330604102014"
-TOWNSHIP_CODE = "330604104000"
+DEFAULT_VILLAGE = "330604102014"
 SOURCE_TIF = ROOT / "05-遥感数据" / "JL1KF02B05_PMS02_20250402113627_200366490_101_0012_001_L3C_PSH.tif"
-VILLAGES = ROOT / "web" / "public" / "data" / "villages" / f"{TOWNSHIP_CODE}.geojson"
-WORK = ROOT / "05-遥感数据" / "parcel-pilot" / VILLAGE_CODE
-INPUT = WORK / "images" / "Longjiang"
-OUTPUT = WORK / "delineated"
-TEMP = WORK / "temp"
-FRONTEND = ROOT / "web" / "public" / "data" / "parcels" / f"{VILLAGE_CODE}.geojson"
+VILLAGES_DIR = ROOT / "web" / "public" / "data" / "villages"
 BUFFER_M = 128
 MIN_PARCEL_M2 = 200
 MAX_PARCEL_M2 = 100_000
 M2_PER_MU = 2000 / 3
 
 
-def village_feature() -> dict:
-    data = json.loads(VILLAGES.read_text(encoding="utf-8"))
-    return next(f for f in data["features"] if f["properties"]["code"] == VILLAGE_CODE)
+def find_village(code: str) -> tuple[Path, dict]:
+    """按村代码在全部乡镇 villages 文件中匹配，返回 (乡镇文件路径, 村 feature)。"""
+    if not VILLAGES_DIR.is_dir():
+        raise SystemExit(f"villages 目录不存在: {VILLAGES_DIR}")
+    matches = []
+    for path in sorted(VILLAGES_DIR.glob("*.geojson")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for feature in data.get("features", []):
+            if feature.get("properties", {}).get("code") == code:
+                matches.append((path, feature))
+    if not matches:
+        raise SystemExit(f"在 villages 文件中未找到村代码: {code}")
+    if len(matches) > 1:
+        # 正常数据一个村只属于一个乡镇；若出现多个只警告并取第一个。
+        print(f"警告: 村 {code} 在多个乡镇文件中出现，取 {matches[0][0].name}")
+    return matches[0]
+
+
+def village_name(code: str) -> str:
+    _, feature = find_village(code)
+    return str(feature.get("properties", {}).get("name", code))
+
+
+def batch_dir_name(code: str) -> str:
+    """Delineate Anything batch 子目录名。龙江村保持历史英文名 Longjiang（batch-longjiang.yaml
+    与既有模型产物引用它），其余村统一使用村代码，避免中文路径与历史产物混淆。"""
+    return "Longjiang" if code == "330604102014" else code
+
+
+def paths_for(code: str) -> tuple[Path, Path, Path, Path, Path]:
+    """按村代码派生 (work, input, output, temp, frontend) 路径。"""
+    input_dir = ROOT / "05-遥感数据" / "parcel-pilot" / code / "images" / batch_dir_name(code)
+    work = ROOT / "05-遥感数据" / "parcel-pilot" / code
+    output = work / "delineated"
+    temp = work / "temp"
+    frontend = ROOT / "web" / "public" / "data" / "parcels" / f"{code}.geojson"
+    return work, input_dir, output, temp, frontend
 
 
 def write_crop(src: rasterio.DatasetReader, window: Window, out: Path) -> None:
@@ -62,9 +95,11 @@ def write_crop(src: rasterio.DatasetReader, window: Window, out: Path) -> None:
     print(f"写入 {out}: {int(window.width)}x{int(window.height)}")
 
 
-def prepare() -> None:
-    feature = village_feature()
-    for p in (INPUT, OUTPUT, TEMP):
+def prepare(code: str) -> None:
+    _, feature = find_village(code)
+    dir_name = batch_dir_name(code)
+    work, input_dir, output, temp, _ = paths_for(code)
+    for p in (input_dir, output, temp):
         p.mkdir(parents=True, exist_ok=True)
 
     with rasterio.open(SOURCE_TIF) as src:
@@ -74,20 +109,13 @@ def prepare() -> None:
             minx - BUFFER_M, miny - BUFFER_M, maxx + BUFFER_M, maxy + BUFFER_M,
             transform=src.transform,
         )
-        write_crop(src, full_window, INPUT / "longjiang-buffered.tif")
+        write_crop(src, full_window, input_dir / f"{dir_name}-buffered.tif")
 
-        # 1536px 冒烟样本：先验证模型、权重和空间输出，不代表最终识别质量。
-        cx, cy = shape(geom).centroid.coords[0]
-        row, col = src.index(cx, cy)
-        smoke = Window(col - 768, row - 768, 1536, 1536)
-        smoke_dir = WORK / "images" / "Smoke"
-        write_crop(src, smoke, smoke_dir / "smoke.tif")
-
-    (WORK / "village.geojson").write_text(
+    (work / "village.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": [feature]}, ensure_ascii=False),
         encoding="utf-8",
     )
-    print(f"工作目录: {WORK}")
+    print(f"工作目录: {work}")
 
 
 def parcel_properties(parcel_id: int, part, area_m2: float) -> dict:
@@ -101,11 +129,12 @@ def parcel_properties(parcel_id: int, part, area_m2: float) -> dict:
     }
 
 
-def enrich_frontend() -> None:
+def enrich_frontend(code: str) -> None:
     """为现有前端地块补充面积和标注点，不改变 ID、顺序或几何。"""
-    if not FRONTEND.exists():
-        raise SystemExit(f"地块文件不存在: {FRONTEND}")
-    data = json.loads(FRONTEND.read_text(encoding="utf-8"))
+    _, _, _, _, frontend = paths_for(code)
+    if not frontend.exists():
+        raise SystemExit(f"地块文件不存在: {frontend}")
+    data = json.loads(frontend.read_text(encoding="utf-8"))
     geod = Geod(ellps="WGS84")
     for index, item in enumerate(data.get("features", []), start=1):
         part = shape(item["geometry"])
@@ -113,13 +142,13 @@ def enrich_frontend() -> None:
         parcel_id = item.get("properties", {}).get("id", index)
         item["properties"] = parcel_properties(parcel_id, part, area_m2)
 
-    temp = FRONTEND.with_suffix(".geojson.tmp")
+    temp = frontend.with_suffix(".geojson.tmp")
     temp.write_text(
         json.dumps(data, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    temp.replace(FRONTEND)
-    print(f"补充面积 {FRONTEND}: {len(data['features'])} 个地块, {FRONTEND.stat().st_size / 1024:.1f} KiB")
+    temp.replace(frontend)
+    print(f"补充面积 {frontend}: {len(data['features'])} 个地块, {frontend.stat().st_size / 1024:.1f} KiB")
 
 
 def _read_gpkg_geometries(gpkg: Path) -> tuple[list, int]:
@@ -170,8 +199,8 @@ def _read_gpkg_geometries(gpkg: Path) -> tuple[list, int]:
     return geoms, srs_id
 
 
-def export(gpkg: Path) -> None:
-    feature = village_feature()
+def export(gpkg: Path, code: str) -> None:
+    _, feature = find_village(code)
     village = shape(feature["geometry"])
     geoms, srs_id = _read_gpkg_geometries(gpkg)
     if srs_id <= 0:
@@ -201,22 +230,31 @@ def export(gpkg: Path) -> None:
                 "geometry": mapping(part),
             })
 
-    FRONTEND.parent.mkdir(parents=True, exist_ok=True)
-    FRONTEND.write_text(
+    _, _, _, _, frontend = paths_for(code)
+    frontend.parent.mkdir(parents=True, exist_ok=True)
+    frontend.write_text(
         json.dumps({"type": "FeatureCollection", "features": rows}, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
-    print(f"导出 {FRONTEND}: {len(rows)} 个地块, {FRONTEND.stat().st_size / 1024:.1f} KiB")
+    print(f"导出 {frontend}: {len(rows)} 个地块, {frontend.stat().st_size / 1024:.1f} KiB")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Delineate Anything 村裁片准备与地块导出")
+    parser.add_argument("command", choices=["prepare", "export", "enrich"])
+    parser.add_argument("gpkg", nargs="?", default=None, help="export 时模型输出 GPKG 路径")
+    parser.add_argument("--village", default=DEFAULT_VILLAGE, help=f"村代码（默认 {DEFAULT_VILLAGE}）")
+    args = parser.parse_args()
+
+    if args.command == "prepare":
+        prepare(args.village)
+    elif args.command == "enrich":
+        enrich_frontend(args.village)
+    else:
+        if not args.gpkg:
+            raise SystemExit("export 需要模型结果 GPKG 路径")
+        export(Path(args.gpkg), args.village)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in {"prepare", "export", "enrich"}:
-        raise SystemExit("用法: prepare-parcel-pilot.py prepare | export <结果.gpkg> | enrich")
-    if sys.argv[1] == "prepare":
-        prepare()
-    elif sys.argv[1] == "enrich":
-        enrich_frontend()
-    else:
-        if len(sys.argv) < 3:
-            raise SystemExit("export 需要模型结果 GPKG 路径")
-        export(Path(sys.argv[2]))
+    main()
