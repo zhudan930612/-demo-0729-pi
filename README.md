@@ -26,7 +26,9 @@
 - Git
 - Node.js 20.19+ 或 22.12+
 - pnpm 9 或更高版本；未安装时执行：`npm install -g pnpm`
-- 可用的天地图 API Token
+- Python 3.10+（仅生成数据需要）：`pip install pyshp shapely rasterio pillow numpy`
+- 可用的天地图 API Token（**必填**，地图底图）
+- （可选）APIHz 开发者凭据（台风）、和风天气凭据（实时天气）；不配置时对应功能不可用，其余功能正常
 
 ### 2. 拉取代码
 
@@ -83,24 +85,12 @@ web/public/tiles/   # 吉林一号 XYZ 影像瓦片（脚本可生成）
 
 没有这些数据时，前端可以启动，但行政区划下钻和高分影像无法正常展示。
 
-### 4. 配置天地图 Token
+> **顺序提示**：数据生成放在依赖安装之后、启动之前即可（互不依赖）。**首次启动前至少完整跑一次 `prepare-all.sh --skip-tiles`（约 6 分钟）**，否则页面能打开但地图没有边界、无法下钻；影像可在之后补跑完整命令生成。后续所有命令均从**仓库根目录**执行。
 
-进入前端目录：
-
-```bash
-cd web
-```
-
-Windows PowerShell：
-
-```powershell
-Copy-Item .env.local.example .env.local
-```
-
-macOS / Linux / Git Bash：
+### 4. 配置天地图 Token（前端）
 
 ```bash
-cp .env.local.example .env.local
+cp web/.env.local.example web/.env.local          # Windows PowerShell: Copy-Item
 ```
 
 编辑 `web/.env.local`：
@@ -111,35 +101,29 @@ VITE_TIANDITU_TOKEN=你的天地图Token
 
 `.env.local` 已被 Git 忽略，禁止提交 Token。
 
-### 5. 安装前端依赖并启动基础地图
+### 5. 安装依赖并启动前端
 
 ```bash
-pnpm install
-pnpm dev
+pnpm install --dir web
+pnpm --dir web dev
 ```
 
-只需地图、影像、地块与本机业务功能时可先单独启动前端；“查看台风”还必须按下一节启动 Node 代理。浏览器访问终端显示的地址，默认是：
+浏览器访问终端显示的地址，默认是：
 
 ```text
 http://localhost:5173
 ```
 
-### 6. 启动台风 API 代理并联调
+只需地图、影像、地块与本机业务功能时可先单独启动前端；“查看台风”/“天气”还必须按下一节启动 Node 代理。
 
-台风功能通过独立 Node 服务访问 APIHz。APIHz 开发者 ID 和 KEY 只能由服务端读取，不得使用 `VITE_*` 变量，也不得写入浏览器代码或提交到仓库。
+### 6. 启动后端代理并联调（终端 1）
 
-复制服务端环境变量示例：
+台风与天气通过独立 Node 服务访问 APIHz / 和风天气。APIHz 开发者 ID 和 KEY、和风凭据只能由服务端读取，不得使用 `VITE_*` 变量，也不得写入浏览器代码或提交到仓库。
 
-Windows PowerShell：
-
-```powershell
-Copy-Item server/.env.example server/.env.local
-```
-
-macOS / Linux / Git Bash：
+复制服务端环境变量示例（从仓库根）：
 
 ```bash
-cp server/.env.example server/.env.local
+cp server/.env.example server/.env.local   # Windows PowerShell: Copy-Item server/.env.example server/.env.local
 ```
 
 编辑 `server/.env.local`，填写本机凭据：
@@ -180,6 +164,17 @@ pnpm --dir web dev
 ```
 
 Vite 将浏览器的 `/api` 请求转发至 `http://127.0.0.1:8787`。如本机代理端口不同，只设置非秘密变量 `DEV_API_PROXY_TARGET`，例如 `http://127.0.0.1:9000`；不要把 APIHz 凭据放入该变量。
+
+### 启动检查清单
+
+两个服务都起来后，按顺序确认：
+
+1. **后端健康**：`curl http://127.0.0.1:8787/healthz` 返回 `{"ok":true,...}`
+2. **前端页面**：浏览器打开 http://localhost:5173 ，看到天地图底图
+3. **行政区划下钻**：点击省→市→县→乡→村，边界逐级出现；乡镇/村级显示吉林一号影像（需已生成 tiles）
+4. **台风**（需 APIHz 凭据）：进入灾害风险模式，台风路径/风圈/时间轴正常
+5. **天气**（需和风凭据 + 已生成数据）：查看天气面板，实时/分钟降水/24 小时预报正常
+6. **气象预警**：预警面板展示浙江省当前预警列表，地图有预警图标
 
 可用以下命令检查代理：
 
@@ -250,10 +245,9 @@ TIANDITU_GEOCODER_KEY=... node scripts/generate-government-seats.mjs --full  # �
 node scripts/generate-government-seats.mjs --output-only              # 离线校验坐标表结构与覆盖范围（不访问天地图；--full 时校验全量）
 python scripts/check-government-seats.py  # 政府驻地表 vs 天气空间索引：代码/名称/层级匹配、评分门槛、候选驻地点位于自身+完整父链+省界范围内，输出各层级可用数与最大单县乡镇数（无坐标明细）
 
-cd web
-cp .env.local.example .env.local         # 填入 VITE_TIANDITU_TOKEN
-pnpm install
-pnpm dev
+cp web/.env.local.example web/.env.local  # 填入 VITE_TIANDITU_TOKEN
+pnpm install --dir web
+pnpm --dir web dev
 ```
 
 私有 `weather/index-v2.json` 只保存五级父子关系、最终边界文件引用和每个可信行政面在“自身 + 完整父链 + 浙江省界”共同交集内的代表点，不复制几何。服务端必须同时读取私有索引与其引用的最终 GeoJSON，并用完整父链面几何做授权校验；索引或边界缺失、损坏、几何无效、行政代码重复/名称冲突、代表点越出自身或任一父级时应拒绝加载，不能用包围盒降级放行。已确认的源数据错码/错归属只能通过受版本控制的 `scripts/data/weather-village-corrections-v1.json` 修正：规则记录源文件签名、记录序号、伴随源的 `objectid`、旧值、新值/丢弃动作、理由和公开来源；生成器仅在所有签名与旧值精确匹配时应用，源数据漂移或规则未命中均 fail closed。当前规则将凤凰村修正为统计用区划码 `330182108264`，丢弃错误归入三都镇的湖岑畈村重复记录，并将更楼街道湖岑畈村由源旧码 `330182003009` 修正为连续多期区划目录代码 `330182003206`；仓库已提交数据中没有旧码引用。四级边界源中的已确认乡镇错标同样必须经 `scripts/data/weather-township-corrections-v1.json` 的 ZIP/成员签名和要素旧值精确匹配修正；当前规则只丢弃误标为东阳市 `330783005000` 的“赤溪街道”小面，保留该代码的江北街道和兰溪市 `330781005000` 的赤溪街道。村界源还混有末三位为 `000` 的乡镇本级/围垦面记录；生成器按 12 位统计用区划代码结构排除这些非村级记录并输出计数，避免其冒充村节点。其余经源签名、行政代码结构和现役四级边界父链交叉核验确认的错归属记录同样写入版本化修正规则；无法可靠归属的省界外/海岛杂面 fail closed 丢弃。无村面文件的 38 个乡镇由 `scripts/data/weather-missing-villages-allowlist-v1.json` 精确约束，集合漂移即拒绝生成。不得绕过规则文件在脚本中增加静默特殊判断。前端边界位于未提交的 `web/public/data/`；天气代理只使用未提交的 `.dev-runtime/weather-data/` 私有副本，防止浏览器取得服务端授权索引。浙江预警地图图标固定锚定仓库内受控表 `server/data/government-seats-v1.json`（省、11 市、90 区县经核验政府驻地坐标，记录行政代码、名称、层级、查询名称、坐标、匹配分与生成时间；运行索引默认从 `server/data/` 读取，可用 `GOVERNMENT_SEATS_FILE` 覆盖相对 `server/` 的路径）；运行时不查询天地图或其他地理编码服务，坐标缺失、低于约定匹配分、名称/层级不一致或不在行政面及完整父链内时拒绝加载预警空间索引，不能退回面内代表点、几何中心或包围盒。同一表还可包含 `--full` 生成的乡镇级坐标（1390 条，天地图对乡镇重名地名会返回省外同名点，故匹配分 <60 的乡镇标记为 `unresolved` 不参与定位）；预警运行索引只读取省/市/县子集，其余层级条目忽略。
