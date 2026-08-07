@@ -124,7 +124,13 @@ def validate_village(code: str, strict: bool = True) -> None:
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
-    check(len(current_policies) == 5 and len(single_current) == 4 and len(roster_current) == 1, f"{code}: 当前保单严格为 4 张单一型 + 1 张清单型")
+    # 50 亩分类按面积：四区（多地块）+ 单块 >50 亩大田均为单一型；其余一块一户进清单
+    check(len(roster_current) == 1, f"{code}: 当前恰好 1 张分户清单型保单")
+    check(len(single_current) >= 4 and all(
+        sum((Decimal(cov["insuredAreaMu"]) for cov in current if cov["policyId"] == pol["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP) > Decimal("50.00")
+        for pol in single_current
+    ), f"{code}: 全部单一型保单分类面积超过 50 亩")
+    check(len(single_current) >= 4, f"{code}: 至少 4 张单一型保单（四个经营区）")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}

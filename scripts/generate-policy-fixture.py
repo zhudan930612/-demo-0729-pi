@@ -196,7 +196,10 @@ def generate(code: str) -> None:
         if party != confirmed_party_id:
             raise SystemExit(f"confirmation party sequence mismatch: {confirmed_party_id} != {party}")
         area = sum((areas[i] for i in group), Decimal("0"))
-        mode = "single_insured" if len(group) > 1 else "insured_roster"
+        classified = area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        # 50 亩分类规则按被保险人汇总面积（非地块数）：>50.00 亩单独出单一型保单，
+        # <=50.00 亩进入分户清单。单块大田（如 63 亩）也必须单独出单。
+        mode = "single_insured" if classified > Decimal("50.00") else "insured_roster"
         if mode == "single_insured" and area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00"):
             raise SystemExit(f"four-region single policy must exceed 50 mu: {party} = {area}")
         item_id = f"item-2025-{item_no:04d}" if mode == "insured_roster" else None
