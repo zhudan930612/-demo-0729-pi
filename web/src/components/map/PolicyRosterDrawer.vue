@@ -19,7 +19,7 @@
     <div class="roster-table-wrap">
       <table>
         <thead><tr><th>序号</th><th>村（居）</th><th>投保人姓名</th><th>组织机构代码 / 身份证号</th><th>联系方式</th><th>投保面积（亩）</th><th>保费金额（元）</th><th>农户自缴（元）</th><th>农户银行卡号或银行账号</th><th>农户开户行</th><th>备注</th></tr></thead>
-        <tbody><tr v-for="(item,index) in pageItems" :key="item.id" :class="{ selected: selectedId === item.id }" @click="select(item)"><td>{{ (page-1)*20+index+1 }}</td><td>龙江村</td><td>{{ party(item)?.name }}</td><td>{{ party(item)?.identityOrOrgCode ?? '—' }}</td><td>{{ party(item)?.contactPhone ?? '—' }}</td><td>{{ Number(item.insuredAreaMu).toFixed(2) }}</td><td>{{ amount(item.premium_cents) }}</td><td>{{ amount(item.self_paid_cents) }}</td><td>{{ party(item)?.bankAccount ?? '—' }}</td><td>{{ party(item)?.bankName ?? '—' }}</td><td>{{ party(item)?.remark || '—' }}</td></tr></tbody>
+        <tbody><tr v-for="(item,index) in pageItems" :key="item.id" :class="{ selected: selectedId === item.id }" @click="select(item)"><td>{{ (page-1)*20+index+1 }}</td><td>{{ villageName || '—' }}</td><td>{{ party(item)?.name }}</td><td>{{ party(item)?.identityOrOrgCode ?? '—' }}</td><td>{{ party(item)?.contactPhone ?? '—' }}</td><td>{{ Number(item.insuredAreaMu).toFixed(2) }}</td><td>{{ amount(item.premium_cents) }}</td><td>{{ amount(item.self_paid_cents) }}</td><td>{{ party(item)?.bankAccount ?? '—' }}</td><td>{{ party(item)?.bankName ?? '—' }}</td><td>{{ party(item)?.remark || '—' }}</td></tr></tbody>
       </table>
       <div v-if="!pageItems.length" class="empty-state"><strong>未找到匹配的被保险人</strong></div>
     </div>
@@ -31,7 +31,7 @@
 import { computed, ref, watch } from 'vue'
 import type { EnrollmentItem, Party, Policy } from '../../features/policy/policyTypes'
 
-const props = defineProps<{ policy: Policy; items: EnrollmentItem[]; parties: Party[] }>()
+const props = defineProps<{ policy: Policy; items: EnrollmentItem[]; parties: Party[]; villageName: string }>()
 const emit = defineEmits<{ close: []; select: [item: EnrollmentItem] }>()
 const query = ref('')
 const page = ref(1)

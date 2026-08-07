@@ -99,6 +99,7 @@
         :policy="selectedPolicyContext.currentPolicy"
         :items="selectedRosterItems"
         :parties="policyFixture?.parties ?? []"
+        :village-name="store.current.level === 'village' ? store.current.name : ''"
         @close="rosterOpen = false"
         @select="selectRosterItem"
       />
