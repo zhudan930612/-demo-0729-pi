@@ -52,13 +52,15 @@ web/public/tiles/   # 吉林一号 XYZ 影像瓦片（脚本可生成）
 
 有两种方式取得运行数据：
 
-- **方式 A（推荐）：从源数据重新生成**，需 Python 依赖（pyshp / shapely / rasterio / pillow / numpy）：
+- **方式 A（推荐）：一键生成脚本**，需 Python 依赖（pyshp / shapely / rasterio / pillow / numpy）：
 
   ```bash
-  python scripts/prepare-boundaries.py     # 生成 web/public/data/ + .dev-runtime/weather-data/
-  python scripts/prepare-rs-tiles.py       # 生成 web/public/tiles/
-  python scripts/validate-data.py          # 数据链路校验
+  pip install pyshp shapely rasterio pillow numpy
+  bash scripts/prepare-all.sh              # 完整生成（含影像切片，约 15-40 分钟）
+  bash scripts/prepare-all.sh --skip-tiles # 跳过影像切片（约 6 分钟，影像用已有瓦片或稍后补跑）
   ```
+
+  脚本按顺序执行：边界/村界/天气索引生成 → 空间索引校验 → 脚本单元测试 → 影像切片（可选）→ 13 项数据链路校验，任一步失败即停。
 
 - **方式 B：从项目维护者处取得内部数据包**，将 `data/` 和 `tiles/` 放入 `web/public/`。目录至少应包含：
 
