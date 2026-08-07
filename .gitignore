@@ -2,7 +2,9 @@
 .env.local
 **/.env.local
 
-# ---- 源数据(体积超限 + 版权限制, 不入库) ----
+# ---- 源数据 ----
+# 01-行政区划/、05-遥感数据/ 已通过 Git LFS 入库（私有仓库 + 已授权），见 .gitattributes
+# 参考截图（内部评审截图）不入库
 参考截图/
 
 # ---- 预处理产物(可由 scripts/ 重新生成, 不入库) ----
@@ -20,7 +22,8 @@ test-results/
 # 整体忽略 .dev-runtime/（服务端私有索引、锐多宝派生边界、大体积村界/瓦片）。
 # 政府驻地坐标表是受控版本化资产，位于仓库内 server/data/，不在此目录。
 .dev-runtime/
-server/reports/weather-probe-summary.local.json
+# 探针脱敏聚合报告为本机产物（含年度变体），不入库
+server/reports/
 server/*.log
 .runtime-server*.log
 .vite-*.log
