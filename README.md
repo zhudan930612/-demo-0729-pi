@@ -35,33 +35,49 @@ git clone https://github.com/zhudan930612/-demo-0729-pi.git
 cd ./-demo-0729-pi
 ```
 
+拉取后需取得 LFS 源数据实体（仓库私有，需已授权账号）：
+
+```bash
+git lfs pull   # 拉取 01-行政区划/、05-遥感数据/ 实际文件（约 2.1 GB）
+```
+
 ### 3. 准备本地数据
 
-出于体积和版权限制，GitHub 仓库**不包含**以下运行数据：
+源数据 `01-行政区划/`、`05-遥感数据/` 已通过 Git LFS 入库（私有仓库 + 已授权数据，跟踪规则见 `.gitattributes`）。但以下**运行产物**仍不入库：
 
 ```text
-web/public/data/    # 行政边界、manifest、遥感信息及 AI 地块
-web/public/tiles/   # 吉林一号 XYZ 影像瓦片
+web/public/data/    # 行政边界、manifest、遥感信息及 AI 地块（脚本可生成）
+web/public/tiles/   # 吉林一号 XYZ 影像瓦片（脚本可生成）
 ```
 
-首次运行前，需要从项目维护者处取得内部数据包，并将其中的 `data/` 和 `tiles/` 放入 `web/public/`。目录至少应包含：
+有两种方式取得运行数据：
 
-```text
-web/public/
-├── data/
-│   ├── boundary/
-│   ├── villages/
-│   ├── manifest.json
-│   └── rs.json
-└── tiles/
-    └── rs/
+- **方式 A（推荐）：从源数据重新生成**，需 Python 依赖（pyshp / shapely / rasterio / pillow / numpy）：
 
-.dev-runtime/weather-data/       # 服务端私有副本，由预处理脚本生成
-├── boundary/
-├── villages/
-├── manifest.json
-└── weather/index-v2.json
-```
+  ```bash
+  python scripts/prepare-boundaries.py     # 生成 web/public/data/ + .dev-runtime/weather-data/
+  python scripts/prepare-rs-tiles.py       # 生成 web/public/tiles/
+  python scripts/validate-data.py          # 数据链路校验
+  ```
+
+- **方式 B：从项目维护者处取得内部数据包**，将 `data/` 和 `tiles/` 放入 `web/public/`。目录至少应包含：
+
+  ```text
+  web/public/
+  ├── data/
+  │   ├── boundary/
+  │   ├── villages/
+  │   ├── manifest.json
+  │   └── rs.json
+  └── tiles/
+      └── rs/
+
+  .dev-runtime/weather-data/       # 服务端私有副本，由预处理脚本生成
+  ├── boundary/
+  ├── villages/
+  ├── manifest.json
+  └── weather/index-v2.json
+  ```
 
 没有这些数据时，前端可以启动，但行政区划下钻和高分影像无法正常展示。
 
@@ -209,7 +225,7 @@ pnpm --dir web preview --host 0.0.0.0
 
 ## 从源数据完整复现
 
-源数据（行政区划、遥感 TIF）不入库，需自备并放到约定目录：
+源数据（行政区划、遥感 TIF）已通过 Git LFS 入库（`git lfs pull` 后位于约定目录）：
 
 ```
 01-行政区划/浙江四级边界加村点/   # 锐多宝浙江省界 + 11 地市 zip
@@ -242,7 +258,7 @@ pnpm dev
 
 ## 版权说明
 
-- 锐多宝行政区划数据仅限学术研究/内部验证，未取得商业授权前不得对外发布
-- 吉林一号影像为商业数据，派生瓦片及 AI 识别地块 GeoJSON 同样不得公开分发
+- 锐多宝行政区划数据仅限学术研究/内部验证；本仓库私有环境下已获授权可 LFS 入库，未取得商业授权前不得对外发布
+- 吉林一号影像为商业数据，派生瓦片及 AI 识别地块 GeoJSON 同样不得公开分发（私有仓库内可用，不得转为公开仓库或外发）
 - Delineate Anything 采用 AGPL-3.0；本项目仅将其作为仓库外离线预处理工具，模型源码和权重不入库
 - AI 地块为零样本演示结果，不是确权、承保或测绘成果
