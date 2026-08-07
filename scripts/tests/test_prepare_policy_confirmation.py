@@ -6,6 +6,7 @@ import json
 import sys
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -86,6 +87,28 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         finally:
             MODULE.source_path = original_source_path
             MODULE.output_path = original_output_path
+
+    def test_assign_regions_equal_area_strips_over_50_mu(self):
+        # 模拟 200 块 1.5 亩 = 300 亩参保：每区约 60 亩（>50），且四区覆盖约 80%
+        ids = [str(i) for i in range(1, 201)]
+        points = {pid: (120.0 + i * 0.001, 30.0) for i, pid in enumerate(ids)}
+        areas = {pid: Decimal("1.5") for pid in ids}
+        regions, roster = MODULE.assign_regions(ids, points, areas)
+        self.assertEqual(len(regions), 4)
+        for region in regions:
+            total = sum((areas[pid] for pid in region), Decimal(0))
+            self.assertGreater(total, Decimal("50"))
+        self.assertGreater(len(roster), 0)
+        covered = sum(len(r) for r in regions)
+        self.assertGreaterEqual(covered / len(ids), 0.7)
+
+    def test_assign_regions_rejects_tiny_village(self):
+        # 参保总面积 < 250 亩（如 100 块 × 1 亩）应抛错
+        ids = [str(i) for i in range(1, 101)]
+        points = {pid: (120.0 + i * 0.001, 30.0) for i, pid in enumerate(ids)}
+        areas = {pid: Decimal("1") for pid in ids}
+        with self.assertRaises(SystemExit):
+            MODULE.assign_regions(ids, points, areas)
 
 
 if __name__ == "__main__":

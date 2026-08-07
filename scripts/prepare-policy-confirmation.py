@@ -49,6 +49,9 @@ def region_index(u: float, v: float) -> int | None:
     u grows west-to-east; v grows north-to-south. Same four approximate spatial belts as
     the longjiang pilot (west-central, northern, south-west, east-central), applied to the
     current village's own normalized bounding box. Order resolves approximate overlaps.
+
+    Note: fixed-threshold belts are only used as a fallback ordering hint; the primary
+    region assignment below uses equal-area strips along longitude (assign_regions).
     """
     if u < .60 and .25 <= v < .55:
         return 0  # 1: west-central belt
@@ -59,6 +62,43 @@ def region_index(u: float, v: float) -> int | None:
     if .44 <= u < .82 and .25 <= v < .64:
         return 3  # 4: east-central belt
     return None
+
+
+def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[list[list[str]], list[str]]:
+    """按经度排序等面积划分：前 80% 参保面积切成 4 个连续条带，剩余 20% 一块一户。
+
+    设计说明：龙江村截图四区规则（region_index 固定阈值条带）对部分村不成立——
+    某些村落在条带上的面积不足 50 亩（如新三联村 330604102018 仅 16.61 亩），
+    无法形成单一型保单。改为沿经度累积面积切 4 段（每段约总参保 20%），
+    空间连续；四区合计覆盖约 80% 参保面积（与龙江村口径一致），
+    剩余约 20% 参保地块一块一户进入分户清单。
+    确定性、可复现，不依赖具体村截图。参保总面积 <250 亩时每区不足 50 亩，
+    抛错提示该村不适合 4+1 结构。
+    """
+    ordered = sorted(parcel_ids, key=lambda pid: points[pid][0])  # 经度西→东
+    total = sum((areas[pid] for pid in ordered), Decimal(0))
+    if total < Decimal("250"):
+        raise SystemExit(f"参保总面积 {total.quantize(Decimal('.01'))} 亩 < 250 亩，四区每区不足 50 亩，不适合 4+1 结构")
+    four_area = total * Decimal("0.8")  # 四区合计覆盖 80%
+    seg = four_area / 4  # 每区目标 20%
+    # 沿经度累积面积分配：前 4 段各 ~20%，剩余进入 roster
+    regions: list[list[str]] = [[] for _ in range(4)]
+    cursor = 0
+    acc = Decimal("0")
+    split_points = [seg, seg * 2, seg * 3, four_area]
+    for pid in ordered:
+        area = areas[pid]
+        while cursor < 4 and acc + area >= split_points[cursor] and acc > Decimal("0"):
+            cursor += 1
+        if cursor < 4:
+            regions[cursor].append(pid)
+        acc += area
+    # 尾部（累积超过 four_area 的部分）一块一户
+    roster = []
+    for pid in ordered:
+        if pid not in set().union(*regions):
+            roster.append(pid)
+    return regions, roster
 
 
 def deterministic_uninsured(ids: list[str]) -> set[str]:
@@ -105,14 +145,7 @@ def generate(code: str, force: bool = False) -> None:
     xs = [point[0] for point in points.values()]
     ys = [point[1] for point in points.values()]
     min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
-    regions = [[] for _ in REGION_PARTIES]
-    roster = []
-    for parcel_id in insured_ids:
-        x, y = points[parcel_id]
-        u = (x - min_x) / (max_x - min_x) if max_x > min_x else 0.5
-        v = (max_y - y) / (max_y - min_y) if max_y > min_y else 0.5
-        index = region_index(u, v)
-        (regions[index] if index is not None else roster).append(parcel_id)
+    regions, roster = assign_regions(insured_ids, points, areas)
 
     assignments = {}
     for party_id, group in zip(REGION_PARTIES, regions):
