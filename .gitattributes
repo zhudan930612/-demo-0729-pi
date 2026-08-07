@@ -1,0 +1,6 @@
+# Git LFS：源数据目录统一走 LFS（2026-08-07，私有仓库 + 已授权数据）
+# 01-行政区划：锐多宝边界/村界源数据（含 2×420MB SHP）
+# 05-遥感数据：吉林一号影像源数据（含 843MB TIF）
+# 目录级规则保证这两个目录下所有文件不进入 git 普通对象
+01-行政区划/** filter=lfs diff=lfs merge=lfs -text
+05-遥感数据/** filter=lfs diff=lfs merge=lfs -text
