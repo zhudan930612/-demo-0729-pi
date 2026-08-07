@@ -102,13 +102,14 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         covered = sum(len(r) for r in regions)
         self.assertGreaterEqual(covered / len(ids), 0.7)
 
-    def test_assign_regions_rejects_tiny_village(self):
-        # 参保总面积 < 250 亩（如 100 块 × 1 亩）应抛错
+    def test_assign_regions_tiny_village_all_roster(self):
+        # 参保总面积 <250 亩（如 100 块 × 1 亩）时四区每区不足 50 亩，全部回收进 roster
         ids = [str(i) for i in range(1, 101)]
         points = {pid: (120.0 + i * 0.001, 30.0) for i, pid in enumerate(ids)}
         areas = {pid: Decimal("1") for pid in ids}
-        with self.assertRaises(SystemExit):
-            MODULE.assign_regions(ids, points, areas)
+        regions, roster = MODULE.assign_regions(ids, points, areas)
+        self.assertTrue(all(len(r) == 0 for r in regions))
+        self.assertEqual(len(roster), len(ids))
 
 
 if __name__ == "__main__":

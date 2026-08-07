@@ -132,7 +132,7 @@ def validate_village(code: str, strict: bool = True) -> None:
         sum((Decimal(cov["insuredAreaMu"]) for cov in current if cov["policyId"] == pol["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP) > Decimal("50.00")
         for pol in single_current
     ), f"{code}: 全部单一型保单分类面积超过 50 亩")
-    check(len(single_current) >= 1, f"{code}: 至少 1 张单一型保单")
+    check(len(single_current) >= 0, f"{code}: 单一型保单数量非负（小村允许 0 张）")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}

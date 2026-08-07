@@ -251,9 +251,13 @@ def generate(code: str) -> None:
     fixture = {"schemaVersion": "policy-v1", "businessDate": BUSINESS_DATE, "villageCode": code, "parties": parties, "policies": policies, "enrollmentLists": [{"id": "list-policy-2025-roster", "policyId": "policy-2025-roster", "applicantPartyId": "party-roster", "itemIds": [i["id"] for i in items]}], "enrollmentItems": items, "parcelCoverages": coverages, "claims": claims, "report": report}
 
     records = []
+    uninsured_sorted = sorted(uninsured, key=int)
     for parcel_id in ids:
-        if parcel_id in uninsured and int(parcel_id) % 5 != 0:
-            continue
+        if parcel_id in uninsured:
+            # 未参保地块按未参保集合内序号每 5 块保留 1 块初始档案，且序号 1 必保留
+            # （避免依赖 parcel ID 取模分布；白沙等小村未参保块数少时也保证至少 1 块有档案）
+            if (uninsured_sorted.index(parcel_id) + 1) % 5 != 0 and uninsured_sorted.index(parcel_id) != 0:
+                continue
         records.append({"villageCode": code, "parcelId": parcel_id, "year": 2025, "season": "单季稻" if int(parcel_id) % 3 == 0 else ("早稻" if int(parcel_id) % 3 == 1 else "连作晚稻"), "crop": "水稻", "variety": "甬优1540" if int(parcel_id) % 2 else "嘉优中科1号", "startDate": "2025-05-01", "endDate": "2025-11-30", "status": "已核查" if int(parcel_id) % 11 else "需复核", "checkedAt": "2025-06-20" if int(parcel_id) % 11 else "2025-06-22", "note": ""})
     cultivation_output = json.dumps({"schemaVersion": "cultivation-v1", "businessDate": BUSINESS_DATE, "records": records}, ensure_ascii=False, indent=2)
 

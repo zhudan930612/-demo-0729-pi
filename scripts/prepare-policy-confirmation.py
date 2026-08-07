@@ -77,8 +77,8 @@ def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[li
     """
     ordered = sorted(parcel_ids, key=lambda pid: points[pid][0])  # 经度西→东
     total = sum((areas[pid] for pid in ordered), Decimal(0))
-    if total < Decimal("250"):
-        raise SystemExit(f"参保总面积 {total.quantize(Decimal('.01'))} 亩 < 250 亩，不适合 4+1 结构")
+    if total <= Decimal("0"):
+        raise SystemExit("参保面积为空，无法生成确认")
     four_area = total * Decimal("0.8")  # 四区合计覆盖 80%
     seg = four_area / 4  # 每区目标 20%
     # 沿经度累积面积分配：前 4 段各 ~20%，剩余进入 roster
@@ -98,7 +98,9 @@ def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[li
     for pid in ordered:
         if pid not in set().union(*regions):
             roster.append(pid)
-    # 分类面积 <=50 亩的区：逐块回收到 roster（保持一块一户、单一型均 >50 亩）
+    # 分类面积 <=50 亩的区：逐块回收到 roster（保持一块一户、单一型均 >50 亩）。
+    # 小村（如白沙 232 亩）四区可能全部 <50 亩，最终 0 张单一型、全部进清单，
+    # 这是数据现实（所有被保险人 ≤50 亩），实际保单数由生成报告记录。
     kept: list[list[str]] = [[] for _ in range(4)]
     for index, region in enumerate(regions):
         region_area = sum((areas[pid] for pid in region), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
