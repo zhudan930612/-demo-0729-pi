@@ -1,0 +1,78 @@
+{
+  "fixtureVersion": "policy-v1.1.0",
+  "businessDate": "2025-07-15",
+  "villageCode": "330604102017",
+  "baseParcelCount": 629,
+  "insuredParcelCount": 592,
+  "uninsuredParcelCount": 37,
+  "uninsuredAreaMu": "122.7300",
+  "partyCount": 192,
+  "policyCount": 6,
+  "currentPolicyCount": 5,
+  "currentSinglePolicyCount": 4,
+  "currentRosterPolicyCount": 1,
+  "rosterItemCount": 186,
+  "spatialReview": {
+    "confirmationVersion": "parcel-confirmation-v1",
+    "confirmedAt": "2025-04-01",
+    "confirmedBy": "operator-01",
+    "grouping": "four-approximate-regions-plus-one-parcel-roster",
+    "insuredPartyMetrics": [
+      {
+        "insuredPartyId": "party-0001",
+        "parcelCount": 83,
+        "geometryAreaMu": "343.2100",
+        "insuredModePreview": "single_insured",
+        "spatialGroupCount": 1,
+        "primaryGroupAreaRatio": 1.0,
+        "maxDistanceM": 1403.9,
+        "isolatedParcelIds": [],
+        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
+        "regionIndex": 1
+      },
+      {
+        "insuredPartyId": "party-0002",
+        "parcelCount": 109,
+        "geometryAreaMu": "339.6500",
+        "insuredModePreview": "single_insured",
+        "spatialGroupCount": 1,
+        "primaryGroupAreaRatio": 1.0,
+        "maxDistanceM": 1113.7,
+        "isolatedParcelIds": [],
+        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
+        "regionIndex": 2
+      },
+      {
+        "insuredPartyId": "party-0003",
+        "parcelCount": 122,
+        "geometryAreaMu": "340.9900",
+        "insuredModePreview": "single_insured",
+        "spatialGroupCount": 1,
+        "primaryGroupAreaRatio": 1.0,
+        "maxDistanceM": 1134.2,
+        "isolatedParcelIds": [],
+        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
+        "regionIndex": 3
+      },
+      {
+        "insuredPartyId": "party-0004",
+        "parcelCount": 92,
+        "geometryAreaMu": "347.2800",
+        "insuredModePreview": "single_insured",
+        "spatialGroupCount": 1,
+        "primaryGroupAreaRatio": 1.0,
+        "maxDistanceM": 1342.9,
+        "isolatedParcelIds": [],
+        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
+        "regionIndex": 4
+      },
+      {
+        "insuredPartyId": "roster-one-parcel-per-party",
+        "parcelCount": 186,
+        "insuredModePreview": "insured_roster",
+        "rosterItemCount": 186,
+        "manualReview": "通过：四区外参保地块一块一户"
+      }
+    ]
+  }
+}
