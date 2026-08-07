@@ -124,19 +124,21 @@ def validate_village(code: str, strict: bool = True) -> None:
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
-    # 50 亩分类按面积：四区（多地块）+ 单块 >50 亩大田均为单一型；其余一块一户进清单
+    # 50 亩分类按面积：四区/大田（>50 亩）为单一型；其余一块一户进清单。
+    # 小村（参保总面积接近 250 亩）天然无法保证四个区都 >50 亩，允许单一型数量 <4，
+    # 实际数量以生成报告记录为准，不作为需求预设（沿用需求 6.2 口径）。
     check(len(roster_current) == 1, f"{code}: 当前恰好 1 张分户清单型保单")
-    check(len(single_current) >= 4 and all(
+    check(all(
         sum((Decimal(cov["insuredAreaMu"]) for cov in current if cov["policyId"] == pol["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP) > Decimal("50.00")
         for pol in single_current
     ), f"{code}: 全部单一型保单分类面积超过 50 亩")
-    check(len(single_current) >= 4, f"{code}: 至少 4 张单一型保单（四个经营区）")
+    check(len(single_current) >= 1, f"{code}: 至少 1 张单一型保单")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}
     check(len(roster_coverages) == len(roster_item_ids) and all(len(items[item_id]["parcelCoverageIds"]) == 1 for item_id in roster_item_ids), f"{code}: 分户清单严格一块一户")
     multi_parcel_parties = [party for party, covs in by_party.items() if len(covs) > 1]
-    check(len(multi_parcel_parties) == 4 and all(any(policy["insuredPartyId"] == party for policy in single_current) for party in multi_parcel_parties), f"{code}: 仅四个经营区为一户多块单一型保单")
+    check(len(multi_parcel_parties) <= 4 and all(any(policy["insuredPartyId"] == party for policy in single_current) for party in multi_parcel_parties), f"{code}: 多块被保险人（≤4 个经营区）均为单一型保单")
     check(q.get("assignmentModel") == "four-approximate-regions-plus-one-parcel-roster", f"{code}: 确认清单使用四区加一块一户模型")
     check(all(Decimal(x["insuredAreaMu"]) > 0 for x in p["parcelCoverages"]), f"{code}: 承保面积均大于 0")
     if strict:
@@ -166,7 +168,7 @@ def validate_village(code: str, strict: bool = True) -> None:
     check(not all(int(accounts[index]) - int(accounts[index - 1]) == 1 for index in range(1, len(accounts))), f"{code}: 清单主体银行卡号不使用顺序递增")
     check(all(party.get("bankName") == "中国邮政储蓄银行" for party in roster_parties if party["id"] != "party-roster"), f"{code}: 清单主体开户行统一为中国邮政储蓄银行")
     base_count = len(conf_records) if not strict else len(areas)
-    print(f"{code}: 报告：基础 {base_count} 块，当前参保 {len(set(current_ids))} 块，未参保 {base_count - len(set(current_ids))} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（4 单一型 + 1 清单型），历史保单 {len(p['policies']) - len(current_policies)} 张。")
+    print(f"{code}: 报告：基础 {base_count} 块，当前参保 {len(set(current_ids))} 块，未参保 {base_count - len(set(current_ids))} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（{len(single_current)} 单一型 + {len(roster_current)} 清单型），历史保单 {len(p['policies']) - len(current_policies)} 张。")
 
 
 def discover_village_codes() -> list[str]:

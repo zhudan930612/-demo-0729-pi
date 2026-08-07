@@ -187,14 +187,16 @@ def generate(code: str) -> None:
     confirmed_groups: dict[str, list[str]] = {}
     for parcel_id in insured_ids:
         confirmed_groups.setdefault(confirmed[parcel_id]["insuredPartyId"], []).append(parcel_id)
-    if len([group for group in confirmed_groups.values() if len(group) > 1]) != 4:
-        raise SystemExit(f"confirmation must contain exactly four multi-parcel operating regions for {code}")
-    for confirmed_party_id, group in sorted(confirmed_groups.items()):
+    multi_parcel_groups = [group for group in confirmed_groups.values() if len(group) > 1]
+    if len(multi_parcel_groups) > 4:
+        raise SystemExit(f"confirmation must contain at most four multi-parcel operating regions for {code}")
+    for confirmed_party_id, group in sorted(confirmed_groups.items(), key=lambda item: item[0]):
         party_number = int(confirmed_party_id.rsplit("-", 1)[-1])
         party_type = "家庭农场" if party_number <= 4 else "自然人"
-        party = add_party(party_type)
-        if party != confirmed_party_id:
-            raise SystemExit(f"confirmation party sequence mismatch: {confirmed_party_id} != {party}")
+        # 直接使用确认文件的 party id，避免 add_party 递增序列与确认编号错位
+        # （小村回收区会在确认编号中留空洞）
+        party = confirmed_party_id
+        parties.append({"id": party, "name": party_name(party_number, code), "partyType": party_type, **party_profile(party_number, party_name(party_number, code), code)})
         area = sum((areas[i] for i in group), Decimal("0"))
         classified = area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         # 50 亩分类规则按被保险人汇总面积（非地块数）：>50.00 亩单独出单一型保单，
@@ -202,16 +204,24 @@ def generate(code: str) -> None:
         mode = "single_insured" if classified > Decimal("50.00") else "insured_roster"
         if mode == "single_insured" and area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00"):
             raise SystemExit(f"four-region single policy must exceed 50 mu: {party} = {area}")
-        item_id = f"item-2025-{item_no:04d}" if mode == "insured_roster" else None
-        cov_ids = []
-        for parcel_id in group:
-            cid = f"coverage-2025-{parcel_id}"
-            cov_ids.append(cid)
-            coverages.append({"id": cid, "policyId": f"policy-2025-{party}" if mode == "single_insured" else "policy-2025-roster", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": item_id})
         if mode == "single_insured":
+            cov_ids = []
+            for parcel_id in group:
+                cid = f"coverage-2025-{parcel_id}"
+                cov_ids.append(cid)
+                coverages.append({"id": cid, "policyId": f"policy-2025-{party}", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": None})
             add_policy(party, mode, party, [], cov_ids, 2025)
         else:
-            items.append({"id": item_id, "enrollmentListId": "list-policy-2025-roster", "itemNo": f"{code[-4:]}-{item_no:04d}", "insuredPartyId": party, "parcelCoverageIds": cov_ids, "insuredAreaMu": str(area), **money(area)})
+            # 分类面积 <=50 亩：进入分户清单。确认脚本已保证 roster 严格一块一户
+            # （每块一个独立 party；小村 <50 亩的区也逐块回收），此处直接用确认 party。
+            if len(group) != 1:
+                raise SystemExit(f"roster party 必须一块一户: {party} 有 {len(group)} 块")
+            parcel_id = group[0]
+            item_id = f"item-2025-{item_no:04d}"
+            cid = f"coverage-2025-{parcel_id}"
+            coverages.append({"id": cid, "policyId": "policy-2025-roster", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": item_id})
+            block_area = areas[parcel_id]
+            items.append({"id": item_id, "enrollmentListId": "list-policy-2025-roster", "itemNo": f"{code[-4:]}-{item_no:04d}", "insuredPartyId": party, "parcelCoverageIds": [cid], "insuredAreaMu": str(block_area), **money(block_area)})
             item_no += 1
 
     # Patch the policy IDs on single coverages now that the policy IDs are known; roster policy is fixed.

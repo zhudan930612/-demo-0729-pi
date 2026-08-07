@@ -12,7 +12,7 @@
 from __future__ import annotations
 import argparse
 import json, math
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,15 +70,15 @@ def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[li
     设计说明：龙江村截图四区规则（region_index 固定阈值条带）对部分村不成立——
     某些村落在条带上的面积不足 50 亩（如新三联村 330604102018 仅 16.61 亩），
     无法形成单一型保单。改为沿经度累积面积切 4 段（每段约总参保 20%），
-    空间连续；四区合计覆盖约 80% 参保面积（与龙江村口径一致），
-    剩余约 20% 参保地块一块一户进入分户清单。
-    确定性、可复现，不依赖具体村截图。参保总面积 <250 亩时每区不足 50 亩，
-    抛错提示该村不适合 4+1 结构。
+    空间连续；四区合计覆盖约 80% 参保面积（与龙江村口径一致）。
+    切段后若某区分类面积仍 <=50 亩（小村），该区地块逐块回收到 roster（一块一户），
+    保证进入单一型保单的每个区都超过 50 亩，roster 严格一块一户。
+    确定性、可复现，不依赖具体村截图。
     """
     ordered = sorted(parcel_ids, key=lambda pid: points[pid][0])  # 经度西→东
     total = sum((areas[pid] for pid in ordered), Decimal(0))
     if total < Decimal("250"):
-        raise SystemExit(f"参保总面积 {total.quantize(Decimal('.01'))} 亩 < 250 亩，四区每区不足 50 亩，不适合 4+1 结构")
+        raise SystemExit(f"参保总面积 {total.quantize(Decimal('.01'))} 亩 < 250 亩，不适合 4+1 结构")
     four_area = total * Decimal("0.8")  # 四区合计覆盖 80%
     seg = four_area / 4  # 每区目标 20%
     # 沿经度累积面积分配：前 4 段各 ~20%，剩余进入 roster
@@ -98,7 +98,15 @@ def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[li
     for pid in ordered:
         if pid not in set().union(*regions):
             roster.append(pid)
-    return regions, roster
+    # 分类面积 <=50 亩的区：逐块回收到 roster（保持一块一户、单一型均 >50 亩）
+    kept: list[list[str]] = [[] for _ in range(4)]
+    for index, region in enumerate(regions):
+        region_area = sum((areas[pid] for pid in region), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
+        if region_area > Decimal("50.00"):
+            kept[index] = region
+        else:
+            roster.extend(region)
+    return kept, roster
 
 
 def deterministic_uninsured(ids: list[str]) -> set[str]:
