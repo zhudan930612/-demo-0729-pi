@@ -107,7 +107,7 @@
     <div v-if="policyLoadError || cultivationLoadError" class="business-load-error" role="alert">
       <strong>业务数据加载失败</strong>
       <span>{{ [policyLoadError, cultivationLoadError].filter(Boolean).join(' ') }}</span>
-      <button type="button" @click="loadBusinessData">重试</button>
+      <button type="button" @click="retryBusinessData">重试</button>
     </div>
 
     <ManualConfirmDialog
@@ -363,12 +363,28 @@ const policyFixture = ref<PolicyFixture | null>(null)
 const initialCultivationRecords = ref<CultivationRecord[]>([])
 const policyLoadError = ref('')
 const cultivationLoadError = ref('')
-async function loadBusinessData() {
-  const [policy, cultivation] = await Promise.all([loadPolicyFixture(), loadCultivationFixture()])
+async function loadBusinessData(villageCode?: string) {
+  const code = villageCode ?? ''
+  const [policy, cultivation] = await Promise.all([
+    code ? loadPolicyFixture(code) : Promise.resolve({ data: null as PolicyFixture | null, error: '' }),
+    code ? loadCultivationFixture(code) : Promise.resolve({ data: null as CultivationRecord[] | null, error: '' }),
+  ])
   policyFixture.value = policy.data
   initialCultivationRecords.value = cultivation.data ?? []
   policyLoadError.value = policy.error ?? ''
   cultivationLoadError.value = cultivation.error ?? ''
+}
+
+function clearBusinessData() {
+  policyFixture.value = null
+  initialCultivationRecords.value = []
+  policyLoadError.value = ''
+  cultivationLoadError.value = ''
+}
+
+function retryBusinessData() {
+  if (parcelVillageCode) void loadBusinessData(parcelVillageCode)
+  else clearBusinessData()
 }
 const selectedParcel = ref<ParcelSummaryInput | null>(null)
 const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
@@ -495,6 +511,7 @@ function clearLayers() {
   hiddenParcelCount.value = 0
   parcelDisplayCount.value = 0
   parcelDisplayAreaMu.value = 0
+  clearBusinessData()
   navigationController?.clear()
   parcelLayerController?.clear()
   manualDrawingController?.clear()
@@ -1305,6 +1322,11 @@ async function render(noFly = false) {
     for (const id of loadHiddenParcelIds(crumb.code)) hiddenParcelIds.add(id)
     if (manualResult.error) showNotice(manualResult.error, true)
     renderParcelLayer()
+    // 进入村级后按村代码加载保单/种植档案业务数据（无产物村静默为空，不报阻断错误）
+    void loadBusinessData(crumb.code)
+  } else {
+    // 非村级：清空业务数据，避免上一村数据残留串村
+    clearBusinessData()
   }
 
   // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
@@ -1612,7 +1634,8 @@ onMounted(async () => {
   typhoonPlaybackController = createTyphoonPlaybackController({
     reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   })
-  await loadBusinessData()
+  // 业务数据按村加载：初始无村级上下文，不预加载；进入村级时在 render 分支内触发。
+  clearBusinessData()
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {
