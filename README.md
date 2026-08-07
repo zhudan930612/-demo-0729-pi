@@ -184,7 +184,7 @@ pnpm --dir server probe:apihz
 QWEATHER_KEY_ROTATED_CONFIRMED=yes PROBE_WEATHER_LAT=本机测试纬度 PROBE_WEATHER_LON=本机测试经度 pnpm --dir server probe:weather
 ```
 
-探针会安全加载 `server/.env.local`，也可读取已忽略的仓库根 `.env.local`；process environment 始终优先。默认写入当前年度 `server/reports/apihz-probe-summary.json` 脱敏聚合报告，不保存原始响应、台风编号、名称、坐标或凭据。可用非秘密变量 `PROBE_YEAR=2025` 复查某个过去年度；过去年度报告写入带年份文件，不覆盖当前年度主报告。无凭据时安全跳过并返回退出码 2。
+探针会安全加载 `server/.env.local`；process environment 始终优先。默认写入当前年度 `server/reports/apihz-probe-summary.json` 脱敏聚合报告，不保存原始响应、台风编号、名称、坐标或凭据。可用非秘密变量 `PROBE_YEAR=2025` 复查某个过去年度；过去年度报告写入带年份文件，不覆盖当前年度主报告。无凭据时安全跳过并返回退出码 2。
 
 生产部署采用同源反向代理：由 Nginx/网关通过 HTTPS 提供 `web/dist/`，把 `/api` 转发到仅在内网或 loopback 监听的 Node 服务。生产环境不使用 Vite 代理，不对 Node 服务开放任意跨域访问，并由进程管理器注入 `APIHZ_DEVELOPER_ID`、`APIHZ_KEY`。建议在公网网关同时配置按来源和路由的限流/连接上限，Node 内置限制作为第二层保护；若网关转发真实客户端地址，应由网关执行公网 IP 限流，因为 Node 默认只信任直连 socket IP，不信任可伪造的转发头。
 

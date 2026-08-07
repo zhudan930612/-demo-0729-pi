@@ -8,7 +8,6 @@ const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const repoDir = path.resolve(serverDir, '..')
 if (process.env.PROBE_SKIP_ENV_FILE !== '1') {
   loadEnvFile(path.join(serverDir, '.env.local'))
-  loadEnvFile(path.join(repoDir, '.env.local'))
 }
 const config = readServerConfig()
 
