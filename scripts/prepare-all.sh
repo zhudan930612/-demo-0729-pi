@@ -60,6 +60,10 @@ else
   python scripts/prepare-rs-tiles.py
 fi
 
+# 4.5 龙江村地块导出（从 LFS 内模型输出 gpkg 生成前端 parcels，标准库读取，无需 fiona/GDAL）
+step "prepare-parcel-pilot.py export（龙江村地块）"
+python scripts/prepare-parcel-pilot.py export 05-遥感数据/parcel-pilot/330604102014/delineated/Longjiang.gpkg
+
 # 5. 数据链路校验
 step "validate-data.py（13 项）"
 python scripts/validate-data.py
