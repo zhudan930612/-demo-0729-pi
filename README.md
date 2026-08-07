@@ -52,36 +52,15 @@ web/public/data/    # 行政边界、manifest、遥感信息及 AI 地块（脚�
 web/public/tiles/   # 吉林一号 XYZ 影像瓦片（脚本可生成）
 ```
 
-有两种方式取得运行数据：
+运行数据由脚本从源数据生成（需 Python 依赖：pyshp / shapely / rasterio / pillow / numpy）：
 
-- **方式 A（推荐）：一键生成脚本**，需 Python 依赖（pyshp / shapely / rasterio / pillow / numpy）：
+```bash
+pip install pyshp shapely rasterio pillow numpy
+bash scripts/prepare-all.sh              # 完整生成（含影像切片，约 15-40 分钟）
+bash scripts/prepare-all.sh --skip-tiles # 跳过影像切片（约 6 分钟，影像用已有瓦片或稍后补跑）
+```
 
-  ```bash
-  pip install pyshp shapely rasterio pillow numpy
-  bash scripts/prepare-all.sh              # 完整生成（含影像切片，约 15-40 分钟）
-  bash scripts/prepare-all.sh --skip-tiles # 跳过影像切片（约 6 分钟，影像用已有瓦片或稍后补跑）
-  ```
-
-  脚本按顺序执行：边界/村界/天气索引生成 → 空间索引校验 → 脚本单元测试 → 影像切片（可选）→ 13 项数据链路校验，任一步失败即停。
-
-- **方式 B：从项目维护者处取得内部数据包**，将 `data/` 和 `tiles/` 放入 `web/public/`。目录至少应包含：
-
-  ```text
-  web/public/
-  ├── data/
-  │   ├── boundary/
-  │   ├── villages/
-  │   ├── manifest.json
-  │   └── rs.json
-  └── tiles/
-      └── rs/
-
-  .dev-runtime/weather-data/       # 服务端私有副本，由预处理脚本生成
-  ├── boundary/
-  ├── villages/
-  ├── manifest.json
-  └── weather/index-v2.json
-  ```
+脚本按顺序执行：边界/村界/天气索引生成 → 空间索引校验 → 脚本单元测试 → 影像切片（可选）→ 13 项数据链路校验，任一步失败即停。产物包含 `web/public/data/`、`web/public/tiles/`（未跳过时）与服务端私有 `.dev-runtime/weather-data/`（含 `weather/index-v2.json`）。
 
 没有这些数据时，前端可以启动，但行政区划下钻和高分影像无法正常展示。
 
