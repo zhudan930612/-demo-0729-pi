@@ -2,7 +2,7 @@
 
 以天地图卫星影像为底图，浙江省 **省→市→县→乡→村** 五级下钻 + 分级行政边界展示；
 乡镇级和村级叠加吉林一号 0.5m 高分影像（影像覆盖上虞章镇镇、嵊州三界镇共 17 村）；
-龙江村试点展示 Delineate Anything v2 自动识别的演示地块；省级灾害风险模式展示 APIHz 实时/历史台风路径、预测、风圈、警戒线和时间轴。
+13 个影像覆盖村（章镇镇 8 村 + 三界镇 5 村）展示 Delineate Anything v2 自动识别的演示地块（龙江村为首个试点）；省级灾害风险模式展示 APIHz 实时/历史台风路径、预测、风圈、警戒线和时间轴。
 
 - 文档总入口：[docs/README.md](docs/README.md)
 - 地图与地块：[docs/requirements/需求文档.md](docs/requirements/需求文档.md)
@@ -217,7 +217,7 @@ python scripts/weather_spatial_index.py --validate-only  # 校验私有天气索
 python -m unittest discover -s scripts/tests -p "test_*.py"  # 非敏感小型 fixture 测试
 python scripts/prepare-rs-tiles.py       # 影像切片 -> web/public/tiles/
 python scripts/validate-data.py          # 数据链路校验(13 项)
-python scripts/prepare-parcel-pilot.py prepare  # 龙江村试点裁片（模型推理需独立 Python 3.11 环境）
+python scripts/prepare-parcel-pilot.py prepare  # 村裁片（默认龙江村；--village {村代码} 指定其他村；模型推理需独立 Python 3.11 环境）
 python scripts/prepare-parcel-pilot.py enrich   # 为现有前端地块补面积/亩数和标注点（不重跑模型、不改几何）
 TIANDITU_GEOCODER_KEY=... node scripts/generate-government-seats.mjs  # 一次性生成政府驻地坐标表（省/市/县 102 条）写入 server/data/government-seats-v1.json（天地图地理编码；密钥只从环境变量读取）
 TIANDITU_GEOCODER_KEY=... node scripts/generate-government-seats.mjs --full  # 追加乡镇级坐标（1390 乡镇）至同一表；天地图乡镇级重名地名常返回省外同名点，匹配分 <60 的乡镇标记 unresolved 不参与定位；断点续跑+每200条checkpoint
