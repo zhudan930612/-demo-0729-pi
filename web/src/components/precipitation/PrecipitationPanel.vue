@@ -1,7 +1,7 @@
 <template>
   <aside class="precip-panel" aria-labelledby="precip-panel-title" role="region">
     <header class="panel-header">
-      <div class="panel-title"><span class="title-mark" aria-hidden="true"></span><h2 id="precip-panel-title">未来 7 天降水预报</h2></div>
+      <div class="panel-title"><span class="title-mark" aria-hidden="true"></span><h2 id="precip-panel-title">未来 7 天降水预报</h2><span v-if="phase === 'loading'" class="loading-hint" role="status" aria-live="polite">加载中…</span></div>
       <div class="panel-header-actions">
         <div class="opacity-inline">
           <input id="precip-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" :style="opacityTrackStyle" aria-label="色斑可见度" title="色斑可见度" @input="onOpacity" />
@@ -48,7 +48,20 @@
         <span class="attribution">降水预报数据 © Open-Meteo / ECMWF（0.25° 网格，约 25 km）</span>
       </footer>
     </template>
-    <div v-else-if="phase === 'loading'" class="status" role="status" aria-live="polite">降水预报加载中…</div>
+    <template v-else-if="phase === 'loading'">
+      <!-- 加载骨架：保持与就绪态一致的布局高度，避免面板塌缩 -->
+      <div class="timeline" aria-hidden="true">
+        <span v-for="i in 7" :key="i" class="skeleton-day"></span>
+      </div>
+      <div class="controls-legend-row" aria-hidden="true">
+        <span class="skeleton-play"></span>
+        <span class="skeleton-slider"></span>
+      </div>
+      <footer class="panel-footer" aria-hidden="true">
+        <span class="skeleton-line"></span>
+        <span class="skeleton-line"></span>
+      </footer>
+    </template>
   </aside>
 </template>
 
@@ -99,6 +112,7 @@ function onOpacity(event: Event) {
   transform: translateX(-50%);
   z-index: 1010;
   width: min(520px, calc(100% - 20px));
+  min-height: 92px; /* 加载/就绪高度稳定，不塌缩 */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -228,7 +242,36 @@ function onOpacity(event: Event) {
 .day-node.active .day-node-dot { transform: scale(1); background: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18); }
 .day-node.active .day-node-text { color: #1d4ed8; font-weight: 600; }
 
-/* 页脚：单行紧凑 */
+.loading-hint { font-size: 10px; color: #94a3b8; font-weight: 400; }
+/* 加载骨架占位：灰块模拟就绪态布局，保持面板高度不塌缩 */
+.timeline .skeleton-day {
+  flex: 1 1 0;
+  height: 18px;
+  border-radius: 6px;
+  background: #e8edf3;
+}
+.timeline .skeleton-day + .skeleton-day { margin-left: 6px; }
+.skeleton-play {
+  width: 52px; height: 18px;
+  border-radius: 6px;
+  background: #e8edf3;
+}
+.skeleton-slider {
+  flex: 1;
+  max-width: 220px;
+  height: 10px;
+  margin-left: 10px;
+  border-radius: 6px;
+  background: #e8edf3;
+}
+.panel-footer .skeleton-line {
+  width: 180px;
+  height: 8px;
+  border-radius: 4px;
+  background: #e8edf3;
+}
+.panel-footer .skeleton-line:last-child { width: 120px; }
+
 .panel-footer {
   display: flex;
   align-items: center;
