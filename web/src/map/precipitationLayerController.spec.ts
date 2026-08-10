@@ -23,26 +23,32 @@ function makeSnapshot(overrides: Partial<PrecipitationSnapshot> = {}): Precipita
   return { grid, days: ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16'], coveredDays: 7, model: 'ECMWF IFS 0.25°', updatedAt: 'x', aggregateFrom: 'y', ...overrides }
 }
 
-describe('precipColor 离散色阶（图2 分档色块 + 外透内实）', () => {
+describe('precipColor 分档色阶 + 阈值渐变带（平滑边界，缩放颜色稳定）', () => {
   it('低于 0.1 或 alpha<=0 返回 null（无雨透明）', () => {
     expect(precipColor(0, 0.6)).toBeNull()
     expect(precipColor(0.05, 0.6)).toBeNull()
     expect(precipColor(30, 0)).toBeNull()
   })
-  it('各档固定颜色与透明度因子（离散不插值，缩放颜色稳定）', () => {
-    expect(precipColor(0.1, 1)).toMatch(/^rgba\(208,240,170,0\.750\)$/) // 小雨
-    expect(precipColor(5, 1)).toMatch(/^rgba\(208,240,170,0\.750\)$/) // 档内值同色
-    expect(precipColor(10, 1)).toMatch(/^rgba\(122,204,112,0\.850\)$/)
-    expect(precipColor(24, 1)).toMatch(/^rgba\(122,204,112,0\.850\)$/)
-    expect(precipColor(25, 1)).toMatch(/^rgba\(82,172,152,0\.900\)$/)
-    expect(precipColor(50, 1)).toMatch(/^rgba\(52,112,222,0\.950\)$/)
-    expect(precipColor(100, 1)).toMatch(/^rgba\(158,60,212,1\.000\)$/)
-    expect(precipColor(250, 1)).toMatch(/^rgba\(204,46,196,1\.000\)$/) // 特大暴雨
+  it('档内中部值取档色（纯色，缩放稳定）', () => {
+    expect(precipColor(5, 1)).toMatch(/^rgba\(208,240,170,0\.750\)$/) // 小雨
+    expect(precipColor(15, 1)).toMatch(/^rgba\(122,204,112,0\.850\)$/) // 中雨
+    expect(precipColor(30, 1)).toMatch(/^rgba\(82,172,152,0\.900\)$/) // 大雨
+    expect(precipColor(60, 1)).toMatch(/^rgba\(52,112,222,0\.950\)$/) // 暴雨
+    expect(precipColor(150, 1)).toMatch(/^rgba\(158,60,212,1\.000\)$/) // 大暴雨
+    expect(precipColor(300, 1)).toMatch(/^rgba\(204,46,196,1\.000\)$/) // 特大暴雨
+  })
+  it('阈值渐变带：带内颜色平滑过渡（消除硬边界锯齿）', () => {
+    const atThreshold = precipColor(10, 1)
+    const inBand = precipColor(11, 1)
+    const aboveBand = precipColor(12, 1)
+    expect(atThreshold).not.toBe(aboveBand)
+    expect(inBand).not.toBe(aboveBand)
+    expect(inBand).not.toBe(atThreshold)
   })
   it('分层透明度与滑动条基础透明度相乘：强降水在 60% 基础下仍更实', () => {
-    expect(precipColor(250, 0.6)).toContain('0.600')
+    expect(precipColor(300, 0.6)).toContain('0.600')
     const light = precipColor(5, 0.6)
-    const heavy = precipColor(250, 0.6)
+    const heavy = precipColor(300, 0.6)
     const lightAlpha = Number(light!.match(/[\d.]+(?=\)$)/)![0])
     const heavyAlpha = Number(heavy!.match(/[\d.]+(?=\)$)/)![0])
     expect(lightAlpha).toBeLessThan(heavyAlpha)
