@@ -51,7 +51,7 @@ test('进入查看降水：面板与全省色斑出现，默认选中第 1 天',
   await expect(page.locator('.day-chip')).toHaveCount(7)
   await expect(page.locator('.day-chip').first()).toHaveClass(/active/)
   // 色斑 canvas 已挂载到降水 pane
-  await expect(page.locator('.leaflet-precipitation-pane canvas')).toBeVisible()
+  await expect(page.locator('.leaflet-precipitation-pane canvas.leaflet-tile-loaded').first()).toBeVisible()
   await expect(page.locator('.precip-panel')).toContainText('降水预报数据 © Open-Meteo / ECMWF')
   await expect(page.locator('.precip-panel')).toContainText('预报场仅供参考，不作定损依据')
 })
@@ -83,13 +83,13 @@ test('循环播放：逐天切换且到第 7 天后回到第 1 天继续', async
 test('可见度滑动条：调节透明度，0% 完全隐藏色斑', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  const canvas = page.locator('.leaflet-precipitation-pane canvas')
-  await expect(canvas).toHaveCSS('opacity', '0.6')
+  const layer = page.locator('.leaflet-precipitation-pane .leaflet-layer')
+  await expect(layer).toHaveCSS('opacity', '0.6')
   await page.locator('#precip-opacity').fill('0')
-  await expect(canvas).toHaveCSS('opacity', '0')
+  await expect(layer).toHaveCSS('opacity', '0')
   await expect(page.locator('.opacity-value')).toHaveText('0%')
   await page.locator('#precip-opacity').fill('80')
-  await expect(canvas).toHaveCSS('opacity', '0.8')
+  await expect(layer).toHaveCSS('opacity', '0.8')
 })
 
 test('悬停浮窗：仅显示分级与当日累计数值', async ({ page }) => {
@@ -129,7 +129,7 @@ test('与天气互斥：进入降水后进天气，降水面板与色斑关闭',
   await page.click('.weather-btn')
   await page.click('#weather-tool-menu button:has-text("实时天气")')
   await expect(page.locator('.precip-panel')).not.toBeVisible()
-  await expect(page.locator('.leaflet-precipitation-pane canvas')).not.toBeVisible()
+  await expect(page.locator('.leaflet-precipitation-pane canvas')).toHaveCount(0)
 })
 
 test('退出：面板、色斑与选中态全部清除', async ({ page }) => {
@@ -137,7 +137,7 @@ test('退出：面板、色斑与选中态全部清除', async ({ page }) => {
   await openPrecipitation(page)
   await page.click('.precip-panel .close-button')
   await expect(page.locator('.precip-panel')).not.toBeVisible()
-  await expect(page.locator('.leaflet-precipitation-pane canvas')).not.toBeVisible()
+  await expect(page.locator('.leaflet-precipitation-pane canvas')).toHaveCount(0)
   await expect(page.locator('.precip-btn')).not.toHaveClass(/active/)
 })
 
@@ -161,16 +161,18 @@ test('降水活动时地块编辑禁用；进降水关闭已开的天气（预�
 test('移动地图：色斑图层随地图平移且内容重绘（对齐浙江经纬度）', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  const canvas = page.locator('.leaflet-precipitation-pane canvas')
+  const canvas = page.locator('.leaflet-precipitation-pane canvas.leaflet-tile-loaded').first()
   await expect(canvas).toBeVisible()
   // 初始画布有非透明像素（色斑已渲染）
   const hasColor = () => page.evaluate(() => {
-    const c = document.querySelector('.leaflet-precipitation-pane canvas') as HTMLCanvasElement | null
-    if (!c || !c.width) return false
-    const ctx = c.getContext('2d')
-    if (!ctx) return false
-    const data = ctx.getImageData(0, 0, c.width, c.height).data
-    for (let i = 3; i < data.length; i += 16) if (data[i] > 0) return true
+    const canvases = document.querySelectorAll('.leaflet-precipitation-pane canvas') as NodeListOf<HTMLCanvasElement>
+    for (const c of canvases) {
+      if (!c.width) continue
+      const ctx = c.getContext('2d')
+      if (!ctx) continue
+      const data = ctx.getImageData(0, 0, c.width, c.height).data
+      for (let i = 3; i < data.length; i += 16) if (data[i] > 0) return true
+    }
     return false
   })
   expect(await hasColor()).toBe(true)

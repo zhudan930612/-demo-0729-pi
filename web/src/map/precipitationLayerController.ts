@@ -69,11 +69,74 @@ export function interpolatePrecip(grid: PrecipValueGrid, lat: number, lon: numbe
   return top + (bottom - top) * latFrac
 }
 
+export interface PrecipGridLayerOptions extends L.GridLayerOptions {
+  valueGrid: PrecipValueGrid | null
+  opacity: number
+  stepPx: number
+}
+
+/**
+ * 基于 L.GridLayer 的降水瓦片层：每瓦片 canvas 渲染对应经纬度范围的插值色斑。
+ * Leaflet 原生管理瓦片加载/缩放动画（zoom 动画期间旧瓦片被 transform 过渡），
+ * 色斑与地图平移/缩放天然同步，无需手动 transform。
+ */
+export class PrecipGridLayer extends L.GridLayer {
+  declare options: PrecipGridLayerOptions
+
+  constructor(options: Partial<PrecipGridLayerOptions>) {
+    super({ tileSize: 256, opacity: 0.6, stepPx: 4, ...options })
+  }
+
+  createTile(coords: L.Coords): HTMLElement {
+    const tileSize = this.getTileSize()
+    const tile = document.createElement('canvas')
+    tile.width = tileSize.x
+    tile.height = tileSize.y
+    const ctx = tile.getContext('2d')
+    if (!ctx) return tile
+    const grid = this.options.valueGrid
+    const opacity = this.options.opacity
+    if (!grid || opacity <= 0) return tile
+    // tile 经纬度范围：用 unproject 反算四角（公开 API，避免依赖内部 _tileCoordsToBounds）
+    const map = this._map
+    if (!map) return tile
+    const northWest = map.unproject([coords.x * tileSize.x, coords.y * tileSize.y], coords.z)
+    const southEast = map.unproject([(coords.x + 1) * tileSize.x, (coords.y + 1) * tileSize.y], coords.z)
+    const north = northWest.lat, south = southEast.lat
+    const west = northWest.lng, east = southEast.lng
+    const step = Math.max(2, Math.floor(this.options.stepPx))
+    for (let ty = 0; ty < tileSize.y; ty += step) {
+      const lat = north - (north - south) * (ty + 0.5) / tileSize.y
+      for (let tx = 0; tx < tileSize.x; tx += step) {
+        const lng = west + (east - west) * (tx + 0.5) / tileSize.x
+        const value = interpolatePrecip(grid, lat, lng)
+        if (value < 0.1) continue
+        const fill = precipColor(value, opacity)
+        if (!fill) continue
+        ctx.fillStyle = fill
+        ctx.fillRect(tx, ty, step, step)
+      }
+    }
+    return tile
+  }
+
+  setData(grid: PrecipValueGrid | null) {
+    if (this.options.valueGrid === grid) return
+    this.options.valueGrid = grid
+    this.redraw()
+  }
+
+  setOpacityValue(opacity: number) {
+    const clamped = Math.min(1, Math.max(0, opacity))
+    if (this.options.opacity === clamped) return
+    this.options.opacity = clamped
+    this.redraw()
+  }
+}
+
 export interface PrecipitationLayerOptions {
   opacity?: number
   stepPx?: number
-  requestAnimationFrame?: typeof requestAnimationFrame
-  cancelAnimationFrame?: typeof cancelAnimationFrame
 }
 
 export interface PrecipitationLayerController {
@@ -92,121 +155,24 @@ const HOVER_OFFSET_Y = 20
 export function createPrecipitationLayerController(options: PrecipitationLayerOptions = {}): PrecipitationLayerController {
   const initialOpacity = options.opacity ?? 0.6
   const stepPx = Math.max(2, Math.floor(options.stepPx ?? 4))
-  const raf = options.requestAnimationFrame ?? ((callback: FrameRequestCallback) => globalThis.requestAnimationFrame(callback))
-  const caf = options.cancelAnimationFrame ?? ((handle: number) => globalThis.cancelAnimationFrame(handle))
   let map: L.Map | null = null
-  let canvas: HTMLCanvasElement | null = null
+  let layer: PrecipGridLayer | null = null
   let hoverEl: HTMLDivElement | null = null
   let snapshot: PrecipitationSnapshot | null = null
   let currentDay: PrecipDayKey = PRECIP_DAY_KEYS[0]
   let valueGrid: PrecipValueGrid | null = null
   let currentOpacity = initialOpacity
-  let frameHandle: number | null = null
-  let zoomStartLevel: number | null = null
-  let mapListeners: Array<{ target: L.Map; event: string; handler: () => void }> = []
+  let hoverBound = false
 
   function ensurePane(target: L.Map): HTMLElement {
     const pane = target.getPane(PRECIP_PANES.grid.name) ?? target.createPane(PRECIP_PANES.grid.name)
     pane.style.zIndex = String(PRECIP_PANES.grid.zIndex)
-    pane.style.pointerEvents = 'none'
-    // Leaflet 自定义 pane 无宽高，canvas 100% 会解析为 0（不可见）；补齐容器尺寸
-    pane.style.width = '100%'
-    pane.style.height = '100%'
     return pane
   }
 
   function rebuildGrid() {
     valueGrid = snapshot ? buildValueGrid(snapshot, currentDay) : null
-  }
-
-// canvas 挂载在 Leaflet pane（随 mapPane transform 平移）。
-// 渲染用 layerPoint（pane 局部坐标）填色，canvas 向外扩 LAYER_PAD 像素以覆盖 transform 偏移后的视口。
-const LAYER_PAD = 512
-// Leaflet 缩放动画只 transform 内部 proxy，自定义 pane 不参与；
-// 用 CSS transition + zoomanim 目标变换让色斑与地图同步缩放。
-const ZOOM_ANIM_MS = 250
-
-  function render() {
-    frameHandle = null
-    if (!map || !canvas) return
-    const size = map.getSize()
-    const width = size.x + LAYER_PAD * 2
-    const height = size.y + LAYER_PAD * 2
-    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height }
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.clearRect(0, 0, width, height)
-    if (!valueGrid || currentOpacity <= 0) return
-    const alpha = Math.min(1, Math.max(0, currentOpacity))
-    for (let y = 0; y < size.y; y += stepPx) {
-      for (let x = 0; x < size.x; x += stepPx) {
-        const latLng = map.containerPointToLatLng(L.point(x, y))
-        const value = interpolatePrecip(valueGrid, latLng.lat, latLng.lng)
-        if (value < 0.1) continue
-        const fill = precipColor(value, alpha)
-        if (!fill) continue
-        // layerPoint = pane 局部坐标：canvas 在 pane 内随地图 transform 平移，
-        // 用 layerPoint 填色即可让色斑精确跟随地图移动/缩放
-        const layer = map.containerPointToLayerPoint(L.point(x, y))
-        ctx.fillStyle = fill
-        ctx.fillRect(layer.x + LAYER_PAD, layer.y + LAYER_PAD, stepPx, stepPx)
-      }
-    }
-  }
-
-  function scheduleRender() {
-    if (frameHandle !== null) return
-    frameHandle = raf(() => render())
-  }
-
-  function attachEvents(target: L.Map) {
-    // 缩放动画期间（zoomStartLevel 非空）不重绘：canvas 由 CSS transform 过渡跟随，动画结束统一重绘
-    const onMove = () => { if (zoomStartLevel === null) scheduleRender() }
-    const onZoom = () => { if (zoomStartLevel === null) scheduleRender() }
-    const onSettle = () => scheduleRender()
-    // 缩放动画：让 canvas 跟随地图同步缩放（仿 Leaflet tile 的 CSS transition 方式）
-    const onZoomStart = () => {
-      if (!canvas) return
-      zoomStartLevel = map?.getZoom() ?? null
-      canvas.style.transition = `transform ${ZOOM_ANIM_MS}ms ease-out`
-      canvas.style.transformOrigin = '0 0'
-    }
-    const onZoomAnim = (event: { center: L.LatLng; zoom: number }) => {
-      if (zoomStartLevel === null || !canvas) return
-      const z0 = zoomStartLevel, z1 = event.zoom
-      const center = event.center
-      const c0 = map!.project(center, z0)
-      const c1 = map!.project(center, z1)
-      const k = map!.getZoomScale(z1, z0)
-      // 把旧 zoom 的 layerPoint 内容映射到目标 zoom 的显示位置（transform-origin 0 0）
-      canvas.style.transform = `translate3d(${c1.x - c0.x * k}px, ${c1.y - c0.y * k}px, 0) scale(${k})`
-    }
-    const onZoomEnd = () => {
-      zoomStartLevel = null
-      if (canvas) { canvas.style.transition = ''; canvas.style.transform = '' }
-      scheduleRender()
-    }
-    target.on('move', onMove)
-    target.on('zoom', onZoom)
-    target.on('moveend', onSettle)
-    target.on('zoomend', onZoomEnd)
-    target.on('zoomstart', onZoomStart)
-    target.on('zoomanim', onZoomAnim)
-    mapListeners = [
-      { target, event: 'move', handler: onMove },
-      { target, event: 'zoom', handler: onZoom },
-      { target, event: 'moveend', handler: onSettle },
-      { target, event: 'zoomend', handler: onZoomEnd },
-      { target, event: 'zoomstart', handler: onZoomStart },
-      { target, event: 'zoomanim', handler: onZoomAnim as unknown as () => void },
-    ]
-  }
-
-  function detachEvents() {
-    for (const { target, event, handler } of mapListeners) target.off(event, handler)
-    mapListeners = []
+    layer?.setData(valueGrid)
   }
 
   function hoverContent(value: number): string {
@@ -235,12 +201,17 @@ const ZOOM_ANIM_MS = 250
   function onMouseOut() { if (hoverEl) hoverEl.style.display = 'none' }
 
   function attachHover(target: L.Map) {
+    if (hoverBound) return
     target.on('mousemove', onMouseMove)
     target.on('mouseout', onMouseOut)
-    mapListeners.push(
-      { target, event: 'mousemove', handler: onMouseMove as unknown as () => void },
-      { target, event: 'mouseout', handler: onMouseOut },
-    )
+    hoverBound = true
+  }
+
+  function detachHover(target: L.Map) {
+    if (!hoverBound) return
+    target.off('mousemove', onMouseMove)
+    target.off('mouseout', onMouseOut)
+    hoverBound = false
   }
 
   return {
@@ -248,50 +219,38 @@ const ZOOM_ANIM_MS = 250
       if (map) return
       map = target
       ensurePane(target)
-      canvas = document.createElement('canvas')
-      canvas.style.position = 'absolute'
-      // canvas 原点对齐 layerPoint(-LAYER_PAD, -LAYER_PAD)，内容随 mapPane transform 同步移动
-      canvas.style.left = `-${LAYER_PAD}px`
-      canvas.style.top = `-${LAYER_PAD}px`
-      canvas.style.opacity = String(currentOpacity)
-      canvas.style.pointerEvents = 'none'
-      target.getPane(PRECIP_PANES.grid.name)!.appendChild(canvas)
-      attachEvents(target)
+      layer = new PrecipGridLayer({ pane: PRECIP_PANES.grid.name, valueGrid, opacity: currentOpacity, stepPx })
+      layer.addTo(target)
       attachHover(target)
-      scheduleRender()
     },
     setSnapshot(next) {
       snapshot = next
       currentDay = PRECIP_DAY_KEYS[0]
       rebuildGrid()
-      scheduleRender()
     },
     setDay(day) {
       currentDay = day
       rebuildGrid()
-      scheduleRender()
     },
     setOpacity(next) {
       currentOpacity = Math.min(1, Math.max(0, next))
-      if (canvas) canvas.style.opacity = String(currentOpacity)
+      layer?.setOpacityValue(currentOpacity)
       if (currentOpacity <= 0 && hoverEl) hoverEl.style.display = 'none'
-      scheduleRender()
     },
-    redraw() { scheduleRender() },
+    redraw() { layer?.redraw() },
     clear() {
-      // 闭包快照清理教训：clear() 必须同时重置快照，否则残留数据会被后续 move/zoom 重绘画回地图
+      // 闭包快照清理教训：clear() 必须同时重置快照与网格，避免残留数据在后续重绘/事件中重新出现
       snapshot = null
       valueGrid = null
       currentDay = PRECIP_DAY_KEYS[0]
-      if (canvas) { const ctx = canvas.getContext('2d'); ctx?.clearRect(0, 0, canvas.width, canvas.height) }
+      layer?.setData(null)
       if (hoverEl) hoverEl.style.display = 'none'
     },
     destroy() {
-      if (frameHandle !== null) caf(frameHandle)
-      frameHandle = null
-      detachEvents()
+      detachHover(map ?? undefined as unknown as L.Map)
+      layer?.remove()
+      layer = null
       if (hoverEl) { hoverEl.remove(); hoverEl = null }
-      if (canvas && map) { canvas.remove(); canvas = null }
       map = null
     },
   }

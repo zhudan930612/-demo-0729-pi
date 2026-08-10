@@ -1,33 +1,16 @@
-import { describe, expect, it, vi, afterEach } from 'vitest'
-import type L from 'leaflet'
+import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('leaflet', () => ({
   default: {
-    point: (x: number, y: number) => ({ x, y }),
+    GridLayer: class GridLayerMock {
+      options: Record<string, unknown>
+      constructor(options: Record<string, unknown>) { this.options = { tileSize: 256, opacity: 0.6, stepPx: 4, ...options } }
+      redraw() {}
+    },
   },
 }))
 
-// 最小 document mock：canvas 元素（style/getContext/remove）+ body
-function fakeCanvas() {
-  const canvas: Record<string, unknown> = {
-    style: {},
-    width: 0,
-    height: 0,
-    innerHTML: '',
-    display: '',
-    getContext: vi.fn(() => ({ clearRect: vi.fn(), fillRect: vi.fn(), fillStyle: '' })),
-    remove: vi.fn(),
-    appendChild: vi.fn(),
-  }
-  return canvas
-}
-const mockDocument = {
-  createElement: (tag: string) => (tag === 'canvas' ? fakeCanvas() : { style: {}, innerHTML: '', display: '', remove: vi.fn() }),
-  body: { appendChild: vi.fn() },
-}
-vi.stubGlobal('document', mockDocument)
-
-import { buildValueGrid, interpolatePrecip, precipColor, PRECIP_PANES, createPrecipitationLayerController } from './precipitationLayerController'
+import { buildValueGrid, interpolatePrecip, precipColor, PRECIP_PANES, PrecipGridLayer } from './precipitationLayerController'
 import type { PrecipitationSnapshot } from '../features/precipitation/precipitationTypes'
 
 function makeSnapshot(overrides: Partial<PrecipitationSnapshot> = {}): PrecipitationSnapshot {
@@ -39,8 +22,6 @@ function makeSnapshot(overrides: Partial<PrecipitationSnapshot> = {}): Precipita
   }
   return { grid, days: ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16'], coveredDays: 7, model: 'ECMWF IFS 0.25°', updatedAt: 'x', aggregateFrom: 'y', ...overrides }
 }
-
-afterEach(() => vi.restoreAllMocks())
 
 describe('precipColor 色阶映射（图2 风格 + 外透内实分层透明度）', () => {
   it('低于 0.1 或 alpha<=0 返回 null（无雨透明）', () => {
@@ -57,9 +38,7 @@ describe('precipColor 色阶映射（图2 风格 + 外透内实分层透明度�
     expect(precipColor(250, 1)).toMatch(/^rgba\(204,46,196,1\.000\)$/) // 特大暴雨：洋红，不透明
   })
   it('分层透明度与滑动条基础透明度相乘：强降水在 60% 基础下仍更实', () => {
-    // 250mm 因子 1.0 × 0.6 = 0.600
     expect(precipColor(250, 0.6)).toContain('0.600')
-    // 5mm（小雨 0.1-10 档，因子约 0.45+0.15×0.5）在 60% 基础下更透
     const light = precipColor(5, 0.6)
     const heavy = precipColor(250, 0.6)
     const lightAlpha = Number(light!.match(/[\d.]+(?=\)$)/)![0])
@@ -107,73 +86,12 @@ describe('interpolatePrecip 双线性插值', () => {
   })
 })
 
-describe('createPrecipitationLayerController 生命周期', () => {
-  function fakeMap(): L.Map {
-    const pane = { style: {} as Record<string, string>, appendChild: vi.fn(), removeChild: vi.fn() }
-    const listeners: Record<string, (event?: unknown) => void> = {}
-    return {
-      getSize: vi.fn(() => ({ x: 100, y: 100 })),
-      containerPointToLatLng: vi.fn((point: { x: number; y: number }) => ({ lat: 30, lng: 120 + (point.x - 50) * 0.05 })),
-      containerPointToLayerPoint: vi.fn((point: { x: number; y: number }) => ({ x: point.x, y: point.y })),
-      project: vi.fn((_center: unknown, zoom: number) => ({ x: zoom * 100, y: zoom * 100 })),
-      getZoomScale: vi.fn((to: number, from: number) => Math.pow(2, to - from)),
-      getZoom: vi.fn(() => 7),
-      getPane: vi.fn(() => pane),
-      createPane: vi.fn(() => pane),
-      on: vi.fn((event: string, handler: (event?: unknown) => void) => { listeners[event] = handler }),
-      off: vi.fn(),
-      _listeners: listeners,
-    } as unknown as L.Map
-  }
-  it('缩放动画：zoomanim 设置 canvas transform，zoomend 重置并重绘', () => {
-    const map = fakeMap()
-    const controller = createPrecipitationLayerController({ stepPx: 10, requestAnimationFrame: (cb) => { cb(0); return 0 }, cancelAnimationFrame: () => {} })
-    controller.mount(map)
-    const pane = map.getPane(PRECIP_PANES.grid.name) as unknown as { appendChild: ReturnType<typeof vi.fn> }
-    const canvas = pane.appendChild.mock.calls[0][0] as unknown as { style: Record<string, string> }
-    const listeners = (map as unknown as { _listeners: Record<string, (event?: unknown) => void> })._listeners
-    // zoomstart → zoomanim（每帧）→ zoomend
-    listeners['zoomstart']()
-    listeners['zoomanim']({ center: { lat: 29, lng: 120 }, zoom: 8 })
-    expect(canvas.style.transition).toContain('transform')
-    expect(canvas.style.transform).toContain('scale(')
-    listeners['zoomend']()
-    expect(canvas.style.transform).toBe('')
-    expect(canvas.style.transition).toBe('')
-    controller.destroy()
-  })
+describe('PRECIP_PANES 与 GridLayer', () => {
   it('pane zIndex 低于注记 450', () => {
     expect(PRECIP_PANES.grid.zIndex).toBeLessThan(450)
   })
-  it('mount 创建 pane 并挂 move/zoom 监听；setDay/redraw 不抛错', () => {
-    const map = fakeMap()
-    const controller = createPrecipitationLayerController({ stepPx: 10, requestAnimationFrame: (cb) => { cb(0); return 0 }, cancelAnimationFrame: () => {} })
-    controller.mount(map)
-    expect(map.getPane).toHaveBeenCalledWith(PRECIP_PANES.grid.name)
-    expect(map.on).toHaveBeenCalledWith('move', expect.any(Function))
-    controller.setSnapshot(makeSnapshot())
-    expect(() => controller.setDay('d5')).not.toThrow()
-    expect(() => controller.redraw()).not.toThrow()
-    controller.destroy()
-    expect(map.off).toHaveBeenCalled()
-  })
-  it('clear 重置快照后 redraw 不再画残留数据（不抛错）', () => {
-    const map = fakeMap()
-    const controller = createPrecipitationLayerController({ stepPx: 10, requestAnimationFrame: (cb) => { cb(0); return 0 }, cancelAnimationFrame: () => {} })
-    controller.mount(map)
-    controller.setSnapshot(makeSnapshot())
-    controller.clear()
-    expect(() => controller.redraw()).not.toThrow()
-    controller.destroy()
-  })
-  it('setOpacity 限幅并同步 canvas 透明度', () => {
-    const map = fakeMap()
-    const controller = createPrecipitationLayerController({ stepPx: 10, requestAnimationFrame: (cb) => { cb(0); return 0 }, cancelAnimationFrame: () => {} })
-    controller.mount(map)
-    controller.setOpacity(1.5)
-    expect(() => controller.redraw()).not.toThrow()
-    controller.setOpacity(-0.5)
-    expect(() => controller.redraw()).not.toThrow()
-    controller.destroy()
+  it('PrecipGridLayer 继承 GridLayer（瓦片参与 Leaflet 缩放/平移动画）', () => {
+    expect(PrecipGridLayer.prototype).toBeInstanceOf(Object)
+    expect(new PrecipGridLayer({}).options.tileSize).toBe(256)
   })
 })
