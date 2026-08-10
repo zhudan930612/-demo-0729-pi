@@ -5,6 +5,7 @@ import { createIpRateLimiter, createUpstreamBroker, ResourceLimitError } from '.
 import { createWeatherService } from './weather-service.js'
 import { WeatherSpatialError } from './weather-spatial-index.js'
 import { createNationalAlarmService, NationalAlarmError } from './national-alarm-service.js'
+import { createPrecipitationService, precipitationError, PrecipitationError } from './precipitation-service.js'
 
 function beijingYear(now = Date.now()) { return new Date(now + 8 * 60 * 60 * 1000).getUTCFullYear() }
 function responseAlive(response) { return !response.destroyed && !response.writableEnded }
@@ -56,6 +57,7 @@ export function createAppServer(config, options = {}) {
   })
   const weather = options.weatherService ?? createWeatherService(config.weather ?? {}, options.weatherOptions ?? options)
   const nationalAlarms = options.nationalAlarmService ?? createNationalAlarmService(config.nationalAlarms ?? {}, options.nationalAlarmOptions ?? options)
+  const precipitation = options.precipitationService ?? createPrecipitationService(config.precipitation ?? {}, options.precipitationOptions ?? options)
   const rateLimiter = options.rateLimiter ?? createIpRateLimiter({
     limit: config.rateLimitPerMinute ?? 60,
     windowMs: 60_000,
@@ -148,6 +150,20 @@ export function createAppServer(config, options = {}) {
         } catch (error) {
           const mapped = weatherRequestError(error)
           if (!mapped) throw error
+          status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return
+        }
+      }
+      if (url.pathname === '/api/precipitation-grid') {
+        routeName = 'precipitation-grid'
+        if (url.search) { status = 400; sendJson(response, status, { error: { code: 'INVALID_PRECIPITATION_REQUEST', message: '降水网格请求不接受查询参数', requestId } }, requestId); return }
+        try {
+          weatherController = new AbortController()
+          const payload = await precipitation.snapshot(weatherController.signal)
+          if (clientGone) return
+          status = 200; sendJson(response, status, payload, requestId); return
+        } catch (error) {
+          if (!(error instanceof PrecipitationError)) throw error
+          const mapped = precipitationError(error)
           status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return
         }
       }
