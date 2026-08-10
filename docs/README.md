@@ -11,7 +11,8 @@
 - [灾害风险与台风查看需求](./requirements/灾害风险与台风查看需求.md)
 - [天气查看与和风天气 API 接入需求](./requirements/天气查看与和风天气API接入需求.md)
 - [浙江省气象预警数据接入需求](./requirements/全国气象预警数据接入需求.md)
-- [面状降水预报需求（网格热力图）](./requirements/面状降水预报需求.md)
+- [面状降水预报需求（网格热力图）](./requirements/面状降水预报需求.md)（已实现；后续方向 V1.1 见下条）
+- [降水×参保村联动 V1.1 需求](./requirements/降水参保联动V1.1需求.md)（已立项、待实施）
 
 目录入口：[requirements/](./requirements/)
 
