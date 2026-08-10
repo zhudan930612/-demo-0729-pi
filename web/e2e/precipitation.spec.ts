@@ -48,8 +48,8 @@ test('进入查看降水：面板与全省色斑出现，默认选中第 1 天',
   await installFixtures(page)
   await openPrecipitation(page)
   await expect(page.locator('.precip-panel')).toBeVisible()
-  await expect(page.locator('.day-chip')).toHaveCount(7)
-  await expect(page.locator('.day-chip').first()).toHaveClass(/active/)
+  await expect(page.locator('.day-node')).toHaveCount(7)
+  await expect(page.locator('.day-node').first()).toHaveClass(/active/)
   // 色斑 canvas 已挂载到降水 pane
   await expect(page.locator('.leaflet-precipitation-pane canvas.leaflet-tile-loaded').first()).toBeVisible()
   await expect(page.locator('.precip-panel')).toContainText('降水预报数据 © Open-Meteo / ECMWF')
@@ -59,11 +59,11 @@ test('进入查看降水：面板与全省色斑出现，默认选中第 1 天',
 test('时间轴点击切换日期且不重新请求上游', async ({ page }) => {
   const requests = await installFixtures(page)
   await openPrecipitation(page)
-  await page.click('.day-chip >> nth=2')
-  await expect(page.locator('.day-chip').nth(2)).toHaveClass(/active/)
-  await expect(page.locator('.day-chip').first()).not.toHaveClass(/active/)
-  await page.click('.day-chip >> nth=6')
-  await expect(page.locator('.day-chip').nth(6)).toHaveClass(/active/)
+  await page.click('.day-node >> nth=2')
+  await expect(page.locator('.day-node').nth(2)).toHaveClass(/active/)
+  await expect(page.locator('.day-node').first()).not.toHaveClass(/active/)
+  await page.click('.day-node >> nth=6')
+  await expect(page.locator('.day-node').nth(6)).toHaveClass(/active/)
   expect(requests.filter((request) => request === '/api/precipitation-grid')).toHaveLength(1)
 })
 
@@ -73,10 +73,10 @@ test('循环播放：逐天切换且到第 7 天后回到第 1 天继续', async
   await page.click('.play-button')
   await expect(page.locator('.play-button')).toContainText('暂停')
   // 1.2s 步进：先到第 2 天
-  await expect(page.locator('.day-chip').nth(1)).toHaveClass(/active/, { timeout: 3000 })
+  await expect(page.locator('.day-node').nth(1)).toHaveClass(/active/, { timeout: 3000 })
   // 点日期暂停并跳转
-  await page.click('.day-chip >> nth=5')
-  await expect(page.locator('.day-chip').nth(5)).toHaveClass(/active/)
+  await page.click('.day-node >> nth=5')
+  await expect(page.locator('.day-node').nth(5)).toHaveClass(/active/)
   await expect(page.locator('.play-button')).toContainText('播放')
 })
 
@@ -118,8 +118,8 @@ test('降级：上游失败显示"降水预报暂不可用"，不降级成无降
 test('stale：上游失败但有旧快照时显示降级标注且可操作', async ({ page }) => {
   await installFixtures(page, { grid: 'stale' })
   await openPrecipitation(page)
-  await expect(page.locator('.transient-status.stale')).toContainText('数据获取失败，显示上次成功数据')
-  await expect(page.locator('.day-chip')).toHaveCount(7)
+  await expect(page.locator('.status.stale')).toContainText('数据获取失败，显示上次成功数据')
+  await expect(page.locator('.day-node')).toHaveCount(7)
 })
 
 test('与天气互斥：进入降水后进天气，降水面板与色斑关闭', async ({ page }) => {
@@ -203,6 +203,6 @@ test('下钻到县：色斑保持显示（连续渲染），面板仍可操作',
   await page.click('.map-wrap')
   // 点击城市/县区域触发下钻由既有逻辑驱动；此处验证下钻后面板与色斑仍存在
   await expect(page.locator('.precip-panel')).toBeVisible()
-  await page.click('.day-chip >> nth=3')
-  await expect(page.locator('.day-chip').nth(3)).toHaveClass(/active/)
+  await page.click('.day-node >> nth=3')
+  await expect(page.locator('.day-node').nth(3)).toHaveClass(/active/)
 })
