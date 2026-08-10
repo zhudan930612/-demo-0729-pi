@@ -16,7 +16,7 @@ function aborted(error: unknown, signal: AbortSignal) { return signal.aborted ||
 export function createPrecipitationRepository(sink: PrecipitationSink, options: { api?: PrecipitationApiClient } = {}): PrecipitationRepository {
   const api = options.api ?? precipitationApi
   let active: AbortController | null = null
-  async function load({ refresh = false }: { refresh?: boolean } = {}) {
+  async function load(_options: { refresh?: boolean } = {}) {
     active?.abort()
     const controller = new AbortController()
     active = controller

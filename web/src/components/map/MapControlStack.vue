@@ -27,6 +27,16 @@
       <span class="icon-tip" role="tooltip">{{ typhoonTip }}</span>
     </button>
 
+    <button
+      type="button" class="icon-btn precip-btn" :class="{ active: precipitationActive }"
+      :disabled="precipitationEntryDisabled || precipitationActive"
+      :title="precipitationTip" :aria-label="precipitationTip"
+      @click="emit('open-precipitation')"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14c0-1.7 1.3-3 3-3s3 1.3 3 3c0 1.9-2.6 3.5-6 3.5S6 15.7 6 14Z"/><path d="M15 7c0-1.1.9-2 2-2s2 .9 2 2c0 1.3-1.7 2.3-4 2.3s-4-1-4-2.3"/><path d="M4 20h16"/></svg>
+      <span class="icon-tip" role="tooltip">{{ precipitationTip }}</span>
+    </button>
+
     <div v-if="parcelToolsVisible" class="tool-entry">
       <button
         ref="parcelToolButtonRef" type="button" class="icon-btn parcel-tool-btn" :class="{ active: parcelMenuOpen }"
@@ -64,12 +74,13 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParcelMode } from '../../features/parcels/parcelTypes'
 type WeatherModule = 'alerts' | 'current'
-const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[] }>()
-const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[] }>()
+const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; precipitationEntryDisabled:boolean; precipitationActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[] }>()
+const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-precipitation':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), parcelToolButtonRef=ref<HTMLButtonElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false)
 const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'查看台风')
+const precipitationTip=computed(()=>props.precipitationActive?'降水查看模式已开启':props.precipitationEntryDisabled?'请先保存或取消当前未完成操作':'查看降水')
 const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModules.map((module)=>module==='alerts'?'气象预警':'实时天气').join('、')}，点击菜单项可退出`:props.weatherEntryReason)
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})

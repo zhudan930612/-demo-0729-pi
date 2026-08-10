@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { isPrecipitationSnapshot, PrecipitationApiError } from '../../api/precipitation'
-import { precipitationLevel, PRECIP_DAY_KEYS } from './precipitationTypes'
+import { isPrecipitationSnapshot } from '../../api/precipitation'
+import { precipitationLevel } from './precipitationTypes'
 import type { PrecipitationSnapshot } from './precipitationTypes'
-import { PRECIP_DAY_COUNT, PRECIP_DEFAULT_OPACITY, PRECIP_PLAY_INTERVAL_MS, usePrecipitationStore } from '../../stores/precipitation'
+import { PRECIP_DAY_COUNT, PRECIP_DEFAULT_OPACITY, usePrecipitationStore } from '../../stores/precipitation'
 
 function makeSnapshot(overrides: Partial<PrecipitationSnapshot> = {}): PrecipitationSnapshot {
   const grid = []
@@ -48,7 +48,7 @@ describe('isPrecipitationSnapshot 校验', () => {
   })
   it('grid 缺 d1..d7 任一时段、days 数量不对、字段缺失均拒绝', () => {
     const broken = makeSnapshot()
-    broken.grid = broken.grid.map((point) => ({ ...point, values: { d1: 0, d2: 0, d3: 0, d4: 0, d5: 0, d6: 0 } }))
+    broken.grid = broken.grid.map((point) => ({ ...point, values: { d1: 0, d2: 0, d3: 0, d4: 0, d5: 0, d6: 0 } })) as unknown as PrecipitationSnapshot['grid']
     expect(isPrecipitationSnapshot(broken)).toBe(false)
     expect(isPrecipitationSnapshot(makeSnapshot({ days: ['2026-08-10'] }))).toBe(false)
     expect(isPrecipitationSnapshot({ ...makeSnapshot(), model: undefined })).toBe(false)
@@ -122,7 +122,7 @@ describe('precipitation store', () => {
     const store = usePrecipitationStore()
     store.open(); store.receive(store.generation, makeSnapshot())
     const clear = vi.fn()
-    store.startPlay({ setInterval: ((cb: () => void) => 42) as unknown as typeof setInterval, clearInterval: clear })
+    store.startPlay({ setInterval: ((() => 42) as unknown as typeof setInterval), clearInterval: clear })
     store.stopPlay({ clearInterval: clear })
     expect(clear).toHaveBeenCalledWith(42)
     expect(store.playing).toBe(false)

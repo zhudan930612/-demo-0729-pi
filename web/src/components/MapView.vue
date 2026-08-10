@@ -38,6 +38,22 @@
       @toggle-history="toggleHistoricalFromTimeline"
     />
 
+    <PrecipitationPanel
+      v-if="precipitationStore.isOpen"
+      :phase="precipitationStore.phase"
+      :snapshot="precipitationStore.snapshot"
+      :selected-day="precipitationStore.selectedDay"
+      :playing="precipitationStore.playing"
+      :opacity="precipitationStore.opacity"
+      :error-message="precipitationStore.errorMessage"
+      :show-stale="precipitationStore.showStale"
+      @close="exitPrecipitationMode"
+      @select-day="selectPrecipDay"
+      @toggle-play="togglePrecipPlay"
+      @set-opacity="setPrecipOpacity"
+      @refresh="refreshPrecipitation"
+    />
+
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
     <ParcelEditToolbar
       v-if="store.current.level === 'village' && parcelMode !== 'idle'"
@@ -138,11 +154,13 @@
       :mode="parcelMode"
       :can-zoom-in="canZoomIn"
       :can-zoom-out="canZoomOut"
-      :parcel-tools-visible="store.current.level === 'village' || disasterActive || anyWeatherActive"
-      :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive || anyWeatherActive"
+      :parcel-tools-visible="store.current.level === 'village' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
+      :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
       :has-filterable-parcels="hasFilterableParcels"
       :disaster-entry-disabled="disasterEntryDisabled || anyWeatherActive"
       :disaster-active="disasterActive"
+      :precipitation-entry-disabled="precipitationEntryDisabled"
+      :precipitation-active="precipitationStore.isOpen"
       :weather-entry-disabled="!weatherEntry.enabled && !anyWeatherActive"
       :weather-entry-reason="anyWeatherActive ? '选择天气查看模块' : weatherEntry.reason"
       :weather-active="anyWeatherActive"
@@ -153,6 +171,7 @@
       @start-manual="startManualDrawing"
       @start-filter="startParcelEditing"
       @open-typhoon="enterTyphoonMode"
+      @open-precipitation="enterPrecipitationMode"
       @open-weather="enterWeatherMode"
       @close-weather="closeWeatherFromToolbar"
       @zoom-in="zoomIn"
@@ -211,6 +230,11 @@ import { createNationalAlarmRepository } from '../features/national-alarms/natio
 import { alarmsForMap, mapNotice } from '../features/national-alarms/nationalAlarmSelectors'
 import type { NationalWeatherAlarm } from '../features/national-alarms/nationalAlarmTypes'
 import { createNationalAlarmLayerController } from '../map/nationalAlarmLayerController'
+import { createPrecipitationLayerController, type PrecipitationLayerController } from '../map/precipitationLayerController'
+import { createPrecipitationRepository, type PrecipitationRepository } from '../features/precipitation/precipitationRepository'
+import { usePrecipitationStore } from '../stores/precipitation'
+import { PRECIP_DAY_KEYS } from '../features/precipitation/precipitationTypes'
+import PrecipitationPanel from './precipitation/PrecipitationPanel.vue'
 import { pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import {
@@ -276,6 +300,9 @@ const typhoonStore = useTyphoonStore()
 const weatherStore = useWeatherStore()
 const weatherMarkersStore = useWeatherMarkersStore()
 const nationalAlarmStore = useNationalAlarmStore()
+const precipitationStore = usePrecipitationStore()
+let precipitationRepository: PrecipitationRepository | null = null
+let precipitationLayerController: PrecipitationLayerController | null = null
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
 const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
@@ -290,6 +317,7 @@ const activeWeatherModules = computed<WeatherModuleKind[]>(()=>{const list:Weath
 // 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
+const precipitationEntryDisabled = computed(() => hasUnsavedParcelWork() || anyWeatherActive.value)
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
 const weatherPopupPosition=ref({x:0,y:0})
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
@@ -1034,6 +1062,62 @@ async function enterNationalAlarms(){
 }
 function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();nationalAlarmStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
 function closeWeatherFromToolbar(module:WeatherModuleKind){if(module==='alerts')exitNationalAlarms();else exitWeatherMode()}
+
+function precipitationRepositoryLoad() {
+  precipitationRepository = precipitationRepository ?? createPrecipitationRepository({
+    begin: () => precipitationStore.generation,
+    receive: (generation, snapshot) => precipitationStore.receive(generation, snapshot),
+    fail: (generation, message) => precipitationStore.fail(generation, message),
+  })
+  return precipitationRepository.load()
+}
+
+async function enterPrecipitationMode() {
+  if (hasUnsavedParcelWork()) return
+  // 天气与降水互斥；台风保留（可叠加）
+  if (anyWeatherActive.value) { exitWeatherMode(); exitNationalAlarms() }
+  precipitationStore.open()
+  precipitationLayerController = precipitationLayerController ?? createPrecipitationLayerController()
+  precipitationLayerController.mount(map)
+  await store.resetToProvince()
+  void render() // 进入定位浙江省全省全景（方案 B：叠加时降水优先）
+  void precipitationRepositoryLoad()
+}
+
+function exitPrecipitationMode() {
+  precipitationRepository?.exit()
+  precipitationLayerController?.clear()
+  precipitationStore.close()
+  // 台风仍活动：保持当前视图不重置（方案 B：最后一个活动模式退出才恢复省界相机）
+  if (!disasterActive.value) {
+    void store.resetToProvince().then((reset) => { if (reset) void render() })
+  }
+}
+
+function refreshPrecipitation() {
+  if (!precipitationStore.isOpen) return
+  precipitationStore.beginRefresh()
+  void precipitationRepositoryLoad()
+}
+
+function selectPrecipDay(index: number) {
+  precipitationStore.selectDay(index)
+  precipitationLayerController?.setDay(PRECIP_DAY_KEYS[index])
+}
+
+function togglePrecipPlay() {
+  if (precipitationStore.playing) precipitationStore.stopPlay()
+  else precipitationStore.startPlay()
+}
+
+function setPrecipOpacity(value: number) {
+  precipitationStore.setOpacity(value)
+  precipitationLayerController?.setOpacity(value)
+}
+
+watch(() => precipitationStore.snapshot, (snapshot) => { precipitationLayerController?.setSnapshot(snapshot) })
+watch(() => precipitationStore.selectedDay, (day) => { precipitationLayerController?.setDay(PRECIP_DAY_KEYS[day]) })
+watch(() => precipitationStore.opacity, (opacity) => { precipitationLayerController?.setOpacity(opacity) })
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  nationalAlarmStore.select({id:alarm.id,source:'list'})
@@ -1097,7 +1181,8 @@ async function enterTyphoonMode() {
     enterRepository: () => {
       pendingNoFly = false
       fittedTyphoonSessionId = null
-      map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
+      // 方案 B：降水活动时台风进入不抢相机（不设 z=4.5，保持降水全省视角）
+      if (!precipitationStore.isOpen) map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
       void typhoonRepository.enter()
     },
     rollback: rollbackTyphoonMode,
@@ -1164,7 +1249,7 @@ function toggleHistoricalFromTimeline(typhoonId: string) {
   })
   typhoonLayerController.render(fullSnapshot)
   const firstNode = detail.observationsAsc[0]
-  if (firstNode) typhoonLayerController.setViewForTyphoonNode(typhoonId, firstNode.id, TYPHOON_INITIAL_ZOOM)
+  if (firstNode && !precipitationStore.isOpen) typhoonLayerController.setViewForTyphoonNode(typhoonId, firstNode.id, TYPHOON_INITIAL_ZOOM)
   playHistoricalTyphoon(typhoonId)
 }
 
@@ -1193,7 +1278,7 @@ function exitTyphoonMode(restoreView = true) {
     setActive: (active) => { disasterActive.value = active },
     invalidateNavigation: () => { flySeq += 1; provinceRenderPromise = null },
     restoreProvinceView: () => {
-      if (!restoreView) return
+      if (!restoreView || precipitationStore.isOpen) return
       const alreadyProvince = store.path.length === 1 && store.current.level === 'province'
       void store.resetToProvince().then((reset) => {
         if (!reset || !alreadyProvince) return
@@ -1453,7 +1538,8 @@ watch(() => ({
     visibleObservationCountByTyphoon: state.visibleCounts,
   }))
   if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
-    if (typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
+    // 方案 B：降水活动时台风不自动居中，也不标记已 fitted（退出降水后可恢复）
+    if (!precipitationStore.isOpen && typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
       fittedTyphoonSessionId = state.sessionId
     }
   }
@@ -1671,6 +1757,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   exitWeatherMode()
   exitNationalAlarms()
+  exitPrecipitationMode()
   exitTyphoonMode(false)
   disposed = true
   flySeq += 1
@@ -1680,6 +1767,7 @@ onBeforeUnmount(() => {
   store.setNavigationGuard(null)
   typhoonPlaybackController?.destroy()
   typhoonLayerController?.destroy()
+  precipitationLayerController?.destroy()
   weatherInteractionController?.destroy()
   weatherLayerController?.destroy()
   nationalAlarmLayerController?.destroy()

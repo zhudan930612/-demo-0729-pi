@@ -64,7 +64,6 @@ export const usePrecipitationStore = defineStore('precipitation', {
     startPlay(options: PlayTimerOptions = {}) {
       if (this.playing || this.phase !== 'ready') return
       const setI = options.setInterval ?? globalThis.setInterval
-      const clearI = options.clearInterval ?? globalThis.clearInterval
       this.playing = true
       // 循环播放：到第 7 天（索引 6）后回第 1 天（索引 0）继续，无自动停止
       this.timer = setI(() => {
