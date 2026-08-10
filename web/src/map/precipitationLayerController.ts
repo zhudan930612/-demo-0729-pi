@@ -85,7 +85,7 @@ export class PrecipGridLayer extends L.GridLayer {
 
   constructor(options: Partial<PrecipGridLayerOptions>) {
     // fadeAnimation: false —— 缩放时新旧瓦片不做半透明叠加过渡，避免色斑颜色因叠加而漂移
-    super({ tileSize: 256, opacity: 1, stepPx: 4, fadeAnimation: false, ...options })
+    super({ tileSize: 256, opacity: 1, stepPx: 4, fadeAnimation: false, ...options } as L.GridLayerOptions)
   }
 
   createTile(coords: L.Coords): HTMLElement {
