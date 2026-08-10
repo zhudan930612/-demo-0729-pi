@@ -69,6 +69,7 @@ export function createPrecipitationService(config = {}, options = {}) {
     params.set('latitude', grid.latParam)
     params.set('longitude', grid.lonParam)
     params.set('hourly', 'precipitation')
+    params.set('past_hours', '48') // Open-Meteo time 从当前时刻整点起，past_hours 覆盖北京今日 0:00 以支撑自然日累计
     params.set('forecast_hours', String(PRECIP_FORECAST_HOURS))
     params.set('timezone', 'Asia/Shanghai')
     params.set('models', UPSTREAM_MODEL)
@@ -114,10 +115,13 @@ export function createPrecipitationService(config = {}, options = {}) {
     }
     if (!refTimes || refTimes.length < 24) throw new PrecipitationError('structure', '降水网格时次不足')
 
-    // 聚合口径（2026-08-10 用户实测后修正）：自然日累计——从北京时间今日 0:00 起每 24h 一段，
-    // 含今日已过时次（与用户期望的"今天累计"及参考图"未来24小时"口径一致）
+    // 聚合口径（2026-08-10 实测后修正）：自然日累计——从北京时间今日 0:00 起每 24h 一段，
+    // 含今日已过时次。Open-Meteo time 从当前整点起，需 past_hours 覆盖今日 0:00 后在 time 中定位起点。
     const aggregateFromMs = stamp - ((stamp + 8 * 3600 * 1000) % 86400_000) // 北京今日 0:00（UTC 毫秒）
-    const startIndex = 0
+    // 北京今日日期（stamp+8h 的 UTC 钟面即北京钟面）
+    const todayStr = new Date(stamp + 8 * 3600 * 1000).toISOString().slice(0, 10)
+    const startIndex = refTimes.findIndex((t) => t.startsWith(`${todayStr}T00:00`))
+    if (startIndex < 0) throw new PrecipitationError('structure', '降水网格时次未覆盖北京今日零点')
     const aggregateFrom = new Date(aggregateFromMs + 8 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19) + '+08:00'
 
     const gridData = []

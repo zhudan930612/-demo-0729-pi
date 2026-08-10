@@ -6,7 +6,8 @@ const T0 = Date.UTC(2026, 7, 10, 0, 30, 0) // 北京时间 2026-08-10 08:30
 
 function makePayload({ hours = PRECIP_FORECAST_HOURS, value = 1, points = null } = {}) {
   const grid = buildGridPoints()
-  const times = Array.from({ length: hours }, (_, i) => `2026-08-10T${String(Math.floor(i / 24)).padStart(2, '0')}:${String(i % 24).padStart(2, '0')}:00`)
+  // 真实小时粒度：从 2026-08-10 00:00 起逐小时（i 小时偏移）
+  const times = Array.from({ length: hours }, (_, i) => new Date(Date.UTC(2026, 7, 10) + i * 3600 * 1000).toISOString().slice(0, 19))
   const items = []
   for (let lat of grid.lats) for (let lon of grid.lons) {
     items.push({ latitude: lat, longitude: lon, hourly: { time: times, precipitation: Array.from({ length: hours }, () => value) } })
