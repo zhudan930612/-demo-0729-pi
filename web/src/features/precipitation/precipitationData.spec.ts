@@ -100,6 +100,7 @@ describe('precipitation store', () => {
     store.selectDay(3)
     expect(store.selectedDay).toBe(3)
     expect(store.playing).toBe(false)
+    expect(store.timer).toBeNull() // 播放中点日期必须清除计时器（防残留推进）
     store.selectDay(99)
     expect(store.selectedDay).toBe(3)
     store.selectDay(-1)
@@ -117,6 +118,7 @@ describe('precipitation store', () => {
     store.selectDay(4)
     expect(store.selectedDay).toBe(4)
     expect(store.playing).toBe(false)
+    expect(store.timer).toBeNull()
     // 再次播放 → 从当前日期（4）继续
     store.startPlay({ setInterval: fakeSet, clearInterval: vi.fn() })
     tick!()

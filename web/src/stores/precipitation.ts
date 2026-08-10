@@ -54,7 +54,8 @@ export const usePrecipitationStore = defineStore('precipitation', {
     selectDay(index: number) {
       if (index < 0 || index >= PRECIP_DAY_COUNT) return
       this.selectedDay = index
-      this.playing = false
+      // 播放中点日期：必须停掉计时器（仅设 playing=false 会残留 timer，1.2s 后继续推进日期）
+      this.stopPlay()
     },
     setOpacity(value: number) {
       const parsed = Number(value)
