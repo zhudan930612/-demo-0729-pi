@@ -124,12 +124,23 @@ export class PrecipGridLayer extends L.GridLayer {
     this.redraw()
   }
 
-  /** 整体透明度：直接改 .leaflet-layer 容器 CSS opacity，不重绘瓦片（拖动丝滑） */
+  /** 整体透明度：同步 options.opacity（避免 Leaflet _updateOpacity 在瓦片加载时用旧值覆盖容器），
+   *  再直接设 .leaflet-layer 容器 CSS opacity（不重绘瓦片，拖动丝滑） */
   setOpacityValue(opacity: number) {
     const clamped = Math.min(1, Math.max(0, opacity))
+    this.options.opacity = clamped
     const container = this.getContainer()
     if (container) container.style.opacity = String(clamped)
   }
+
+  /** 覆盖 Leaflet 内部 _updateOpacity：只同步容器 opacity，禁用 per-tile 200ms 渐显，
+   *  缩放后新瓦片立即全显，颜色不随缩放瞬态变化 */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _updateOpacity = function (this: PrecipGridLayer) {
+    if (!this._map) return
+    const container = this.getContainer()
+    if (container) container.style.opacity = String(this.options.opacity)
+  } as unknown as () => void
 }
 
 export interface PrecipitationLayerOptions {
