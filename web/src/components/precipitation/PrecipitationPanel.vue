@@ -103,8 +103,8 @@ function onOpacity(event: Event) {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 7px 12px 7px;
+  gap: 7px;
+  padding: 8px 12px 8px;
   border: 1px solid rgba(37, 99, 235, 0.55); /* 专题模式身份：action-blue 边框 */
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.96);
