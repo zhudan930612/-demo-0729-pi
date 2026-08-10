@@ -319,7 +319,6 @@ const villageCard = ref<{ code: string; anchor: { x: number; y: number }; model:
 let villageBoundaries: VillageBoundary[] = []
 const villageRiskResults = new Map<string, VillageRiskResult>()
 const villageCovered = new Map<string, PrecipGridPoint[]>()
-let consumeNextMapClick = false
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
 const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
@@ -1117,6 +1116,7 @@ function computeVillageRisks() {
     villageRiskResults.set(village.code, computeVillageRisk({ village, snapshot, typhoons, alarms }))
   }
   renderVillageRiskLayer()
+  refreshVillageCard()
 }
 
 /** 渲染标注：省市不显示；乡镇级仅当前乡镇的村；村级全部高亮。 */
@@ -1157,7 +1157,6 @@ function buildVillageCardModel(village: VillageBoundary): VillageRiskCardModel {
 }
 
 function openVillageCard(code: string, point: { x: number; y: number }) {
-  consumeNextMapClick = true
   if (villageCard.value?.code === code) { closeVillageCard(); return }
   const village = villageBoundaries.find((v) => v.code === code)
   if (!village) return
@@ -1776,8 +1775,7 @@ onMounted(async () => {
     },
   )
   map.on('click', (event) => {
-    if (villageCard.value && !consumeNextMapClick) closeVillageCard()
-    consumeNextMapClick = false
+    if (villageCard.value) closeVillageCard()
     if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
