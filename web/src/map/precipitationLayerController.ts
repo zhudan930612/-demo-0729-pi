@@ -8,8 +8,7 @@ export const PRECIP_PANES = { grid: { name: 'precipitationPane', zIndex: 395 } }
 export const PRECIP_GRID_BOUNDS = { lonMin: 118.0, lonMax: 123.0, latMin: 27.0, latMax: 31.5 } as const
 
 /** 图2 风格离散色阶（浙江省水利厅台风路径发布系统）：极浅绿→绿→青绿→亮蓝→紫/洋红。
- *  每档固定颜色与透明度因子（外透内实：小雨 0.75、特大暴雨 1.0）；离散分档保证
- *  同一位置在不同缩放级别下颜色固定（不做连续渐变插值，避免采样点差异导致颜色漂移）。 */
+ *  档内固定色（缩放颜色稳定）；档位阈值右侧 BAND 渐变带内与下档色平滑混合，消除硬边界锯齿。 */
 export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, number, number], number]> = [
   [0.1, [208, 240, 170], 0.75],
   [10, [122, 204, 112], 0.85],
@@ -19,15 +18,28 @@ export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, numb
   [250, [204, 46, 196], 1.0],
 ]
 
+/** 阈值渐变带宽度（相对档位阈值），消除色阶硬边界的阶梯锯齿 */
+export const LEVEL_BAND = 0.18
+
 export function precipColor(value: number, alpha: number): string | null {
   if (!Number.isFinite(value) || value < LEVEL_STOPS[0][0] || alpha <= 0) return null
-  // 离散档位：取 value 所属的最高档，档内不插值（保证缩放颜色稳定）
-  let stop = LEVEL_STOPS[0]
+  let stop = LEVEL_STOPS[0], idx = 0
   for (let i = 0; i < LEVEL_STOPS.length; i++) {
-    if (value >= LEVEL_STOPS[i][0]) stop = LEVEL_STOPS[i]
+    if (value >= LEVEL_STOPS[i][0]) { stop = LEVEL_STOPS[i]; idx = i }
   }
-  const [r, g, b] = stop[1]
-  const levelAlpha = stop[2]
+  const prev = idx > 0 ? LEVEL_STOPS[idx - 1] : null
+  let r: number, g: number, b: number, levelAlpha: number
+  if (prev && value < stop[0] * (1 + LEVEL_BAND)) {
+    // 渐变带：阈值右侧与下档色平滑混合（值场连续 → 边界为平滑渐变曲线）
+    const t = Math.min(1, Math.max(0, (value - stop[0]) / (stop[0] * LEVEL_BAND)))
+    r = Math.round(prev[1][0] + (stop[1][0] - prev[1][0]) * t)
+    g = Math.round(prev[1][1] + (stop[1][1] - prev[1][1]) * t)
+    b = Math.round(prev[1][2] + (stop[1][2] - prev[1][2]) * t)
+    levelAlpha = prev[2] + (stop[2] - prev[2]) * t
+  } else {
+    ;[r, g, b] = stop[1]
+    levelAlpha = stop[2]
+  }
   return `rgba(${r},${g},${b},${(levelAlpha * Math.min(1, Math.max(0, alpha))).toFixed(3)})`
 }
 
@@ -82,7 +94,7 @@ export class PrecipGridLayer extends L.GridLayer {
 
   constructor(options: Partial<PrecipGridLayerOptions>) {
     // fadeAnimation: false —— 缩放时新旧瓦片不做半透明叠加过渡，避免色斑颜色因叠加而漂移
-    super({ tileSize: 256, opacity: 1, stepPx: 4, fadeAnimation: false, ...options } as L.GridLayerOptions)
+    super({ tileSize: 256, opacity: 1, stepPx: 1, fadeAnimation: false, ...options } as L.GridLayerOptions)
   }
 
   createTile(coords: L.Coords): HTMLElement {
@@ -94,27 +106,34 @@ export class PrecipGridLayer extends L.GridLayer {
     if (!ctx) return tile
     const grid = this.options.valueGrid
     if (!grid) return tile
-    // tile 经纬度范围：用 unproject 反算四角（公开 API，避免依赖内部 _tileCoordsToBounds）
     const map = this._map
     if (!map) return tile
     const northWest = map.unproject([coords.x * tileSize.x, coords.y * tileSize.y], coords.z)
     const southEast = map.unproject([(coords.x + 1) * tileSize.x, (coords.y + 1) * tileSize.y], coords.z)
     const north = northWest.lat, south = southEast.lat
     const west = northWest.lng, east = southEast.lng
-    const step = Math.max(2, Math.floor(this.options.stepPx))
-    for (let ty = 0; ty < tileSize.y; ty += step) {
-      const lat = north - (north - south) * (ty + 0.5) / tileSize.y
-      for (let tx = 0; tx < tileSize.x; tx += step) {
-        const lng = west + (east - west) * (tx + 0.5) / tileSize.x
+    // 低分辨率渲染（64×64，快）→ 高质量平滑放大到瓦片尺寸：消除马赛克与阶梯，边缘成平滑曲线
+    const renderSize = 64
+    const off = document.createElement('canvas')
+    off.width = renderSize
+    off.height = renderSize
+    const octx = off.getContext('2d')
+    if (!octx) return tile
+    for (let ty = 0; ty < renderSize; ty++) {
+      const lat = north - (north - south) * (ty + 0.5) / renderSize
+      for (let tx = 0; tx < renderSize; tx++) {
+        const lng = west + (east - west) * (tx + 0.5) / renderSize
         const value = interpolatePrecip(grid, lat, lng)
         if (value < 0.1) continue
-        // 瓦片内固定外透内实分层因子（alpha=1），整体透明度由容器 CSS opacity 控制（拖动丝滑不重绘）
         const fill = precipColor(value, 1)
         if (!fill) continue
-        ctx.fillStyle = fill
-        ctx.fillRect(tx, ty, step, step)
+        octx.fillStyle = fill
+        octx.fillRect(tx, ty, 1, 1)
       }
     }
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(off, 0, 0, tileSize.x, tileSize.y)
     return tile
   }
 
