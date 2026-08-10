@@ -41,7 +41,7 @@ web
 
 ## Evidence on Hand
 
-- 项目文档入口为 `docs/README.md`；地图/地块、详情/保单、台风、天气、浙江预警分别以 `docs/requirements/需求文档.md`、`docs/requirements/地块详情与保单关联V1需求.md`、`docs/requirements/灾害风险与台风查看需求.md`、`docs/requirements/天气查看与和风天气API接入需求.md`、`docs/requirements/全国气象预警数据接入需求.md` 为准；面状降水预报以 `docs/requirements/面状降水预报需求.md` 为准（立项状态）。
+- 项目文档入口为 `docs/README.md`；地图/地块、详情/保单、台风、天气、浙江预警分别以 `docs/requirements/需求文档.md`、`docs/requirements/地块详情与保单关联V1需求.md`、`docs/requirements/灾害风险与台风查看需求.md`、`docs/requirements/天气查看与和风天气API接入需求.md`、`docs/requirements/全国气象预警数据接入需求.md` 为准；面状降水预报以 `docs/requirements/面状降水预报需求.md` 为准（已实现）。
 - 台风当前行为以 `docs/requirements/灾害风险与台风查看需求.md` 和源码为准；天气当前行为以 `docs/requirements/天气查看与和风天气API接入需求.md` 和源码为准，首期验收证据见 `docs/archive/天气查看V1验收记录.md`；浙江预警当前行为以 `docs/requirements/全国气象预警数据接入需求.md` 和源码为准；其他历史实施计划与阶段性证据归档在 `docs/archive/`。
 - 地图主装配：`web/src/components/MapView.vue`；台风与天气代理：`server/`。
 - 行政边界、吉林一号影像与 AI 地块数据为本地受限产物，不进入公开仓库。
