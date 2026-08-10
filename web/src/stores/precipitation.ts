@@ -3,7 +3,7 @@ import type { PrecipitationSnapshot } from '../features/precipitation/precipitat
 
 export type PrecipitationPhase = 'closed' | 'loading' | 'ready' | 'error' | 'refreshing'
 export const PRECIP_PLAY_INTERVAL_MS = 1200
-export const PRECIP_DEFAULT_OPACITY = 0.6
+export const PRECIP_DEFAULT_OPACITY = 1
 export const PRECIP_DAY_COUNT = 7
 
 interface PlayTimerOptions { setInterval?: typeof setInterval; clearInterval?: typeof clearInterval }

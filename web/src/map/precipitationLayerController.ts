@@ -169,7 +169,7 @@ const HOVER_OFFSET_X = 14
 const HOVER_OFFSET_Y = 20
 
 export function createPrecipitationLayerController(options: PrecipitationLayerOptions = {}): PrecipitationLayerController {
-  const initialOpacity = options.opacity ?? 0.6
+  const initialOpacity = options.opacity ?? 1
   const stepPx = Math.max(2, Math.floor(options.stepPx ?? 4))
   let map: L.Map | null = null
   let layer: PrecipGridLayer | null = null
