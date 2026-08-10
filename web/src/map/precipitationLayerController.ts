@@ -102,6 +102,7 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
   let valueGrid: PrecipValueGrid | null = null
   let currentOpacity = initialOpacity
   let frameHandle: number | null = null
+  let zoomStartLevel: number | null = null
   let mapListeners: Array<{ target: L.Map; event: string; handler: () => void }> = []
 
   function ensurePane(target: L.Map): HTMLElement {
@@ -121,6 +122,9 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
 // canvas 挂载在 Leaflet pane（随 mapPane transform 平移）。
 // 渲染用 layerPoint（pane 局部坐标）填色，canvas 向外扩 LAYER_PAD 像素以覆盖 transform 偏移后的视口。
 const LAYER_PAD = 512
+// Leaflet 缩放动画只 transform 内部 proxy，自定义 pane 不参与；
+// 用 CSS transition + zoomanim 目标变换让色斑与地图同步缩放。
+const ZOOM_ANIM_MS = 250
 
   function render() {
     frameHandle = null
@@ -158,18 +162,45 @@ const LAYER_PAD = 512
   }
 
   function attachEvents(target: L.Map) {
-    const onMove = () => scheduleRender()
-    const onZoom = () => scheduleRender()
+    // 缩放动画期间（zoomStartLevel 非空）不重绘：canvas 由 CSS transform 过渡跟随，动画结束统一重绘
+    const onMove = () => { if (zoomStartLevel === null) scheduleRender() }
+    const onZoom = () => { if (zoomStartLevel === null) scheduleRender() }
     const onSettle = () => scheduleRender()
+    // 缩放动画：让 canvas 跟随地图同步缩放（仿 Leaflet tile 的 CSS transition 方式）
+    const onZoomStart = () => {
+      if (!canvas) return
+      zoomStartLevel = map?.getZoom() ?? null
+      canvas.style.transition = `transform ${ZOOM_ANIM_MS}ms ease-out`
+      canvas.style.transformOrigin = '0 0'
+    }
+    const onZoomAnim = (event: { center: L.LatLng; zoom: number }) => {
+      if (zoomStartLevel === null || !canvas) return
+      const z0 = zoomStartLevel, z1 = event.zoom
+      const center = event.center
+      const c0 = map!.project(center, z0)
+      const c1 = map!.project(center, z1)
+      const k = map!.getZoomScale(z1, z0)
+      // 把旧 zoom 的 layerPoint 内容映射到目标 zoom 的显示位置（transform-origin 0 0）
+      canvas.style.transform = `translate3d(${c1.x - c0.x * k}px, ${c1.y - c0.y * k}px, 0) scale(${k})`
+    }
+    const onZoomEnd = () => {
+      zoomStartLevel = null
+      if (canvas) { canvas.style.transition = ''; canvas.style.transform = '' }
+      scheduleRender()
+    }
     target.on('move', onMove)
     target.on('zoom', onZoom)
     target.on('moveend', onSettle)
-    target.on('zoomend', onSettle)
+    target.on('zoomend', onZoomEnd)
+    target.on('zoomstart', onZoomStart)
+    target.on('zoomanim', onZoomAnim)
     mapListeners = [
       { target, event: 'move', handler: onMove },
       { target, event: 'zoom', handler: onZoom },
       { target, event: 'moveend', handler: onSettle },
-      { target, event: 'zoomend', handler: onSettle },
+      { target, event: 'zoomend', handler: onZoomEnd },
+      { target, event: 'zoomstart', handler: onZoomStart },
+      { target, event: 'zoomanim', handler: onZoomAnim as unknown as () => void },
     ]
   }
 

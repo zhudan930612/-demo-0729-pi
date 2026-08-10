@@ -110,14 +110,38 @@ describe('interpolatePrecip 双线性插值', () => {
 describe('createPrecipitationLayerController 生命周期', () => {
   function fakeMap(): L.Map {
     const pane = { style: {} as Record<string, string>, appendChild: vi.fn(), removeChild: vi.fn() }
+    const listeners: Record<string, (event?: unknown) => void> = {}
     return {
       getSize: vi.fn(() => ({ x: 100, y: 100 })),
       containerPointToLatLng: vi.fn((point: { x: number; y: number }) => ({ lat: 30, lng: 120 + (point.x - 50) * 0.05 })),
+      containerPointToLayerPoint: vi.fn((point: { x: number; y: number }) => ({ x: point.x, y: point.y })),
+      project: vi.fn((_center: unknown, zoom: number) => ({ x: zoom * 100, y: zoom * 100 })),
+      getZoomScale: vi.fn((to: number, from: number) => Math.pow(2, to - from)),
+      getZoom: vi.fn(() => 7),
       getPane: vi.fn(() => pane),
       createPane: vi.fn(() => pane),
-      on: vi.fn(), off: vi.fn(),
+      on: vi.fn((event: string, handler: (event?: unknown) => void) => { listeners[event] = handler }),
+      off: vi.fn(),
+      _listeners: listeners,
     } as unknown as L.Map
   }
+  it('缩放动画：zoomanim 设置 canvas transform，zoomend 重置并重绘', () => {
+    const map = fakeMap()
+    const controller = createPrecipitationLayerController({ stepPx: 10, requestAnimationFrame: (cb) => { cb(0); return 0 }, cancelAnimationFrame: () => {} })
+    controller.mount(map)
+    const pane = map.getPane(PRECIP_PANES.grid.name) as unknown as { appendChild: ReturnType<typeof vi.fn> }
+    const canvas = pane.appendChild.mock.calls[0][0] as unknown as { style: Record<string, string> }
+    const listeners = (map as unknown as { _listeners: Record<string, (event?: unknown) => void> })._listeners
+    // zoomstart → zoomanim（每帧）→ zoomend
+    listeners['zoomstart']()
+    listeners['zoomanim']({ center: { lat: 29, lng: 120 }, zoom: 8 })
+    expect(canvas.style.transition).toContain('transform')
+    expect(canvas.style.transform).toContain('scale(')
+    listeners['zoomend']()
+    expect(canvas.style.transform).toBe('')
+    expect(canvas.style.transition).toBe('')
+    controller.destroy()
+  })
   it('pane zIndex 低于注记 450', () => {
     expect(PRECIP_PANES.grid.zIndex).toBeLessThan(450)
   })
