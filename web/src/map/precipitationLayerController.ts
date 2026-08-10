@@ -133,13 +133,20 @@ export class PrecipGridLayer extends L.GridLayer {
     if (container) container.style.opacity = String(clamped)
   }
 
-  /** 覆盖 Leaflet 内部 _updateOpacity：只同步容器 opacity，禁用 per-tile 200ms 渐显，
-   *  缩放后新瓦片立即全显，颜色不随缩放瞬态变化 */
+  /** 覆盖 Leaflet 内部 _updateOpacity：只同步容器 opacity 并把瓦片立即全显，
+   *  禁用 per-tile 200ms 渐显（缩放后颜色不瞬态变化）；
+   *  注意：GridLayer 瓦片初始 opacity=0，必须显式置 1，否则色斑不可见 */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _updateOpacity = function (this: PrecipGridLayer) {
     if (!this._map) return
     const container = this.getContainer()
     if (container) container.style.opacity = String(this.options.opacity)
+    // 所有已加载瓦片立即全显（原版通过 fade 渐显到 1，这里直接置 1）
+    const tiles = this._tiles as Record<string, { el?: HTMLElement }>
+    for (const key in tiles) {
+      const tile = tiles[key]
+      if (tile?.el) tile.el.style.opacity = '1'
+    }
   } as unknown as () => void
 }
 
