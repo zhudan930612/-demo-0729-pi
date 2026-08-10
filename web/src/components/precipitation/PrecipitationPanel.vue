@@ -99,7 +99,7 @@ function onOpacity(event: Event) {
   bottom: 12px;
   transform: translateX(-50%);
   z-index: 1010;
-  width: min(600px, calc(100% - 20px));
+  width: min(520px, calc(100% - 20px));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
