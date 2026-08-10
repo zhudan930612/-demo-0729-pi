@@ -213,13 +213,14 @@ export function observationWindRadii(observation: ObservationNode | null): WindR
 }
 
 /** 从台风 store 中提取全部在案实时台风的最近观测 + 预报路径（覆盖时长以上游实测为准）。 */
-export function latestTyphoonRiskPaths(details: readonly TyphoonDetail[]): Array<{ path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null; maxForecastHour: number | null }> {
-  const result: Array<{ path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null; maxForecastHour: number | null }> = []
+export function latestTyphoonRiskPaths(details: readonly TyphoonDetail[]): Array<{ name: string; path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null; maxForecastHour: number | null }> {
+  const result: Array<{ name: string; path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null; maxForecastHour: number | null }> = []
   for (const detail of details) {
     if (detail.status !== 'start') continue
     const observation = detail.latestObservation
     if (!observation) continue
     result.push({
+      name: detail.nameCn ?? detail.nameEn ?? detail.id,
       path: observationRiskPath(observation),
       windRadii: observationWindRadii(observation),
       maxForecastHour: observation.forecastSnapshot?.maxForecastHour ?? null,
@@ -240,7 +241,7 @@ export function alarmItems(snapshot: { items: readonly NationalWeatherAlarm[] } 
 export interface VillageRiskInput {
   village: VillageBoundary
   snapshot: PrecipitationSnapshot | null
-  typhoons: Array<{ path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null }>
+  typhoons: Array<{ name?: string; path: RiskPathPoint[]; windRadii: WindRadiiLike[] | null; maxForecastHour?: number | null }>
   alarms: readonly AlarmLike[]
 }
 
@@ -252,8 +253,11 @@ export interface VillageRiskResult {
   typhoonSignal: RiskLevel
   typhoonPathDistanceKm: number | null
   typhoonWindCovered: boolean
+  typhoonName: string | null
+  typhoonCoverageHours: number | null
   alarmSignal: 0 | 1 | 3
   matchedEvent: string | null
+  matchedSeverity: 'red' | 'orange' | 'yellow' | 'blue' | null
 }
 
 /** 村级风险装配：三源信号 → 综合等级（需求 §3.2）。降水快照不可用 → 降水信号 0。 */
@@ -273,9 +277,15 @@ export function computeVillageRisk(input: VillageRiskInput): VillageRiskResult {
   let typhoonLevel: RiskLevel = 0
   let typhoonPathDistanceKm: number | null = null
   let typhoonWindCovered = false
+  let typhoonName: string | null = null
+  let typhoonCoverageHours: number | null = null
   for (const entry of input.typhoons) {
     const result = typhoonSignal(village.centroid, entry.path, entry.windRadii)
-    if (result.signal > typhoonLevel) typhoonLevel = result.signal
+    if (result.signal > typhoonLevel) {
+      typhoonLevel = result.signal
+      typhoonName = entry.name ?? null
+      typhoonCoverageHours = entry.maxForecastHour ?? null
+    }
     if (result.pathDistanceKm !== null) {
       typhoonPathDistanceKm = typhoonPathDistanceKm === null ? result.pathDistanceKm : Math.min(typhoonPathDistanceKm, result.pathDistanceKm)
     }
@@ -291,8 +301,11 @@ export function computeVillageRisk(input: VillageRiskInput): VillageRiskResult {
     typhoonSignal: typhoonLevel,
     typhoonPathDistanceKm,
     typhoonWindCovered,
+    typhoonName,
+    typhoonCoverageHours,
     alarmSignal: alarm.signal as 0 | 1 | 3,
     matchedEvent: alarm.matchedEvent,
+    matchedSeverity: alarm.matchedSeverity,
   }
 }
 

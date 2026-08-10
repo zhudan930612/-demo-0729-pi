@@ -188,6 +188,7 @@ export interface AlarmSignalResult {
   relevantMatched: boolean
   redMatched: boolean
   matchedEvent: string | null
+  matchedSeverity: 'red' | 'orange' | 'yellow' | 'blue' | null
 }
 
 /** 预警信号（需求 §3.1）：按区县（村码前 6 位）匹配当前生效预警；暴雨/台风/强对流类 → +1；
@@ -197,7 +198,10 @@ export function alarmSignal(alarms: readonly AlarmLike[] | null | undefined, cou
   const matched = relevant.find((a) => a.eventType !== null && RISK_RELEVANT_ALARM_EVENTS.includes(a.eventType))
   const redMatched = relevant.some((a) => a.severity === 'red' && a.eventType !== null && RISK_RELEVANT_ALARM_EVENTS.includes(a.eventType))
   const signal: RiskLevel = redMatched ? 3 : matched ? 1 : 0
-  return { signal, relevantMatched: Boolean(matched), redMatched, matchedEvent: matched?.eventType ?? null }
+  const matchedSeverity = (matched?.severity === 'red' || matched?.severity === 'orange' || matched?.severity === 'yellow' || matched?.severity === 'blue')
+    ? matched.severity
+    : null
+  return { signal, relevantMatched: Boolean(matched), redMatched, matchedEvent: matched?.eventType ?? null, matchedSeverity }
 }
 
 // ---------- 综合算法（需求 §3.2，单一算法） ----------
