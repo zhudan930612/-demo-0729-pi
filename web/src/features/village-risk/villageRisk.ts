@@ -23,14 +23,19 @@ export function precipPeakLevel(mm: number): RiskLevel {
 export const CONSECUTIVE_RAIN_WINDOW = 3
 export const CONSECUTIVE_RAIN_SUM_MM = 50
 
-/** 连续降雨信号：7 天窗口内存在连续 3 日累计 ≥50mm（连阴雨/渍涝，需求拷打后新增）。
- *  输入为该村每日均值序列（村级代表口径）。 */
+/** 连续降雨信号：7 天窗口内存在**连续 3 日各有降水（≥0.1mm）且累计 ≥50mm**（连阴雨/渍涝，需求拷打后新增）。
+ *  要求窗口内每日均有雨，避免单日暴雨被重复计级（峰值已定级）；输入为该村每日均值序列（村级代表口径）。 */
 export function hasConsecutiveRain(dailyMeans: readonly number[]): boolean {
   const values = dailyMeans.map((v) => (Number.isFinite(v) ? v : 0))
   for (let i = 0; i + CONSECUTIVE_RAIN_WINDOW <= values.length; i++) {
     let sum = 0
-    for (let j = 0; j < CONSECUTIVE_RAIN_WINDOW; j++) sum += values[i + j]
-    if (sum >= CONSECUTIVE_RAIN_SUM_MM) return true
+    let allRainy = true
+    for (let j = 0; j < CONSECUTIVE_RAIN_WINDOW; j++) {
+      const v = values[i + j]
+      sum += v
+      if (v < 0.1) allRainy = false
+    }
+    if (allRainy && sum >= CONSECUTIVE_RAIN_SUM_MM) return true
   }
   return false
 }

@@ -39,10 +39,14 @@ describe('precipPeakLevel 降水峰值分档', () => {
 })
 
 describe('hasConsecutiveRain 连续降雨信号', () => {
-  it('连续 3 日累计 ≥50 成立', () => {
-    expect(hasConsecutiveRain([15, 15, 20])).toBe(true)
-    expect(hasConsecutiveRain([10, 10, 30, 1, 1])).toBe(true)
+  it('连续 3 日各有雨且累计 ≥50 成立', () => {
+    expect(hasConsecutiveRain([15, 15, 20])).toBe(true) // 50
+    expect(hasConsecutiveRain([10, 10, 30, 1, 1])).toBe(true) // 50
     expect(hasConsecutiveRain([20, 10, 25, 1, 1])).toBe(true) // 20+10+25=55
+  })
+  it('单日暴雨不判连阴雨（峰值已定级，避免重复计级）', () => {
+    expect(hasConsecutiveRain([60, 0, 0, 0, 60])).toBe(false) // 相邻窗口含 0 日
+    expect(hasConsecutiveRain([50, 0, 0])).toBe(false)
   })
   it('不足 50 不成立（含 3 日窗口全部枚举）', () => {
     expect(hasConsecutiveRain([10, 10, 10, 10])).toBe(false) // 30
