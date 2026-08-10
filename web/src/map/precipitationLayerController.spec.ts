@@ -81,11 +81,24 @@ describe('interpolatePrecip 双线性插值', () => {
     expect(interpolatePrecip(grid, 27, 118)).toBe(27 * 100 + 118)
     expect(interpolatePrecip(grid, 31.5, 123)).toBe(31.5 * 100 + 123)
   })
-  it('两网格点中点取均值', () => {
+  it('两网格点中点取平滑值（Catmull-Rom 双三次，含过冲）', () => {
     const snapshot = makeSnapshot()
     snapshot.grid.forEach((point) => { point.values.d1 = point.lon === 120 ? 10 : point.lon === 120.25 ? 20 : 0 })
     const grid = buildValueGrid(snapshot, 'd1')
-    expect(interpolatePrecip(grid, 27, 120.125)).toBeCloseTo(15, 5)
+    // bicubic 中点非线性均值：16.875（连续平滑，含轻微过冲）
+    expect(interpolatePrecip(grid, 27, 120.125)).toBeCloseTo(16.875, 3)
+  })
+  it('网格内值平滑连续（相邻采样无跳变）', () => {
+    const snapshot = makeSnapshot()
+    snapshot.grid.forEach((point) => { point.values.d1 = point.lon * 10 + point.lat })
+    const grid = buildValueGrid(snapshot, 'd1')
+    const a = interpolatePrecip(grid, 27.5, 120.1)
+    const b = interpolatePrecip(grid, 27.5, 120.2)
+    const c = interpolatePrecip(grid, 27.5, 120.3)
+    expect(b).toBeGreaterThan(a)
+    expect(c).toBeGreaterThan(b)
+    // 步长变化小（平滑，无震荡跳变）
+    expect(b - a).toBeCloseTo(c - b, 1)
   })
   it('越界返回 0', () => {
     const grid = buildValueGrid(makeSnapshot(), 'd1')

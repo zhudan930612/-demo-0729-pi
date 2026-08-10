@@ -63,7 +63,13 @@ export function buildValueGrid(snapshot: PrecipitationSnapshot, day: PrecipDayKe
   return { lats, lons, values }
 }
 
-/** 双线性插值：返回网格矩形内任意经纬度的值；越界返回 0。 */
+/** Catmull-Rom 三次插值核（值场平滑，等值线圆滑曲线）。 */
+function catmullRom(p0: number, p1: number, p2: number, p3: number, t: number): number {
+  return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
+}
+
+/** 双三次（Catmull-Rom）插值：返回网格矩形内任意经纬度的平滑值；越界返回 0。
+ *  相比双线性，等值线为 C1 连续曲线，档位边界无折线阶梯。 */
 export function interpolatePrecip(grid: PrecipValueGrid, lat: number, lon: number): number {
   const { lats, lons, values } = grid
   if (lat < lats[0] || lat > lats[lats.length - 1] || lon < lons[0] || lon > lons[lons.length - 1]) return 0
@@ -72,10 +78,17 @@ export function interpolatePrecip(grid: PrecipValueGrid, lat: number, lon: numbe
   while (j1 < lons.length - 2 && lons[j1 + 1] <= lon) j1++
   const latFrac = lats[i1 + 1] === lats[i1] ? 0 : (lat - lats[i1]) / (lats[i1 + 1] - lats[i1])
   const lonFrac = lons[j1 + 1] === lons[j1] ? 0 : (lon - lons[j1]) / (lons[j1 + 1] - lons[j1])
-  const v00 = values[i1][j1], v01 = values[i1][j1 + 1], v10 = values[i1 + 1][j1], v11 = values[i1 + 1][j1 + 1]
-  const top = v00 + (v01 - v00) * lonFrac
-  const bottom = v10 + (v11 - v10) * lonFrac
-  return top + (bottom - top) * latFrac
+  const maxI = lats.length - 1, maxJ = lons.length - 1
+  const clampI = (v: number) => Math.max(0, Math.min(maxI, v))
+  const clampJ = (v: number) => Math.max(0, Math.min(maxJ, v))
+  // 4×4 邻域（边界 clamp）：每行沿经度 Catmull-Rom，再沿纬度 Catmull-Rom
+  const rows: number[] = []
+  for (let k = 0; k < 4; k++) {
+    const row = clampI(i1 - 1 + k)
+    const jm = clampJ(j1 - 1), jp = clampJ(j1 + 2)
+    rows.push(catmullRom(values[row][jm], values[row][j1], values[row][j1 + 1], values[row][jp], lonFrac))
+  }
+  return catmullRom(rows[0], rows[1], rows[2], rows[3], latFrac)
 }
 
 export interface PrecipGridLayerOptions extends L.GridLayerOptions {
@@ -283,6 +296,32 @@ export interface PrecipitationLayerController {
 const HOVER_OFFSET_X = 14
 const HOVER_OFFSET_Y = 20
 
+let hoverStyleInjected = false
+/** 注入 hover 浮窗样式（深色半透明卡片，任何底图上清晰）：分级醒目 + 数值浅蓝 */
+function ensureHoverStyle() {
+  if (hoverStyleInjected) return
+  hoverStyleInjected = true
+  const style = document.createElement('style')
+  style.textContent = `
+.precip-hover-wrap { position: fixed; pointer-events: none; z-index: 900; }
+.precip-hover {
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.88);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.35);
+  color: #fff;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.3;
+  backdrop-filter: blur(3px);
+}
+.precip-hover-level { font-weight: 600; font-size: 13px; color: #fff; }
+.precip-hover-value { color: #93c5fd; font-variant-numeric: tabular-nums; font-size: 12px; }
+`
+  document.head.appendChild(style)
+}
+
 export function createPrecipitationLayerController(options: PrecipitationLayerOptions = {}): PrecipitationLayerController {
   const initialOpacity = options.opacity ?? 1
   const stepPx = Math.max(2, Math.floor(options.stepPx ?? 4))
@@ -321,6 +360,7 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
       hoverEl.style.pointerEvents = 'none'
       hoverEl.style.zIndex = '900'
       document.body.appendChild(hoverEl)
+      ensureHoverStyle()
     }
     if (value < 0.1) { hoverEl.style.display = 'none'; return }
     hoverEl.innerHTML = hoverContent(value)
