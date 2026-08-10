@@ -8,13 +8,13 @@ export const PRECIP_PANES = { grid: { name: 'precipitationPane', zIndex: 395 } }
 export const PRECIP_GRID_BOUNDS = { lonMin: 118.0, lonMax: 123.0, latMin: 27.0, latMax: 31.5 } as const
 
 /** 图2 风格色带（浙江省水利厅台风路径发布系统）：极浅绿→绿→青绿→亮蓝→紫/洋红，
- *  第四项为按强度的透明度因子（外透内实：外围 0.45、中心 0.95），与滑动条基础透明度相乘。 */
+ *  第四项为按强度的透明度因子（外透内实：外围 0.75、中心 1.0），100% 可见度下颜色实。 */
 export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, number, number], number]> = [
-  [0.1, [208, 240, 170], 0.45],
-  [10, [122, 204, 112], 0.6],
-  [25, [82, 172, 152], 0.75],
-  [50, [52, 112, 222], 0.85],
-  [100, [158, 60, 212], 0.95],
+  [0.1, [208, 240, 170], 0.75],
+  [10, [122, 204, 112], 0.85],
+  [25, [82, 172, 152], 0.9],
+  [50, [52, 112, 222], 0.95],
+  [100, [158, 60, 212], 1.0],
   [250, [204, 46, 196], 1.0],
 ]
 
@@ -84,7 +84,7 @@ export class PrecipGridLayer extends L.GridLayer {
   declare options: PrecipGridLayerOptions
 
   constructor(options: Partial<PrecipGridLayerOptions>) {
-    super({ tileSize: 256, opacity: 0.6, stepPx: 4, ...options })
+    super({ tileSize: 256, opacity: 1, stepPx: 4, ...options })
   }
 
   createTile(coords: L.Coords): HTMLElement {
@@ -95,8 +95,7 @@ export class PrecipGridLayer extends L.GridLayer {
     const ctx = tile.getContext('2d')
     if (!ctx) return tile
     const grid = this.options.valueGrid
-    const opacity = this.options.opacity
-    if (!grid || opacity <= 0) return tile
+    if (!grid) return tile
     // tile 经纬度范围：用 unproject 反算四角（公开 API，避免依赖内部 _tileCoordsToBounds）
     const map = this._map
     if (!map) return tile
@@ -111,7 +110,8 @@ export class PrecipGridLayer extends L.GridLayer {
         const lng = west + (east - west) * (tx + 0.5) / tileSize.x
         const value = interpolatePrecip(grid, lat, lng)
         if (value < 0.1) continue
-        const fill = precipColor(value, opacity)
+        // 瓦片内固定外透内实分层因子（alpha=1），整体透明度由容器 CSS opacity 控制（拖动丝滑不重绘）
+        const fill = precipColor(value, 1)
         if (!fill) continue
         ctx.fillStyle = fill
         ctx.fillRect(tx, ty, step, step)
@@ -126,11 +126,11 @@ export class PrecipGridLayer extends L.GridLayer {
     this.redraw()
   }
 
+  /** 整体透明度：直接改 .leaflet-layer 容器 CSS opacity，不重绘瓦片（拖动丝滑） */
   setOpacityValue(opacity: number) {
     const clamped = Math.min(1, Math.max(0, opacity))
-    if (this.options.opacity === clamped) return
-    this.options.opacity = clamped
-    this.redraw()
+    const container = this.getContainer()
+    if (container) container.style.opacity = String(clamped)
   }
 }
 
@@ -221,6 +221,7 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
       ensurePane(target)
       layer = new PrecipGridLayer({ pane: PRECIP_PANES.grid.name, valueGrid, opacity: currentOpacity, stepPx })
       layer.addTo(target)
+      layer.setOpacityValue(currentOpacity)
       attachHover(target)
     },
     setSnapshot(next) {

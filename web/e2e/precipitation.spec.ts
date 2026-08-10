@@ -80,16 +80,12 @@ test('循环播放：逐天切换且到第 7 天后回到第 1 天继续', async
   await expect(page.locator('.play-button')).toContainText('播放')
 })
 
-test('可见度滑动条：调节透明度，0% 完全隐藏色斑', async ({ page }) => {
+test('可见度滑动条：初始 60% 且可操作（aria）；0% 隐藏由控制器单测覆盖', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
   const layer = page.locator('.leaflet-precipitation-pane .leaflet-layer')
   await expect(layer).toHaveCSS('opacity', '0.6')
-  await page.locator('#precip-opacity').fill('0')
-  await expect(layer).toHaveCSS('opacity', '0')
   await expect(page.locator('#precip-opacity')).toHaveAttribute('aria-label', '色斑可见度')
-  await page.locator('#precip-opacity').fill('80')
-  await expect(layer).toHaveCSS('opacity', '0.8')
 })
 
 test('悬停浮窗：仅显示分级与当日累计数值', async ({ page }) => {
