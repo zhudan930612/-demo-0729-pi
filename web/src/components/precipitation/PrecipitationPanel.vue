@@ -98,12 +98,12 @@ const dayLabel = (index: number) => { const date = parseDay(days.value[index] ??
 
 const legendStops = [
   { label: '无雨', color: 'transparent' },
-  { label: '小雨', color: 'rgb(166,217,106)' },
-  { label: '中雨', color: 'rgb(65,171,93)' },
-  { label: '大雨', color: 'rgb(44,127,184)' },
-  { label: '暴雨', color: 'rgb(31,82,160)' },
-  { label: '大暴雨', color: 'rgb(117,42,131)' },
-  { label: '特大暴雨', color: 'rgb(64,0,64)' },
+  { label: '小雨', color: 'rgb(208,240,170)' },
+  { label: '中雨', color: 'rgb(122,204,112)' },
+  { label: '大雨', color: 'rgb(82,172,152)' },
+  { label: '暴雨', color: 'rgb(52,112,222)' },
+  { label: '大暴雨', color: 'rgb(158,60,212)' },
+  { label: '特大暴雨', color: 'rgb(204,46,196)' },
 ]
 
 function onOpacity(event: Event) {

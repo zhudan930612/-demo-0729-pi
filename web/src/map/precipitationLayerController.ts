@@ -7,14 +7,15 @@ export const PRECIP_PANES = { grid: { name: 'precipitationPane', zIndex: 395 } }
 
 export const PRECIP_GRID_BOUNDS = { lonMin: 118.0, lonMax: 123.0, latMin: 27.0, latMax: 31.5 } as const
 
-/** 中国气象局 24h 雨量等级色带（透明→浅绿→绿→青蓝→蓝→紫→深紫）。 */
-export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, number, number]]> = [
-  [0.1, [166, 217, 106]],
-  [10, [65, 171, 93]],
-  [25, [44, 127, 184]],
-  [50, [31, 82, 160]],
-  [100, [117, 42, 131]],
-  [250, [64, 0, 64]],
+/** 图2 风格色带（浙江省水利厅台风路径发布系统）：极浅绿→绿→青绿→亮蓝→紫/洋红，
+ *  第四项为按强度的透明度因子（外透内实：外围 0.45、中心 0.95），与滑动条基础透明度相乘。 */
+export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, number, number], number]> = [
+  [0.1, [208, 240, 170], 0.45],
+  [10, [122, 204, 112], 0.6],
+  [25, [82, 172, 152], 0.75],
+  [50, [52, 112, 222], 0.85],
+  [100, [158, 60, 212], 0.95],
+  [250, [204, 46, 196], 1.0],
 ]
 
 export function precipColor(value: number, alpha: number): string | null {
@@ -23,12 +24,14 @@ export function precipColor(value: number, alpha: number): string | null {
   for (let i = 0; i < LEVEL_STOPS.length - 1; i++) {
     if (value >= LEVEL_STOPS[i][0] && value <= LEVEL_STOPS[i + 1][0]) { from = LEVEL_STOPS[i]; to = LEVEL_STOPS[i + 1]; break }
   }
-  const [v0, c0] = from, [v1, c1] = to
+  const [v0, c0, a0] = from, [v1, c1, a1] = to
   const ratio = v1 === v0 ? 0 : Math.min(1, Math.max(0, (value - v0) / (v1 - v0)))
   const r = Math.round(c0[0] + (c1[0] - c0[0]) * ratio)
   const g = Math.round(c0[1] + (c1[1] - c0[1]) * ratio)
   const b = Math.round(c0[2] + (c1[2] - c0[2]) * ratio)
-  return `rgba(${r},${g},${b},${alpha.toFixed(3)})`
+  // 外透内实：档位透明度因子在区间内插值，再乘滑动条基础透明度
+  const levelAlpha = Math.min(1, Math.max(0, a0 + (a1 - a0) * ratio))
+  return `rgba(${r},${g},${b},${(levelAlpha * Math.min(1, Math.max(0, alpha))).toFixed(3)})`
 }
 
 export interface PrecipValueGrid {

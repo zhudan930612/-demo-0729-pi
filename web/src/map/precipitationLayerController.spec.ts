@@ -42,22 +42,29 @@ function makeSnapshot(overrides: Partial<PrecipitationSnapshot> = {}): Precipita
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('precipColor 色阶映射', () => {
+describe('precipColor 色阶映射（图2 风格 + 外透内实分层透明度）', () => {
   it('低于 0.1 或 alpha<=0 返回 null（无雨透明）', () => {
     expect(precipColor(0, 0.6)).toBeNull()
     expect(precipColor(0.05, 0.6)).toBeNull()
     expect(precipColor(30, 0)).toBeNull()
   })
-  it('分档端点颜色落在色带区间', () => {
-    expect(precipColor(0.1, 1)).toMatch(/^rgba\(166,217,106,1\.000\)$/)
-    expect(precipColor(10, 1)).toMatch(/^rgba\(65,171,93,1\.000\)$/)
-    expect(precipColor(25, 1)).toMatch(/^rgba\(44,127,184,1\.000\)$/)
-    expect(precipColor(50, 1)).toMatch(/^rgba\(31,82,160,1\.000\)$/)
-    expect(precipColor(100, 1)).toMatch(/^rgba\(117,42,131,1\.000\)$/)
-    expect(precipColor(250, 1)).toMatch(/^rgba\(64,0,64,1\.000\)$/)
+  it('分档端点颜色落在图2 色带，透明度因子 0.45→1.0（外透内实）', () => {
+    expect(precipColor(0.1, 1)).toMatch(/^rgba\(208,240,170,0\.450\)$/) // 小雨：极浅绿，45% 透明因子
+    expect(precipColor(10, 1)).toMatch(/^rgba\(122,204,112,0\.600\)$/)
+    expect(precipColor(25, 1)).toMatch(/^rgba\(82,172,152,0\.750\)$/)
+    expect(precipColor(50, 1)).toMatch(/^rgba\(52,112,222,0\.850\)$/)
+    expect(precipColor(100, 1)).toMatch(/^rgba\(158,60,212,0\.950\)$/)
+    expect(precipColor(250, 1)).toMatch(/^rgba\(204,46,196,1\.000\)$/) // 特大暴雨：洋红，不透明
   })
-  it('alpha 被完整保留', () => {
-    expect(precipColor(30, 0.6)).toContain('0.600')
+  it('分层透明度与滑动条基础透明度相乘：强降水在 60% 基础下仍更实', () => {
+    // 250mm 因子 1.0 × 0.6 = 0.600
+    expect(precipColor(250, 0.6)).toContain('0.600')
+    // 5mm（小雨 0.1-10 档，因子约 0.45+0.15×0.5）在 60% 基础下更透
+    const light = precipColor(5, 0.6)
+    const heavy = precipColor(250, 0.6)
+    const lightAlpha = Number(light!.match(/[\d.]+(?=\)$)/)![0])
+    const heavyAlpha = Number(heavy!.match(/[\d.]+(?=\)$)/)![0])
+    expect(lightAlpha).toBeLessThan(heavyAlpha)
   })
 })
 
