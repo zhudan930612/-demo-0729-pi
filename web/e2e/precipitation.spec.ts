@@ -39,8 +39,9 @@ async function installFixtures(page: Page, options: { grid?: 'error' | 'stale' }
 
 async function openPrecipitation(page: Page) {
   await page.goto('/')
-  await page.waitForSelector('.precip-btn:not([disabled])')
-  await page.click('.precip-btn')
+  await page.waitForSelector('.weather-btn:not([disabled])')
+  await page.click('.weather-btn')
+  await page.click('#weather-tool-menu button:has-text("降雨量")')
   await page.waitForSelector('.precip-panel')
 }
 
@@ -53,7 +54,6 @@ test('进入查看降水：面板与全省色斑出现，默认选中第 1 天',
   // 色斑 canvas 已挂载到降水 pane
   await expect(page.locator('.leaflet-precipitation-pane canvas.leaflet-tile-loaded').first()).toBeVisible()
   await expect(page.locator('.precip-panel')).toContainText('降水预报数据 © Open-Meteo / ECMWF')
-  await expect(page.locator('.precip-panel')).toContainText('预报场仅供参考，不作定损依据')
 })
 
 test('时间轴点击切换日期且不重新请求上游', async ({ page }) => {
@@ -80,11 +80,11 @@ test('循环播放：逐天切换且到第 7 天后回到第 1 天继续', async
   await expect(page.locator('.play-button')).toContainText('播放')
 })
 
-test('可见度滑动条：初始 60% 且可操作（aria）；0% 隐藏由控制器单测覆盖', async ({ page }) => {
+test('可见度滑动条：初始 100% 且可操作（aria）；0% 隐藏由控制器单测覆盖', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
   const layer = page.locator('.leaflet-precipitation-pane .leaflet-layer')
-  await expect(layer).toHaveCSS('opacity', '0.6')
+  await expect(layer).toHaveCSS('opacity', '1')
   await expect(page.locator('#precip-opacity')).toHaveAttribute('aria-label', '色斑可见度')
 })
 
@@ -134,7 +134,7 @@ test('退出：面板、色斑与选中态全部清除', async ({ page }) => {
   await page.click('.precip-panel .close-button')
   await expect(page.locator('.precip-panel')).not.toBeVisible()
   await expect(page.locator('.leaflet-precipitation-pane canvas')).toHaveCount(0)
-  await expect(page.locator('.precip-btn')).not.toHaveClass(/active/)
+  await expect(page.locator('.weather-btn')).not.toHaveClass(/active/)
 })
 
 test('降水活动时地块编辑禁用；进降水关闭已开的天气（预警面板）', async ({ page }) => {
@@ -145,7 +145,8 @@ test('降水活动时地块编辑禁用；进降水关闭已开的天气（预�
   await page.click('#weather-tool-menu button:has-text("气象预警")')
   await expect(page.locator('.national-alarm-panel')).toBeVisible()
   // 进降水 → 天气（预警）关闭，降水面板出现
-  await page.click('.precip-btn:not([disabled])')
+  await page.click('.weather-btn')
+  await page.click('#weather-tool-menu button:has-text("降雨量")')
   await expect(page.locator('.precip-panel')).toBeVisible()
   await expect(page.locator('.national-alarm-panel')).not.toBeVisible()
   // 降水活动时地块工具入口可见但禁用（三锁）

@@ -46,7 +46,6 @@
       <footer class="panel-footer">
         <span class="metric-label">当日累计降雨量</span>
         <span class="attribution">降水预报数据 © Open-Meteo / ECMWF（0.25° 网格，约 25 km）</span>
-        <span class="disclaimer">预报场仅供参考，不作定损依据</span>
       </footer>
     </template>
     <div v-else-if="phase === 'loading'" class="status" role="status" aria-live="polite">降水预报加载中…</div>
@@ -243,7 +242,6 @@ function onOpacity(event: Event) {
 }
 .panel-footer .metric-label { font-weight: 600; color: #0f172a; }
 .panel-footer .attribution { color: #334155; }
-.panel-footer .disclaimer { color: #b45309; font-weight: 600; margin-left: auto; }
 @media (max-width: 560px) {
   .precip-panel { width: calc(100% - 12px); bottom: 8px; }
   .panel-footer { flex-wrap: wrap; gap: 2px 8px; }
