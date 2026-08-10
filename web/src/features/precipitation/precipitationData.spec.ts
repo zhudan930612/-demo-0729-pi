@@ -105,6 +105,25 @@ describe('precipitation store', () => {
     store.selectDay(-1)
     expect(store.selectedDay).toBe(3)
   })
+  it('播放中点日期暂停并跳转；再次播放从当前日期继续', () => {
+    const store = usePrecipitationStore()
+    store.open(); store.receive(store.generation, makeSnapshot())
+    let tick: (() => void) | null = null
+    const fakeSet = ((callback: () => void) => { tick = callback; return 1 }) as unknown as typeof setInterval
+    store.startPlay({ setInterval: fakeSet, clearInterval: vi.fn() })
+    tick!()
+    expect(store.selectedDay).toBe(1)
+    // 播放中点击日期 → 暂停并跳转
+    store.selectDay(4)
+    expect(store.selectedDay).toBe(4)
+    expect(store.playing).toBe(false)
+    // 再次播放 → 从当前日期（4）继续
+    store.startPlay({ setInterval: fakeSet, clearInterval: vi.fn() })
+    tick!()
+    expect(store.selectedDay).toBe(5)
+    tick!()
+    expect(store.selectedDay).toBe(6)
+  })
   it('循环播放：到第 7 天后回第 1 天继续，无自动停止', () => {
     const store = usePrecipitationStore()
     store.open(); store.receive(store.generation, makeSnapshot())
