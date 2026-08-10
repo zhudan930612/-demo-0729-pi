@@ -158,6 +158,43 @@ test('降水活动时地块编辑禁用；进降水关闭已开的天气（预�
   await expect(parcelBtn).toBeDisabled()
 })
 
+test('移动地图：色斑图层随地图平移且内容重绘（对齐浙江经纬度）', async ({ page }) => {
+  await installFixtures(page)
+  await openPrecipitation(page)
+  const canvas = page.locator('.leaflet-precipitation-pane canvas')
+  await expect(canvas).toBeVisible()
+  // 初始画布有非透明像素（色斑已渲染）
+  const hasColor = () => page.evaluate(() => {
+    const c = document.querySelector('.leaflet-precipitation-pane canvas') as HTMLCanvasElement | null
+    if (!c || !c.width) return false
+    const ctx = c.getContext('2d')
+    if (!ctx) return false
+    const data = ctx.getImageData(0, 0, c.width, c.height).data
+    for (let i = 3; i < data.length; i += 16) if (data[i] > 0) return true
+    return false
+  })
+  expect(await hasColor()).toBe(true)
+  const before = await canvas.boundingBox()
+  if (!before) throw new Error('canvas missing')
+  const mapEl = page.locator('.map-wrap')
+  const box = await mapEl.boundingBox()
+  if (!box) throw new Error('map missing')
+  // 拖拽地图平移
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  await page.mouse.move(cx + 220, cy + 130, { steps: 12 })
+  await page.mouse.up()
+  await page.waitForTimeout(400)
+  const after = await canvas.boundingBox()
+  if (!after) throw new Error('canvas gone')
+  // canvas 随地图 transform 平移（位置变化）
+  expect(after.x).not.toBeCloseTo(before.x, 1)
+  expect(after.y).not.toBeCloseTo(before.y, 1)
+  // 平移后色斑内容仍渲染（重绘跟随）
+  expect(await hasColor()).toBe(true)
+})
+
 test('下钻到县：色斑保持显示（连续渲染），面板仍可操作', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)

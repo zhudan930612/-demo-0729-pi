@@ -118,17 +118,22 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
     valueGrid = snapshot ? buildValueGrid(snapshot, currentDay) : null
   }
 
+// canvas 挂载在 Leaflet pane（随 mapPane transform 平移）。
+// 渲染用 layerPoint（pane 局部坐标）填色，canvas 向外扩 LAYER_PAD 像素以覆盖 transform 偏移后的视口。
+const LAYER_PAD = 512
+
   function render() {
     frameHandle = null
     if (!map || !canvas) return
     const size = map.getSize()
-    if (canvas.width !== size.x || canvas.height !== size.y) { canvas.width = size.x; canvas.height = size.y }
-    // Leaflet mapPane 无尺寸，百分比宽高解析为 0；用像素尺寸直接覆盖地图视口
-    canvas.style.width = `${size.x}px`
-    canvas.style.height = `${size.y}px`
+    const width = size.x + LAYER_PAD * 2
+    const height = size.y + LAYER_PAD * 2
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height }
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    ctx.clearRect(0, 0, size.x, size.y)
+    ctx.clearRect(0, 0, width, height)
     if (!valueGrid || currentOpacity <= 0) return
     const alpha = Math.min(1, Math.max(0, currentOpacity))
     for (let y = 0; y < size.y; y += stepPx) {
@@ -138,8 +143,11 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
         if (value < 0.1) continue
         const fill = precipColor(value, alpha)
         if (!fill) continue
+        // layerPoint = pane 局部坐标：canvas 在 pane 内随地图 transform 平移，
+        // 用 layerPoint 填色即可让色斑精确跟随地图移动/缩放
+        const layer = map.containerPointToLayerPoint(L.point(x, y))
         ctx.fillStyle = fill
-        ctx.fillRect(x, y, stepPx, stepPx)
+        ctx.fillRect(layer.x + LAYER_PAD, layer.y + LAYER_PAD, stepPx, stepPx)
       }
     }
   }
@@ -152,11 +160,16 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
   function attachEvents(target: L.Map) {
     const onMove = () => scheduleRender()
     const onZoom = () => scheduleRender()
+    const onSettle = () => scheduleRender()
     target.on('move', onMove)
     target.on('zoom', onZoom)
+    target.on('moveend', onSettle)
+    target.on('zoomend', onSettle)
     mapListeners = [
       { target, event: 'move', handler: onMove },
       { target, event: 'zoom', handler: onZoom },
+      { target, event: 'moveend', handler: onSettle },
+      { target, event: 'zoomend', handler: onSettle },
     ]
   }
 
@@ -206,9 +219,9 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
       ensurePane(target)
       canvas = document.createElement('canvas')
       canvas.style.position = 'absolute'
-      canvas.style.inset = '0'
-      canvas.style.width = '100%'
-      canvas.style.height = '100%'
+      // canvas 原点对齐 layerPoint(-LAYER_PAD, -LAYER_PAD)，内容随 mapPane transform 同步移动
+      canvas.style.left = `-${LAYER_PAD}px`
+      canvas.style.top = `-${LAYER_PAD}px`
       canvas.style.opacity = String(currentOpacity)
       canvas.style.pointerEvents = 'none'
       target.getPane(PRECIP_PANES.grid.name)!.appendChild(canvas)
