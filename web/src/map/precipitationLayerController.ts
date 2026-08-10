@@ -89,7 +89,69 @@ export interface PrecipGridLayerOptions extends L.GridLayerOptions {
  * Leaflet 原生管理瓦片加载/缩放动画（zoom 动画期间旧瓦片被 transform 过渡），
  * 色斑与地图平移/缩放天然同步，无需手动 transform。
  */
+// ---------- 浙江省界裁剪（色斑仅在浙江界内展示） ----------
+// 省界 rings（[lon, lat]），从 /data/boundary/province.geojson 提取；模块级缓存避免重复加载
+let precipBoundary: Array<Array<[number, number]>> | null = null
+let precipBoundaryPromise: Promise<Array<Array<[number, number]>>> | null = null
+// 省界投影缓存：key = zoom（同 zoom 瓦片共享，避免每瓦片重复投影）
+const boundaryProjCache = new Map<number, Array<Array<[number, number]>>>()
+
+/** 加载并提取浙江界 rings（失败返回空数组，降级为不裁剪）。 */
+export function ensurePrecipBoundary(fetchImpl: typeof fetch = globalThis.fetch): Promise<Array<Array<[number, number]>>> {
+  if (precipBoundary) return Promise.resolve(precipBoundary)
+  if (precipBoundaryPromise) return precipBoundaryPromise
+  precipBoundaryPromise = (async () => {
+    try {
+      const res = await fetchImpl('/data/boundary/province.geojson')
+      if (!res.ok) return []
+      const gj = (await res.json()) as { features?: Array<{ geometry?: { type: string; coordinates: unknown } }> }
+      const rings: Array<Array<[number, number]>> = []
+      for (const feature of gj.features ?? []) {
+        const geom = feature.geometry
+        if (!geom) continue
+        const collect = (poly: unknown) => {
+          if (!Array.isArray(poly)) return
+          for (const ring of poly as unknown[][]) {
+            if (!Array.isArray(ring)) continue
+            const pts: Array<[number, number]> = []
+            for (const p of ring) {
+              if (!Array.isArray(p) || p.length < 2) continue
+              const lon = Number(p[0]), lat = Number(p[1])
+              if (Number.isFinite(lon) && Number.isFinite(lat)) pts.push([lon, lat])
+            }
+            if (pts.length >= 3) rings.push(pts)
+          }
+        }
+        if (geom.type === 'Polygon') collect(geom.coordinates)
+        else if (geom.type === 'MultiPolygon') for (const poly of geom.coordinates as unknown[][]) collect(poly)
+      }
+      precipBoundary = rings
+      return rings
+    } catch {
+      return []
+    }
+  })()
+  return precipBoundaryPromise
+}
+
+/** 省界投影到指定 zoom 的全局像素（缓存 per-zoom），瓦片渲染共享。 */
+function boundaryProjected(map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
+  if (!precipBoundary) return null
+  let proj = boundaryProjCache.get(zoom)
+  if (!proj) {
+    proj = precipBoundary
+      .map((ring) => ring.map(([lon, lat]) => {
+        const p = map.project([lat, lon], zoom)
+        return [p.x, p.y] as [number, number]
+      }))
+      .filter((ring) => ring.length >= 3)
+    boundaryProjCache.set(zoom, proj)
+  }
+  return proj
+}
+
 /** 渲染单个瓦片：64×64 低分辨率渲染（双线性插值 + 阈值渐变带）→ 高质量平滑放大。
+ *  用浙江界 clip（evenodd 处理洞与岛屿），界外色斑不绘制，边界平滑抗锯齿。
  *  createTile 与 setData 复用（setData 直接重绘已有 canvas，避免 DOM 重建闪烁）。 */
 function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: PrecipValueGrid, map: L.Map): void {
   const tileSizeX = tile.width, tileSizeY = tile.height
@@ -105,7 +167,6 @@ function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: Preci
   off.height = renderSize
   const octx = off.getContext('2d')
   if (!octx) return
-  ctx.clearRect(0, 0, tileSizeX, tileSizeY)
   for (let ty = 0; ty < renderSize; ty++) {
     const lat = north - (north - south) * (ty + 0.5) / renderSize
     for (let tx = 0; tx < renderSize; tx++) {
@@ -120,7 +181,26 @@ function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: Preci
   }
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(off, 0, 0, tileSizeX, tileSizeY)
+  const originX = coords.x * tileSizeX, originY = coords.y * tileSizeY
+  const proj = boundaryProjected(map, coords.z)
+  if (proj && proj.length > 0) {
+    // 浙江界 clip（evenodd：外环+洞+岛屿正确），界外色斑不绘制
+    ctx.save()
+    try {
+      ctx.beginPath()
+      for (const ring of proj) {
+        ctx.moveTo(ring[0][0] - originX, ring[0][1] - originY)
+        for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i][0] - originX, ring[i][1] - originY)
+        ctx.closePath()
+      }
+      ctx.clip('evenodd')
+      ctx.drawImage(off, 0, 0, tileSizeX, tileSizeY)
+    } finally {
+      ctx.restore()
+    }
+  } else {
+    ctx.drawImage(off, 0, 0, tileSizeX, tileSizeY)
+  }
 }
 
 export class PrecipGridLayer extends L.GridLayer {
@@ -274,6 +354,10 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
       layer.addTo(target)
       layer.setOpacityValue(currentOpacity)
       attachHover(target)
+      // 异步加载浙江界：加载完成后若已有数据则重绘（应用省界裁剪）
+      void ensurePrecipBoundary().then(() => {
+        if (layer && valueGrid) layer.setData(valueGrid)
+      })
     },
     setSnapshot(next) {
       snapshot = next
