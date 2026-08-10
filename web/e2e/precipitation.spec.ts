@@ -87,7 +87,7 @@ test('可见度滑动条：调节透明度，0% 完全隐藏色斑', async ({ pa
   await expect(layer).toHaveCSS('opacity', '0.6')
   await page.locator('#precip-opacity').fill('0')
   await expect(layer).toHaveCSS('opacity', '0')
-  await expect(page.locator('.opacity-value')).toHaveText('0%')
+  await expect(page.locator('#precip-opacity')).toHaveAttribute('aria-label', '色斑可见度')
   await page.locator('#precip-opacity').fill('80')
   await expect(layer).toHaveCSS('opacity', '0.8')
 })

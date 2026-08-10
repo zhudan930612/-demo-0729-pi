@@ -3,6 +3,9 @@
     <header class="panel-header">
       <div class="panel-title"><span class="title-mark" aria-hidden="true"></span><h2 id="precip-panel-title">未来 7 天降水预报</h2></div>
       <div class="panel-header-actions">
+        <div class="opacity-inline">
+          <input id="precip-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" aria-label="色斑可见度" title="色斑可见度" @input="onOpacity" />
+        </div>
         <button type="button" class="icon-button" :disabled="refreshing" :title="refreshing ? '正在更新' : '刷新降水预报'" aria-label="刷新降水预报" @click="emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
         </button>
@@ -18,8 +21,7 @@
 
     <template v-if="ready">
       <!-- 播放 + 时间轴一行 -->
-      <div class="timeline-row">
-        <button type="button" class="play-button" :class="{ playing }" :aria-label="playing ? '暂停逐日播放' : '播放逐日动画'" @click="emit('toggle-play')">
+      <div class="timeline-row">        <button type="button" class="play-button" :class="{ playing }" :aria-label="playing ? '暂停逐日播放' : '播放逐日动画'" @click="emit('toggle-play')">
           <svg v-if="!playing" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
           <svg v-else viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
           <span>{{ playing ? '暂停' : '播放' }}</span>
@@ -39,13 +41,6 @@
             <span class="day-node-text">{{ dayShort(index) }}</span>
           </button>
         </div>
-      </div>
-
-      <!-- 可见度：细条独立行 -->
-      <div class="opacity-row">
-        <label id="precip-opacity-label" for="precip-opacity">色斑可见度</label>
-        <input id="precip-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" aria-labelledby="precip-opacity-label" @input="onOpacity" />
-        <span class="opacity-value">{{ Math.round(opacity * 100) }}%</span>
       </div>
 
       <footer class="panel-footer">
@@ -121,7 +116,34 @@ function onOpacity(event: Event) {
 .panel-title { display: flex; align-items: center; gap: 7px; }
 .title-mark { width: 3px; height: 13px; border-radius: 2px; background: #2563eb; }
 .panel-header h2 { margin: 0; font-size: 12px; line-height: 1; font-weight: 600; }
-.panel-header-actions { display: flex; gap: 2px; }
+.panel-header-actions { display: flex; align-items: center; gap: 2px; }
+/* 可见度：标题行内联细滑动条（无标签与数值） */
+.opacity-inline { display: flex; align-items: center; margin-right: 8px; }
+.opacity-inline input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 12px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.opacity-inline input[type='range']::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: #d3dce7;
+}
+.opacity-inline input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+}
+.opacity-inline input[type='range']:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: 4px; }
 .icon-button {
   width: 20px; height: 20px; display: grid; place-items: center;
   padding: 0; border: 0; border-radius: 5px; background: transparent; color: #64748b; cursor: pointer;
@@ -201,16 +223,6 @@ function onOpacity(event: Event) {
 .day-node-text { font-size: 10px; line-height: 1; white-space: nowrap; }
 .day-node.active .day-node-dot { transform: scale(1); background: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18); }
 .day-node.active .day-node-text { color: #1d4ed8; font-weight: 600; }
-
-/* 可见度：细条独立行 */
-.opacity-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.opacity-row label { white-space: nowrap; color: #64748b; font-size: 11px; }
-.opacity-row input[type='range'] { flex: 1; height: 14px; margin: 0; accent-color: #60a5fa; }
-.opacity-value { min-width: 30px; text-align: right; color: #64748b; font-size: 10px; font-variant-numeric: tabular-nums; }
 
 /* 页脚：单行紧凑 */
 .panel-footer {
