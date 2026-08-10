@@ -3,7 +3,7 @@ import type { VillageBoundary } from '../features/village-risk/villageRiskData'
 
 const state = vi.hoisted(() => {
   const panes = new Map<string, { style: Record<string, string> }>()
-  const layerGroups: Array<{ kind: 'fill' | 'marker' | 'stroke'; layer: unknown }> = []
+  const layerGroups: Array<{ kind: string; layer: unknown }> = []
   const markers: Array<Record<string, unknown>> = []
   const polygons: Array<Record<string, unknown>> = []
   const legendEls: Array<{ style: Record<string, string>; innerHTML: string }> = []
@@ -154,7 +154,7 @@ describe('VillageRiskLayerController 渲染与层级', () => {
     expect(state.markers).toHaveLength(3)
     expect(state.polygons).toHaveLength(0)
     expect(state.legendEls[0]?.style.display).toBe('flex')
-    expect(state.markers[0]?.options.pane).toBe('villageRiskMarkerPane')
+    expect((state.markers[0]?.options as { pane?: string }).pane).toBe('villageRiskMarkerPane')
   })
 
   it('县级：同样显示标记', () => {
@@ -217,7 +217,8 @@ describe('VillageRiskLayerController 渲染与层级', () => {
     controller.setData(ENTRIES)
     controller.setSelected('330604102016')
     expect(state.markers).toHaveLength(1) // 选中标记
-    expect((state.markers[0]?.options as Record<string, unknown>).icon).toBeTruthy()
+    const icon = (state.markers[0]?.options as { icon?: unknown }).icon
+    expect(icon).toBeTruthy()
     controller.setSelected(null)
     expect(state.markers).toHaveLength(0)
   })

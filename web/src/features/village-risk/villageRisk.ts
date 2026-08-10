@@ -158,7 +158,7 @@ export function typhoonSignal(
     if (pts.length >= 2) {
       for (let i = 0; i < pts.length - 1; i++) {
         const d = pointSegmentDistanceKm(village.lat, village.lon, pts[i].lat, pts[i].lon, pts[i + 1].lat, pts[i + 1].lon)
-        pathDistanceKm = Math.min(pathDistanceKm, d)
+        pathDistanceKm = pathDistanceKm === null ? d : Math.min(pathDistanceKm, d)
       }
     }
   }

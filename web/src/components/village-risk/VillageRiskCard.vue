@@ -1,5 +1,5 @@
 <template>
-  <aside v-if="model" ref="cardEl" class="village-risk-card" :class="[side, { degraded: model.degraded }]" :style="positionStyle" role="dialog" aria-modal="false" tabindex="-1" :aria-label="`${model.villageName}风险详情`" @click.stop>
+  <aside v-if="model" class="village-risk-card" :class="[side, { degraded: model.degraded }]" :style="positionStyle" role="dialog" aria-modal="false" tabindex="-1" :aria-label="`${model.villageName}风险详情`" @click.stop>
     <header class="card-header">
       <h2 id="village-risk-card-title">{{ model.villageName }}</h2>
       <span v-if="!model.degraded" class="risk-pill" :class="levelClass" :style="{ '--risk': riskColor(model.level) }">{{ model.levelText }}</span>
@@ -43,7 +43,7 @@
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
               <div class="trend-bar" :title="trendTitle(index, stat)">
-                <i class="trend-range" :style="{ height: rangeHeight(stat) }"></i>
+                <i class="trend-range" :style="{ height: rangeHeight(stat), bottom: rangeBottom(stat) }"></i>
                 <i class="trend-mean" :style="{ bottom: meanHeight(stat) }" aria-hidden="true"></i>
               </div>
               <span class="trend-day">{{ shortDay(index) }}</span>
@@ -72,7 +72,6 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ close: [] }>()
 
-const cardEl = ref<HTMLElement | null>(null)
 const trendOpen = ref(false)
 const trendId = 'village-risk-trend'
 
@@ -108,8 +107,11 @@ function shortDay(index: number): string {
 function rangeHeight(stat: VillageDayStat): string {
   const max = Math.max(stat.max, 0.1)
   const minPct = Math.max(0, Math.min(100, (stat.min / max) * 100))
-  const maxPct = Math.max(minPct + 4, Math.min(100, (stat.max / max) * 100))
-  return `${minPct}%`
+  return `${Math.max(minPct + 4, Math.min(100, (stat.max / max) * 100))}%`
+}
+function rangeBottom(stat: VillageDayStat): string {
+  const max = Math.max(stat.max, 0.1)
+  return `${Math.max(0, Math.min(100, (stat.min / max) * 100))}%`
 }
 function meanHeight(stat: VillageDayStat): string {
   const max = Math.max(stat.max, 0.1)
