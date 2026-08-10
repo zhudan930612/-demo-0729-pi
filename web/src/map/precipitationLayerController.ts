@@ -7,8 +7,9 @@ export const PRECIP_PANES = { grid: { name: 'precipitationPane', zIndex: 395 } }
 
 export const PRECIP_GRID_BOUNDS = { lonMin: 118.0, lonMax: 123.0, latMin: 27.0, latMax: 31.5 } as const
 
-/** 图2 风格色带（浙江省水利厅台风路径发布系统）：极浅绿→绿→青绿→亮蓝→紫/洋红，
- *  第四项为按强度的透明度因子（外透内实：外围 0.75、中心 1.0），100% 可见度下颜色实。 */
+/** 图2 风格离散色阶（浙江省水利厅台风路径发布系统）：极浅绿→绿→青绿→亮蓝→紫/洋红。
+ *  每档固定颜色与透明度因子（外透内实：小雨 0.75、特大暴雨 1.0）；离散分档保证
+ *  同一位置在不同缩放级别下颜色固定（不做连续渐变插值，避免采样点差异导致颜色漂移）。 */
 export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, number, number], number]> = [
   [0.1, [208, 240, 170], 0.75],
   [10, [122, 204, 112], 0.85],
@@ -20,17 +21,13 @@ export const LEVEL_STOPS: ReadonlyArray<readonly [number, readonly [number, numb
 
 export function precipColor(value: number, alpha: number): string | null {
   if (!Number.isFinite(value) || value < LEVEL_STOPS[0][0] || alpha <= 0) return null
-  let from = LEVEL_STOPS[0], to = LEVEL_STOPS[LEVEL_STOPS.length - 1]
-  for (let i = 0; i < LEVEL_STOPS.length - 1; i++) {
-    if (value >= LEVEL_STOPS[i][0] && value <= LEVEL_STOPS[i + 1][0]) { from = LEVEL_STOPS[i]; to = LEVEL_STOPS[i + 1]; break }
+  // 离散档位：取 value 所属的最高档，档内不插值（保证缩放颜色稳定）
+  let stop = LEVEL_STOPS[0]
+  for (let i = 0; i < LEVEL_STOPS.length; i++) {
+    if (value >= LEVEL_STOPS[i][0]) stop = LEVEL_STOPS[i]
   }
-  const [v0, c0, a0] = from, [v1, c1, a1] = to
-  const ratio = v1 === v0 ? 0 : Math.min(1, Math.max(0, (value - v0) / (v1 - v0)))
-  const r = Math.round(c0[0] + (c1[0] - c0[0]) * ratio)
-  const g = Math.round(c0[1] + (c1[1] - c0[1]) * ratio)
-  const b = Math.round(c0[2] + (c1[2] - c0[2]) * ratio)
-  // 外透内实：档位透明度因子在区间内插值，再乘滑动条基础透明度
-  const levelAlpha = Math.min(1, Math.max(0, a0 + (a1 - a0) * ratio))
+  const [r, g, b] = stop[1]
+  const levelAlpha = stop[2]
   return `rgba(${r},${g},${b},${(levelAlpha * Math.min(1, Math.max(0, alpha))).toFixed(3)})`
 }
 
