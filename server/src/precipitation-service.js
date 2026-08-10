@@ -114,10 +114,10 @@ export function createPrecipitationService(config = {}, options = {}) {
     }
     if (!refTimes || refTimes.length < 24) throw new PrecipitationError('structure', '降水网格时次不足')
 
-    // 聚合起点：北京时间下一个整点小时（避免把今日已过时次计入"未来累计"）
-    const beijingNow = new Date(stamp + 8 * 3600 * 1000)
-    const startIndex = Math.min(beijingNow.getUTCHours() + 1, refTimes.length - 1)
-    const aggregateFromMs = stamp - (stamp % 3600_000) + 3600_000
+    // 聚合口径（2026-08-10 用户实测后修正）：自然日累计——从北京时间今日 0:00 起每 24h 一段，
+    // 含今日已过时次（与用户期望的"今天累计"及参考图"未来24小时"口径一致）
+    const aggregateFromMs = stamp - ((stamp + 8 * 3600 * 1000) % 86400_000) // 北京今日 0:00（UTC 毫秒）
+    const startIndex = 0
     const aggregateFrom = new Date(aggregateFromMs + 8 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19) + '+08:00'
 
     const gridData = []

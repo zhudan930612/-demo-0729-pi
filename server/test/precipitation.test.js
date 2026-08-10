@@ -66,8 +66,8 @@ test('服务快照：拉取→归一化→7 段聚合，参数固定（浏览器
   assert.equal(snapshot.days[0], '2026-08-10')
   assert.equal(snapshot.model, 'ECMWF IFS 0.25°')
   assert.equal(snapshot.coveredDays, 7)
-  assert.equal(snapshot.aggregateFrom, '2026-08-10 09:00:00+08:00')
-  // T0 北京 08:30 → 起点 09:00，值全 1 → 每段 24
+  assert.equal(snapshot.aggregateFrom, '2026-08-10 00:00:00+08:00') // 自然日累计：今日 0 点起
+  // T0 北京 08:30 → 起点今日 0:00，值全 1 → 每段 24
   assert.equal(snapshot.grid[0].values.d1, 24)
   assert.equal(snapshot.grid[0].values.d7, 24)
 })
@@ -87,7 +87,7 @@ test('聚合起点随当前时刻：23 点后起点为次日 0 点，7 天仍完
   const late = Date.UTC(2026, 7, 10, 16, 0, 0) // 北京 8/11 00:00
   const service = createPrecipitationService({}, { now: () => late, fetchImpl: async () => Response.json(makePayload()) })
   const snapshot = await service.snapshot(null)
-  assert.equal(snapshot.aggregateFrom, '2026-08-11 01:00:00+08:00')
+  assert.equal(snapshot.aggregateFrom, '2026-08-11 00:00:00+08:00') // 自然日累计
   assert.equal(snapshot.days[0], '2026-08-11')
   assert.equal(snapshot.coveredDays, 7)
 })
