@@ -105,6 +105,9 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
     const pane = target.getPane(PRECIP_PANES.grid.name) ?? target.createPane(PRECIP_PANES.grid.name)
     pane.style.zIndex = String(PRECIP_PANES.grid.zIndex)
     pane.style.pointerEvents = 'none'
+    // Leaflet 自定义 pane 无宽高，canvas 100% 会解析为 0（不可见）；补齐容器尺寸
+    pane.style.width = '100%'
+    pane.style.height = '100%'
     return pane
   }
 
@@ -117,6 +120,9 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
     if (!map || !canvas) return
     const size = map.getSize()
     if (canvas.width !== size.x || canvas.height !== size.y) { canvas.width = size.x; canvas.height = size.y }
+    // Leaflet mapPane 无尺寸，百分比宽高解析为 0；用像素尺寸直接覆盖地图视口
+    canvas.style.width = `${size.x}px`
+    canvas.style.height = `${size.y}px`
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.clearRect(0, 0, size.x, size.y)

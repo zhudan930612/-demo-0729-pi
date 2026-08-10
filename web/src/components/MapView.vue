@@ -1046,6 +1046,7 @@ async function enterWeatherMode(module:WeatherModuleKind){
  if(weatherActive.value&&weatherStore.module===module)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
+ if(precipitationStore.isOpen)exitPrecipitationMode()
  weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();rosterOpen.value=false;weatherStore.open(module)
  if(module==='current'){
    // 多级政府驻地标牌：打开实时天气即按当前层级拉取骨架与逐项摘要；乡镇/村/地块无预置标牌。
@@ -1058,6 +1059,7 @@ async function enterNationalAlarms(){
  if(nationalAlarmsActive.value)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
+ if(precipitationStore.isOpen)exitPrecipitationMode()
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
 function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();nationalAlarmStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
@@ -1086,7 +1088,9 @@ async function enterPrecipitationMode() {
 
 function exitPrecipitationMode() {
   precipitationRepository?.exit()
-  precipitationLayerController?.clear()
+  // 退出即销毁图层（移除 canvas 与监听），验收 10：退出后色斑图层清除
+  precipitationLayerController?.destroy()
+  precipitationLayerController = null
   precipitationStore.close()
   // 台风仍活动：保持当前视图不重置（方案 B：最后一个活动模式退出才恢复省界相机）
   if (!disasterActive.value) {
