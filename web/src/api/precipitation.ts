@@ -33,9 +33,14 @@ export function pointValue(point: PrecipGridPoint, day: PrecipDayKey): number {
 export interface PrecipitationApiClient { snapshot(signal?: AbortSignal): Promise<PrecipitationSnapshot> }
 export function createPrecipitationApiClient(fetchImpl: typeof fetch = globalThis.fetch): PrecipitationApiClient {
   return { async snapshot(signal) {
-    const response = await fetchImpl('/api/precipitation-grid', { headers: { accept: 'application/json' }, signal })
+    let response: Response
+    try {
+      response = await fetchImpl('/api/precipitation-grid', { headers: { accept: 'application/json' }, signal })
+    } catch {
+      throw new PrecipitationApiError('PRECIPITATION_PROXY_UNAVAILABLE', 0, '降水预报服务暂不可用，请确认已启动后端代理')
+    }
     let payload: unknown
-    try { payload = await response.json() } catch { throw new PrecipitationApiError('INVALID_RESPONSE', response.status, '降水预报数据响应格式异常') }
+    try { payload = await response.json() } catch { throw new PrecipitationApiError('INVALID_RESPONSE', response.status, response.status >= 500 ? '降水预报服务暂不可用（后端代理响应异常），请确认已启动后端代理' : '降水预报数据响应格式异常') }
     if (!response.ok) {
       const root = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
       const error = root.error && typeof root.error === 'object' ? root.error as Record<string, unknown> : {}
