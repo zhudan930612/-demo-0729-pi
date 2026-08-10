@@ -141,6 +141,23 @@ test('退出：面板、色斑与选中态全部清除', async ({ page }) => {
   await expect(page.locator('.precip-btn')).not.toHaveClass(/active/)
 })
 
+test('降水活动时地块编辑禁用；进降水关闭已开的天气（预警面板）', async ({ page }) => {
+  await installFixtures(page)
+  await page.goto('/')
+  await page.waitForSelector('.weather-btn:not([disabled])')
+  await page.click('.weather-btn')
+  await page.click('#weather-tool-menu button:has-text("气象预警")')
+  await expect(page.locator('.national-alarm-panel')).toBeVisible()
+  // 进降水 → 天气（预警）关闭，降水面板出现
+  await page.click('.precip-btn:not([disabled])')
+  await expect(page.locator('.precip-panel')).toBeVisible()
+  await expect(page.locator('.national-alarm-panel')).not.toBeVisible()
+  // 降水活动时地块工具入口可见但禁用（三锁）
+  const parcelBtn = page.locator('.parcel-tool-btn')
+  await expect(parcelBtn).toBeVisible()
+  await expect(parcelBtn).toBeDisabled()
+})
+
 test('下钻到县：色斑保持显示（连续渲染），面板仍可操作', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)

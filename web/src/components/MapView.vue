@@ -317,7 +317,7 @@ const activeWeatherModules = computed<WeatherModuleKind[]>(()=>{const list:Weath
 // 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
-const precipitationEntryDisabled = computed(() => hasUnsavedParcelWork() || anyWeatherActive.value)
+const precipitationEntryDisabled = computed(() => hasUnsavedParcelWork())
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
 const weatherPopupPosition=ref({x:0,y:0})
 const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
