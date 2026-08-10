@@ -4,7 +4,7 @@
       <div class="panel-title"><span class="title-mark" aria-hidden="true"></span><h2 id="precip-panel-title">未来 7 天降水预报</h2></div>
       <div class="panel-header-actions">
         <div class="opacity-inline">
-          <input id="precip-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" aria-label="色斑可见度" title="色斑可见度" @input="onOpacity" />
+          <input id="precip-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" :style="opacityTrackStyle" aria-label="色斑可见度" title="色斑可见度" @input="onOpacity" />
         </div>
         <button type="button" class="icon-button" :disabled="refreshing" :title="refreshing ? '正在更新' : '刷新降水预报'" aria-label="刷新降水预报" @click="emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
@@ -72,6 +72,11 @@ const emit = defineEmits<{ close: []; 'select-day': [index: number]; 'toggle-pla
 const ready = computed(() => props.phase === 'ready' && props.snapshot !== null)
 const days = computed(() => props.snapshot?.days ?? [])
 const refreshing = computed(() => props.phase === 'refreshing')
+// 滑动条轨道渐变：已选段蓝色填充，表达当前可见度状态
+const opacityTrackStyle = computed(() => {
+  const pct = Math.round(props.opacity * 100)
+  return { background: `linear-gradient(to right, #2563eb ${pct}%, #d3dce7 ${pct}%)` }
+})
 
 function parseDay(raw: string): Date {
   const [y, m, d] = raw.split('-').map(Number)
@@ -117,21 +122,20 @@ function onOpacity(event: Event) {
 .title-mark { width: 3px; height: 13px; border-radius: 2px; background: #2563eb; }
 .panel-header h2 { margin: 0; font-size: 12px; line-height: 1; font-weight: 600; }
 .panel-header-actions { display: flex; align-items: center; gap: 2px; }
-/* 可见度：标题行内联细滑动条（无标签与数值） */
+/* 可见度：标题行内联细滑动条（轨道渐变填充指示状态） */
 .opacity-inline { display: flex; align-items: center; margin-right: 8px; }
 .opacity-inline input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   width: 72px;
-  height: 12px;
+  height: 3px;
   margin: 0;
-  background: transparent;
+  border-radius: 2px;
   cursor: pointer;
 }
 .opacity-inline input[type='range']::-webkit-slider-runnable-track {
   height: 3px;
-  border-radius: 2px;
-  background: #d3dce7;
+  background: transparent;
 }
 .opacity-inline input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -192,18 +196,19 @@ function onOpacity(event: Event) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 3px 0 2px;
+  gap: 4px;
+  padding: 2px 0 2px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: #64748b;
   cursor: pointer;
 }
+/* 连接线：节点间水平细线，垂直对齐圆点中心（padding 2px + 圆点半高 4px = 6px） */
 .day-node:not(:first-child)::before {
   content: '';
   position: absolute;
-  top: 4px;
+  top: 5.5px;
   right: calc(50% + 6px);
   left: calc(-50% + 6px);
   height: 1px;
