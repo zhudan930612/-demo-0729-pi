@@ -49,17 +49,16 @@
       </footer>
     </template>
     <template v-else-if="phase === 'loading'">
-      <!-- 加载骨架：保持与就绪态一致的布局高度，避免面板塌缩 -->
-      <div class="timeline" aria-hidden="true">
-        <span v-for="i in 7" :key="i" class="skeleton-day"></span>
-      </div>
-      <div class="controls-legend-row" aria-hidden="true">
-        <span class="skeleton-play"></span>
-        <span class="skeleton-slider"></span>
+      <!-- 加载骨架：复用就绪态相同类名与结构，高度与加载完成完全一致 -->
+      <div class="timeline-row" aria-hidden="true">
+        <span class="play-button skeleton"></span>
+        <div class="timeline">
+          <span v-for="i in 7" :key="i" class="day-node skeleton"></span>
+        </div>
       </div>
       <footer class="panel-footer" aria-hidden="true">
-        <span class="skeleton-line"></span>
-        <span class="skeleton-line"></span>
+        <span class="metric-label skeleton"></span>
+        <span class="attribution skeleton"></span>
       </footer>
     </template>
   </aside>
@@ -243,35 +242,13 @@ function onOpacity(event: Event) {
 .day-node.active .day-node-text { color: #1d4ed8; font-weight: 600; }
 
 .loading-hint { font-size: 10px; color: #94a3b8; font-weight: 400; }
-/* 加载骨架占位：灰块模拟就绪态布局，保持面板高度不塌缩 */
-.timeline .skeleton-day {
-  flex: 1 1 0;
-  height: 18px;
-  border-radius: 6px;
-  background: #e8edf3;
-}
-.timeline .skeleton-day + .skeleton-day { margin-left: 6px; }
-.skeleton-play {
-  width: 52px; height: 18px;
-  border-radius: 6px;
-  background: #e8edf3;
-}
-.skeleton-slider {
-  flex: 1;
-  max-width: 220px;
-  height: 10px;
-  margin-left: 10px;
-  border-radius: 6px;
-  background: #e8edf3;
-}
-.panel-footer .skeleton-line {
-  width: 180px;
-  height: 8px;
-  border-radius: 4px;
-  background: #e8edf3;
-}
-.panel-footer .skeleton-line:last-child { width: 120px; }
-
+/* 加载骨架：复用就绪态类名（day-node/play-button/metric-label/attribution），高度与加载完成一致，仅灰底占位 */
+.skeleton { background: #e8edf3 !important; }
+.timeline-row .skeleton.play-button { border-color: transparent; }
+.day-node.skeleton { pointer-events: none; }
+.panel-footer .skeleton { display: inline-block; height: 9px; border-radius: 4px; }
+.panel-footer .skeleton.metric-label { width: 90px; }
+.panel-footer .skeleton.attribution { width: 200px; }
 .panel-footer {
   display: flex;
   align-items: center;
