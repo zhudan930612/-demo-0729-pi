@@ -89,6 +89,40 @@ export interface PrecipGridLayerOptions extends L.GridLayerOptions {
  * Leaflet 原生管理瓦片加载/缩放动画（zoom 动画期间旧瓦片被 transform 过渡），
  * 色斑与地图平移/缩放天然同步，无需手动 transform。
  */
+/** 渲染单个瓦片：64×64 低分辨率渲染（双线性插值 + 阈值渐变带）→ 高质量平滑放大。
+ *  createTile 与 setData 复用（setData 直接重绘已有 canvas，避免 DOM 重建闪烁）。 */
+function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: PrecipValueGrid, map: L.Map): void {
+  const tileSizeX = tile.width, tileSizeY = tile.height
+  const ctx = tile.getContext('2d')
+  if (!ctx) return
+  const northWest = map.unproject([coords.x * tileSizeX, coords.y * tileSizeY], coords.z)
+  const southEast = map.unproject([(coords.x + 1) * tileSizeX, (coords.y + 1) * tileSizeY], coords.z)
+  const north = northWest.lat, south = southEast.lat
+  const west = northWest.lng, east = southEast.lng
+  const renderSize = 64
+  const off = document.createElement('canvas')
+  off.width = renderSize
+  off.height = renderSize
+  const octx = off.getContext('2d')
+  if (!octx) return
+  ctx.clearRect(0, 0, tileSizeX, tileSizeY)
+  for (let ty = 0; ty < renderSize; ty++) {
+    const lat = north - (north - south) * (ty + 0.5) / renderSize
+    for (let tx = 0; tx < renderSize; tx++) {
+      const lng = west + (east - west) * (tx + 0.5) / renderSize
+      const value = interpolatePrecip(grid, lat, lng)
+      if (value < 0.1) continue
+      const fill = precipColor(value, 1)
+      if (!fill) continue
+      octx.fillStyle = fill
+      octx.fillRect(tx, ty, 1, 1)
+    }
+  }
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(off, 0, 0, tileSizeX, tileSizeY)
+}
+
 export class PrecipGridLayer extends L.GridLayer {
   declare options: PrecipGridLayerOptions
 
@@ -102,45 +136,27 @@ export class PrecipGridLayer extends L.GridLayer {
     const tile = document.createElement('canvas')
     tile.width = tileSize.x
     tile.height = tileSize.y
-    const ctx = tile.getContext('2d')
-    if (!ctx) return tile
     const grid = this.options.valueGrid
-    if (!grid) return tile
-    const map = this._map
-    if (!map) return tile
-    const northWest = map.unproject([coords.x * tileSize.x, coords.y * tileSize.y], coords.z)
-    const southEast = map.unproject([(coords.x + 1) * tileSize.x, (coords.y + 1) * tileSize.y], coords.z)
-    const north = northWest.lat, south = southEast.lat
-    const west = northWest.lng, east = southEast.lng
-    // 低分辨率渲染（64×64，快）→ 高质量平滑放大到瓦片尺寸：消除马赛克与阶梯，边缘成平滑曲线
-    const renderSize = 64
-    const off = document.createElement('canvas')
-    off.width = renderSize
-    off.height = renderSize
-    const octx = off.getContext('2d')
-    if (!octx) return tile
-    for (let ty = 0; ty < renderSize; ty++) {
-      const lat = north - (north - south) * (ty + 0.5) / renderSize
-      for (let tx = 0; tx < renderSize; tx++) {
-        const lng = west + (east - west) * (tx + 0.5) / renderSize
-        const value = interpolatePrecip(grid, lat, lng)
-        if (value < 0.1) continue
-        const fill = precipColor(value, 1)
-        if (!fill) continue
-        octx.fillStyle = fill
-        octx.fillRect(tx, ty, 1, 1)
-      }
-    }
-    ctx.imageSmoothingEnabled = true
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(off, 0, 0, tileSize.x, tileSize.y)
+    if (!grid || !this._map) return tile
+    renderPrecipTile(tile, coords, grid, this._map)
     return tile
   }
 
   setData(grid: PrecipValueGrid | null) {
     if (this.options.valueGrid === grid) return
     this.options.valueGrid = grid
-    this.redraw()
+    if (!grid || !this._map) { this.redraw(); return }
+    // 更新已有瓦片内容（不重建 DOM）：播放/日期切换即时替换，无瓦片闪现闪烁
+    const tiles = this._tiles as Record<string, { el?: HTMLElement; coords?: L.Coords }>
+    let updated = 0
+    for (const key in tiles) {
+      const tile = tiles[key]
+      if (tile?.el instanceof HTMLCanvasElement && tile.coords) {
+        renderPrecipTile(tile.el, tile.coords, grid, this._map)
+        updated++
+      }
+    }
+    if (updated === 0) this.redraw() // 尚无瓦片（未加载）时回退重建
   }
 
   /** 整体透明度：同步 options.opacity（避免 Leaflet _updateOpacity 在瓦片加载时用旧值覆盖容器），
