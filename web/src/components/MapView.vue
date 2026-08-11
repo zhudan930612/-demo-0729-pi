@@ -1344,8 +1344,19 @@ watch(() => precipitationStore.isOpen, (open) => {
   else if (disasterActive.value) workbenchTab.value = 'typhoon'
 })
 watch(() => store.current.level, (level) => {
-  // 村级默认收起；村风险详情打开时展开（详情在右上面板展示）
-  workbenchCollapsed.value = level === 'village' && !villageCard.value
+  if (level === 'village') {
+    // 村级：自动展开右上面板并显示当前村风险概况（未手动打开详情时）
+    if (!villageCard.value) {
+      const code = store.current.code
+      const village = villageBoundaries.find((v) => v.code === code)
+      if (village) villageCard.value = { code, model: buildVillageCardModel(village) }
+    }
+    workbenchCollapsed.value = false
+  } else {
+    // 离开村级：关闭详情回列表，面板展开（非村级默认展开）
+    closeVillageCard()
+    workbenchCollapsed.value = false
+  }
 })
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
