@@ -1264,7 +1264,7 @@ async function enterPrecipitationMode() {
   precipitationLayerController = precipitationLayerController ?? createPrecipitationLayerController()
   precipitationLayerController.mount(map)
   // 参保村风险标注：挂载图层 + 异步加载村界后重算
-  villageRiskLayerController.value = villageRiskLayerController.value ?? createVillageRiskLayerController({ onVillageClick: openVillageCard })
+  villageRiskLayerController.value = villageRiskLayerController.value ?? createVillageRiskLayerController({ onVillageClick: selectVillageFromOverview })
   villageRiskLayerController.value.mount(map)
   villageRiskLayerController.value.setVisible(true)
   void loadInsuredVillages().then((villages) => {

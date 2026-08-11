@@ -81,7 +81,7 @@ async function openPrecipitation(page: Page) {
   await page.waitForSelector('.precip-panel')
 }
 
-test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风险卡片；再点/点空白关闭；退出清除', async ({ page }) => {
+test('点击风险标记：下钻村级 + 右上面板显示该村风险详情；乡镇级过滤；退出清除', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
   // 下钻县级（示例县中心 = 省中心）
@@ -94,8 +94,16 @@ test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风�
   await expect(page.locator('.village-risk-legend')).toBeVisible()
   await expect(page.locator('.village-risk-legend')).toContainText('未参保村不标注')
 
-  // 点击标记 → 风险卡片（d1=60mm → 峰值 60 → 暴雨级 + 连阴雨 → 高风险）
+  // 乡镇级过滤：下钻章镇镇 → 仅 8 标记；返回县级恢复 13
+  await page.locator('.map').click({ position: { x: 580, y: 420 } })
+  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
+  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
+  await page.locator('.crumb').filter({ hasText: '示例县' }).click()
+  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(13)
+
+  // 点击标记 → 下钻村级 + 右上面板显示该村详情（d1=60mm → 峰值 60 → 暴雨级 + 连阴雨 → 高风险）
   await page.locator('.village-risk-marker').first().click()
+  await expect(page.locator('.crumb.active')).toHaveText('参保村1')
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.village-risk-card h2')).not.toBeEmpty()
   await expect(page.locator('.village-risk-card .risk-pill')).toHaveText('高风险')
@@ -109,42 +117,19 @@ test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风�
   // 台风/预警未加载 → 降级行
   await expect(page.locator('.village-risk-card')).toContainText('台风数据暂不可用')
   await expect(page.locator('.village-risk-card')).toContainText('预警数据暂不可用')
+  // 村级：风险标记消失（v3.9 无风险图层）
+  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
+  await expect(page.locator('.village-risk-legend')).not.toBeVisible()
 
-  // 再点同一标记 → 收起
-  await page.locator('.village-risk-marker').first().click()
-  await expect(page.locator('.village-risk-card')).toHaveCount(0)
-
-  // 打开后点地图空白 → 关闭
-  await page.locator('.village-risk-marker').first().click()
-  await expect(page.locator('.village-risk-card')).toBeVisible()
+  // 点地图空白 → 关闭详情回列表
   await page.locator('.map').click({ position: { x: 40, y: 400 } })
   await expect(page.locator('.village-risk-card')).toHaveCount(0)
 
-  // 下钻乡镇（点击乡镇内、不在标记上的点）：仅当前乡镇 8 村标记
-  await page.locator('.map').click({ position: { x: 580, y: 420 } })
-  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
-  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
-  await expect(page.locator('.village-risk-legend')).toBeVisible()
-  // 下钻村级：滚轮放大至乡镇自动下钻阈值（ENTER_ZOOM.township=15.5），中心点=参保村1
-  await page.mouse.move(640, 360)
-  for (let i = 0; i < 20; i++) {
-    if ((await page.locator('.crumb.active').textContent()) === '参保村1') break
-    await page.mouse.wheel(0, -120)
-    await page.waitForTimeout(140)
-  }
-  await expect(page.locator('.crumb.active')).toHaveText('参保村1')
-  // 村级视图：标记消失、图例隐藏（村级高亮为 Canvas 渲染，DOM 不可数，行为由控制器单测锁定）
-  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
-  await expect(page.locator('.village-risk-legend')).not.toBeVisible()
-  // 当前村（参保村1）填充不拦截点击：点击中心可正常落到地图
-  await page.locator('.map').click({ position: { x: 640, y: 360 } })
-  await expect(page.locator('.crumb.active')).toHaveText('参保村1')
-
-  // 退出降水 → 标记、色斑与图例清除
+  // 退出降水 → 标记、色斑、面板与图例全部清除
   await page.locator('.precip-panel .close-button').click()
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
-  await expect(page.locator('.leaflet-villageRiskFillPane-pane path')).toHaveCount(0)
   await expect(page.locator('.village-risk-legend')).not.toBeVisible()
+  await expect(page.locator('.disaster-workbench')).toHaveCount(0)
 })
 
 test('降雨量共用面板风险 tab：统计/列表/下钻卡片/村级收起/退出清除', async ({ page }) => {
