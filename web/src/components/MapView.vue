@@ -8,18 +8,40 @@
     <div v-if="weatherPickHintVisible" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
     <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.selectedSeatCode ? weatherMarkersStore.list.find((m) => m.code === weatherStore.selectedSeatCode)?.name : weatherStore.query?.contextName" :context-path="weatherStore.selectedSeatCode ? seatContextPath : store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
-    <TyphoonPathPanel
-      v-if="disasterActive"
-      :phase="typhoonStore.phase"
-      :realtime-count="typhoonStore.realtimeDetails.length"
-      :model="typhoonPanelModel"
-      :timeline-open="typhoonStore.timelineOpen"
-      :reveal-token="typhoonRevealToken"
-      @close="exitTyphoonMode"
-      @toggle="toggleTyphoonCard"
-      @close-history="closeHistoricalTyphoon"
-      @select-node="selectTyphoonPanelNode"
-    />
+    <DisasterWorkbenchPanel
+      v-if="workbenchActive"
+      :active-tabs="workbenchActiveTabs"
+      :active-tab="workbenchTab"
+      :collapsed="workbenchCollapsed"
+      :timeline-open="disasterActive && typhoonStore.timelineOpen"
+      :close-label="workbenchCloseLabel"
+      @select-tab="workbenchTab = $event"
+      @toggle-collapsed="workbenchCollapsed = !workbenchCollapsed"
+      @close="closeWorkbench"
+    >
+      <template #typhoon>
+        <TyphoonPathPanel
+          v-if="disasterActive"
+          :phase="typhoonStore.phase"
+          :realtime-count="typhoonStore.realtimeDetails.length"
+          :model="typhoonPanelModel"
+          :timeline-open="typhoonStore.timelineOpen"
+          :reveal-token="typhoonRevealToken"
+          @toggle="toggleTyphoonCard"
+          @close-history="closeHistoricalTyphoon"
+          @select-node="selectTyphoonPanelNode"
+        />
+      </template>
+      <template #risk>
+        <VillageRiskOverview
+          v-if="precipitationStore.isOpen"
+          :model="riskOverviewModel"
+          :precip-loading="precipitationStore.phase === 'loading'"
+          :snapshot-error="riskSnapshotError"
+          @select-village="selectVillageFromOverview"
+        />
+      </template>
+    </DisasterWorkbenchPanel>
     <TyphoonHoverPopup
       v-if="disasterActive"
       :model="typhoonHoverModel"
@@ -196,6 +218,10 @@ import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
 import TyphoonTimelineDrawer from './typhoon/TyphoonTimelineDrawer.vue'
+import DisasterWorkbenchPanel, { type WorkbenchTab } from './disaster/DisasterWorkbenchPanel.vue'
+import VillageRiskOverview from './village-risk/VillageRiskOverview.vue'
+import { loadPolicySummaries, type VillagePolicySummary } from '../features/village-risk/villagePolicySummary'
+import { buildVillageRiskOverviewModel, type VillageRiskOverviewModel } from '../features/village-risk/villageRiskOverviewModel'
 import TyphoonHoverPopup from './typhoon/TyphoonHoverPopup.vue'
 import WeatherPopup from './weather/WeatherPopup.vue'
 import NationalAlarmPanel from './weather/NationalAlarmPanel.vue'
@@ -319,6 +345,35 @@ const villageCard = ref<{ code: string; anchor: { x: number; y: number }; model:
 let villageBoundaries: VillageBoundary[] = []
 const villageRiskResults = new Map<string, VillageRiskResult>()
 const villageCovered = new Map<string, PrecipGridPoint[]>()
+// 共用面板（台风路径 / 风险概览 双 tab）
+const workbenchTab = ref<WorkbenchTab>('typhoon')
+const workbenchCollapsed = ref(false)
+const policySummaries = ref<Map<string, VillagePolicySummary> | null>(null)
+const workbenchActive = computed(() => disasterActive.value || precipitationStore.isOpen)
+const workbenchActiveTabs = computed<WorkbenchTab[]>(() => {
+  const tabs: WorkbenchTab[] = []
+  if (disasterActive.value) tabs.push('typhoon')
+  if (precipitationStore.isOpen) tabs.push('risk')
+  return tabs
+})
+const workbenchCloseLabel = computed(() => (workbenchTab.value === 'typhoon' ? '关闭台风路径并退出灾害风险模式' : '关闭风险概览并退出降雨量模式'))
+const riskSnapshotError = computed(() => precipitationStore.phase === 'error' || (precipitationStore.phase === 'ready' && precipitationStore.snapshot === null))
+const riskOverviewModel = computed<VillageRiskOverviewModel | null>(() => {
+  if (!precipitationStore.isOpen || villageBoundaries.length === 0) return null
+  const snapshot = precipitationStore.snapshot
+  if (!snapshot) return null
+  const villages = villageBoundaries.map((village) => ({
+    code: village.code,
+    name: village.name,
+    result: villageRiskResults.get(village.code) ?? computeVillageRisk({
+      village,
+      snapshot,
+      typhoons: currentTyphoonRiskEntries(),
+      alarms: alarmItems(nationalAlarmStore.snapshot),
+    }),
+  }))
+  return buildVillageRiskOverviewModel({ villages, policies: policySummaries.value ?? new Map(), days: snapshot.days, updatedAt: snapshot.updatedAt })
+})
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
 const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
@@ -1171,6 +1226,36 @@ function closeVillageCard() {
 }
 
 /** 选中日/数据变化时刷新已打开卡片（趋势高亮与数值更新）。 */
+/** 风险概览列表点击 → 下钻该村（村级视图）+ 贴村打开风险卡片。 */
+function selectVillageFromOverview(code: string) {
+  const village = villageBoundaries.find((v) => v.code === code)
+  if (!village) return
+  const center = L.latLng(village.centroid.lat, village.centroid.lon)
+  const point = map.latLngToContainerPoint(center)
+  const anchor = { x: point.x, y: point.y }
+  if (store.current.level === 'village' && store.current.code === code) {
+    openVillageCard(code, anchor)
+    return
+  }
+  const geometry: Geometry = { type: 'MultiPolygon', coordinates: village.polygons }
+  // flyTo 结束后按村中心像素锚定；未触发 moveend 时兜底打开
+  let opened = false
+  const open = () => {
+    if (opened) return
+    opened = true
+    openVillageCard(code, anchor)
+  }
+  map.once('moveend', open)
+  setTimeout(open, 1200)
+  void store.drill({ level: 'village', code: village.code, name: village.name, geometry })
+}
+
+/** 共用面板关闭：关闭当前激活 tab 对应模式。 */
+function closeWorkbench() {
+  if (workbenchTab.value === 'typhoon') void exitTyphoonMode()
+  else exitPrecipitationMode()
+}
+
 function refreshVillageCard() {
   if (!villageCard.value) return
   const village = villageBoundaries.find((v) => v.code === villageCard.value!.code)
@@ -1193,6 +1278,10 @@ async function enterPrecipitationMode() {
     villageBoundaries = villages
     computeVillageRisks()
   })
+  // 保单敞口汇总（进入降水即并行拉取 13 村）
+  void loadPolicySummaries().then((summaries) => {
+    if (precipitationStore.isOpen) policySummaries.value = summaries
+  })
   await store.resetToProvince()
   void render() // 进入定位浙江省全省全景（方案 B：叠加时降水优先）
   void precipitationRepositoryLoad()
@@ -1210,6 +1299,7 @@ function exitPrecipitationMode() {
   villageBoundaries = []
   villageRiskResults.clear()
   villageCovered.clear()
+  policySummaries.value = null
   precipitationStore.close()
   // 台风仍活动：保持当前视图不重置（方案 B：最后一个活动模式退出才恢复省界相机）
   if (!disasterActive.value) {
@@ -1249,6 +1339,14 @@ watch(() => typhoonStore.details, () => { if (precipitationStore.isOpen) compute
 watch(() => nationalAlarmStore.snapshot, () => { if (precipitationStore.isOpen) computeVillageRisks() })
 watch(() => store.current.level, () => { if (precipitationStore.isOpen) renderVillageRiskLayer() })
 watch(() => precipitationStore.selectedDay, () => { if (precipitationStore.isOpen) refreshVillageCard() })
+// 共用面板：模式联动（后进入优先）+ 村级默认收起
+watch([() => disasterActive.value, () => precipitationStore.isOpen], () => {
+  if (precipitationStore.isOpen) workbenchTab.value = 'risk'
+  else if (disasterActive.value) workbenchTab.value = 'typhoon'
+})
+watch(() => store.current.level, (level) => {
+  workbenchCollapsed.value = level === 'village'
+})
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  nationalAlarmStore.select({id:alarm.id,source:'list'})
