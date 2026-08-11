@@ -1,16 +1,15 @@
 import type { PrecipitationSnapshot, PrecipGridPoint } from '../precipitation/precipitationTypes'
-import { PRECIP_DAY_KEYS } from '../precipitation/precipitationTypes'
+import { PRECIP_DAY_KEYS, precipitationLevel } from '../precipitation/precipitationTypes'
 import type { VillageDayStat } from './villageRisk'
 import { RISK_LEVEL_TEXT } from './villageRisk'
 import { coveredDayValues, villageDayStats } from './villageRisk'
 import { measuresFor, type TyphoonScenario } from './cropCycle'
 import type { VillageRiskResult } from './villageRiskData'
 import type { VillagePolicySummary } from './villagePolicySummary'
-import { peakLabel } from './villageRiskOverviewModel'
 
 /**
- * 参保村风险卡片 —— view-model 构建（需求 §4.5，v3.6/3.7 定稿）
- * - 风险依据首行 = 等级 + 峰值合并（如"高风险 · 8/13 大暴雨 112mm"），峰值只出现一次
+ * 参保村风险卡片 —— view-model 构建（需求 §4.5）
+ * - 风险依据：信号行（降水峰值/连阴雨/台风/预警）；等级徽标在卡片头部展示
  * - 保单概况：仅保单结构（保单数 / 大户保单 + 清单户），承保概况不重复
  * - 7 天趋势高亮该村峰值日
  */
@@ -19,8 +18,6 @@ export interface VillageRiskCardModel {
   villageName: string
   level: number
   levelText: string
-  /** 依据区首行："高风险 · 8/13 大暴雨 112mm"（degraded 时为 null） */
-  evidenceMain: string | null
   signalRows: string[]
   unavailableRows: string[]
   policy: { policyCount: number; bigHolderPolicyCount: number; rosterHouseholdCount: number } | null
@@ -74,16 +71,13 @@ export function consecutiveRainWindow(dailyStats: readonly VillageDayStat[], day
 export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageRiskCardModel {
   const { result, snapshot } = input
   const days = snapshot?.days ?? []
-  const peak = peakLabel(days, result.peak)
 
   const signalRows: string[] = []
   const unavailableRows: string[] = []
 
-  // 依据区首行：等级 + 峰值合并（如"高风险 · 8/13 大暴雨 112mm"），峰值只出现一次
-  const evidenceMain = `${RISK_LEVEL_TEXT[result.level]} · ${peak.label}`
-
-  // 非峰值信号行（连阴雨 / 台风 / 预警）
+  // 降水峰值行（依据信号之一；等级徽标在头部展示，不再单列合并行）
   if (input.dataAvailable.precip && snapshot) {
+    if (result.peak.mm >= 0.1) signalRows.push(`降水 峰值 ${result.peak.mm.toFixed(0)}mm（${shortDate(days[result.peak.dayIndex] ?? '')} ${precipitationLevel(result.peak.mm)}）`)
     if (result.consecutive) {
       const dailyStats = PRECIP_DAY_KEYS.map((day) => villageDayStats(coveredDayValues(input.covered, day)))
       const window = consecutiveRainWindow(dailyStats, days)
@@ -139,7 +133,6 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
     villageName: input.villageName,
     level: result.level,
     levelText: RISK_LEVEL_TEXT[result.level],
-    evidenceMain: allUnavailable ? null : evidenceMain,
     signalRows,
     unavailableRows,
     policy: input.policy

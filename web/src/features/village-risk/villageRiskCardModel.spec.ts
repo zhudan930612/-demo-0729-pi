@@ -33,19 +33,9 @@ function summary(): VillagePolicySummary {
 }
 
 describe('buildVillageRiskCardModel 卡片模型', () => {
-  it('依据首行：等级 + 峰值合并（8/13 大暴雨 112mm），峰值只出现一次', () => {
+  it('降水峰值信号行：峰值 mm + 日期 + 分级（等级徽标在头部，依据区不单列合并行）', () => {
     const model = buildVillageRiskCardModel({ ...base, snapshot: snapshot({ d3: 112 }), covered: snapshot({ d3: 112 }).grid, result: result() })
-    expect(model.evidenceMain).toBe('高风险 · 8/13 大暴雨 112mm')
-    // 峰值不重复出现在信号行
-    expect(model.signalRows).not.toContain('降水 峰值 112mm（8/13 大暴雨）')
-  })
-
-  it('低风险等级文案：低风险 · 峰值行（无快照时无日期）', () => {
-    const model = buildVillageRiskCardModel({
-      ...base, snapshot: null, covered: [],
-      result: result({ level: 1, peak: { level: 1, mm: 30, dayIndex: 0 } }),
-    })
-    expect(model.evidenceMain).toBe('低风险 · 大雨 30mm')
+    expect(model.signalRows).toContain('降水 峰值 112mm（8/13 大暴雨）')
   })
 
   it('连阴雨行：连续 3 日累计窗口', () => {
@@ -118,7 +108,6 @@ describe('buildVillageRiskCardModel 卡片模型', () => {
       result: result(),
     })
     expect(model.degraded).toBe(true)
-    expect(model.evidenceMain).toBeNull()
     expect(model.unavailableRows).toHaveLength(3)
   })
 

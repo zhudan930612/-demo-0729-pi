@@ -9,14 +9,9 @@
     </header>
 
     <template v-if="!model.degraded">
-      <!-- 风险依据（等级+峰值合并为首行） -->
+      <!-- 风险依据（信号行：峰值/连阴雨/台风/预警；等级徽标在头部） -->
       <section class="signals">
         <span class="section-kicker">风险依据</span>
-        <p v-if="model.evidenceMain" class="evidence-main">
-          <span class="evidence-level" :style="{ '--risk': riskColor(model.level) }">{{ model.levelText }}</span>
-          <span class="evidence-dot" aria-hidden="true">·</span>
-          <span class="evidence-peak">{{ evidencePeak }}</span>
-        </p>
         <dl v-if="model.signalRows.length > 0 || model.unavailableRows.length > 0">
           <div v-for="row in model.signalRows" :key="row" class="signal-row"><dt aria-hidden="true">▸</dt><dd>{{ row }}</dd></div>
           <div v-for="row in model.unavailableRows" :key="row" class="signal-row unavailable"><dt aria-hidden="true">!</dt><dd>{{ row }}</dd></div>
@@ -83,7 +78,6 @@ function riskColor(level: number): string {
   return RISK_STROKE_COLOR[level as 0 | 1 | 2 | 3] ?? RISK_STROKE_COLOR[0]
 }
 const levelClass = computed(() => (['none', 'low', 'mid', 'high'] as const)[props.model?.level ?? 0])
-const evidencePeak = computed(() => props.model?.evidenceMain?.split(' · ').slice(1).join(' · ') ?? '')
 
 function toggleTrend() { trendOpen.value = !trendOpen.value }
 
@@ -184,27 +178,6 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 
 /* ---- 风险依据 ---- */
-.evidence-main {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin: 1px 0 9px;
-}
-.evidence-level {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--risk, #0f172a);
-  line-height: 1.2;
-}
-.evidence-dot { color: #94a3b8; font-size: 13px; }
-.evidence-peak {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #334155;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
 .signals dl { margin: 0; display: flex; flex-direction: column; gap: 5px; }
 .signal-row { display: flex; gap: 7px; align-items: baseline; }
 .signal-row dt {

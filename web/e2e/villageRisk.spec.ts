@@ -118,7 +118,7 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.village-risk-card h2')).not.toBeEmpty()
   await expect(page.locator('.village-risk-card .risk-pill')).toHaveText('高风险')
-  await expect(page.locator('.village-risk-card')).toContainText(/高风险.*8\/10 暴雨 60mm/)
+  await expect(page.locator('.village-risk-card')).toContainText('降水 峰值 60mm（8/10 暴雨）')
   await expect(page.locator('.village-risk-card')).toContainText('连续 3 日累计')
   await expect(page.locator('.village-risk-card .measures li').first()).toBeVisible()
   await expect(page.locator('.village-risk-card')).toContainText('防灾措施')
