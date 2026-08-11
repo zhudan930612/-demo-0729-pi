@@ -1136,7 +1136,7 @@ async function enterNationalAlarms(){
  if(precipitationStore.isOpen)exitPrecipitationMode()
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
-function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();nationalAlarmStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();/* 保留 NMC 全省预警列表（snapshot）供风险判定复用：仅关闭模式 UI，不清数据（v3.11） */nationalAlarmStore.phase='closed';nationalAlarmStore.selection=null;nationalAlarmStore.detail=null;void nextTick(()=>mapControlRef.value?.focusWeather())}
 function closeWeatherFromToolbar(module:WeatherModuleKind){if(module==='alerts')exitNationalAlarms();else if(module==='precipitation')exitPrecipitationMode();else exitWeatherMode()}
 
 function precipitationRepositoryLoad() {
