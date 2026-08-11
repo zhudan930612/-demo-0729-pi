@@ -67,7 +67,7 @@ describe('policyFixtureUrl', () => {
 
 describe('loadPolicySummaries 并行加载', () => {
   it('13 村全部汇总（mock fetch 按 URL 返回 fixture）', async () => {
-    const fetchImpl = vi.fn(async (url: string) => ({
+    const fetchImpl = vi.fn(async () => ({
       ok: true,
       json: async () => makeFixture({ parcelCoverages: [{ insuredAreaMu: '10.0', insuredPartyId: 'p', policyId: 'policy-1' }] }),
     }) as unknown as Response)
