@@ -1274,6 +1274,8 @@ async function drillToVillageWithFullPath(village: VillageBoundary) {
     if (!feature) break // 中间层级数据缺失：停止补齐，直接进村（降级）
     pendingNoFly = true
     await store.drill({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
+    // 等待本级 render（子级边界加载/插入）稳定后再进下一级，避免连续 drill 并发重绘卡顿
+    await new Promise((resolve) => setTimeout(resolve, 180))
   }
   pendingNoFly = false
   openVillageCard(village.code)

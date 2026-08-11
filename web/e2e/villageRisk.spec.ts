@@ -96,6 +96,8 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
   await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  // 等上虞区 flyTo 动画完成（否则 suppressAutoZoom 抑制滚轮自动下钻）
+  await page.waitForTimeout(1400)
   // 滚轮放大至区级自动下钻阈值（ENTER_ZOOM.county=13.5）→ 自动进入章镇镇（中心点在上虞区=章镇镇内）
   await page.mouse.move(640, 360)
   for (let i = 0; i < 20; i++) {
@@ -151,7 +153,14 @@ test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz
   await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
   await expect(page.locator('.crumb.active')).toHaveText('上虞区')
-  await page.locator('.map').click({ position: { x: 640, y: 300 } })
+  // 等上虞区 flyTo 完成，滚轮放大至区级阈值（13.5）自动进入章镇镇
+  await page.waitForTimeout(1400)
+  await page.mouse.move(640, 360)
+  for (let i = 0; i < 20; i++) {
+    if ((await page.locator('.crumb.active').textContent()) === '章镇镇') break
+    await page.mouse.wheel(0, -120)
+    await page.waitForTimeout(160)
+  }
   await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
   const center = { x: 640, y: 360 }
@@ -159,11 +168,11 @@ test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz
     const b = await page.locator(sel).boundingBox()
     return { x: b ? b.x + b.width / 2 : 0, y: b ? b.y + b.height / 2 : 0 }
   }
-  // 选一个远离中心的标记，放大 2 级后距离应按 2^dz 放大（锚点=光标 640,360）
+  // 选一个远离中心的标记，放大 2 步（约 1~1.5 级，不跨村级阈值 15.5），距离按 2^dz 放大（锚点=光标 640,360）
   const sel = '.village-risk-marker-wrap >> nth=4'
   const p1 = await box(sel)
   const z1 = Number(((await page.locator('.map-zoom-level').textContent()) ?? 'Z 0').replace('Z ', ''))
-  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(300) }
+  for (let i = 0; i < 2; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(350) }
   const z2 = Number(((await page.locator('.map-zoom-level').textContent()) ?? 'Z 0').replace('Z ', ''))
   const p2 = await box(sel)
   const d1 = Math.hypot(p1.x - center.x, p1.y - center.y)
@@ -183,6 +192,8 @@ test('放大进入村级（不点标记）：右上面板自动显示当前村�
   await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
   await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  // 等上虞区 flyTo 动画完成（否则 suppressAutoZoom 抑制滚轮自动下钻）
+  await page.waitForTimeout(1400)
   // 滚轮放大至区级自动下钻阈值（ENTER_ZOOM.county=13.5）→ 自动进入章镇镇（中心点在上虞区=章镇镇内）
   await page.mouse.move(640, 360)
   for (let i = 0; i < 20; i++) {
