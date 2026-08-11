@@ -21,14 +21,18 @@ function point(lat: number, lon: number, values: Record<string, number> = {}): P
   return { lat, lon, values: { d1: 0, d2: 0, d3: 0, d4: 0, d5: 0, d6: 0, d7: 0, ...values } as PrecipGridPoint['values'] }
 }
 
-describe('precipPeakLevel 降水峰值分档', () => {
-  it('按需求 §3.1b 阈值分档', () => {
+describe('precipPeakLevel 降水峰值分档（v3.8 下移两档）', () => {
+  it('分档边界：<5→0；5~9.9→1；10~24.9→2；≥25→3', () => {
     expect(precipPeakLevel(0)).toBe(0)
-    expect(precipPeakLevel(24.9)).toBe(0)
-    expect(precipPeakLevel(25)).toBe(1)
-    expect(precipPeakLevel(49.9)).toBe(1)
-    expect(precipPeakLevel(50)).toBe(2)
-    expect(precipPeakLevel(99.9)).toBe(2)
+    expect(precipPeakLevel(4.9)).toBe(0)
+    expect(precipPeakLevel(5)).toBe(1)
+    expect(precipPeakLevel(9.9)).toBe(1)
+    expect(precipPeakLevel(10)).toBe(2)
+    expect(precipPeakLevel(24.9)).toBe(2)
+    expect(precipPeakLevel(25)).toBe(3)
+    expect(precipPeakLevel(49.9)).toBe(3)
+    expect(precipPeakLevel(50)).toBe(3)
+    expect(precipPeakLevel(99.9)).toBe(3)
     expect(precipPeakLevel(100)).toBe(3)
     expect(precipPeakLevel(300)).toBe(3)
   })
@@ -39,19 +43,22 @@ describe('precipPeakLevel 降水峰值分档', () => {
 })
 
 describe('hasConsecutiveRain 连续降雨信号', () => {
-  it('连续 3 日各有雨且累计 ≥50 成立', () => {
+  it('连续 3 日各有雨且累计 ≥30 成立（v3.8 放宽）', () => {
     expect(hasConsecutiveRain([15, 15, 20])).toBe(true) // 50
+    expect(hasConsecutiveRain([10, 10, 10])).toBe(true) // 30 边界
+    expect(hasConsecutiveRain([12, 9, 9])).toBe(true) // 30
     expect(hasConsecutiveRain([10, 10, 30, 1, 1])).toBe(true) // 50
-    expect(hasConsecutiveRain([20, 10, 25, 1, 1])).toBe(true) // 20+10+25=55
+    expect(hasConsecutiveRain([20, 10, 19, 1, 1])).toBe(true) // 49
   })
   it('单日暴雨不判连阴雨（峰值已定级，避免重复计级）', () => {
     expect(hasConsecutiveRain([60, 0, 0, 0, 60])).toBe(false) // 相邻窗口含 0 日
     expect(hasConsecutiveRain([50, 0, 0])).toBe(false)
   })
-  it('不足 50 不成立（含 3 日窗口全部枚举）', () => {
-    expect(hasConsecutiveRain([10, 10, 10, 10])).toBe(false) // 30
-    expect(hasConsecutiveRain([20, 10, 5, 30, 1])).toBe(false) // 35/45/36
-    expect(hasConsecutiveRain([20, 10, 19, 1, 1])).toBe(false) // 49/30/21
+  it('不足 30 不成立（含 3 日窗口全部枚举）', () => {
+    expect(hasConsecutiveRain([10, 10, 9])).toBe(false) // 29
+    expect(hasConsecutiveRain([5, 5, 5])).toBe(false) // 15
+    expect(hasConsecutiveRain([10, 10, 10, 10])).toBe(true) // 30
+    expect(hasConsecutiveRain([20, 10, 5, 30, 1])).toBe(true) // 35 ≥30
   })
   it('空/不足 3 日序列不成立', () => {
     expect(hasConsecutiveRain([])).toBe(false)
@@ -113,17 +120,17 @@ describe('windCircleCovers 实时风圈覆盖', () => {
 
 describe('typhoonSignal 台风信号', () => {
   const village = { lat: 30, lon: 120 }
-  it('路径覆盖（点-线段穿过）→ 2：两预测点均 >50km 但线段穿过', () => {
-    // 预测点 (30.6,119.8) 与 (30.6,120.2)：村 (30,120) 到该水平段最短距离 0.6°≈66km？不，垂直距离：
-    // 段纬度 30.6，村纬度 30 → 0.6°≈66.8km >50。改：段 (30.4,119.8)-(30.4,120.2)，村到段垂直距离 0.4°≈44.5km ≤50
+  it('路径覆盖（点-线段穿过）→ 2：两预测点均 >100km 但线段穿过', () => {
+    // 段 (30.4,119.8)-(30.4,120.2)，村 (30,120) 到段垂直距离 0.4°≈44.5km ≤100
     const path = [{ lat: 30.4, lon: 119.8, windSpeedMs: 20 }, { lat: 30.4, lon: 120.2, windSpeedMs: 20 }]
     const result = typhoonSignal(village, path, null)
-    expect(result.pathDistanceKm).toBeLessThan(50)
+    expect(result.pathDistanceKm).toBeLessThan(100)
     expect(result.signal).toBe(2)
   })
-  it('单点距村 ≤50km → 2；>50km → 0', () => {
+  it('单点距村 ≤100km → 2；>100km → 0（v3.8 放宽）', () => {
     expect(typhoonSignal(village, [{ lat: 30.3, lon: 120, windSpeedMs: 20 }], null).signal).toBe(2) // 33km
-    expect(typhoonSignal(village, [{ lat: 30.8, lon: 120, windSpeedMs: 20 }], null).signal).toBe(0) // 89km
+    expect(typhoonSignal(village, [{ lat: 30.8, lon: 120, windSpeedMs: 20 }], null).signal).toBe(2) // 89km ≤100
+    expect(typhoonSignal(village, [{ lat: 31.2, lon: 120, windSpeedMs: 20 }], null).signal).toBe(0) // 133km >100
   })
   it('强热带风暴及以上路径临近 → 3', () => {
     expect(typhoonSignal(village, [{ lat: 30.2, lon: 120, windSpeedMs: 30 }], null).signal).toBe(3) // wind 30m/s
@@ -213,7 +220,7 @@ describe('村级降水口径', () => {
       { min: 0, max: 60, mean: 30 },
       { min: 0, max: 20, mean: 10 },
     ]
-    expect(villagePeak(stats)).toEqual({ level: 2, mm: 60, dayIndex: 1 }) // 50-99.9 → 2
+    expect(villagePeak(stats)).toEqual({ level: 3, mm: 60, dayIndex: 1 }) // ≥25 → 3（v3.8）
   })
   it('villagePeak 空统计 → 0 级 0mm', () => {
     expect(villagePeak([])).toEqual({ level: 0, mm: 0, dayIndex: 0 })

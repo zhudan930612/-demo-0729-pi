@@ -12,18 +12,18 @@ export const RISK_LEVEL_TEXT: Record<RiskLevel, string> = { 0: '无风险', 1: '
 export const RISK_LEVEL_SHORT: Record<RiskLevel, string> = { 0: '无', 1: '低', 2: '中', 3: '高' }
 
 // ---------- 降水信号 ----------
-/** 24h 累计降水峰值分档：0~24.9→0；25~49.9→1；50~99.9→2；≥100→3（需求 §3.1b） */
+/** 24h 累计降水峰值分档（v3.8 下移两档）：<5→0；5~9.9→1；10~24.9→2；≥25→3（需求 §3.1b） */
 export function precipPeakLevel(mm: number): RiskLevel {
-  if (!Number.isFinite(mm) || mm < 25) return 0
-  if (mm < 50) return 1
-  if (mm < 100) return 2
+  if (!Number.isFinite(mm) || mm < 5) return 0
+  if (mm < 10) return 1
+  if (mm < 25) return 2
   return 3
 }
 
 export const CONSECUTIVE_RAIN_WINDOW = 3
-export const CONSECUTIVE_RAIN_SUM_MM = 50
+export const CONSECUTIVE_RAIN_SUM_MM = 30
 
-/** 连续降雨信号：7 天窗口内存在**连续 3 日各有降水（≥0.1mm）且累计 ≥50mm**（连阴雨/渍涝，需求拷打后新增）。
+/** 连续降雨信号：7 天窗口内存在**连续 3 日各有降水（≥0.1mm）且累计 ≥30mm**（v3.8 放宽；连阴雨/渍涝）。
  *  要求窗口内每日均有雨，避免单日暴雨被重复计级（峰值已定级）；输入为该村每日均值序列（村级代表口径）。 */
 export function hasConsecutiveRain(dailyMeans: readonly number[]): boolean {
   const values = dailyMeans.map((v) => (Number.isFinite(v) ? v : 0))
@@ -47,7 +47,7 @@ export function precipSignal(peakLevel: RiskLevel, consecutive: boolean): RiskLe
 }
 
 // ---------- 台风信号 ----------
-export const TYPOON_PATH_DISTANCE_KM = 50
+export const TYPOON_PATH_DISTANCE_KM = 100 // v3.8 放宽：路径/风圈距村 ≤100km（原 50km）
 export const STRONG_TROPICAL_STORM_WIND_MS = 24.5 // 强热带风暴级起始风速（10 级）
 const STORM_LEVEL_TEXTS = ['强热带风暴', '台风', '强台风', '超强台风']
 

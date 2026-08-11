@@ -161,7 +161,7 @@ describe('台风/预警数据提取', () => {
 describe('computeVillageRisk 村级风险装配', () => {
   const snapshot = {
     grid: [
-      { lat: 29.75, lon: 120.85, values: { d1: 60, d2: 0, d3: 0, d4: 10, d5: 0, d6: 0, d7: 0 } }, // 村内：d1=60 → 峰值 60 → 2 级；无连阴雨（单日暴雨不判）
+      { lat: 29.75, lon: 120.85, values: { d1: 60, d2: 0, d3: 0, d4: 10, d5: 0, d6: 0, d7: 0 } }, // 村内：d1=60 → 峰值 60 → 3 级（v3.8 ≥25）；无连阴雨（单日暴雨不判）
     ],
     days: ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14', '2026-08-15', '2026-08-16'],
     coveredDays: 7, model: 'x', updatedAt: '', aggregateFrom: '',
@@ -169,10 +169,10 @@ describe('computeVillageRisk 村级风险装配', () => {
   const v = village()
   it('无台风无预警：仅降水峰值定级', () => {
     const result = computeVillageRisk({ village: v, snapshot: snapshot as never, typhoons: [], alarms: [] })
-    expect(result.peak).toEqual({ level: 2, mm: 60, dayIndex: 0 })
-    expect(result.precipSignal).toBe(2)
+    expect(result.peak).toEqual({ level: 3, mm: 60, dayIndex: 0 })
+    expect(result.precipSignal).toBe(3)
     expect(result.typhoonSignal).toBe(0)
-    expect(result.level).toBe(2)
+    expect(result.level).toBe(3)
   })
   it('台风覆盖 + 降水暴雨 → 组合直接高', () => {
     const typhoons = [{ path: [{ lat: 29.9, lon: 120.9, windSpeedMs: 20 }], windRadii: null }] // 距村质心 (29.75,120.85) 约 17km → 覆盖
