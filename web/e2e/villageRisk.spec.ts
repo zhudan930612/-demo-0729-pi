@@ -244,6 +244,8 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   await page.locator('.village-row').first().click()
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.crumb.active')).toHaveText('参保村1')
+  // 地图视野应飞到村级（flyTo 1.0s 后 zoom 显著升高，等待动画完成）
+  await expect.poll(async () => (await page.locator('.map-zoom-level').textContent()) ?? '').not.toMatch(/Z 7\./)
   // 完整路径：省/市/区/镇/村（不跳级，缩小可逐级回退）
   await expect(page.locator('.crumb')).toHaveCount(5)
   await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
