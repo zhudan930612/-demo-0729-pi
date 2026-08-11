@@ -125,9 +125,10 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   // 保单概况：仅保单结构
   await expect(page.locator('.village-risk-card')).toContainText('保单概况')
   await expect(page.locator('.village-risk-card')).toContainText('保单 5 · 大户保单')
-  // 台风/预警未加载 → 降级行
-  await expect(page.locator('.village-risk-card')).toContainText('台风数据暂不可用')
-  await expect(page.locator('.village-risk-card')).toContainText('预警数据暂不可用')
+  // 三源齐全（v3.11 自动补拉）：台风/预警数据已加载（mock 接口返回），无不可用行
+  await expect(page.locator('.village-risk-card')).not.toContainText('台风数据暂不可用')
+  await expect(page.locator('.village-risk-card')).not.toContainText('预警数据暂不可用')
+  await expect(page.locator('.village-risk-card')).not.toContainText('降水预报数据暂不可用')
   // 村级：风险标记消失（v3.9 无风险图层）
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
   await expect(page.locator('.village-risk-legend')).not.toBeVisible()
