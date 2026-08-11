@@ -1,23 +1,29 @@
 import type { PrecipitationSnapshot, PrecipGridPoint } from '../precipitation/precipitationTypes'
-import { PRECIP_DAY_KEYS, precipitationLevel } from '../precipitation/precipitationTypes'
+import { PRECIP_DAY_KEYS } from '../precipitation/precipitationTypes'
 import type { VillageDayStat } from './villageRisk'
 import { RISK_LEVEL_TEXT } from './villageRisk'
 import { coveredDayValues, villageDayStats } from './villageRisk'
 import { measuresFor, type TyphoonScenario } from './cropCycle'
 import type { VillageRiskResult } from './villageRiskData'
+import type { VillagePolicySummary } from './villagePolicySummary'
+import { peakLabel } from './villageRiskOverviewModel'
 
 /**
- * 参保村风险卡片 —— view-model 构建（需求 §4.3 卡片结构）
- * 纯函数，组件只负责渲染；文案与信号行在此锁定。
+ * 参保村风险卡片 —— view-model 构建（需求 §4.5，v3.6/3.7 定稿）
+ * - 风险依据首行 = 等级 + 峰值合并（如"高风险 · 8/13 大暴雨 112mm"），峰值只出现一次
+ * - 保单概况：仅保单结构（保单数 / 大户保单 + 清单户），承保概况不重复
+ * - 7 天趋势高亮该村峰值日
  */
 
 export interface VillageRiskCardModel {
   villageName: string
   level: number
   levelText: string
-  peakText: string | null
+  /** 依据区首行："高风险 · 8/13 大暴雨 112mm"（degraded 时为 null） */
+  evidenceMain: string | null
   signalRows: string[]
   unavailableRows: string[]
+  policy: { policyCount: number; bigHolderPolicyCount: number; rosterHouseholdCount: number } | null
   stageLabel: string
   stageNote: string | null
   measures: string[]
@@ -36,6 +42,7 @@ export interface VillageRiskCardInput {
   stageNote: string | null
   typhoonScenario: TyphoonScenario | null
   dataAvailable: { precip: boolean; typhoon: boolean; alarm: boolean }
+  policy: VillagePolicySummary | null
 }
 
 export const SEVERITY_TEXT: Record<'red' | 'orange' | 'yellow' | 'blue', string> = {
@@ -67,17 +74,16 @@ export function consecutiveRainWindow(dailyStats: readonly VillageDayStat[], day
 export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageRiskCardModel {
   const { result, snapshot } = input
   const days = snapshot?.days ?? []
-  const peakDate = snapshot ? shortDate(days[result.peak.dayIndex] ?? '') : ''
-  const peakText = snapshot
-    ? `7 天峰值 ${result.peak.mm.toFixed(0)}mm（${peakDate} ${precipitationLevel(result.peak.mm)}）`
-    : null
+  const peak = peakLabel(days, result.peak)
 
   const signalRows: string[] = []
   const unavailableRows: string[] = []
 
-  // 降水行
+  // 依据区首行：等级 + 峰值合并（如"高风险 · 8/13 大暴雨 112mm"），峰值只出现一次
+  const evidenceMain = `${RISK_LEVEL_TEXT[result.level]} · ${peak.label}`
+
+  // 非峰值信号行（连阴雨 / 台风 / 预警）
   if (input.dataAvailable.precip && snapshot) {
-    if (result.peak.mm >= 0.1) signalRows.push(`降水 峰值 ${result.peak.mm.toFixed(0)}mm（${shortDate(days[result.peak.dayIndex] ?? '')} ${precipitationLevel(result.peak.mm)}）`)
     if (result.consecutive) {
       const dailyStats = PRECIP_DAY_KEYS.map((day) => villageDayStats(coveredDayValues(input.covered, day)))
       const window = consecutiveRainWindow(dailyStats, days)
@@ -124,7 +130,8 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
     ? {
         days,
         stats: PRECIP_DAY_KEYS.map((day) => villageDayStats(coveredDayValues(input.covered, day))),
-        dayIndex: Math.max(0, Math.min(input.selectedDay, PRECIP_DAY_KEYS.length - 1)),
+        // 高亮该村峰值日（v3.7 定稿，与色斑无联动）
+        dayIndex: Math.max(0, Math.min(result.peak.dayIndex, PRECIP_DAY_KEYS.length - 1)),
       }
     : null
 
@@ -132,9 +139,16 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
     villageName: input.villageName,
     level: result.level,
     levelText: RISK_LEVEL_TEXT[result.level],
-    peakText: allUnavailable ? null : peakText,
+    evidenceMain: allUnavailable ? null : evidenceMain,
     signalRows,
     unavailableRows,
+    policy: input.policy
+      ? {
+          policyCount: input.policy.policyCount,
+          bigHolderPolicyCount: input.policy.bigHolderPolicyCount,
+          rosterHouseholdCount: input.policy.rosterHouseholdCount,
+        }
+      : null,
     stageLabel: measures.stageLabel,
     stageNote: input.stageNote,
     measures: measures.items,

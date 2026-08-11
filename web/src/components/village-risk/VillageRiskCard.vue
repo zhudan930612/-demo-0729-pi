@@ -9,20 +9,24 @@
     </header>
 
     <template v-if="!model.degraded">
-      <!-- 风险等级 -->
-      <section class="risk-level" :style="{ '--risk': riskColor(model.level) }">
-        <span class="section-kicker">风险等级</span>
-        <strong class="level-name">{{ model.levelText }}</strong>
-        <span v-if="model.peakText" class="level-peak">{{ model.peakText }}</span>
-      </section>
-
-      <!-- 风险依据 -->
-      <section v-if="model.signalRows.length > 0 || model.unavailableRows.length > 0" class="signals">
+      <!-- 风险依据（等级+峰值合并为首行） -->
+      <section class="signals">
         <span class="section-kicker">风险依据</span>
-        <dl>
+        <p v-if="model.evidenceMain" class="evidence-main" :style="{ '--risk': riskColor(model.level) }">{{ model.evidenceMain }}</p>
+        <dl v-if="model.signalRows.length > 0 || model.unavailableRows.length > 0">
           <div v-for="row in model.signalRows" :key="row" class="signal-row"><dt aria-hidden="true">▸</dt><dd>{{ row }}</dd></div>
           <div v-for="row in model.unavailableRows" :key="row" class="signal-row unavailable"><dt aria-hidden="true">!</dt><dd>{{ row }}</dd></div>
         </dl>
+      </section>
+
+      <!-- 保单概况：仅保单结构（承保概况不重复） -->
+      <section v-if="model.policy" class="policy">
+        <span class="section-kicker">保单概况</span>
+        <p class="policy-line">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
+      </section>
+      <section v-else class="policy">
+        <span class="section-kicker">保单概况</span>
+        <p class="policy-line unavailable">保单数据暂不可用</p>
       </section>
 
       <!-- 防灾措施 -->
@@ -175,7 +179,11 @@ section { padding: 8px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
 .risk-level .level-name { font-size: 18px; font-weight: 700; color: var(--risk); font-variant-numeric: tabular-nums; }
 .risk-level .level-peak { font-size: 11px; color: #475569; }
 
+.policy .policy-line { margin: 2px 0 0; color: #334155; font-variant-numeric: tabular-nums; }
+.policy .policy-line.unavailable { color: #b45309; }
+
 .signals dl { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.evidence-main { margin: 2px 0 6px; font-size: 15px; font-weight: 700; color: var(--risk, #0f172a); }
 .signal-row { display: flex; gap: 6px; align-items: baseline; }
 .signal-row dt { color: #2563eb; font-size: 10px; width: 10px; }
 .signal-row dd { margin: 0; color: #334155; font-variant-numeric: tabular-nums; }

@@ -1209,6 +1209,7 @@ function buildVillageCardModel(village: VillageBoundary): VillageRiskCardModel {
     stageNote: stageWindow.note,
     typhoonScenario,
     dataAvailable: riskDataAvailability(),
+    policy: policySummaries.value?.get(village.code) ?? null,
   })
 }
 

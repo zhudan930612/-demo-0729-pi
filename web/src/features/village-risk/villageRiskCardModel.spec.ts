@@ -3,6 +3,7 @@ import type { PrecipitationSnapshot } from '../precipitation/precipitationTypes'
 import type { VillageRiskResult } from './villageRiskData'
 import { buildVillageRiskCardModel, consecutiveRainWindow, SEVERITY_TEXT } from './villageRiskCardModel'
 import type { VillageDayStat } from './villageRisk'
+import type { VillagePolicySummary } from './villagePolicySummary'
 
 function result(overrides: Partial<VillageRiskResult> = {}): VillageRiskResult {
   return {
@@ -24,13 +25,27 @@ function snapshot(dayValues: Record<string, number>): PrecipitationSnapshot {
 const base = {
   villageName: '清潭村', month: 8, selectedDay: 0, stageNote: null, typhoonScenario: null as null,
   dataAvailable: { precip: true, typhoon: true, alarm: true },
+  policy: null as VillagePolicySummary | null,
+}
+
+function summary(): VillagePolicySummary {
+  return { code: '330604102016', insuredAreaMu: 580, sumInsuredYuan: 720_000, householdCount: 64, policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60 }
 }
 
 describe('buildVillageRiskCardModel 卡片模型', () => {
-  it('峰值行：7 天峰值 + 日期 + 分级', () => {
+  it('依据首行：等级 + 峰值合并（8/13 大暴雨 112mm），峰值只出现一次', () => {
     const model = buildVillageRiskCardModel({ ...base, snapshot: snapshot({ d3: 112 }), covered: snapshot({ d3: 112 }).grid, result: result() })
-    expect(model.peakText).toBe('7 天峰值 112mm（8/13 大暴雨）')
-    expect(model.signalRows).toContain('降水 峰值 112mm（8/13 大暴雨）')
+    expect(model.evidenceMain).toBe('高风险 · 8/13 大暴雨 112mm')
+    // 峰值不重复出现在信号行
+    expect(model.signalRows).not.toContain('降水 峰值 112mm（8/13 大暴雨）')
+  })
+
+  it('低风险等级文案：低风险 · 峰值行（无快照时无日期）', () => {
+    const model = buildVillageRiskCardModel({
+      ...base, snapshot: null, covered: [],
+      result: result({ level: 1, peak: { level: 1, mm: 30, dayIndex: 0 } }),
+    })
+    expect(model.evidenceMain).toBe('低风险 · 大雨 30mm')
   })
 
   it('连阴雨行：连续 3 日累计窗口', () => {
@@ -86,14 +101,24 @@ describe('buildVillageRiskCardModel 卡片模型', () => {
     expect(model.degraded).toBe(false)
   })
 
-  it('全源不可用 → degraded（风险暂不可评定，无峰值行）', () => {
+  it('保单概况：保单数 / 大户保单 + 清单户', () => {
+    const model = buildVillageRiskCardModel({ ...base, policy: summary(), snapshot: null, covered: [], result: result() })
+    expect(model.policy).toEqual({ policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60 })
+  })
+
+  it('保单数据不可用：policy 为 null（组件显示不可用）', () => {
+    const model = buildVillageRiskCardModel({ ...base, policy: null, snapshot: null, covered: [], result: result() })
+    expect(model.policy).toBeNull()
+  })
+
+  it('全源不可用 → degraded（风险暂不可评定，无依据首行）', () => {
     const model = buildVillageRiskCardModel({
       ...base, snapshot: null, covered: [],
       dataAvailable: { precip: false, typhoon: false, alarm: false },
       result: result(),
     })
     expect(model.degraded).toBe(true)
-    expect(model.peakText).toBeNull()
+    expect(model.evidenceMain).toBeNull()
     expect(model.unavailableRows).toHaveLength(3)
   })
 
@@ -116,12 +141,12 @@ describe('buildVillageRiskCardModel 卡片模型', () => {
     expect(model.measures).toEqual(['非水稻生长期，无田间措施建议'])
   })
 
-  it('趋势展开数据：7 天 dailyStats + 选中日索引', () => {
+  it('趋势展开数据：7 天 dailyStats + 高亮该村峰值日（dayIndex=peak.dayIndex）', () => {
     const snap = snapshot({ d1: 10, d2: 60 })
     const model = buildVillageRiskCardModel({ ...base, selectedDay: 1, snapshot: snap, covered: snap.grid, result: result() })
     expect(model.trend?.days).toHaveLength(7)
     expect(model.trend?.stats[1]).toEqual({ min: 60, max: 60, mean: 60 })
-    expect(model.trend?.dayIndex).toBe(1)
+    expect(model.trend?.dayIndex).toBe(3) // 峰值日（d4=112），与 selectedDay 无关
   })
 })
 

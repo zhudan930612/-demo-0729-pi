@@ -41,11 +41,11 @@ export interface VillageRiskOverviewInput {
   updatedAt: string | null
 }
 
-/** 峰值展示文案：峰值日 + 降雨类型 + 雨量（如"8/13 大暴雨 112mm"）。 */
+/** 峰值展示文案：峰值日 + 降雨类型 + 雨量（如"8/13 大暴雨 112mm"；无日期时无前导空格）。 */
 export function peakLabel(days: readonly string[], peak: VillageRiskResult['peak']): { label: string; dateLabel: string } {
   const dateLabel = days.length > 0 ? shortDate(days[peak.dayIndex] ?? '') : ''
   const type = precipitationLevel(peak.mm)
-  return { label: `${dateLabel} ${type} ${peak.mm.toFixed(0)}mm`, dateLabel }
+  return { label: `${dateLabel ? `${dateLabel} ` : ''}${type} ${peak.mm.toFixed(0)}mm`, dateLabel }
 }
 
 export function buildVillageRiskOverviewModel(input: VillageRiskOverviewInput): VillageRiskOverviewModel {
