@@ -150,9 +150,11 @@ test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风�
 test('降雨量共用面板风险 tab：统计/列表/下钻卡片/村级收起/退出清除', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  // 共用面板出现，风险 tab 激活（跟随模式）
+  // 共用面板出现，风险 tab 激活（跟随模式）；单降水模式时 tab 栏仅风险概览
   await expect(page.locator('.disaster-workbench')).toBeVisible()
   await expect(page.locator('#dw-tab-risk')).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('#dw-tab-typhoon')).toHaveCount(0)
+  await expect(page.locator('.tab-list button')).toHaveCount(1)
   // 受灾列表 13 行（等村界异步加载完成），行含峰值+敞口（真实保单 fixture 加载）
   await expect(page.locator('.village-row')).toHaveCount(13)
   await expect(page.locator('.village-row').first()).toContainText('暴雨')

@@ -1344,9 +1344,13 @@ watch(() => typhoonStore.details, () => { if (precipitationStore.isOpen) compute
 watch(() => nationalAlarmStore.snapshot, () => { if (precipitationStore.isOpen) computeVillageRisks() })
 watch(() => store.current.level, () => { if (precipitationStore.isOpen) renderVillageRiskLayer() })
 watch(() => precipitationStore.selectedDay, () => { if (precipitationStore.isOpen) refreshVillageCard() })
-// 共用面板：模式联动（后进入优先）+ 村级默认收起
-watch([() => disasterActive.value, () => precipitationStore.isOpen], () => {
-  if (precipitationStore.isOpen) workbenchTab.value = 'risk'
+// 共用面板：模式联动（后进入优先；退出后切到仍激活的模式）
+watch(() => disasterActive.value, (active) => {
+  if (active) workbenchTab.value = 'typhoon'
+  else if (precipitationStore.isOpen) workbenchTab.value = 'risk'
+})
+watch(() => precipitationStore.isOpen, (open) => {
+  if (open) workbenchTab.value = 'risk'
   else if (disasterActive.value) workbenchTab.value = 'typhoon'
 })
 watch(() => store.current.level, (level) => {
