@@ -115,6 +115,78 @@ function bboxOf(polygons: Array<Array<Array<[number, number]>>>): VillageBoundar
   return { latMin, latMax, lonMin, lonMax }
 }
 
+/** 环有符号面积（lon/lat 平面近似；外环正、洞负）。 */
+function ringSignedArea(ring: ReadonlyArray<[number, number]>): number {
+  let area = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i]!
+    const [x2, y2] = ring[(i + 1) % ring.length]!
+    area += x1 * y2 - x2 * y1
+  }
+  return area / 2
+}
+
+/** 点在 polygon 集合内（任一 polygon 外环包含且不被洞包含）。 */
+function pointInPolygons(lat: number, lon: number, polygons: Array<Array<Array<[number, number]>>>): boolean {
+  return polygons.some((rings) => {
+    if (rings.length === 0 || !pointInRing(lat, lon, rings[0]!)) return false
+    return !rings.slice(1).some((hole) => pointInRing(lat, lon, hole))
+  })
+}
+
+/**
+ * 村级几何质心（面积加权，含洞；坐标 [lon,lat]）。
+ * 质心可能落在凹区/洞外 → 用 bbox 网格扫描最近内点兜底（保证落在村域内）。
+ */
+export function geometricCentroid(polygons: Array<Array<Array<[number, number]>>>, bbox: VillageBoundary['bbox']): { lat: number; lon: number } {
+  let totalArea = 0
+  let cx = 0
+  let cy = 0
+  for (const rings of polygons) {
+    for (const ring of rings) {
+      const area = ringSignedArea(ring)
+      if (area === 0) continue
+      let rcx = 0
+      let rcy = 0
+      for (let i = 0; i < ring.length; i++) {
+        const [x1, y1] = ring[i]!
+        const [x2, y2] = ring[(i + 1) % ring.length]!
+        const cross = x1 * y2 - x2 * y1
+        rcx += (x1 + x2) * cross
+        rcy += (y1 + y2) * cross
+      }
+      rcx /= 6 * area
+      rcy /= 6 * area
+      totalArea += area
+      cx += rcx * area
+      cy += rcy * area
+    }
+  }
+  if (totalArea !== 0) {
+    const cand = { lon: cx / totalArea, lat: cy / totalArea }
+    if (pointInPolygons(cand.lat, cand.lon, polygons)) return cand
+  }
+  // 兜底：bbox 网格扫描最近内点
+  const centerLat = (bbox.latMin + bbox.latMax) / 2
+  const centerLon = (bbox.lonMin + bbox.lonMax) / 2
+  const GRID = 24
+  let best: { lat: number; lon: number } | null = null
+  let bestDist = Infinity
+  for (let i = 0; i <= GRID; i++) {
+    for (let j = 0; j <= GRID; j++) {
+      const lat = bbox.latMin + ((bbox.latMax - bbox.latMin) * i) / GRID
+      const lon = bbox.lonMin + ((bbox.lonMax - bbox.lonMin) * j) / GRID
+      if (!pointInPolygons(lat, lon, polygons)) continue
+      const d = (lat - centerLat) ** 2 + (lon - centerLon) ** 2
+      if (d < bestDist) {
+        bestDist = d
+        best = { lat, lon }
+      }
+    }
+  }
+  return best ?? { lat: centerLat, lon: centerLon }
+}
+
 /** 加载 13 参保村村界（两次乡镇文件请求；失败降级为空数组）。 */
 export async function loadInsuredVillages(fetchImpl: typeof fetch = globalThis.fetch): Promise<VillageBoundary[]> {
   const results: VillageBoundary[] = []
@@ -137,7 +209,7 @@ export async function loadInsuredVillages(fetchImpl: typeof fetch = globalThis.f
           name: String(feature.properties?.name ?? code),
           polygons,
           bbox,
-          centroid: { lat: (bbox.latMin + bbox.latMax) / 2, lon: (bbox.lonMin + bbox.lonMax) / 2 },
+          centroid: geometricCentroid(polygons, bbox),
           countyCode: countyCodeOf(code),
         })
       }

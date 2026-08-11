@@ -6,6 +6,7 @@ import {
   computeVillageRisk,
   countyCodeOf,
   coveredGridPoints,
+  geometricCentroid,
   INSURED_VILLAGE_CODES,
   loadInsuredVillages,
   latestTyphoonRiskPaths,
@@ -203,5 +204,50 @@ describe('computeVillageRisk 村级风险装配', () => {
   it('全源无信号 → 无风险', () => {
     const result = computeVillageRisk({ village: v, snapshot: null, typhoons: [], alarms: [] })
     expect(result.level).toBe(0)
+  })
+})
+
+describe('geometricCentroid 村级几何质心', () => {
+  it('L 形村：bbox 中心落在缺口外，质心落在村域内', () => {
+    // L 形：右下方缺口（右下角 120.1-120.2 × 29.0-29.1 缺失）
+    const polygons: Array<Array<Array<[number, number]>>> = [[
+      [[120.0, 29.0], [120.2, 29.0], [120.2, 29.1], [120.1, 29.1], [120.1, 29.2], [120.0, 29.2], [120.0, 29.0]],
+    ]]
+    const bbox = { latMin: 29.0, latMax: 29.2, lonMin: 120.0, lonMax: 120.2 }
+    const village = { code: 'x', name: 'x', polygons, bbox, centroid: { lat: 0, lon: 0 }, countyCode: '' }
+    // 右上缺口点 (29.15, 120.15) 不在村内 → 缺口确实存在
+    expect(pointInVillage(29.15, 120.15, village)).toBe(false)
+    const c = geometricCentroid(polygons, bbox)
+    expect(pointInVillage(c.lat, c.lon, village)).toBe(true)
+    // 质心偏向 L 的重心（≈29.083, 120.083），避开右上缺口
+    expect(c.lat).toBeGreaterThan(29.0)
+    expect(c.lat).toBeLessThan(29.1)
+    expect(c.lon).toBeGreaterThan(120.0)
+    expect(c.lon).toBeLessThan(120.1)
+  })
+
+  it('带洞村：质心落在洞内时兜底扫描到村域内', () => {
+    // 大方块中央挖洞（质心=洞中心，不在村内 → 兜底）
+    const polygons: Array<Array<Array<[number, number]>>> = [[
+      [[120.0, 29.0], [120.4, 29.0], [120.4, 29.4], [120.0, 29.4], [120.0, 29.0]],
+      [[120.15, 29.15], [120.25, 29.15], [120.25, 29.25], [120.15, 29.25], [120.15, 29.15]],
+    ]]
+    const bbox = { latMin: 29.0, latMax: 29.4, lonMin: 120.0, lonMax: 120.4 }
+    const c = geometricCentroid(polygons, bbox)
+    // 兜底点必须在村内（不在洞内、在外环内）
+    const inOuter = c.lat >= 29.0 && c.lat <= 29.4 && c.lon >= 120.0 && c.lon <= 120.4
+    const inHole = c.lat > 29.15 && c.lat < 29.25 && c.lon > 120.15 && c.lon < 120.25
+    expect(inOuter).toBe(true)
+    expect(inHole).toBe(false)
+  })
+
+  it('普通矩形：质心=bbox 中心（在村内）', () => {
+    const polygons: Array<Array<Array<[number, number]>>> = [[
+      [[120.0, 29.0], [120.2, 29.0], [120.2, 29.2], [120.0, 29.2], [120.0, 29.0]],
+    ]]
+    const bbox = { latMin: 29.0, latMax: 29.2, lonMin: 120.0, lonMax: 120.2 }
+    const c = geometricCentroid(polygons, bbox)
+    expect(c.lat).toBeCloseTo(29.1, 6)
+    expect(c.lon).toBeCloseTo(120.1, 6)
   })
 })
