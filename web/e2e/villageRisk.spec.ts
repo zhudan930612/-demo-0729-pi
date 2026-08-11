@@ -132,6 +132,33 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.disaster-workbench')).toHaveCount(0)
 })
 
+test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz 放大（不漂移）', async ({ page }) => {
+  await installFixtures(page)
+  await openPrecipitation(page)
+  await zoomStep(page, /Z 9\.5/)
+  await page.locator('.map').click()
+  await expect(page.locator('.map-zoom-level')).toHaveText('Z 11.25')
+  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(13)
+  const center = { x: 640, y: 360 }
+  const box = async (sel: string) => {
+    const b = await page.locator(sel).boundingBox()
+    return { x: b ? b.x + b.width / 2 : 0, y: b ? b.y + b.height / 2 : 0 }
+  }
+  // 选一个远离中心的标记，放大 1.5 级后距离应按 2^1.5 ≈ 2.83 倍放大（锚点=光标 640,360）
+  const sel = '.village-risk-marker-wrap >> nth=12'
+  const p1 = await box(sel)
+  for (let i = 0; i < 5; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(300) }
+  const zText = (await page.locator('.map-zoom-level').textContent()) ?? ''
+  const p2 = await box(sel)
+  const d1 = Math.hypot(p1.x - center.x, p1.y - center.y)
+  const d2 = Math.hypot(p2.x - center.x, p2.y - center.y)
+  const expected = 2 ** (Number(zText.replace('Z ', '')) - 11.25)
+  // 方向一致（锚定地理点不漂移）
+  expect((p1.x - center.x) * (p2.x - center.x) + (p1.y - center.y) * (p2.y - center.y)).toBeGreaterThan(0)
+  expect(d2 / d1).toBeGreaterThan(expected * 0.7)
+  expect(d2 / d1).toBeLessThan(expected * 1.4)
+})
+
 test('放大进入村级（不点标记）：右上面板自动显示当前村风险概况', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
