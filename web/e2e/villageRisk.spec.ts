@@ -165,20 +165,25 @@ test('降雨量共用面板风险 tab：统计/列表/下钻卡片/村级收起/
   await expect(page.locator('.risk-overview')).toContainText('保额')
   // 空态不出现
   await expect(page.locator('.risk-overview')).not.toContainText('未来 7 天无高风险参保区域')
-  // 点击列表行 → 下钻村级 + 风险卡片
+  // 点击列表行 → 下钻村级 + 右上面板展示该村风险详情（面板展开）
   await page.locator('.village-row').first().click()
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.crumb.active')).not.toHaveText('示例县')
-  // 村级视图面板默认收起为 tab 条（风险概览内容隐藏）
+  await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
+  await expect(page.locator('.risk-overview')).toHaveCount(0) // 列表被详情替换
+  // 详情内容（依据首行/保单概况）在右上面板内
+  await expect(page.locator('.village-risk-card')).toContainText('风险依据')
+  await expect(page.locator('.village-risk-card')).toContainText('保单概况')
+  // 关闭详情 → 回列表 + 村级默认收起为 tab 条
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.village-risk-card')).toHaveCount(0)
   await expect(page.locator('.disaster-workbench')).toHaveClass(/collapsed/)
-  await expect(page.locator('.risk-overview')).not.toBeVisible()
-  // 展开面板 → 风险概览仍可用
+  // 展开面板 → 风险概览列表可见
   await page.locator('.collapse-button').click()
   await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
   await expect(page.locator('.risk-overview')).toBeVisible()
+  await expect(page.locator('.village-row').first()).toBeVisible()
   // 关闭卡片后退出降水 → 共用面板与风险 tab 清除
-  await page.keyboard.press('Escape')
-  await expect(page.locator('.village-risk-card')).toHaveCount(0)
   await page.locator('.precip-panel .close-button').click()
   await expect(page.locator('.disaster-workbench')).toHaveCount(0)
 })

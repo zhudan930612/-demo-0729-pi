@@ -34,11 +34,16 @@
       </template>
       <template #risk>
         <VillageRiskOverview
-          v-if="precipitationStore.isOpen"
+          v-if="precipitationStore.isOpen && !villageCard"
           :model="riskOverviewModel"
           :precip-loading="precipitationStore.phase === 'loading'"
           :snapshot-error="riskSnapshotError"
           @select-village="selectVillageFromOverview"
+        />
+        <VillageRiskCard
+          v-if="precipitationStore.isOpen && villageCard"
+          :model="villageCard.model"
+          @close="closeVillageCard"
         />
       </template>
     </DisasterWorkbenchPanel>
@@ -74,13 +79,6 @@
       @toggle-play="togglePrecipPlay"
       @set-opacity="setPrecipOpacity"
       @refresh="refreshPrecipitation"
-    />
-
-    <VillageRiskCard
-      v-if="villageCard"
-      :model="villageCard.model"
-      :anchor="villageCard.anchor"
-      @close="closeVillageCard"
     />
 
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
@@ -341,7 +339,7 @@ const precipitationStore = usePrecipitationStore()
 let precipitationRepository: PrecipitationRepository | null = null
 let precipitationLayerController: PrecipitationLayerController | null = null
 const villageRiskLayerController = ref<VillageRiskLayerController | null>(null)
-const villageCard = ref<{ code: string; anchor: { x: number; y: number }; model: VillageRiskCardModel } | null>(null)
+const villageCard = ref<{ code: string; model: VillageRiskCardModel } | null>(null)
 let villageBoundaries: VillageBoundary[] = []
 const villageRiskResults = new Map<string, VillageRiskResult>()
 const villageCovered = new Map<string, PrecipGridPoint[]>()
@@ -1216,41 +1214,33 @@ function buildVillageCardModel(village: VillageBoundary): VillageRiskCardModel {
   })
 }
 
-function openVillageCard(code: string, point: { x: number; y: number }) {
+function openVillageCard(code: string) {
   if (villageCard.value?.code === code) { closeVillageCard(); return }
   const village = villageBoundaries.find((v) => v.code === code)
   if (!village) return
-  villageCard.value = { code, anchor: point, model: buildVillageCardModel(village) }
+  villageCard.value = { code, model: buildVillageCardModel(village) }
   villageRiskLayerController.value?.setSelected(code)
+  workbenchCollapsed.value = false // 详情在右上面板展示，打开时展开面板
 }
 
 function closeVillageCard() {
   villageCard.value = null
   villageRiskLayerController.value?.setSelected(null)
+  // 关闭详情后村级视图回到默认收起（tab 条）
+  if (store.current.level === 'village') workbenchCollapsed.value = true
 }
 
-/** 选中日/数据变化时刷新已打开卡片（趋势高亮与数值更新）。 */
-/** 风险概览列表点击 → 下钻该村（村级视图）+ 贴村打开风险卡片。 */
+/** 风险概览列表点击 → 下钻该村（村级视图）+ 右上面板展示该村风险详情。 */
 function selectVillageFromOverview(code: string) {
   const village = villageBoundaries.find((v) => v.code === code)
   if (!village) return
-  const center = L.latLng(village.centroid.lat, village.centroid.lon)
-  const point = map.latLngToContainerPoint(center)
-  const anchor = { x: point.x, y: point.y }
   if (store.current.level === 'village' && store.current.code === code) {
-    openVillageCard(code, anchor)
+    openVillageCard(code)
     return
   }
   const geometry: Geometry = { type: 'MultiPolygon', coordinates: village.polygons }
-  // flyTo 结束后按村中心像素锚定；未触发 moveend 时兜底打开
-  let opened = false
-  const open = () => {
-    if (opened) return
-    opened = true
-    openVillageCard(code, anchor)
-  }
-  map.once('moveend', open)
-  setTimeout(open, 1200)
+  // 详情在右上面板展示（不贴村），下钻后直接打开
+  openVillageCard(code)
   void store.drill({ level: 'village', code: village.code, name: village.name, geometry })
 }
 
@@ -1354,7 +1344,8 @@ watch(() => precipitationStore.isOpen, (open) => {
   else if (disasterActive.value) workbenchTab.value = 'typhoon'
 })
 watch(() => store.current.level, (level) => {
-  workbenchCollapsed.value = level === 'village'
+  // 村级默认收起；村风险详情打开时展开（详情在右上面板展示）
+  workbenchCollapsed.value = level === 'village' && !villageCard.value
 })
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){

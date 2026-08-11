@@ -1,9 +1,9 @@
 <template>
-  <aside v-if="model" class="village-risk-card" :class="[side, { degraded: model.degraded }]" :style="positionStyle" role="dialog" aria-modal="false" tabindex="-1" :aria-label="`${model.villageName}风险详情`" @click.stop>
+  <article v-if="model" class="village-risk-card" :class="{ degraded: model.degraded }" role="region" :aria-label="`${model.villageName}风险详情`">
     <header class="card-header">
       <h2 id="village-risk-card-title">{{ model.villageName }}</h2>
       <span v-if="!model.degraded" class="risk-pill" :class="levelClass" :style="{ '--risk': riskColor(model.level) }">{{ model.levelText }}</span>
-      <button type="button" class="close-button" aria-label="关闭风险卡片" title="关闭" @click="emit('close')">
+      <button type="button" class="close-button" aria-label="关闭风险详情，返回列表" title="关闭" @click="emit('close')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </header>
@@ -20,13 +20,10 @@
       </section>
 
       <!-- 保单概况：仅保单结构（承保概况不重复） -->
-      <section v-if="model.policy" class="policy">
+      <section class="policy">
         <span class="section-kicker">保单概况</span>
-        <p class="policy-line">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
-      </section>
-      <section v-else class="policy">
-        <span class="section-kicker">保单概况</span>
-        <p class="policy-line unavailable">保单数据暂不可用</p>
+        <p v-if="model.policy" class="policy-line">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
+        <p v-else class="policy-line unavailable">保单数据暂不可用</p>
       </section>
 
       <!-- 防灾措施 -->
@@ -53,7 +50,7 @@
               <span class="trend-day">{{ shortDay(index) }}</span>
             </div>
           </div>
-          <p class="trend-note">村级每日范围（min~max）与均值；柱色随选中日期高亮</p>
+          <p class="trend-note">村级每日范围（min~max）与均值；柱色高亮该村峰值日</p>
         </div>
       </section>
     </template>
@@ -61,7 +58,7 @@
     <div v-else class="degraded-note" role="status">风险暂不可评定（{{ model.unavailableRows.join('；') }}）</div>
 
     <footer class="card-footer">风险按预报窗口峰值定级，措施仅供参考，以官方发布为准</footer>
-  </aside>
+  </article>
 </template>
 
 <script setup lang="ts">
@@ -72,29 +69,11 @@ import { RISK_STROKE_COLOR } from '../../map/villageRiskLayerController'
 
 const props = defineProps<{
   model: VillageRiskCardModel | null
-  anchor: { x: number; y: number } | null
 }>()
 const emit = defineEmits<{ close: [] }>()
 
 const trendOpen = ref(false)
 const trendId = 'village-risk-trend'
-
-const CARD_WIDTH = 360
-const GAP = 12
-const PAD = 8
-
-const side = ref<'right' | 'left'>('right')
-const positionStyle = computed(() => {
-  if (!props.anchor) return { display: 'none' }
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const rightSide = props.anchor.x + GAP + CARD_WIDTH <= viewportWidth - PAD
-  side.value = rightSide ? 'right' : 'left'
-  const left = rightSide ? props.anchor.x + GAP : Math.max(PAD, props.anchor.x - GAP - CARD_WIDTH)
-  const top = Math.max(PAD, Math.min(props.anchor.y - 20, viewportHeight - 260))
-  const anchorX = Math.max(14, Math.min(props.anchor.x - left, CARD_WIDTH - 14))
-  return { left: `${left}px`, top: `${top}px`, '--anchor-x': `${anchorX}px` }
-})
 
 function riskColor(level: number): string {
   return RISK_STROKE_COLOR[level as 0 | 1 | 2 | 3] ?? RISK_STROKE_COLOR[0]
@@ -128,18 +107,14 @@ function trendTitle(index: number, stat: VillageDayStat): string {
 
 <style scoped>
 .village-risk-card {
-  position: fixed;
-  z-index: 1100;
-  width: 360px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
   box-sizing: border-box;
   border: 3px solid #2563eb;
-  border-radius: 12px;
+  border-radius: 0 0 10px 10px;
   background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
   color: #0f172a;
   font-size: 12px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 .village-risk-card.degraded { border-color: #94a3b8; }
 .card-header {
@@ -175,20 +150,16 @@ function trendTitle(index: number, stat: VillageDayStat): string {
 
 section { padding: 8px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
 .section-kicker { display: block; font-size: 10px; font-weight: 600; color: #2563eb; margin-bottom: 5px; }
-.risk-level { display: flex; align-items: baseline; gap: 8px; }
-.risk-level .level-name { font-size: 18px; font-weight: 700; color: var(--risk); font-variant-numeric: tabular-nums; }
-.risk-level .level-peak { font-size: 11px; color: #475569; }
-
-.policy .policy-line { margin: 2px 0 0; color: #334155; font-variant-numeric: tabular-nums; }
-.policy .policy-line.unavailable { color: #b45309; }
-
-.signals dl { margin: 0; display: flex; flex-direction: column; gap: 3px; }
 .evidence-main { margin: 2px 0 6px; font-size: 15px; font-weight: 700; color: var(--risk, #0f172a); }
+.signals dl { margin: 0; display: flex; flex-direction: column; gap: 3px; }
 .signal-row { display: flex; gap: 6px; align-items: baseline; }
 .signal-row dt { color: #2563eb; font-size: 10px; width: 10px; }
 .signal-row dd { margin: 0; color: #334155; font-variant-numeric: tabular-nums; }
 .signal-row.unavailable dt { color: #b45309; }
 .signal-row.unavailable dd { color: #b45309; }
+
+.policy .policy-line { margin: 2px 0 0; color: #334155; font-variant-numeric: tabular-nums; }
+.policy .policy-line.unavailable { color: #b45309; }
 
 .measures ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .measures li { padding-left: 14px; position: relative; color: #334155; }
