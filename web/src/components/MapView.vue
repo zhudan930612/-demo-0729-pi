@@ -1124,6 +1124,7 @@ function renderVillageRiskLayer() {
   const controller = villageRiskLayerController.value
   if (!controller) return
   controller.setLevel(store.current.level)
+  controller.setCurrent(store.current.level === 'village' ? store.current.code : null)
   let entries = villageBoundaries.map((village) => ({ village, level: villageRiskResults.get(village.code)?.level ?? 0 }))
   if (store.current.level === 'township') {
     const file = `/data/villages/${store.current.code}.geojson`

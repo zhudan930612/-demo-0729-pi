@@ -185,6 +185,24 @@ describe('VillageRiskLayerController 渲染与层级', () => {
     expect(state.legendEls[0]?.style.display).toBe('none')
   })
 
+  it('当前下钻村：保留黄色轮廓，不叠加风险描边（fill 照常）', () => {
+    controller.mount(map)
+    controller.setVisible(true)
+    controller.setLevel('village')
+    controller.setCurrent('330604102016')
+    controller.setData(ENTRIES)
+    const fills = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === false)
+    const strokes = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === true)
+    expect(fills).toHaveLength(3) // 全部村都有淡色填充
+    expect(strokes).toHaveLength(2) // 当前村无风险描边（保留原黄色轮廓）
+    expect(strokes.some((s) => s.tooltip === '清潭村')).toBe(false)
+    // 切到另一村后描边恢复
+    controller.setCurrent('330604102014')
+    const strokes2 = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === true)
+    expect(strokes2.some((s) => s.tooltip === '清潭村')).toBe(true)
+    expect(strokes2.some((s) => s.tooltip === '龙江村')).toBe(false)
+  })
+
   it('描边点击触发 onVillageClick(code, point)', () => {
     const clicked: Array<[string, { x: number; y: number }]> = []
     controller = createVillageRiskLayerController({ onVillageClick: (code, point) => clicked.push([code, point]) })

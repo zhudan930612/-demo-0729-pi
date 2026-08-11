@@ -17,10 +17,10 @@ export const VILLAGE_RISK_PANES = {
 } as const
 
 export const RISK_FILL_COLOR: Record<RiskLevel, string> = {
-  0: 'rgba(148, 163, 184, 0.22)',
-  1: 'rgba(22, 101, 52, 0.22)',
-  2: 'rgba(202, 138, 4, 0.26)',
-  3: 'rgba(185, 28, 28, 0.28)',
+  0: 'rgba(148, 163, 184, 0.26)',
+  1: 'rgba(22, 101, 52, 0.26)',
+  2: 'rgba(202, 138, 4, 0.3)',
+  3: 'rgba(185, 28, 28, 0.32)',
 }
 
 export const RISK_STROKE_COLOR: Record<RiskLevel, string> = {
@@ -47,6 +47,8 @@ export interface VillageRiskLayerController {
   setLevel(level: Level): void
   setVisible(visible: boolean): void
   setSelected(code: string | null): void
+  /** 当前下钻村（村级视图时该村保留原有黄色轮廓，不叠加风险描边） */
+  setCurrent(code: string | null): void
   clear(): void
   destroy(): void
 }
@@ -98,6 +100,7 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
   let level: Level = 'province'
   let visible = false
   let selectedCode: string | null = null
+  let currentCode: string | null = null
   let fillGroup: L.LayerGroup | null = null
   let markerGroup: L.LayerGroup | null = null
   let strokeGroup: L.LayerGroup | null = null
@@ -145,12 +148,14 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
             weight: 0,
           })
           fillGroup?.addLayer(fill)
+          // 当前下钻村：保留原有黄色轮廓（navigationController renderOutline），不叠加风险描边
+          if (entry.village.code === currentCode) continue
           const stroke = L.polygon(ring, {
             pane: VILLAGE_RISK_PANES.marker.name,
             interactive: true,
             fill: false,
             color: RISK_STROKE_COLOR[entry.level],
-            weight: selectedCode === entry.village.code ? 4 : 2,
+            weight: selectedCode === entry.village.code ? 4 : 2.5,
             opacity: 1,
           })
           stroke.bindTooltip(entry.village.name, { direction: 'top', offset: [0, -6] })
@@ -194,6 +199,7 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
     level = 'province'
     visible = false
     selectedCode = null
+    currentCode = null
     fillGroup?.clearLayers()
     markerGroup?.clearLayers()
     strokeGroup?.clearLayers()
@@ -244,6 +250,10 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
     },
     setSelected(code: string | null) {
       selectedCode = code
+      render()
+    },
+    setCurrent(code: string | null) {
+      currentCode = code
       render()
     },
     clear() {
