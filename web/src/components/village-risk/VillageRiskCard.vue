@@ -12,7 +12,11 @@
       <!-- 风险依据（等级+峰值合并为首行） -->
       <section class="signals">
         <span class="section-kicker">风险依据</span>
-        <p v-if="model.evidenceMain" class="evidence-main" :style="{ '--risk': riskColor(model.level) }">{{ model.evidenceMain }}</p>
+        <p v-if="model.evidenceMain" class="evidence-main">
+          <span class="evidence-level" :style="{ '--risk': riskColor(model.level) }">{{ model.levelText }}</span>
+          <span class="evidence-dot" aria-hidden="true">·</span>
+          <span class="evidence-peak">{{ evidencePeak }}</span>
+        </p>
         <dl v-if="model.signalRows.length > 0 || model.unavailableRows.length > 0">
           <div v-for="row in model.signalRows" :key="row" class="signal-row"><dt aria-hidden="true">▸</dt><dd>{{ row }}</dd></div>
           <div v-for="row in model.unavailableRows" :key="row" class="signal-row unavailable"><dt aria-hidden="true">!</dt><dd>{{ row }}</dd></div>
@@ -79,6 +83,7 @@ function riskColor(level: number): string {
   return RISK_STROKE_COLOR[level as 0 | 1 | 2 | 3] ?? RISK_STROKE_COLOR[0]
 }
 const levelClass = computed(() => (['none', 'low', 'mid', 'high'] as const)[props.model?.level ?? 0])
+const evidencePeak = computed(() => props.model?.evidenceMain?.split(' · ').slice(1).join(' · ') ?? '')
 
 function toggleTrend() { trendOpen.value = !trendOpen.value }
 
@@ -110,97 +115,220 @@ function trendTitle(index: number, stat: VillageDayStat): string {
 <style scoped>
 .village-risk-card {
   box-sizing: border-box;
-  border: 3px solid #2563eb;
-  border-radius: 0 0 10px 10px;
   background: #ffffff;
   color: #0f172a;
   font-size: 12px;
+  line-height: 1.5;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
 }
-.village-risk-card.degraded { border-color: #94a3b8; }
+
+/* ---- 头部：返回 + 村名 + 等级徽标（蓝底白字） ---- */
 .card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: #2563eb;
   color: #fff;
 }
-.card-header h2 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.back-button {
-  width: 26px; height: 26px; flex: none; display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: 5px;
-  background: rgba(255, 255, 255, 0.16); color: #fff; cursor: pointer;
+.card-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.back-button:hover { background: rgba(255, 255, 255, 0.3); }
+.back-button {
+  width: 26px; height: 26px; flex: none;
+  display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.back-button:hover { background: rgba(255, 255, 255, 0.28); }
 .back-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .back-button svg { width: 14px; height: 14px; }
+
 .risk-pill {
-  padding: 2px 9px;
+  flex: none;
+  padding: 2px 10px;
   border-radius: 999px;
   background: var(--risk);
   color: #fff;
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
 }
 .risk-pill.none { background: #94a3b8; }
 .risk-pill.low { background: #166534; }
 .risk-pill.mid { background: #ca8a04; }
 .risk-pill.high { background: #b91c1c; }
 
-section { padding: 8px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
-.section-kicker { display: block; font-size: 10px; font-weight: 600; color: #2563eb; margin-bottom: 5px; }
-.evidence-main { margin: 2px 0 6px; font-size: 15px; font-weight: 700; color: var(--risk, #0f172a); }
-.signals dl { margin: 0; display: flex; flex-direction: column; gap: 3px; }
-.signal-row { display: flex; gap: 6px; align-items: baseline; }
-.signal-row dt { color: #2563eb; font-size: 10px; width: 10px; }
-.signal-row dd { margin: 0; color: #334155; font-variant-numeric: tabular-nums; }
+/* ---- 区块通用 ---- */
+section { padding: 12px 14px 11px; }
+section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
+.section-kicker {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #2563eb;
+}
+
+/* ---- 风险依据 ---- */
+.evidence-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 1px 0 9px;
+}
+.evidence-level {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--risk, #0f172a);
+  line-height: 1.2;
+}
+.evidence-dot { color: #94a3b8; font-size: 13px; }
+.evidence-peak {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.signals dl { margin: 0; display: flex; flex-direction: column; gap: 5px; }
+.signal-row { display: flex; gap: 7px; align-items: baseline; }
+.signal-row dt {
+  color: #2563eb;
+  font-size: 9px;
+  width: 9px;
+  flex: none;
+  text-align: center;
+  line-height: 1.5;
+}
+.signal-row dd { margin: 0; color: #334155; font-size: 12px; font-variant-numeric: tabular-nums; }
 .signal-row.unavailable dt { color: #b45309; }
 .signal-row.unavailable dd { color: #b45309; }
 
-.policy .policy-line { margin: 2px 0 0; color: #334155; font-variant-numeric: tabular-nums; }
+/* ---- 保单概况 ---- */
+.policy .policy-line {
+  margin: 1px 0 0;
+  color: #334155;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
 .policy .policy-line.unavailable { color: #b45309; }
 
-.measures ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
-.measures li { padding-left: 14px; position: relative; color: #334155; }
-.measures li::before { content: '▸'; position: absolute; left: 0; color: #2563eb; }
-.stage-note { display: block; font-size: 10px; color: #b45309; margin-bottom: 2px; }
-
-.trend-toggle {
-  display: flex; align-items: center; gap: 5px;
-  width: 100%; padding: 2px 0; border: 0; background: transparent;
-  color: #1d4ed8; font-size: 11px; font-weight: 600; cursor: pointer;
+/* ---- 防灾措施 ---- */
+.measures ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.measures li {
+  padding-left: 14px;
+  position: relative;
+  color: #334155;
+  font-size: 12.5px;
 }
-.trend-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; border-radius: 4px; }
-.trend-chevron { transition: transform 0.15s ease; }
+.measures li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #2563eb;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.stage-note {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 10.5px;
+  color: #b45309;
+}
+
+/* ---- 7 天趋势展开项 ---- */
+.trend { padding-bottom: 10px; }
+.trend-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.trend-toggle:hover { color: #2563eb; }
+.trend-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.trend-chevron { transition: transform 0.18s ease; font-size: 10px; color: #2563eb; }
 .trend-chevron.open { transform: rotate(90deg); }
-.trend-body { margin-top: 6px; }
-.trend-bars { display: flex; gap: 6px; align-items: flex-end; }
-.trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.trend-body { margin-top: 10px; }
+.trend-bars { display: flex; gap: 8px; align-items: flex-end; }
+.trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .trend-bar {
   position: relative;
-  width: 100%; max-width: 26px; height: 64px;
-  border-radius: 3px;
-  background: #eef2f7;
+  width: 100%; max-width: 28px; height: 66px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
   overflow: hidden;
 }
-.trend-bar-col.active .trend-bar { background: #dbeafe; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.4); }
 .trend-range {
-  position: absolute; left: 4px; right: 4px; bottom: 0;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #2563eb, #3b82f6);
+  position: absolute; left: 2px; right: 2px; bottom: 0;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #93c5fd, #60a5fa);
 }
 .trend-mean {
   position: absolute; left: 1px; right: 1px; height: 2px;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
 }
-.trend-day { font-size: 9px; color: #64748b; }
-.trend-note { margin: 6px 0 0; font-size: 9.5px; color: #94a3b8; }
+/* 峰值日：深蓝实底柱 + 更深范围条 + 蓝字日期 */
+.trend-bar-col.active .trend-bar {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
+}
+.trend-bar-col.active .trend-range {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+}
+.trend-day {
+  font-size: 9.5px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.trend-bar-col.active .trend-day {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+.trend-note { margin: 8px 0 0; font-size: 10px; color: #64748b; line-height: 1.5; }
 
-.degraded-note { padding: 10px 12px; color: #b45309; font-size: 12px; }
+/* ---- 降级 ---- */
+.degraded-note {
+  padding: 14px;
+  color: #b45309;
+  font-size: 12.5px;
+}
 
-.card-footer { padding: 6px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); font-size: 9.5px; color: #94a3b8; }
+/* ---- 底部注记 ---- */
+.card-footer {
+  padding: 9px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: #f8fafc;
+  font-size: 10px;
+  color: #475569;
+  line-height: 1.5;
+}
 </style>
