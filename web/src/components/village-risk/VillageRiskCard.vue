@@ -44,7 +44,7 @@
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
               <div class="trend-bar" :title="trendTitle(index, stat)">
-                <i class="trend-range" :style="{ height: rangeHeight(stat), bottom: rangeBottom(stat) }"></i>
+                <i class="trend-range" :style="rangeMetrics(stat)"></i>
                 <i class="trend-mean" :style="{ bottom: meanHeight(stat) }" aria-hidden="true"></i>
               </div>
               <span class="trend-day">{{ shortDay(index) }}</span>
@@ -87,14 +87,16 @@ function shortDay(index: number): string {
   const parts = raw.split('-')
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : `D${index + 1}`
 }
-function rangeHeight(stat: VillageDayStat): string {
+function rangeMetrics(stat: VillageDayStat): { height: string; bottom: string } {
   const max = Math.max(stat.max, 0.1)
   const minPct = Math.max(0, Math.min(100, (stat.min / max) * 100))
-  return `${Math.max(minPct + 4, Math.min(100, (stat.max / max) * 100))}%`
-}
-function rangeBottom(stat: VillageDayStat): string {
-  const max = Math.max(stat.max, 0.1)
-  return `${Math.max(0, Math.min(100, (stat.min / max) * 100))}%`
+  const maxPct = Math.max(minPct, Math.min(100, (stat.max / max) * 100))
+  const height = maxPct - minPct
+  if (height < 4) {
+    // 单值日（min≈max）：显示 0~max 完整柱，避免贴顶细条/溢出
+    return { height: `${Math.max(4, maxPct)}%`, bottom: '0%' }
+  }
+  return { height: `${height}%`, bottom: `${minPct}%` }
 }
 function meanHeight(stat: VillageDayStat): string {
   const max = Math.max(stat.max, 0.1)
@@ -182,6 +184,7 @@ section { padding: 8px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
   width: 100%; max-width: 26px; height: 64px;
   border-radius: 3px;
   background: #eef2f7;
+  overflow: hidden;
 }
 .trend-bar-col.active .trend-bar { background: #dbeafe; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.4); }
 .trend-range {
