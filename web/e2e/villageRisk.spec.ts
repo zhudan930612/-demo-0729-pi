@@ -99,9 +99,13 @@ test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风�
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.village-risk-card h2')).not.toBeEmpty()
   await expect(page.locator('.village-risk-card .risk-pill')).toHaveText('高风险')
-  await expect(page.locator('.village-risk-card')).toContainText('7 天峰值')
+  await expect(page.locator('.village-risk-card')).toContainText('高风险 · 8/10 暴雨 60mm')
+  await expect(page.locator('.village-risk-card')).toContainText('连续 3 日累计')
   await expect(page.locator('.village-risk-card .measures li').first()).toBeVisible()
   await expect(page.locator('.village-risk-card')).toContainText('防灾措施')
+  // 保单概况：仅保单结构
+  await expect(page.locator('.village-risk-card')).toContainText('保单概况')
+  await expect(page.locator('.village-risk-card')).toContainText('保单 5 · 大户保单')
   // 台风/预警未加载 → 降级行
   await expect(page.locator('.village-risk-card')).toContainText('台风数据暂不可用')
   await expect(page.locator('.village-risk-card')).toContainText('预警数据暂不可用')
@@ -141,4 +145,38 @@ test('进入降水下钻县级：13 参保村标记 + 图例；点击村开风�
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
   await expect(page.locator('.leaflet-villageRiskFillPane-pane path')).toHaveCount(0)
   await expect(page.locator('.village-risk-legend')).not.toBeVisible()
+})
+
+test('降雨量共用面板风险 tab：统计/列表/下钻卡片/村级收起/退出清除', async ({ page }) => {
+  await installFixtures(page)
+  await openPrecipitation(page)
+  // 共用面板出现，风险 tab 激活（跟随模式）
+  await expect(page.locator('.disaster-workbench')).toBeVisible()
+  await expect(page.locator('#dw-tab-risk')).toHaveAttribute('aria-selected', 'true')
+  // 受灾列表 13 行（等村界异步加载完成），行含峰值+敞口（真实保单 fixture 加载）
+  await expect(page.locator('.village-row')).toHaveCount(13)
+  await expect(page.locator('.village-row').first()).toContainText('暴雨')
+  await expect(page.locator('.village-row').first()).toContainText('亩 · 保额')
+  // 统计：d1=60 + 连阴雨 → 13 村全高风险
+  await expect(page.locator('.risk-overview')).toContainText('13 村高风险')
+  await expect(page.locator('.risk-overview')).toContainText('亩受影响参保')
+  await expect(page.locator('.risk-overview')).toContainText('保额')
+  // 空态不出现
+  await expect(page.locator('.risk-overview')).not.toContainText('未来 7 天无高风险参保区域')
+  // 点击列表行 → 下钻村级 + 风险卡片
+  await page.locator('.village-row').first().click()
+  await expect(page.locator('.village-risk-card')).toBeVisible()
+  await expect(page.locator('.crumb.active')).not.toHaveText('示例县')
+  // 村级视图面板默认收起为 tab 条（风险概览内容隐藏）
+  await expect(page.locator('.disaster-workbench')).toHaveClass(/collapsed/)
+  await expect(page.locator('.risk-overview')).not.toBeVisible()
+  // 展开面板 → 风险概览仍可用
+  await page.locator('.collapse-button').click()
+  await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
+  await expect(page.locator('.risk-overview')).toBeVisible()
+  // 关闭卡片后退出降水 → 共用面板与风险 tab 清除
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.village-risk-card')).toHaveCount(0)
+  await page.locator('.precip-panel .close-button').click()
+  await expect(page.locator('.disaster-workbench')).toHaveCount(0)
 })

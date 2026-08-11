@@ -345,6 +345,8 @@ const villageCard = ref<{ code: string; anchor: { x: number; y: number }; model:
 let villageBoundaries: VillageBoundary[] = []
 const villageRiskResults = new Map<string, VillageRiskResult>()
 const villageCovered = new Map<string, PrecipGridPoint[]>()
+// 村界为普通 let（由异步加载赋值），computed 依赖需用版本号触发重算
+const villageBoundariesVersion = ref(0)
 // 共用面板（台风路径 / 风险概览 双 tab）
 const workbenchTab = ref<WorkbenchTab>('typhoon')
 const workbenchCollapsed = ref(false)
@@ -359,6 +361,7 @@ const workbenchActiveTabs = computed<WorkbenchTab[]>(() => {
 const workbenchCloseLabel = computed(() => (workbenchTab.value === 'typhoon' ? '关闭台风路径并退出灾害风险模式' : '关闭风险概览并退出降雨量模式'))
 const riskSnapshotError = computed(() => precipitationStore.phase === 'error' || (precipitationStore.phase === 'ready' && precipitationStore.snapshot === null))
 const riskOverviewModel = computed<VillageRiskOverviewModel | null>(() => {
+  void villageBoundariesVersion.value // 村界加载完成后触发重算（须在最前建立依赖）
   if (!precipitationStore.isOpen || villageBoundaries.length === 0) return null
   const snapshot = precipitationStore.snapshot
   if (!snapshot) return null
@@ -1277,6 +1280,7 @@ async function enterPrecipitationMode() {
   void loadInsuredVillages().then((villages) => {
     if (!precipitationStore.isOpen) return
     villageBoundaries = villages
+    villageBoundariesVersion.value++
     computeVillageRisks()
   })
   // 保单敞口汇总（进入降水即并行拉取 13 村）
