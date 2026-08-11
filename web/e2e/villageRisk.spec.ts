@@ -94,12 +94,10 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.village-risk-legend')).toBeVisible()
   await expect(page.locator('.village-risk-legend')).toContainText('未参保村不标注')
 
-  // 乡镇级过滤：下钻章镇镇 → 仅 8 标记；返回县级恢复 13
+  // 乡镇级过滤：下钻章镇镇 → 仅 8 标记（真实用户路径：镇级进入）
   await page.locator('.map').click({ position: { x: 580, y: 420 } })
   await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
-  await page.locator('.crumb').filter({ hasText: '示例县' }).click()
-  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(13)
 
   // 点击标记 → 下钻村级 + 右上面板显示该村详情（d1=60mm → 峰值 60 → 暴雨级 + 连阴雨 → 高风险）
   await page.locator('.village-risk-marker').first().click()
@@ -121,9 +119,11 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(0)
   await expect(page.locator('.village-risk-legend')).not.toBeVisible()
 
-  // 点地图空白 → 关闭详情回列表
-  await page.locator('.map').click({ position: { x: 40, y: 400 } })
+  // 详情返回按钮：关闭详情回列表 + 地图视角回镇级
+  await page.locator('.back-button').click()
   await expect(page.locator('.village-risk-card')).toHaveCount(0)
+  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
+  await expect(page.locator('.risk-overview')).toBeVisible()
 
   // 退出降水 → 标记、色斑、面板与图例全部清除
   await page.locator('.precip-panel .close-button').click()
@@ -154,9 +154,10 @@ test('放大进入村级（不点标记）：右上面板自动显示当前村�
   await expect(page.locator('.village-risk-card')).toBeVisible()
   await expect(page.locator('.village-risk-card h2')).toHaveText('参保村1')
   await expect(page.locator('.village-risk-card')).toContainText('风险依据')
-  // 返回乡镇级 → 详情关闭回列表，面板展开
-  await page.locator('.crumb').filter({ hasText: '章镇镇' }).click()
+  // 详情返回按钮：关闭详情回列表，地图视角回镇级
+  await page.locator('.back-button').click()
   await expect(page.locator('.village-risk-card')).toHaveCount(0)
+  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
   await expect(page.locator('.risk-overview')).toBeVisible()
 })
 

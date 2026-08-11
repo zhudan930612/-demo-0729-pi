@@ -1,11 +1,11 @@
 <template>
   <article v-if="model" class="village-risk-card" :class="{ degraded: model.degraded }" role="region" :aria-label="`${model.villageName}风险详情`">
     <header class="card-header">
+      <button type="button" class="back-button" aria-label="返回受灾列表" title="返回列表" @click="emit('back')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+      </button>
       <h2 id="village-risk-card-title">{{ model.villageName }}</h2>
       <span v-if="!model.degraded" class="risk-pill" :class="levelClass" :style="{ '--risk': riskColor(model.level) }">{{ model.levelText }}</span>
-      <button type="button" class="close-button" aria-label="关闭风险详情，返回列表" title="关闭" @click="emit('close')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-      </button>
     </header>
 
     <template v-if="!model.degraded">
@@ -70,7 +70,7 @@ import { RISK_STROKE_COLOR } from '../../map/villageRiskLayerController'
 const props = defineProps<{
   model: VillageRiskCardModel | null
 }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ back: [] }>()
 
 const trendOpen = ref(false)
 const trendId = 'village-risk-trend'
@@ -126,6 +126,14 @@ function trendTitle(index: number, stat: VillageDayStat): string {
   color: #fff;
 }
 .card-header h2 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back-button {
+  width: 26px; height: 26px; flex: none; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16); color: #fff; cursor: pointer;
+}
+.back-button:hover { background: rgba(255, 255, 255, 0.3); }
+.back-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.back-button svg { width: 14px; height: 14px; }
 .risk-pill {
   padding: 2px 9px;
   border-radius: 999px;
@@ -139,14 +147,6 @@ function trendTitle(index: number, stat: VillageDayStat): string {
 .risk-pill.low { background: #166534; }
 .risk-pill.mid { background: #ca8a04; }
 .risk-pill.high { background: #b91c1c; }
-.close-button {
-  width: 22px; height: 22px; display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: 5px;
-  background: transparent; color: #dbeafe; cursor: pointer;
-}
-.close-button:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.close-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
-.close-button svg { width: 12px; height: 12px; }
 
 section { padding: 8px 12px; border-top: 1px solid rgba(148, 163, 184, 0.2); }
 .section-kicker { display: block; font-size: 10px; font-weight: 600; color: #2563eb; margin-bottom: 5px; }

@@ -43,7 +43,7 @@
         <VillageRiskCard
           v-if="precipitationStore.isOpen && villageCard"
           :model="villageCard.model"
-          @close="closeVillageCard"
+          @back="backFromVillageDetail"
         />
       </template>
     </DisasterWorkbenchPanel>
@@ -1228,6 +1228,12 @@ function closeVillageCard() {
   villageRiskLayerController.value?.setSelected(null)
   // 关闭详情后村级视图回到默认收起（tab 条）
   if (store.current.level === 'village') workbenchCollapsed.value = true
+}
+
+/** 详情返回按钮：关闭详情回列表，地图视角回镇级（用户 2026-08-10 确认）。 */
+function backFromVillageDetail() {
+  closeVillageCard()
+  if (store.current.level === 'village') void store.back()
 }
 
 /** 风险概览列表点击 → 下钻该村（村级视图）+ 右上面板展示该村风险详情。 */
