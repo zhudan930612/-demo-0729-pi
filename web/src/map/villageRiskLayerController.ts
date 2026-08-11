@@ -100,7 +100,6 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
   let level: Level = 'province'
   let visible = false
   let selectedCode: string | null = null
-  let currentCode: string | null = null
   let fillGroup: L.LayerGroup | null = null
   let markerGroup: L.LayerGroup | null = null
   let strokeGroup: L.LayerGroup | null = null
@@ -133,49 +132,9 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
     if (legendEl) legendEl.style.display = 'none'
     if (!map || !visible) return
     if (level === 'village') {
-      // 村级高亮：淡色填充（不拦截）+ 等级色描边（可点击开卡片）
-      for (const entry of entries) {
-        const latlngs = entry.village.polygons.map((polygon) =>
-          polygon[0]?.map(([lon, lat]) => [lat, lon] as [number, number]) ?? [])
-        for (const ring of latlngs) {
-          if (ring.length < 3) continue
-          const fill = L.polygon(ring, {
-            pane: VILLAGE_RISK_PANES.fill.name,
-            interactive: false,
-            fillColor: RISK_FILL_COLOR[entry.level],
-            fillOpacity: 1,
-            color: 'transparent',
-            weight: 0,
-          })
-          fillGroup?.addLayer(fill)
-          // 当前下钻村：保留原有黄色轮廓（navigationController renderOutline），不叠加风险描边
-          if (entry.village.code === currentCode) continue
-          const stroke = L.polygon(ring, {
-            pane: VILLAGE_RISK_PANES.marker.name,
-            interactive: true,
-            fill: false,
-            color: RISK_STROKE_COLOR[entry.level],
-            weight: selectedCode === entry.village.code ? 4 : 2.5,
-            opacity: 1,
-          })
-          stroke.bindTooltip(entry.village.name, { direction: 'top', offset: [0, -6] })
-          stroke.on('click', () => options.onVillageClick?.(entry.village.code, clickPoint(stroke.getBounds().getCenter())))
-          strokeGroup?.addLayer(stroke)
-        }
-      }
-      if (selectedCode) {
-        const entry = entries.find((e) => e.village.code === selectedCode)
-        if (entry) {
-          const icon = L.divIcon({
-            className: 'village-risk-marker-wrap selected',
-            html: buildVillageMarkerHtml(entry),
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
-          })
-          selectionMarker = L.marker(villageLatLng(entry.village), { icon, pane: VILLAGE_RISK_PANES.marker.name, keyboard: false })
-          selectionMarker.addTo(map)
-        }
-      }
+      // 村级视图：不叠加风险填充（红色遮罩）与等级色描边（v3.9，用户确认）——地图干净，
+      // 当前村边界由 navigationController 黄色轮廓表达，风险经概览 tab/风险卡片呈现
+      return
     } else if (level === 'county' || level === 'township') {
       // 乡镇级及以上：等级色圆点标记
       for (const entry of entries) {
@@ -199,7 +158,6 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
     level = 'province'
     visible = false
     selectedCode = null
-    currentCode = null
     fillGroup?.clearLayers()
     markerGroup?.clearLayers()
     strokeGroup?.clearLayers()
@@ -252,9 +210,8 @@ export function createVillageRiskLayerController(options: VillageRiskLayerCallba
       selectedCode = code
       render()
     },
-    setCurrent(code: string | null) {
-      currentCode = code
-      render()
+    setCurrent() {
+      // 村级视图不渲染风险图层（v3.9），当前村黄色轮廓由 navigationController 提供；接口保留兼容 MapView
     },
     clear() {
       // 闭包快照清理教训：clear() 必须重置全部状态与图层，避免残留重绘

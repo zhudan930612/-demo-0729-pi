@@ -165,56 +165,24 @@ describe('VillageRiskLayerController 渲染与层级', () => {
     expect(state.markers).toHaveLength(3)
   })
 
-  it('村级：淡色填充 + 等级色描边，fill 不拦截、描边可交互', () => {
+  it('村级（v3.9）：不渲染风险填充/描边/标记，图例隐藏——地图干净，风险经概览 tab/卡片呈现', () => {
     controller.mount(map)
     controller.setVisible(true)
     controller.setLevel('village')
     controller.setData(ENTRIES)
     expect(state.markers).toHaveLength(0)
-    // 3 村 × (fill + stroke)
-    expect(state.polygons).toHaveLength(6)
-    const fills = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === false)
-    const strokes = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === true)
-    expect(fills).toHaveLength(3)
-    expect(strokes).toHaveLength(3)
-    expect((fills[0]?.options as Record<string, unknown>).pane).toBe('villageRiskFillPane')
-    expect((strokes[0]?.options as Record<string, unknown>).pane).toBe('villageRiskMarkerPane')
-    expect((strokes[0]?.options as Record<string, unknown>).color).toBe(RISK_STROKE_COLOR[3])
-    expect((fills[0]?.options as Record<string, unknown>).fillColor).toBe(RISK_FILL_COLOR[3])
-    expect(strokes[0]?.tooltip).toBe('清潭村')
+    expect(state.polygons).toHaveLength(0)
     expect(state.legendEls[0]?.style.display).toBe('none')
   })
 
-  it('当前下钻村：保留黄色轮廓，不叠加风险描边（fill 照常）', () => {
+  it('村级下钻当前村：仍不渲染任何风险图层（黄色轮廓由 navigationController 提供）', () => {
     controller.mount(map)
     controller.setVisible(true)
     controller.setLevel('village')
     controller.setCurrent('330604102016')
     controller.setData(ENTRIES)
-    const fills = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === false)
-    const strokes = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === true)
-    expect(fills).toHaveLength(3) // 全部村都有淡色填充
-    expect(strokes).toHaveLength(2) // 当前村无风险描边（保留原黄色轮廓）
-    expect(strokes.some((s) => s.tooltip === '清潭村')).toBe(false)
-    // 切到另一村后描边恢复
-    controller.setCurrent('330604102014')
-    const strokes2 = state.polygons.filter((p) => (p.options as Record<string, unknown>).interactive === true)
-    expect(strokes2.some((s) => s.tooltip === '清潭村')).toBe(true)
-    expect(strokes2.some((s) => s.tooltip === '龙江村')).toBe(false)
-  })
-
-  it('描边点击触发 onVillageClick(code, point)', () => {
-    const clicked: Array<[string, { x: number; y: number }]> = []
-    controller = createVillageRiskLayerController({ onVillageClick: (code, point) => clicked.push([code, point]) })
-    controller.mount(map)
-    controller.setVisible(true)
-    controller.setLevel('village')
-    controller.setData(ENTRIES)
-    const stroke = state.polygons.find((p) => (p.options as Record<string, unknown>).interactive === true && p.tooltip === '清潭村')
-    ;(stroke!.handlers as Record<string, () => void>).click()
-    expect(clicked).toHaveLength(1)
-    expect(clicked[0]?.[0]).toBe('330604102016')
-    expect(clicked[0]?.[1]).toEqual({ x: 0, y: 0 })
+    expect(state.polygons).toHaveLength(0)
+    expect(state.markers).toHaveLength(0)
   })
 
   it('标记点击触发 onVillageClick', () => {
@@ -228,15 +196,13 @@ describe('VillageRiskLayerController 渲染与层级', () => {
     expect(clicked).toEqual(['330604102016'])
   })
 
-  it('setSelected：村级追加选中标记；取消后移除', () => {
+  it('setSelected：村级不渲染选中标记（村级无地图标注，v3.9）', () => {
     controller.mount(map)
     controller.setVisible(true)
     controller.setLevel('village')
     controller.setData(ENTRIES)
     controller.setSelected('330604102016')
-    expect(state.markers).toHaveLength(1) // 选中标记
-    const icon = (state.markers[0]?.options as { icon?: unknown }).icon
-    expect(icon).toBeTruthy()
+    expect(state.markers).toHaveLength(0)
     controller.setSelected(null)
     expect(state.markers).toHaveLength(0)
   })
