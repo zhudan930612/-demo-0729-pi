@@ -64,6 +64,12 @@ export const useDrilldownStore = defineStore('drilldown', {
     async drill(crumb: Crumb) {
       if (await this.canNavigate()) this.path.push(crumb)
     },
+    /** 一次性替换完整路径（省→…→村）：只触发一次 render/flyTo，避免逐级 drill 的多次重绘卡顿。 */
+    async navigateTo(crumbs: Crumb[]): Promise<boolean> {
+      if (!await this.canNavigate() || crumbs.length === 0) return false
+      this.path = [...crumbs]
+      return true
+    },
     async backTo(index: number) {
       if (index >= 0 && index < this.path.length - 1 && await this.canNavigate()) {
         this.path = this.path.slice(0, index + 1)

@@ -296,6 +296,7 @@ import {
   NEXT_LEVEL,
   LEVEL_WEIGHT,
   type Level,
+  type Crumb,
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
@@ -1250,8 +1251,8 @@ async function findBoundaryFeature(url: string, code: string): Promise<{ name: s
 }
 
 /**
- * 下钻到目标村并补齐完整路径（省/市/区/镇/村），避免面包屑跳级、缩小直接回省。
- * 中间级 pendingNoFly 不飞，最后进村正常飞。
+ * 下钻到目标村并补齐完整路径（省/市/区/镇/村）：一次性 navigateTo + 单次 flyTo（与返回动画对称，丝滑不卡）。
+ * 中间边界数据缺失时路径截断（从已有层级直接跳到村）。
  */
 async function drillToVillageWithFullPath(village: VillageBoundary) {
   const current = store.current
@@ -1262,25 +1263,28 @@ async function drillToVillageWithFullPath(village: VillageBoundary) {
   const countyCode = village.countyCode
   const cityCode = `${countyCode.slice(0, 4)}00`
   const townshipCode = (townshipFileOf(village.code)?.split('/').pop() ?? '').replace(/\.geojson$/, '')
+  // 构造完整路径：省 → 市 → 区 → 镇 → 村（缺中间数据则截断）
+  const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
   const chain: Array<{ level: Level; code: string; url: string }> = [
     { level: 'city', code: cityCode, url: childrenUrl({ level: 'province', code: '330000', name: '浙江省' })! },
     { level: 'county', code: countyCode, url: `/data/boundary/county/${cityCode}.geojson` },
     { level: 'township', code: townshipCode, url: `/data/boundary/township/${countyCode}.geojson` },
   ]
-  const startIndex = current.level === 'province' ? 0 : current.level === 'city' ? 1 : current.level === 'county' ? 2 : 3
-  for (let i = startIndex; i < chain.length; i++) {
-    const step = chain[i]!
+  for (const step of chain) {
     const feature = await findBoundaryFeature(step.url, step.code)
-    if (!feature) break // 中间层级数据缺失：停止补齐，直接进村（降级）
-    pendingNoFly = true
-    await store.drill({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
-    // 等待本级 render（子级边界加载/插入）稳定后再进下一级，避免连续 drill 并发重绘卡顿
-    await new Promise((resolve) => setTimeout(resolve, 180))
+    if (!feature) break
+    crumbs.push({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
   }
+  crumbs.push({
+    level: 'village',
+    code: village.code,
+    name: village.name,
+    geometry: { type: 'MultiPolygon', coordinates: village.polygons },
+  })
   pendingNoFly = false
+  // 先打开详情（同步设置 villageCard），再导航——避免 navigateTo 的村级 watch 先自动打开、随后 openVillageCard 同码 toggle 误关
   openVillageCard(village.code)
-  const geometry: Geometry = { type: 'MultiPolygon', coordinates: village.polygons }
-  await store.drill({ level: 'village', code: village.code, name: village.name, geometry })
+  await store.navigateTo(crumbs)
 }
 
 /** 风险概览列表/地图标记点击 → 补齐路径下钻该村（村级视图）+ 右上面板展示详情。 */
