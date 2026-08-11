@@ -113,3 +113,8 @@ function json(response, body) {
 }
 server.listen(8790, '127.0.0.1')
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => process.exit(0)))
+// 客户端（vite 代理/浏览器）中途中止请求会触发 ECONNRESET；不吞掉会以未处理 error 事件杀死
+// fixture server，导致后续测试全部代理失败。每个 socket 的错误单独吞掉即可。
+server.on('error', () => {})
+server.on('clientError', (error, socket) => socket.destroy())
+server.on('connection', (socket) => socket.on('error', () => {}))
