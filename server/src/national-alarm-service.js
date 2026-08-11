@@ -92,7 +92,9 @@ export function createNationalAlarmService(config = {}, options = {}) {
   async function list() {
     if (snapshot) {
       if (validSnapshot()) return serializable(now() - snapshot.fetchedMs > FIVE_MINUTES)
-      throw new NationalAlarmError('unavailable')
+      // 快照过期：后台刷新并返回 stale（不阻塞 503），避免过期后一直不可用（2026-08-11 修复）
+      void refresh().catch(() => {})
+      return serializable(true, { code: 'NATIONAL_ALARM_REFRESH_FAILED', message: errorMessage('unavailable') })
     }
     try { return await refresh() } catch (error) { throw error instanceof NationalAlarmError || error instanceof NationalAlarmUpstreamError ? new NationalAlarmError('unavailable') : error }
   }

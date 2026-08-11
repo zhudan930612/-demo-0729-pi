@@ -24,3 +24,22 @@ test('upstream fixes NMC list endpoint and validates complete snapshots', async 
 test('duplicate IDs fail closed so an advertised complete snapshot is never published', () => { const later = { ...rows[0], issuetime: '2026-08-04 12:00:00', title: '杭州市发布大风蓝色预警信号' }; assert.throws(() => normalizeNationalAlarms([rows[0], later], spatial)); assert.throws(() => normalizeNationalAlarms([rows[0], { ...rows[0] }], spatial)) })
 test('body parser uses only the verified NMC alarmtext id and strips markup', () => { assert.equal(extractAlarmBody('<div id=alarmtext><p>第一段</p><p>第二段<script>bad()</script></p></div><div id="alarmtext">第三段<br>第四段</div>'), '第一段\n第二段'); assert.throws(() => extractAlarmBody('<div class="alarmtext">猜测内容</div>')) })
 test('service caches full Zhejiang snapshot, refresh cooldown and on-demand detail', async () => { let now = 0, lists = 0, details = 0; const upstream = { async list() { lists++; return rows }, async detail() { details++; return '官方正文' } }; const service = createNationalAlarmService({}, { upstream, loadSpatial: () => spatial, now: () => now }); const initial = await service.list(); assert.equal(initial.items.length, 1); await service.list(); assert.equal(lists, 1); const detail = await service.detail('330100000001'); assert.equal(detail.body, '官方正文'); assert.equal(details, 1); await service.forceRefresh(); await service.forceRefresh(); assert.equal(lists, 2); await assert.rejects(service.detail('310000000001')) })
+
+test('expired snapshot: list returns stale and triggers background refresh instead of 503', async () => {
+  let now = 0
+  let lists = 0
+  const upstream = { async list() { lists++; return rows }, async detail() { return '正文' } }
+  const service = createNationalAlarmService({}, { upstream, loadSpatial: () => spatial, now: () => now })
+  const initial = await service.list()
+  assert.equal(initial.items.length, 1)
+  // 快照过期（>15min）：list 返回 stale + 后台刷新，不抛错
+  now = 15 * 60_000 + 1
+  const stale = await service.list()
+  assert.equal(stale.stale, true)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.ok(lists >= 2) // 后台刷新已触发
+  // 刷新完成后 snapshot 更新
+  now = 0
+  const fresh = await service.list()
+  assert.equal(fresh.stale, undefined)
+})
