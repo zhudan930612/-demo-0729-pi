@@ -295,6 +295,7 @@ import {
   childrenUrl,
   NEXT_LEVEL,
   LEVEL_WEIGHT,
+  type Level,
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
@@ -1236,18 +1237,55 @@ function backFromVillageDetail() {
   if (store.current.level === 'village') void store.back()
 }
 
-/** 风险概览列表点击 → 下钻该村（村级视图）+ 右上面板展示该村风险详情。 */
+/** 按 code 在边界文件中查找行政区 feature（市/区/镇补齐路径用）。 */
+async function findBoundaryFeature(url: string, code: string): Promise<{ name: string; geometry: Geometry } | null> {
+  try {
+    const fc = await fetchJSON<FeatureCollection>(url)
+    const feature = fc.features.find((f) => String(f.properties?.code) === code)
+    if (feature?.geometry) return { name: String(feature.properties?.name ?? code), geometry: feature.geometry }
+  } catch {
+    // 数据缺失：放弃补齐该级
+  }
+  return null
+}
+
+/**
+ * 下钻到目标村并补齐完整路径（省/市/区/镇/村），避免面包屑跳级、缩小直接回省。
+ * 中间级 pendingNoFly 不飞，最后进村正常飞。
+ */
+async function drillToVillageWithFullPath(village: VillageBoundary) {
+  const current = store.current
+  if (current.level === 'village' && current.code === village.code) {
+    openVillageCard(village.code)
+    return
+  }
+  const countyCode = village.countyCode
+  const cityCode = `${countyCode.slice(0, 4)}00`
+  const townshipCode = (townshipFileOf(village.code)?.split('/').pop() ?? '').replace(/\.geojson$/, '')
+  const chain: Array<{ level: Level; code: string; url: string }> = [
+    { level: 'city', code: cityCode, url: childrenUrl({ level: 'province', code: '330000', name: '浙江省' })! },
+    { level: 'county', code: countyCode, url: `/data/boundary/county/${cityCode}.geojson` },
+    { level: 'township', code: townshipCode, url: `/data/boundary/township/${countyCode}.geojson` },
+  ]
+  const startIndex = current.level === 'province' ? 0 : current.level === 'city' ? 1 : current.level === 'county' ? 2 : 3
+  for (let i = startIndex; i < chain.length; i++) {
+    const step = chain[i]!
+    const feature = await findBoundaryFeature(step.url, step.code)
+    if (!feature) break // 中间层级数据缺失：停止补齐，直接进村（降级）
+    pendingNoFly = true
+    await store.drill({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
+  }
+  pendingNoFly = false
+  openVillageCard(village.code)
+  const geometry: Geometry = { type: 'MultiPolygon', coordinates: village.polygons }
+  await store.drill({ level: 'village', code: village.code, name: village.name, geometry })
+}
+
+/** 风险概览列表/地图标记点击 → 补齐路径下钻该村（村级视图）+ 右上面板展示详情。 */
 function selectVillageFromOverview(code: string) {
   const village = villageBoundaries.find((v) => v.code === code)
   if (!village) return
-  if (store.current.level === 'village' && store.current.code === code) {
-    openVillageCard(code)
-    return
-  }
-  const geometry: Geometry = { type: 'MultiPolygon', coordinates: village.polygons }
-  // 详情在右上面板展示（不贴村），下钻后直接打开
-  openVillageCard(code)
-  void store.drill({ level: 'village', code: village.code, name: village.name, geometry })
+  void drillToVillageWithFullPath(village)
 }
 
 /** 共用面板关闭：关闭当前激活 tab 对应模式。 */

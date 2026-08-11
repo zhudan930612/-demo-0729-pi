@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { cities, counties, province } from './fixtures'
+import { province } from './fixtures'
 import { INSURED_VILLAGE_CODES } from '../src/features/village-risk/villageRiskData'
 
 /** 合成 13 参保村村界（330604102014 置于示例县中心以便下钻到村级；其余分布在周围）。 */
@@ -17,7 +17,14 @@ function makeVillageGeoJson(codes: string[]) {
   }
 }
 
-/** 县级下钻的乡镇 = 章镇镇（真实乡镇码 330604104000，与参保村乡镇文件匹配，验证乡镇级过滤）。 */
+/** 真实层级链：省 330000 → 市 330600（绍兴）→ 区 330604（上虞）→ 镇 330604104000（章镇）→ 13 参保村 */
+function makeCity() {
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330600', name: '绍兴市' }, geometry: { type: 'Polygon', coordinates: [[[119.5, 29], [121.5, 29], [121.5, 30.5], [119.5, 30.5], [119.5, 29]]] } }] }
+}
+function makeCounty() {
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330604', name: '上虞区' }, geometry: { type: 'Polygon', coordinates: [[[120, 29], [120.5, 29], [120.5, 29.5], [120, 29.5], [120, 29]]] } }] }
+}
+/** 乡镇 = 章镇镇（真实乡镇码 330604104000，与参保村乡镇文件匹配，验证乡镇级过滤与完整路径）。 */
 function makeZhangzhenTownship() {
   return {
     type: 'FeatureCollection',
@@ -46,9 +53,9 @@ async function installFixtures(page: Page) {
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/data/boundary/province.geojson') return route.fulfill({ json: province })
-    if (url.pathname === '/data/boundary/city/330000.geojson') return route.fulfill({ json: cities })
-    if (url.pathname === '/data/boundary/county/330100.geojson') return route.fulfill({ json: counties })
-    if (url.pathname === '/data/boundary/township/330101.geojson') return route.fulfill({ json: makeZhangzhenTownship() })
+    if (url.pathname === '/data/boundary/city/330000.geojson') return route.fulfill({ json: makeCity() })
+    if (url.pathname === '/data/boundary/county/330600.geojson') return route.fulfill({ json: makeCounty() })
+    if (url.pathname === '/data/boundary/township/330604.geojson') return route.fulfill({ json: makeZhangzhenTownship() })
     if (url.pathname === '/data/villages/330604104000.geojson') {
       return route.fulfill({ json: makeVillageGeoJson(INSURED_VILLAGE_CODES.filter((c) => c.startsWith('330604102'))) })
     }
@@ -84,19 +91,23 @@ async function openPrecipitation(page: Page) {
 test('点击风险标记：下钻村级 + 右上面板显示该村风险详情；乡镇级过滤；退出清除', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  // 下钻县级（示例县中心 = 省中心）
-  await zoomStep(page, /Z 9\.5/)
+  // 逐级下钻：省 → 绍兴市 → 上虞区 → 章镇镇（点中心/定位点 + crumb 断言）
+  await zoomStep(page, /Z 9\.5/) // 放大至省级阈值自动进入绍兴市
+  await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
-  await expect(page.locator('.map-zoom-level')).toHaveText('Z 11.25')
-
-  // 13 参保村标记 + 图例（乡镇级及以上）
-  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(13)
-  await expect(page.locator('.village-risk-legend')).toBeVisible()
-  await expect(page.locator('.village-risk-legend')).toContainText('未参保村不标注')
-
-  // 乡镇级过滤：下钻章镇镇 → 仅 8 标记（真实用户路径：镇级进入）
-  await page.locator('.map').click({ position: { x: 580, y: 420 } })
+  await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  // 滚轮放大至区级自动下钻阈值（ENTER_ZOOM.county=13.5）→ 自动进入章镇镇（中心点在上虞区=章镇镇内）
+  await page.mouse.move(640, 360)
+  for (let i = 0; i < 20; i++) {
+    if ((await page.locator('.crumb.active').textContent()) === '章镇镇') break
+    await page.mouse.wheel(0, -120)
+    await page.waitForTimeout(140)
+  }
   await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
+  // 完整面包屑：省/市/区/镇
+  await expect(page.locator('.crumb')).toHaveCount(4)
+
+  // 乡镇级：仅 8 标记（章镇参保村）
   await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
 
   // 点击标记 → 下钻村级 + 右上面板显示该村详情（d1=60mm → 峰值 60 → 暴雨级 + 连阴雨 → 高风险）
@@ -135,24 +146,29 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
 test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz 放大（不漂移）', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  await zoomStep(page, /Z 9\.5/)
+  // 下钻到章镇镇（镇级，8 标记；镇内缩放不跨层级到村级阈值 15.5）
+  await zoomStep(page, /Z 9\.5/) // 放大至省级阈值自动进入绍兴市
+  await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
-  await expect(page.locator('.map-zoom-level')).toHaveText('Z 11.25')
-  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(13)
+  await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  await page.locator('.map').click({ position: { x: 640, y: 300 } })
+  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
+  await expect(page.locator('.village-risk-marker-wrap')).toHaveCount(8)
   const center = { x: 640, y: 360 }
   const box = async (sel: string) => {
     const b = await page.locator(sel).boundingBox()
     return { x: b ? b.x + b.width / 2 : 0, y: b ? b.y + b.height / 2 : 0 }
   }
-  // 选一个远离中心的标记，放大 1.5 级后距离应按 2^1.5 ≈ 2.83 倍放大（锚点=光标 640,360）
-  const sel = '.village-risk-marker-wrap >> nth=12'
+  // 选一个远离中心的标记，放大 2 级后距离应按 2^dz 放大（锚点=光标 640,360）
+  const sel = '.village-risk-marker-wrap >> nth=4'
   const p1 = await box(sel)
-  for (let i = 0; i < 5; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(300) }
-  const zText = (await page.locator('.map-zoom-level').textContent()) ?? ''
+  const z1 = Number(((await page.locator('.map-zoom-level').textContent()) ?? 'Z 0').replace('Z ', ''))
+  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(300) }
+  const z2 = Number(((await page.locator('.map-zoom-level').textContent()) ?? 'Z 0').replace('Z ', ''))
   const p2 = await box(sel)
   const d1 = Math.hypot(p1.x - center.x, p1.y - center.y)
   const d2 = Math.hypot(p2.x - center.x, p2.y - center.y)
-  const expected = 2 ** (Number(zText.replace('Z ', '')) - 11.25)
+  const expected = 2 ** (z2 - z1)
   // 方向一致（锚定地理点不漂移）
   expect((p1.x - center.x) * (p2.x - center.x) + (p1.y - center.y) * (p2.y - center.y)).toBeGreaterThan(0)
   expect(d2 / d1).toBeGreaterThan(expected * 0.7)
@@ -162,11 +178,18 @@ test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz
 test('放大进入村级（不点标记）：右上面板自动显示当前村风险概况', async ({ page }) => {
   await installFixtures(page)
   await openPrecipitation(page)
-  // 下钻县级 → 章镇镇
-  await zoomStep(page, /Z 9\.5/)
+  // 逐级下钻到章镇镇：省 → 绍兴市 → 上虞区 → 章镇镇
+  await zoomStep(page, /Z 9\.5/) // 放大至省级阈值自动进入绍兴市
+  await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
   await page.locator('.map').click()
-  await expect(page.locator('.map-zoom-level')).toHaveText('Z 11.25')
-  await page.locator('.map').click({ position: { x: 580, y: 420 } })
+  await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  // 滚轮放大至区级自动下钻阈值（ENTER_ZOOM.county=13.5）→ 自动进入章镇镇（中心点在上虞区=章镇镇内）
+  await page.mouse.move(640, 360)
+  for (let i = 0; i < 20; i++) {
+    if ((await page.locator('.crumb.active').textContent()) === '章镇镇') break
+    await page.mouse.wheel(0, -120)
+    await page.waitForTimeout(140)
+  }
   await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
   // 滚轮放大至乡镇自动下钻阈值（ENTER_ZOOM.township=15.5）→ 进入村级（中心点=参保村1），不点任何标记
   await page.mouse.move(640, 360)
@@ -206,10 +229,12 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   await expect(page.locator('.risk-overview')).toContainText('保额')
   // 空态不出现
   await expect(page.locator('.risk-overview')).not.toContainText('未来 7 天无高风险参保区域')
-  // 点击列表行 → 下钻村级 + 右上面板展示该村风险详情（面板展开）
+  // 点击列表行（当前省级）→ 补齐完整路径下钻村级 + 右上面板展示详情（面板展开）
   await page.locator('.village-row').first().click()
   await expect(page.locator('.village-risk-card')).toBeVisible()
-  await expect(page.locator('.crumb.active')).not.toHaveText('示例县')
+  await expect(page.locator('.crumb.active')).toHaveText('参保村1')
+  // 完整路径：省/市/区/镇/村（不跳级，缩小可逐级回退）
+  await expect(page.locator('.crumb')).toHaveCount(5)
   await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
   await expect(page.locator('.risk-overview')).toHaveCount(0) // 列表被详情替换
   // 详情内容（依据首行/保单概况）在右上面板内
