@@ -101,14 +101,15 @@ function trendTitle(_index: number, stat: VillageDayStat): string {
   return `累计 ${stat.mean.toFixed(1)}mm`
 }
 function fmtArea(mu: number): string {
-  return mu.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  // 保留小数（最多 2 位），与表格合计一致，不四舍五入到整数
+  return mu.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 function fmtYuan(yuan: number): string {
-  if (yuan >= 10_000) return `¥${(yuan / 10_000).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}万`
-  return `¥${yuan.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`
+  // 万元保留 2 位小数，与表格承保金额列一致
+  return `¥${(yuan / 10_000).toFixed(2)}万`
 }
 function fmtMu(mu: number): string {
-  return mu.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  return mu.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 function fmtWanYuan(yuan: number): string {
   return (yuan / 10_000).toFixed(2)
