@@ -31,7 +31,7 @@
 
       <!-- 受灾区域列表 -->
       <section class="affected" aria-label="受灾区域">
-        <h3 class="section-title">受灾区域（点击进入村查看）</h3>
+        <h3 class="section-title">受灾区域</h3>
         <div v-if="model.rows.length === 0" class="empty-state">未来 7 天无高风险参保区域</div>
         <ul v-else class="village-list">
           <li v-for="row in model.rows" :key="row.code" class="village-row" @click="emit('select-village', row.code)">
@@ -55,8 +55,6 @@
       <!-- 底部署名 -->
       <footer class="risk-footer">
         <p v-if="model.updatedAt">数据时间 {{ model.updatedAt }}</p>
-        <p>台风按上游预报覆盖时长评估（约 72h）</p>
-        <p>降水预报数据 © Open-Meteo / ECMWF</p>
       </footer>
     </template>
   </div>
