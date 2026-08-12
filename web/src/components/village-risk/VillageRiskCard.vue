@@ -43,8 +43,10 @@
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
               <div class="trend-bar" :title="trendTitle(index, stat)">
+                <i class="trend-base" :style="{ height: baseHeight(stat) }"></i>
                 <i class="trend-range" :style="rangeMetrics(stat)"></i>
                 <i class="trend-mean" :style="{ bottom: meanHeight(stat) }" aria-hidden="true"></i>
+                <span class="trend-tip" role="tooltip">{{ trendTitle(index, stat) }}</span>
               </div>
               <span class="trend-day">{{ shortDay(index) }}</span>
             </div>
@@ -92,10 +94,13 @@ function rangeMetrics(stat: VillageDayStat): { height: string; bottom: string } 
   const maxPct = Math.max(minPct, Math.min(100, (stat.max / max) * 100))
   const height = maxPct - minPct
   if (height < 4) {
-    // 单值日（min≈max）：显示 0~max 完整柱，避免贴顶细条/溢出
     return { height: `${Math.max(4, maxPct)}%`, bottom: '0%' }
   }
   return { height: `${height}%`, bottom: `${minPct}%` }
+}
+function baseHeight(stat: VillageDayStat): string {
+  const max = Math.max(stat.max, 0.1)
+  return `${Math.max(2, Math.min(100, (stat.max / max) * 100))}%`
 }
 function meanHeight(stat: VillageDayStat): string {
   const max = Math.max(stat.max, 0.1)
@@ -255,27 +260,55 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   box-sizing: border-box;
-  overflow: hidden;
 }
 .trend-range {
   position: absolute; left: 2px; right: 2px; bottom: 0;
   border-radius: 3px;
   background: linear-gradient(180deg, #93c5fd, #60a5fa);
 }
+/* 0~max 底柱：柱高直观反映当日最大值 */
+.trend-base {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: rgba(219, 234, 254, 0.55);
+  border-radius: 3px;
+}
 .trend-mean {
   position: absolute; left: 1px; right: 1px; height: 2px;
   background: #ffffff;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+  z-index: 2;
 }
 /* 峰值日：深蓝实底柱 + 更深范围条 + 蓝字日期 */
-.trend-bar-col.active .trend-bar {
-  background: #dbeafe;
-  border-color: #bfdbfe;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
+.trend-bar-col.active .trend-base {
+  background: rgba(191, 219, 254, 0.7);
 }
 .trend-bar-col.active .trend-range {
   background: linear-gradient(180deg, #2563eb, #1d4ed8);
 }
+/* hover 数值浮层（跟随柱顶） */
+.trend-tip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 4px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 6;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.32);
+}
+.trend-bar:hover .trend-tip,
+.trend-bar:focus-visible .trend-tip {
+  opacity: 1;
+}
+.trend-bar:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
 .trend-day {
   font-size: 9.5px;
   color: #64748b;

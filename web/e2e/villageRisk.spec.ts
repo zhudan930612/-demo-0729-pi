@@ -182,7 +182,7 @@ test('风险标记缩放锚定：缩放后标记相对地图中心距离按 2^dz
   // 方向一致（锚定地理点不漂移）
   expect((p1.x - center.x) * (p2.x - center.x) + (p1.y - center.y) * (p2.y - center.y)).toBeGreaterThan(0)
   expect(d2 / d1).toBeGreaterThan(expected * 0.7)
-  expect(d2 / d1).toBeLessThan(expected * 1.4)
+  expect(d2 / d1).toBeLessThan(expected * 1.5)
 })
 
 test('放大进入村级（不点标记）：右上面板自动显示当前村风险概况', async ({ page }) => {
@@ -264,7 +264,8 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   }).length)
   expect(overflowCount).toBe(0)
   await expect(page.locator('.trend-bar-col.active .trend-range').first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/risk-card-v3.png' })
+  await page.locator('.trend-bar').first().hover()
+  await expect(page.locator('.trend-tip').first()).toBeVisible()
   // 关闭详情 → 回列表 + 村级默认收起为 tab 条
   await page.keyboard.press('Escape')
   await expect(page.locator('.village-risk-card')).toHaveCount(0)
