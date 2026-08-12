@@ -1479,6 +1479,8 @@ function rollbackTyphoonMode(error?: unknown) {
 
 async function enterTyphoonMode() {
   if(anyWeatherActive.value)return
+  // 立即切台风 tab（与点击台风 tab 一致的视图路径；用户 2026-08-11 反馈：按钮进入后面板未显示台风）
+  workbenchTab.value = 'typhoon'
   // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
   pendingNoFly = true
   const entered = await disasterModeCoordinator.enter({
