@@ -243,13 +243,16 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   // 统计：高/中风险左右两列（d1=60 + 连阴雨 → 13 村全高风险）
   await expect(page.locator('.stat-row.high .stat-label')).toContainText('高风险 13 村')
   await expect(page.locator('.stat-row.mid .stat-label')).toContainText('中风险 0 村')
-  await expect(page.locator('.stat-row.high .stat-item strong').first()).not.toBeEmpty()
-  await expect(page.locator('.stat-row.high')).toContainText('¥1,363万')
+  await expect(page.locator('.stat-row.high .stat-cell strong').first()).not.toBeEmpty()
+  await expect(page.locator('.stat-row.high')).toContainText('1,363')
   await expect(page.locator('.stat-row.high')).toContainText('户')
   await expect(page.locator('.risk-overview')).toContainText('亩')
   await expect(page.locator('.risk-overview')).toContainText('保额')
   // 空态不出现
   await expect(page.locator('.risk-overview')).not.toContainText('未来 7 天无高风险参保区域')
+  await expect(page.locator('.stat-row.high')).toContainText('承保面积(亩)')
+  await expect(page.locator('.stat-row.high')).toContainText('承保金额(万元)')
+  await expect(page.locator('.stat-row.high')).toContainText('承保户数(户)')
   // 点击列表行（当前省级）→ 补齐完整路径下钻村级 + 右上面板展示详情（面板展开）
   await page.locator('.village-row').first().click()
   await expect(page.locator('.village-risk-card')).toBeVisible()
