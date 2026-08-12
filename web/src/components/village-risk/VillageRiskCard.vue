@@ -134,15 +134,16 @@ function fmtWanYuan(yuan: number): string {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  background: #2563eb;
-  color: #fff;
+  padding: 11px 14px 9px;
+  background: #ffffff;
+  color: #0f172a;
 }
 .card-header h2 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: 0.01em;
+  color: #0f172a;
   flex: 1;
   min-width: 0;
   white-space: nowrap;
@@ -153,11 +154,11 @@ function fmtWanYuan(yuan: number): string {
   width: 26px; height: 26px; flex: none;
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: 6px;
-  background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer;
-  transition: background-color 0.15s ease;
+  background: #eff6ff; color: #1d4ed8; cursor: pointer;
+  transition: background-color 0.15s ease,color 0.15s ease;
 }
-.back-button:hover { background: rgba(255, 255, 255, 0.28); }
-.back-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.back-button:hover { background: #dbeafe; color: #1d4ed8; }
+.back-button:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
 .back-button svg { width: 14px; height: 14px; }
 
 .risk-pill {
