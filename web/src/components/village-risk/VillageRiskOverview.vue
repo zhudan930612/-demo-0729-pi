@@ -35,17 +35,19 @@
         <div v-if="model.rows.length === 0" class="empty-state">未来 7 天无高风险参保区域</div>
         <ul v-else class="village-list">
           <li v-for="row in model.rows" :key="row.code" class="village-row" @click="emit('select-village', row.code)">
-            <div class="row-line1">
-              <span class="village-name">{{ row.villageName }}</span>
-              <span class="risk-badge" :class="levelClass(row.level)">{{ row.levelText }}</span>
-              <span v-if="row.policyAvailable" class="policy-summary">
-                {{ fmtArea(row.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(row.sumInsuredYuan) }} · {{ row.householdCount }} 户
-              </span>
-              <span v-else class="policy-summary">保单数据暂不可用</span>
+            <div class="row-main">
+              <div class="row-line1">
+                <span class="village-name">{{ row.villageName }}</span>
+                <span class="risk-badge" :class="levelClass(row.level)">{{ row.levelText }}</span>
+              </div>
+              <div class="row-line2">
+                <span class="peak">峰值 {{ row.peakLabel }}</span>
+              </div>
             </div>
-            <div class="row-line2">
-              <span class="peak">峰值 {{ row.peakLabel }}</span>
-            </div>
+            <span v-if="row.policyAvailable" class="policy-summary">
+              {{ fmtArea(row.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(row.sumInsuredYuan) }} · {{ row.householdCount }} 户
+            </span>
+            <span v-else class="policy-summary">保单数据暂不可用</span>
           </li>
         </ul>
       </section>
@@ -116,8 +118,9 @@ function fmtWanYuan(yuan: number): string {
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
 .village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;max-height:calc(60vh - 210px);overflow-y:auto}
-.village-row{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px 10px;cursor:pointer;transition:border-color 0.12s ease,background-color 0.12s ease}
+.village-row{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px 10px;cursor:pointer;transition:border-color 0.12s ease,background-color 0.12s ease;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .village-row:hover{background:#eff6ff;border-color:#93c5fd}
+.row-main{min-width:0;display:flex;flex-direction:column;gap:4px}
 .row-line1{display:flex;align-items:center;gap:7px;font-size:12px}
 .village-name{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .risk-badge{padding:1px 6px;border-radius:999px;color:#fff;font-size:9.5px;font-weight:600;flex:none;letter-spacing:0.02em}
@@ -126,7 +129,7 @@ function fmtWanYuan(yuan: number): string {
 .risk-badge.low{background:#166534}
 .risk-badge.none{background:#94a3b8}
 .policy-summary{margin-left:auto;color:#334155;font-size:11px;font-variant-numeric:tabular-nums;flex:none;white-space:nowrap}
-.row-line2{margin-top:4px;color:#94a3b8}
+.row-line2{color:#94a3b8}
 .peak{color:#94a3b8;font-size:10.5px;font-variant-numeric:tabular-nums}
 .empty-state{padding:12px 8px;color:#94a3b8;font-size:11px}
 .risk-footer{margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:9.5px}
