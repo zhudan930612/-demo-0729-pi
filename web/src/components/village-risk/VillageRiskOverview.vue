@@ -38,13 +38,13 @@
             <div class="row-line1">
               <span class="village-name">{{ row.villageName }}</span>
               <span class="risk-badge" :class="levelClass(row.level)">{{ row.levelText }}</span>
-              <span class="peak">{{ row.peakLabel }}</span>
+              <span v-if="row.policyAvailable" class="policy-summary">
+                {{ fmtArea(row.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(row.sumInsuredYuan) }} · {{ row.householdCount }} 户
+              </span>
+              <span v-else class="policy-summary">保单数据暂不可用</span>
             </div>
             <div class="row-line2">
-              <template v-if="row.policyAvailable">
-                {{ fmtArea(row.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(row.sumInsuredYuan) }} · {{ row.householdCount }} 户
-              </template>
-              <template v-else>保单数据暂不可用</template>
+              <span class="peak">峰值 {{ row.peakLabel }}</span>
             </div>
           </li>
         </ul>
@@ -115,8 +115,8 @@ function fmtWanYuan(yuan: number): string {
 .stat-cell span{font-size:9px;color:#64748b;white-space:nowrap}
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
-.village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:calc(60vh - 210px);overflow-y:auto}
-.village-row{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px;cursor:pointer;transition:border-color 0.12s ease,background-color 0.12s ease}
+.village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;max-height:calc(60vh - 210px);overflow-y:auto}
+.village-row{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px 10px;cursor:pointer;transition:border-color 0.12s ease,background-color 0.12s ease}
 .village-row:hover{background:#eff6ff;border-color:#93c5fd}
 .row-line1{display:flex;align-items:center;gap:7px;font-size:12px}
 .village-name{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -125,8 +125,9 @@ function fmtWanYuan(yuan: number): string {
 .risk-badge.high{background:#b91c1c}
 .risk-badge.low{background:#166534}
 .risk-badge.none{background:#94a3b8}
-.peak{margin-left:auto;color:#334155;font-size:11px;font-variant-numeric:tabular-nums;flex:none;white-space:nowrap;line-height:1.3}
-.row-line2{margin-top:3px;color:#64748b;font-size:10.5px;font-variant-numeric:tabular-nums}
+.policy-summary{margin-left:auto;color:#334155;font-size:11px;font-variant-numeric:tabular-nums;flex:none;white-space:nowrap}
+.row-line2{margin-top:4px;color:#94a3b8}
+.peak{color:#94a3b8;font-size:10.5px;font-variant-numeric:tabular-nums}
 .empty-state{padding:12px 8px;color:#94a3b8;font-size:11px}
 .risk-footer{margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:9.5px}
 .risk-footer p{margin:1px 0}
