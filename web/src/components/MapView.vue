@@ -15,7 +15,7 @@
       :collapsed="workbenchCollapsed"
       :timeline-open="disasterActive && typhoonStore.timelineOpen"
       :close-label="workbenchCloseLabel"
-      @select-tab="workbenchTab = $event"
+      @select-tab="selectWorkbenchTab"
       @toggle-collapsed="workbenchCollapsed = !workbenchCollapsed"
       @close="closeWorkbench"
     >
@@ -1299,6 +1299,13 @@ function closeWorkbench() {
   else exitPrecipitationMode()
 }
 
+/** tab 点击 = 视图 + 模式联动：点台风 tab 时若台风模式未激活则进入，点风险 tab 时若降水未激活则进入（用户 2026-08-11 反馈修复）。 */
+function selectWorkbenchTab(tab: WorkbenchTab) {
+  workbenchTab.value = tab
+  if (tab === 'typhoon' && !disasterActive.value) void enterTyphoonMode()
+  else if (tab === 'risk' && !precipitationStore.isOpen) void enterPrecipitationMode()
+}
+
 function refreshVillageCard() {
   if (!villageCard.value) return
   const village = villageBoundaries.find((v) => v.code === villageCard.value!.code)
@@ -1466,6 +1473,8 @@ function rollbackTyphoonMode(error?: unknown) {
 
 async function enterTyphoonMode() {
   if(anyWeatherActive.value)return
+  // 台风视图优先：激活时隐藏风险标注（台风模式下地图干净，退出恢复；用户 2026-08-11 确认）
+  if (precipitationStore.isOpen) villageRiskLayerController.value?.setVisible(false)
   // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
   pendingNoFly = true
   const entered = await disasterModeCoordinator.enter({
@@ -1568,6 +1577,8 @@ function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
 }
 
 function exitTyphoonMode(restoreView = true) {
+  // 退出台风：若降水仍活动则恢复风险标注显示
+  if (precipitationStore.isOpen) villageRiskLayerController.value?.setVisible(true)
   disasterModeCoordinator.exit({
     isActive: () => disasterActive.value,
     exitRepository: () => typhoonRepository?.exit(),
