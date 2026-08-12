@@ -23,9 +23,20 @@ export interface VillageRiskOverviewRow {
   policyAvailable: boolean
 }
 
+export interface RiskStat {
+  areaMu: number
+  sumInsuredYuan: number
+  householdCount: number
+}
+
 export interface VillageRiskOverviewModel {
   highCount: number
   midCount: number
+  /** 高风险合计（面积/保额/户数） */
+  highStat: RiskStat
+  /** 中风险合计（面积/保额/户数） */
+  midStat: RiskStat
+  /** 受影响合计（高+中） */
   totalInsuredAreaMu: number
   totalSumInsuredYuan: number
   totalHouseholdCount: number
@@ -57,12 +68,21 @@ export function buildVillageRiskOverviewModel(input: VillageRiskOverviewInput): 
   let totalInsuredAreaMu = 0
   let totalSumInsuredYuan = 0
   let totalHouseholdCount = 0
+  const highStat: RiskStat = { areaMu: 0, sumInsuredYuan: 0, householdCount: 0 }
+  const midStat: RiskStat = { areaMu: 0, sumInsuredYuan: 0, householdCount: 0 }
   let policyAllFailed = policies.size > 0
   for (const village of affected) {
     const summary = policies.get(village.code)
-    totalInsuredAreaMu += summary?.insuredAreaMu ?? 0
-    totalSumInsuredYuan += summary?.sumInsuredYuan ?? 0
-    totalHouseholdCount += summary?.householdCount ?? 0
+    const area = summary?.insuredAreaMu ?? 0
+    const yuan = summary?.sumInsuredYuan ?? 0
+    const house = summary?.householdCount ?? 0
+    totalInsuredAreaMu += area
+    totalSumInsuredYuan += yuan
+    totalHouseholdCount += house
+    const stat = village.result.level === 3 ? highStat : midStat
+    stat.areaMu += area
+    stat.sumInsuredYuan += yuan
+    stat.householdCount += house
     if (summary && summary.insuredAreaMu > 0) policyAllFailed = false
   }
   if (policies.size === 0) policyAllFailed = true
@@ -89,6 +109,16 @@ export function buildVillageRiskOverviewModel(input: VillageRiskOverviewInput): 
   return {
     highCount,
     midCount,
+    highStat: {
+      areaMu: Math.round(highStat.areaMu),
+      sumInsuredYuan: Math.round(highStat.sumInsuredYuan),
+      householdCount: highStat.householdCount,
+    },
+    midStat: {
+      areaMu: Math.round(midStat.areaMu),
+      sumInsuredYuan: Math.round(midStat.sumInsuredYuan),
+      householdCount: midStat.householdCount,
+    },
     totalInsuredAreaMu: Math.round(totalInsuredAreaMu),
     totalSumInsuredYuan: Math.round(totalSumInsuredYuan),
     totalHouseholdCount,

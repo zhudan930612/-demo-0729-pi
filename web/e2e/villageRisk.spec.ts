@@ -240,9 +240,10 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   await expect(page.locator('.village-row')).toHaveCount(13)
   await expect(page.locator('.village-row').first()).toContainText('暴雨')
   await expect(page.locator('.village-row').first()).toContainText('亩 · 保额')
-  // 统计：d1=60 + 连阴雨 → 13 村全高风险
-  await expect(page.locator('.risk-overview')).toContainText('13 村高风险')
-  await expect(page.locator('.risk-overview')).toContainText('亩受影响参保')
+  // 统计：高/中风险左右两列（d1=60 + 连阴雨 → 13 村全高风险）
+  await expect(page.locator('.risk-overview')).toContainText('高风险 13 村')
+  await expect(page.locator('.risk-overview')).toContainText('中风险 0 村')
+  await expect(page.locator('.risk-overview')).toContainText('亩')
   await expect(page.locator('.risk-overview')).toContainText('保额')
   // 空态不出现
   await expect(page.locator('.risk-overview')).not.toContainText('未来 7 天无高风险参保区域')

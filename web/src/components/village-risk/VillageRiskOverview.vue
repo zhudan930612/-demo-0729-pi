@@ -6,18 +6,22 @@
     <div v-else-if="snapshotError" class="status-block error" role="status">降水预报数据暂不可用</div>
 
     <template v-else-if="model">
-      <!-- 统计区 -->
+      <!-- 统计区：高风险 / 中风险 左右两列（面积/保额/户数） -->
       <section class="stats" aria-label="受灾风险统计">
-        <p class="stats-line strong">
-          <span class="stat-high">{{ model.highCount }}</span> 村高风险
-          <span class="sep">·</span>
-          <span class="stat-mid">{{ model.midCount }}</span> 村中风险
-        </p>
-        <p class="stats-line">{{ fmtArea(model.totalInsuredAreaMu) }} 亩受影响参保</p>
-        <p class="stats-line">
-          保额 {{ fmtYuan(model.totalSumInsuredYuan) }}
-          <span class="sep">·</span> {{ model.totalHouseholdCount }} 户
-        </p>
+        <div class="stats-cols">
+          <div class="stat-col">
+            <p class="stat-title"><span class="stat-dot high"></span>高风险 {{ model.highCount }} 村</p>
+            <p class="stat-line">{{ fmtArea(model.highStat.areaMu) }} 亩</p>
+            <p class="stat-line">保额 {{ fmtYuan(model.highStat.sumInsuredYuan) }}</p>
+            <p class="stat-line">{{ model.highStat.householdCount }} 户</p>
+          </div>
+          <div class="stat-col mid">
+            <p class="stat-title"><span class="stat-dot mid"></span>中风险 {{ model.midCount }} 村</p>
+            <p class="stat-line">{{ fmtArea(model.midStat.areaMu) }} 亩</p>
+            <p class="stat-line">保额 {{ fmtYuan(model.midStat.sumInsuredYuan) }}</p>
+            <p class="stat-line">{{ model.midStat.householdCount }} 户</p>
+          </div>
+        </div>
         <p v-if="model.policyAllFailed" class="policy-warn">保单数据暂不可用</p>
       </section>
 
@@ -78,12 +82,15 @@ function fmtYuan(yuan: number): string {
 .risk-overview{padding:8px;color:#0f172a;font-size:12px}
 .status-block{margin:4px;padding:10px 8px;border-radius:6px;background:#f8fafc;color:#475569;font-size:11px}
 .status-block.error{color:#b91c1c}
-.stats{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px;margin-bottom:8px}
-.stats-line{margin:2px 0;font-variant-numeric:tabular-nums}
-.stats-line.strong{font-size:12.5px}
-.stat-high{color:#b91c1c;font-weight:700}
-.stat-mid{color:#ca8a04;font-weight:700}
-.sep{color:#cbd5e1;margin:0 4px}
+.stats{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 9px;margin-bottom:8px}
+.stats-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-col{padding:2px 4px}
+.stat-col + .stat-col{border-left:1px solid #e2e8f0;padding-left:12px}
+.stat-title{display:flex;align-items:center;gap:5px;margin:0 0 4px;font-size:11.5px;font-weight:700;color:#0f172a}
+.stat-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.stat-dot.high{background:#b91c1c}
+.stat-dot.mid{background:#ca8a04}
+.stat-line{margin:1px 0;font-size:11px;color:#475569;font-variant-numeric:tabular-nums}
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
 .village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:calc(60vh - 210px);overflow-y:auto}

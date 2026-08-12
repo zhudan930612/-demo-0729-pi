@@ -60,6 +60,9 @@ describe('buildVillageRiskOverviewModel 统计与列表', () => {
     expect(model.totalInsuredAreaMu).toBe(640 + 520 + 480)
     expect(model.totalSumInsuredYuan).toBe(18_900_000 + 14_300_000 + 12_100_000)
     expect(model.totalHouseholdCount).toBe(42 + 35 + 28)
+    // 高/中分列统计：高 {a,c}、中 {b}
+    expect(model.highStat).toEqual({ areaMu: 640 + 480, sumInsuredYuan: 18_900_000 + 12_100_000, householdCount: 42 + 28 })
+    expect(model.midStat).toEqual({ areaMu: 520, sumInsuredYuan: 14_300_000, householdCount: 35 })
   })
 
   it('列表：仅高/中，等级降序→面积降序；行含峰值+敞口', () => {
