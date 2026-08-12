@@ -120,7 +120,9 @@ export function summarizePolicyFixture(fixture: RawFixture): Omit<VillagePolicyS
     const partyId = String(item.insuredPartyId ?? '')
     if (partyId) rosterHouseholdIds.add(partyId)
   }
-  for (const id of rosterHouseholdIds) partyIds.add(id)
+  // 团单户数 = 团单保单覆盖 ∪ 清单户（去重并集，避免重复计数）
+  for (const id of rosterHouseholdIds) rosterParties.add(id)
+  for (const id of rosterParties) partyIds.add(id)
   // 排除村集体（如"清潭村股份经济合作社"）
   for (const party of fixture.parties ?? []) {
     if (party.partyType === '村集体') {
@@ -130,21 +132,24 @@ export function summarizePolicyFixture(fixture: RawFixture): Omit<VillagePolicyS
       rosterParties.delete(id)
     }
   }
+  // 概况户数 = 大户 + 团单 合计（与表格一致，用户确认）
+  const bigHouseholds = bigParties.size
+  const rosterHouseholds = rosterParties.size
   return {
     insuredAreaMu: Math.round(insuredAreaMu * 100) / 100,
     sumInsuredYuan: Math.round(sumCents) / 100,
-    householdCount: partyIds.size,
+    householdCount: bigHouseholds + rosterHouseholds,
     policyCount: activePolicies.length,
     bigHolderPolicyCount: activePolicies.filter((policy) => String(policy.insuredMode ?? '') === 'single_insured').length,
-    rosterHouseholdCount: rosterHouseholdIds.size,
-    // 大户/团单分类：户数（覆盖 ∪ 清单，排除村集体）
+    rosterHouseholdCount: rosterHouseholds,
+    // 大户/团单分类：户数（去重并集，排除村集体）
     bigHolderStat: {
-      householdCount: bigParties.size,
+      householdCount: bigHouseholds,
       insuredAreaMu: Math.round(bigArea * 100) / 100,
       sumInsuredYuan: Math.round(bigCents) / 100,
     },
     rosterStat: {
-      householdCount: (rosterParties.size + rosterHouseholdIds.size),
+      householdCount: rosterHouseholds,
       insuredAreaMu: Math.round(rosterArea * 100) / 100,
       sumInsuredYuan: Math.round(rosterCents) / 100,
     },

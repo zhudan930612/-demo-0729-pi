@@ -22,7 +22,6 @@ function makeFixture(overrides: Record<string, unknown> = {}): RawFixture {
     ],
     enrollmentItems: [
       { insuredPartyId: 'party-c' },
-      { insuredPartyId: 'party-a' },
     ],
     parties: [{ id: 'party-coop', partyType: '村集体' }, { id: 'party-a', partyType: '农户' }],
     ...overrides,
@@ -34,22 +33,22 @@ describe('summarizePolicyFixture 敞口汇总（仅保障中）', () => {
     const summary = summarizePolicyFixture(makeFixture())
     expect(summary.insuredAreaMu).toBe(175.5) // 100+50+25.5（999 历史剔除）
     expect(summary.sumInsuredYuan).toBe(7520) // 分 752000 = 100×4000+50×5000+25.5×4000
-    expect(summary.householdCount).toBe(3) // {a, b, c}，村集体剔除
+    expect(summary.householdCount).toBe(3) // 大户 {a} + 团单 {b, c} 合计（概况=表格合计）
   })
   it('保单结构：保障中保单数/大户保单数/清单户数', () => {
     const summary = summarizePolicyFixture(makeFixture())
     expect(summary.policyCount).toBe(2)
     expect(summary.bigHolderPolicyCount).toBe(1) // 仅 single_insured 的 policy-1
-    expect(summary.rosterHouseholdCount).toBe(2) // enrollmentItems 去重 {a, c}
+    expect(summary.rosterHouseholdCount).toBe(2) // 团单户数 = 覆盖 {b} ∪ 清单 {c}
   })
   it('大户/团单分类统计与保障期：按 insuredMode 归属覆盖', () => {
     const summary = summarizePolicyFixture(makeFixture())
     // policy-1(single_insured) 覆盖：100 + 25.5 = 125.5 亩，保额 125.5×4000=502000 分=5020 元，户数 {a}
     expect(summary.bigHolderStat).toEqual({ householdCount: 1, insuredAreaMu: 125.5, sumInsuredYuan: 5020 })
-    // policy-2(insured_roster) 覆盖：50 亩，50×5000=250000 分=2500 元，覆盖户 {b} + 清单户 {a, c}
+    // policy-2(insured_roster) 覆盖：50 亩，50×5000=250000 分=2500 元；户数 = 覆盖 {b} ∪ 清单 {c} = 2
     expect(summary.rosterStat.insuredAreaMu).toBe(50)
     expect(summary.rosterStat.sumInsuredYuan).toBe(2500)
-    expect(summary.rosterStat.householdCount).toBe(3) // {b} ∪ 清单 {a, c}
+    expect(summary.rosterStat.householdCount).toBe(2)
     expect(summary.periodStart).toBe('2025-05-01')
     expect(summary.periodEnd).toBe('2025-11-30')
     expect(summary.inForce).toBe(true)
@@ -74,7 +73,7 @@ describe('summarizePolicyFixture 敞口汇总（仅保障中）', () => {
     }))
     expect(summary.insuredAreaMu).toBe(0)
     expect(summary.sumInsuredYuan).toBe(0)
-    expect(summary.householdCount).toBe(2) // 清单户 {a, c} 仍计入（与覆盖无关）
+    expect(summary.householdCount).toBe(1) // 清单户 {c} 仍计入（与覆盖无关）
   })
 })
 

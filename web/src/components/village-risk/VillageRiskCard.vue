@@ -31,9 +31,6 @@
             <div class="pt-row" role="row"><span>大户</span><span>{{ model.policy.bigHolderStat.householdCount }}</span><span>{{ fmtMu(model.policy.bigHolderStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.bigHolderStat.sumInsuredYuan) }}</span></div>
             <div class="pt-row roster" role="row"><span>团单</span><span>{{ model.policy.rosterStat.householdCount }}</span><span>{{ fmtMu(model.policy.rosterStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.rosterStat.sumInsuredYuan) }}</span></div>
           </div>
-          <p v-if="model.policy.periodStart" class="policy-period">
-            <span class="period-range">{{ model.policy.periodStart }} ~ {{ model.policy.periodEnd }}</span>
-          </p>
         </template>
         <p v-else class="policy-line unavailable">保单数据暂不可用</p>
       </section>
@@ -236,11 +233,6 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .period-badge.active { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
 .period-badge:not(.active) { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; }
-.period-range {
-  font-size: 11px;
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
-}
 /* 保单结构表格（浅色，与卡片风格一致） */
 .policy-table {
   margin-top: 7px;
@@ -267,7 +259,6 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .pt-row { border-top: 1px solid #f1f5f9; }
 .pt-row.roster { background: #f8fafc; }
-.policy-period { margin: 6px 0 0; }
 .policy .policy-line.unavailable { color: #b45309; }
 
 /* ---- 防灾措施 ---- */
