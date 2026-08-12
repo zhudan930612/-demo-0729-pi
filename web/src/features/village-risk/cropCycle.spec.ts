@@ -49,38 +49,53 @@ describe('stageLabelWithCrop 带季别标签', () => {
 
 describe('measuresFor 措施合成（需求 §5.2/5.3/4.3）', () => {
   it('冬闲期：风险等级仍显示，措施为"非水稻生长期"', () => {
-    const result = measuresFor({ month: 1, riskLevel: 2, typhoonScenario: null })
+    const result = measuresFor({ month: 1, riskLevel: 2, peakLevel: 2, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
     expect(result.stage).toBe('dormant')
     expect(result.items).toEqual(['非水稻生长期，无田间措施建议'])
   })
   it('8 月晚稻分蘖：取苗期/分蘖列', () => {
-    const result = measuresFor({ month: 8, riskLevel: 2, typhoonScenario: null })
+    const result = measuresFor({ month: 8, riskLevel: 2, peakLevel: 2, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
     expect(result.stage).toBe('seedling-tillering')
     expect(result.stageLabel).toBe('晚稻苗期/分蘖期')
-    expect(result.items).toContain('疏通沟渠、预排降低田间水位')
+    expect(result.items).toContain('提前疏通内外沟渠、预排降低田间水位，防止淹苗')
   })
   it('9 月晚稻孕穗抽穗：取孕穗列', () => {
-    const result = measuresFor({ month: 9, riskLevel: 3, typhoonScenario: null })
+    const result = measuresFor({ month: 9, riskLevel: 3, peakLevel: 3, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
     expect(result.stage).toBe('booting-heading')
-    expect(result.items).toContain('优先保穗：排水防涝')
+    expect(result.items.join(' ')).toContain('优先保穗：暴雨前排水防涝')
   })
   it('11 月晚稻成熟收获：取成熟收获列', () => {
-    const result = measuresFor({ month: 11, riskLevel: 3, typhoonScenario: null })
-    expect(result.items).toContain('连夜抢收')
+    const result = measuresFor({ month: 11, riskLevel: 3, peakLevel: 3, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
+    expect(result.items.join(' ')).toContain('连夜抢收成熟稻谷')
   })
   it('条数上限：高/中 ≤3，低/无 1~2', () => {
-    const highWithTyphoon = measuresFor({ month: 9, riskLevel: 3, typhoonScenario: 'storm' })
+    const highWithTyphoon = measuresFor({ month: 9, riskLevel: 3, peakLevel: 3, consecutive: false, typhoonScenario: 'storm', alarmLevel: 3 })
     expect(highWithTyphoon.items.length).toBeLessThanOrEqual(3)
-    const midWithTyphoon = measuresFor({ month: 8, riskLevel: 2, typhoonScenario: 'path' })
+    const midWithTyphoon = measuresFor({ month: 8, riskLevel: 2, peakLevel: 2, consecutive: false, typhoonScenario: 'path', alarmLevel: 0 })
     expect(midWithTyphoon.items.length).toBeLessThanOrEqual(3)
-    const lowWithTyphoon = measuresFor({ month: 8, riskLevel: 1, typhoonScenario: 'path' })
+    const lowWithTyphoon = measuresFor({ month: 8, riskLevel: 1, peakLevel: 1, consecutive: false, typhoonScenario: 'path', alarmLevel: 0 })
     expect(lowWithTyphoon.items.length).toBeLessThanOrEqual(2)
-    const none = measuresFor({ month: 8, riskLevel: 0, typhoonScenario: null })
+    const none = measuresFor({ month: 8, riskLevel: 0, peakLevel: 0, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
     expect(none.items.length).toBeLessThanOrEqual(2)
   })
+  it('信号差异化：暴雨 vs 连阴雨 vs 台风 措施不同', () => {
+    const peak = measuresFor({ month: 8, riskLevel: 2, peakLevel: 2, consecutive: false, typhoonScenario: null, alarmLevel: 0 })
+    const wet = measuresFor({ month: 8, riskLevel: 2, peakLevel: 1, consecutive: true, typhoonScenario: null, alarmLevel: 0 })
+    const ty = measuresFor({ month: 8, riskLevel: 2, peakLevel: 1, consecutive: false, typhoonScenario: 'path', alarmLevel: 0 })
+    expect(peak.items.join(' ')).toContain('预排')
+    expect(wet.items.join(' ')).toContain('连续阴雨')
+    expect(ty.items.join(' ')).toContain('台风'.length > 0 ? '大棚' : '')
+    // 三种信号组合互不相同（至少一条不同）
+    expect(peak.items.join('|')).not.toBe(wet.items.join('|'))
+    expect(peak.items.join('|')).not.toBe(ty.items.join('|'))
+  })
+  it('预警并入措施：红色预警含人员撤离', () => {
+    const result = measuresFor({ month: 8, riskLevel: 3, peakLevel: 1, consecutive: false, typhoonScenario: null, alarmLevel: 3 })
+    expect(result.items.join(' ')).toContain('撤离')
+  })
   it('台风叠加措施并入', () => {
-    const result = measuresFor({ month: 8, riskLevel: 2, typhoonScenario: 'path' })
-    expect(result.items.join(' ')).toContain('加固大棚')
+    const result = measuresFor({ month: 8, riskLevel: 2, peakLevel: 2, consecutive: false, typhoonScenario: 'path', alarmLevel: 0 })
+    expect(result.items.join(' ')).toContain('加固大棚与设施')
   })
 })
 

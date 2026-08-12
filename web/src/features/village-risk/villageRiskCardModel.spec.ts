@@ -129,7 +129,7 @@ describe('buildVillageRiskCardModel 卡片模型', () => {
     })
     expect(model.stageLabel).toBe('晚稻苗期/分蘖期')
     expect(model.stageNote).toContain('跨')
-    expect(model.measures).toContain('疏通沟渠、预排降低田间水位')
+    expect(model.measures.some((m) => m.includes('提前抢排积水防淹苗'))).toBe(true)
   })
 
   it('冬闲期：dormant 标记 + 非水稻生长期措施', () => {

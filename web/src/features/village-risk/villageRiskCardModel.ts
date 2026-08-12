@@ -130,7 +130,14 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
   const allUnavailable = !input.dataAvailable.precip && !input.dataAvailable.typhoon && !input.dataAvailable.alarm
 
   // 措施（当前生育期阶段；冬闲返回非水稻生长期）
-  const measures = measuresFor({ month: input.month, riskLevel: result.level, typhoonScenario: input.typhoonScenario })
+  const measures = measuresFor({
+    month: input.month,
+    riskLevel: result.level,
+    peakLevel: result.peak.level,
+    consecutive: result.consecutive,
+    typhoonScenario: input.typhoonScenario,
+    alarmLevel: result.alarmSignal,
+  })
 
   const trend = snapshot
     ? {
