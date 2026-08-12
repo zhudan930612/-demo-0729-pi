@@ -191,7 +191,7 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .stage-chip {
   display: inline-flex;
   align-items: center;
-  margin: 1px 0 8px 16px; /* 与信号行/措施文字左边缘对齐 */
+  margin: 1px 0 8px; /* 与 kicker/▸ 图标同列，无台阶 */
   padding: 3px 10px;
   border-radius: 999px;
   background: #eff6ff;
