@@ -34,12 +34,10 @@
         </ul>
       </section>
 
-      <!-- 7 天降水趋势展开项 -->
+      <!-- 7 天降水趋势（常驻显示） -->
       <section class="trend">
-        <button type="button" class="trend-toggle" :aria-expanded="trendOpen" :aria-controls="trendId" @click="toggleTrend">
-          <span class="trend-chevron" :class="{ open: trendOpen }" aria-hidden="true">▸</span>查看 7 天降水趋势
-        </button>
-        <div v-show="trendOpen" :id="trendId" class="trend-body">
+        <span class="section-kicker">7 天降水趋势</span>
+        <div class="trend-body">
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
               <div class="trend-bar">
@@ -49,7 +47,6 @@
               <span class="trend-day">{{ shortDay(index) }}</span>
             </div>
           </div>
-          <p class="trend-note">村级每日累计降雨量；柱色高亮该村峰值日</p>
         </div>
       </section>
     </template>
@@ -61,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { VillageRiskCardModel } from '../../features/village-risk/villageRiskCardModel'
 import type { VillageDayStat } from '../../features/village-risk/villageRisk'
 import { RISK_STROKE_COLOR } from '../../map/villageRiskLayerController'
@@ -71,15 +68,11 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ back: [] }>()
 
-const trendOpen = ref(false)
-const trendId = 'village-risk-trend'
-
 function riskColor(level: number): string {
   return RISK_STROKE_COLOR[level as 0 | 1 | 2 | 3] ?? RISK_STROKE_COLOR[0]
 }
 const levelClass = computed(() => (['none', 'low', 'mid', 'high'] as const)[props.model?.level ?? 0])
 
-function toggleTrend() { trendOpen.value = !trendOpen.value }
 
 function shortDay(index: number): string {
   const raw = props.model?.trend?.days[index] ?? ''
@@ -219,24 +212,6 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 
 /* ---- 7 天趋势展开项 ---- */
 .trend { padding-bottom: 10px; }
-.trend-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 2px 0;
-  border: 0;
-  background: transparent;
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.trend-toggle:hover { color: #2563eb; }
-.trend-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
-.trend-chevron { transition: transform 0.18s ease; font-size: 10px; color: #2563eb; }
-.trend-chevron.open { transform: rotate(90deg); }
 .trend-body { margin-top: 10px; }
 .trend-bars { display: flex; gap: 8px; align-items: flex-end; }
 .trend-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -291,7 +266,6 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
   color: #1d4ed8;
   font-weight: 700;
 }
-.trend-note { margin: 8px 0 0; font-size: 10px; color: #64748b; line-height: 1.5; }
 
 /* ---- 降级 ---- */
 .degraded-note {

@@ -254,9 +254,10 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   // 详情内容（依据首行/保单概况）在右上面板内
   await expect(page.locator('.village-risk-card')).toContainText('风险依据')
   await expect(page.locator('.village-risk-card')).toContainText('保单概况')
-  // 7 天趋势展开：柱高不溢出（height ≤ 100%），峰值日高亮
-  await page.locator('.trend-toggle').click()
+  // 7 天降水趋势常驻显示：柱高不溢出（height ≤ 100%），峰值日高亮
   await expect(page.locator('.trend-fill').first()).toBeVisible()
+  await expect(page.locator('.village-risk-card')).toContainText('7 天降水趋势')
+  await expect(page.locator('.trend-toggle')).toHaveCount(0)
   const overflowCount = await page.evaluate(() => Array.from(document.querySelectorAll('.trend-fill')).filter((el) => {
     const h = parseFloat((el as HTMLElement).style.height || '0')
     return h > 100.5
