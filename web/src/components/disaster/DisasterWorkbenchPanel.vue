@@ -92,7 +92,7 @@ const workbenchLabel = computed(() => (props.collapsed ? '灾害风险工作台�
 .collapse-button:hover,.close-button:hover{background:rgba(255,255,255,.16);color:#fff}
 .collapse-button:focus-visible,.close-button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
 .close-button svg{width:15px;height:15px}
-.tab-body{min-height:0;background:#fff;overflow-y:auto}
+.tab-body{min-height:0;background:#fff;overflow-y:auto;overflow-x:hidden}
 @media(max-width:720px){.disaster-workbench{width:min(390px,calc(100% - 24px))}.disaster-workbench.timeline-open{max-height:calc(100% - 206px)}}
 @media(max-width:520px){.disaster-workbench{left:12px;right:12px;width:auto;min-width:0}.disaster-workbench.timeline-open{max-height:calc(100% - 202px)}}
 </style>

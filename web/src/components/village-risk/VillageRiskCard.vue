@@ -43,15 +43,13 @@
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
               <div class="trend-bar" :title="trendTitle(index, stat)">
-                <i class="trend-base" :style="{ height: baseHeight(stat) }"></i>
-                <i class="trend-range" :style="rangeMetrics(stat)"></i>
-                <i class="trend-mean" :style="{ bottom: meanHeight(stat) }" aria-hidden="true"></i>
+                <i class="trend-fill" :style="{ height: barHeight(stat) }"></i>
                 <span class="trend-tip" role="tooltip">{{ trendTitle(index, stat) }}</span>
               </div>
               <span class="trend-day">{{ shortDay(index) }}</span>
             </div>
           </div>
-          <p class="trend-note">村级每日范围（min~max）与均值；柱色高亮该村峰值日</p>
+          <p class="trend-note">村级每日累计降雨量；柱色高亮该村峰值日</p>
         </div>
       </section>
     </template>
@@ -88,26 +86,12 @@ function shortDay(index: number): string {
   const parts = raw.split('-')
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : `D${index + 1}`
 }
-function rangeMetrics(stat: VillageDayStat): { height: string; bottom: string } {
+function barHeight(stat: VillageDayStat): string {
   const max = Math.max(stat.max, 0.1)
-  const minPct = Math.max(0, Math.min(100, (stat.min / max) * 100))
-  const maxPct = Math.max(minPct, Math.min(100, (stat.max / max) * 100))
-  const height = maxPct - minPct
-  if (height < 4) {
-    return { height: `${Math.max(4, maxPct)}%`, bottom: '0%' }
-  }
-  return { height: `${height}%`, bottom: `${minPct}%` }
-}
-function baseHeight(stat: VillageDayStat): string {
-  const max = Math.max(stat.max, 0.1)
-  return `${Math.max(2, Math.min(100, (stat.max / max) * 100))}%`
-}
-function meanHeight(stat: VillageDayStat): string {
-  const max = Math.max(stat.max, 0.1)
-  return `${Math.max(0, Math.min(96, (stat.mean / max) * 100))}%`
+  return `${Math.max(2, Math.min(100, (stat.mean / max) * 100))}%`
 }
 function trendTitle(index: number, stat: VillageDayStat): string {
-  return `${shortDay(index)} 累计 ${stat.min.toFixed(1)}~${stat.max.toFixed(1)}mm，均值 ${stat.mean.toFixed(1)}mm`
+  return `${shortDay(index)} 累计 ${stat.mean.toFixed(1)}mm`
 }
 </script>
 
@@ -251,8 +235,8 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .trend-chevron { transition: transform 0.18s ease; font-size: 10px; color: #2563eb; }
 .trend-chevron.open { transform: rotate(90deg); }
 .trend-body { margin-top: 10px; }
-.trend-bars { display: flex; gap: 8px; align-items: flex-end; }
-.trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.trend-bars { display: flex; gap: 8px; align-items: flex-end; overflow-x: hidden; }
+.trend-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .trend-bar {
   position: relative;
   width: 100%; max-width: 28px; height: 66px;
@@ -261,28 +245,13 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
   border: 1px solid #e2e8f0;
   box-sizing: border-box;
 }
-.trend-range {
+.trend-fill {
   position: absolute; left: 2px; right: 2px; bottom: 0;
   border-radius: 3px;
   background: linear-gradient(180deg, #93c5fd, #60a5fa);
 }
-/* 0~max 底柱：柱高直观反映当日最大值 */
-.trend-base {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  background: rgba(219, 234, 254, 0.55);
-  border-radius: 3px;
-}
-.trend-mean {
-  position: absolute; left: 1px; right: 1px; height: 2px;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
-  z-index: 2;
-}
-/* 峰值日：深蓝实底柱 + 更深范围条 + 蓝字日期 */
-.trend-bar-col.active .trend-base {
-  background: rgba(191, 219, 254, 0.7);
-}
-.trend-bar-col.active .trend-range {
+/* 峰值日：深蓝柱 + 蓝字日期 */
+.trend-bar-col.active .trend-fill {
   background: linear-gradient(180deg, #2563eb, #1d4ed8);
 }
 /* hover 数值浮层（跟随柱顶） */

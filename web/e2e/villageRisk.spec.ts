@@ -254,16 +254,15 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   // 详情内容（依据首行/保单概况）在右上面板内
   await expect(page.locator('.village-risk-card')).toContainText('风险依据')
   await expect(page.locator('.village-risk-card')).toContainText('保单概况')
-  // 7 天趋势展开：范围条不溢出（bottom+height ≤ 100%），峰值日高亮
+  // 7 天趋势展开：柱高不溢出（height ≤ 100%），峰值日高亮
   await page.locator('.trend-toggle').click()
-  await expect(page.locator('.trend-range').first()).toBeVisible()
-  const overflowCount = await page.evaluate(() => Array.from(document.querySelectorAll('.trend-range')).filter((el) => {
-    const b = parseFloat((el as HTMLElement).style.bottom || '0')
+  await expect(page.locator('.trend-fill').first()).toBeVisible()
+  const overflowCount = await page.evaluate(() => Array.from(document.querySelectorAll('.trend-fill')).filter((el) => {
     const h = parseFloat((el as HTMLElement).style.height || '0')
-    return b + h > 100.5
+    return h > 100.5
   }).length)
   expect(overflowCount).toBe(0)
-  await expect(page.locator('.trend-bar-col.active .trend-range').first()).toBeVisible()
+  await expect(page.locator('.trend-bar-col.active .trend-fill').first()).toBeVisible()
   await page.locator('.trend-bar').first().hover()
   await expect(page.locator('.trend-tip').first()).toBeVisible()
   // 关闭详情 → 回列表 + 村级默认收起为 tab 条
