@@ -289,12 +289,9 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
     return heights.every((h, i) => Math.abs(h - Math.max(2, (values[i] / globalMax) * 100)) < 0.6)
   })
   expect(barCheck).toBe(true)
-  // 关闭详情 → 回列表 + 村级默认收起为 tab 条
+  // 关闭详情 → 回列表，面板保持展开（不折叠，用户确认）
   await page.keyboard.press('Escape')
   await expect(page.locator('.village-risk-card')).toHaveCount(0)
-  await expect(page.locator('.disaster-workbench')).toHaveClass(/collapsed/)
-  // 展开面板 → 风险概览列表可见
-  await page.locator('.collapse-button').click()
   await expect(page.locator('.disaster-workbench')).not.toHaveClass(/collapsed/)
   await expect(page.locator('.risk-overview')).toBeVisible()
   await expect(page.locator('.village-row').first()).toBeVisible()

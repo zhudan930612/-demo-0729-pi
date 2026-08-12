@@ -1228,8 +1228,7 @@ function openVillageCard(code: string) {
 function closeVillageCard() {
   villageCard.value = null
   villageRiskLayerController.value?.setSelected(null)
-  // 关闭详情后村级视图回到默认收起（tab 条）
-  if (store.current.level === 'village') workbenchCollapsed.value = true
+  // 关闭详情后面板保持展开（显示列表，用户确认：点空白/Esc 回列表不折叠）
 }
 
 /** 详情返回按钮：关闭详情回列表，地图视角回镇级（用户 2026-08-10 确认）。 */
