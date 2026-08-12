@@ -27,7 +27,8 @@
 
       <!-- 防灾措施 -->
       <section class="measures">
-        <span class="section-kicker">防灾措施 · 当前阶段：{{ model.stageLabel }}</span>
+        <span class="section-kicker">防灾措施</span>
+        <span class="stage-label">当前阶段：{{ model.stageLabel }}</span>
         <span v-if="model.stageNote" class="stage-note">{{ model.stageNote }}</span>
         <ul>
           <li v-for="item in model.measures" :key="item">{{ item }}</li>
@@ -187,6 +188,13 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .policy .policy-line.unavailable { color: #b45309; }
 
 /* ---- 防灾措施 ---- */
+.stage-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+}
 .measures ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .measures li {
   padding-left: 14px;
