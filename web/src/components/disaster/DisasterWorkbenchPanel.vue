@@ -78,12 +78,14 @@ const workbenchLabel = computed(() => (props.collapsed ? '灾害风险工作台�
 }
 .disaster-workbench.timeline-open{max-height:calc(100% - 218px)}
 .workbench-header{height:34px;display:flex;flex:none;align-items:center;padding:0 4px 0 0;color:#fff}
-.tab-list{display:flex;flex:1;align-items:stretch;height:100%;min-width:0}
+.tab-list{display:flex;flex:1;align-items:stretch;height:100%;min-width:0;gap:2px;padding:3px 2px 0}
 .tab-list button{
-  height:100%;padding:0 14px;border:0;background:transparent;color:#bfdbfe;font-size:13px;font-weight:600;cursor:pointer;
+  height:100%;min-width:64px;padding:0 12px;border:0;border-radius:6px 6px 0 0;
+  background:transparent;color:#bfdbfe;font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:background-color 0.15s ease,color 0.15s ease;
 }
-.tab-list button[aria-selected='true']{background:rgba(255,255,255,.18);color:#fff}
-.tab-list button:hover{color:#fff}
+.tab-list button[aria-selected='true']{background:#fff;color:#1d4ed8;font-weight:700}
+.tab-list button:hover:not([aria-selected='true']){color:#fff;background:rgba(255,255,255,0.1)}
 .tab-list button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
 .collapse-button,.close-button{
   width:28px;height:28px;flex:none;display:grid;place-items:center;padding:0;border:0;border-radius:5px;
