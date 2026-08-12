@@ -27,9 +27,9 @@
         <template v-if="model.policy">
           <p class="policy-line strong">{{ fmtArea(model.policy.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(model.policy.sumInsuredYuan) }} · {{ model.policy.householdCount }} 户</p>
           <div class="policy-table" role="table" aria-label="保单结构">
-            <div class="pt-head" role="row"><span>类型</span><span>承保户数(户)</span><span>承保面积(亩)</span><span>承保金额(万元)</span></div>
-            <div class="pt-row" role="row"><span>大户</span><span>{{ model.policy.bigHolderStat.householdCount }}</span><span>{{ fmtMu(model.policy.bigHolderStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.bigHolderStat.sumInsuredYuan) }}</span></div>
-            <div class="pt-row roster" role="row"><span>团单</span><span>{{ model.policy.rosterStat.householdCount }}</span><span>{{ fmtMu(model.policy.rosterStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.rosterStat.sumInsuredYuan) }}</span></div>
+            <div class="pt-head" role="row"><span>类型</span><span>承保面积(亩)</span><span>承保金额(万元)</span><span>承保户数(户)</span></div>
+            <div class="pt-row" role="row"><span>大户</span><span>{{ fmtMu(model.policy.bigHolderStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.bigHolderStat.sumInsuredYuan) }}</span><span>{{ model.policy.bigHolderStat.householdCount }}</span></div>
+            <div class="pt-row roster" role="row"><span>团单</span><span>{{ fmtMu(model.policy.rosterStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.rosterStat.sumInsuredYuan) }}</span><span>{{ model.policy.rosterStat.householdCount }}</span></div>
           </div>
         </template>
         <p v-else class="policy-line unavailable">保单数据暂不可用</p>
@@ -247,7 +247,7 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .policy-table > div {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.3fr 1.3fr;
+  grid-template-columns: 1fr 1.3fr 1.3fr 1fr;
   align-items: center;
 }
 .policy-table > div > span { padding: 5px 8px; text-align: right; white-space: nowrap; }
