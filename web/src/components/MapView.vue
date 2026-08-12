@@ -1299,11 +1299,15 @@ function closeWorkbench() {
   else exitPrecipitationMode()
 }
 
-/** tab 点击 = 视图 + 模式联动：点台风 tab 时若台风模式未激活则进入，点风险 tab 时若降水未激活则进入（用户 2026-08-11 反馈修复）。 */
+/** tab 点击 = 视图 + 模式联动：点台风 tab 时若台风模式未激活则进入（若已激活但下钻过则回省），点风险 tab 时若降水未激活则进入。 */
 function selectWorkbenchTab(tab: WorkbenchTab) {
   workbenchTab.value = tab
-  if (tab === 'typhoon' && !disasterActive.value) void enterTyphoonMode()
-  else if (tab === 'risk' && !precipitationStore.isOpen) void enterPrecipitationMode()
+  if (tab === 'typhoon') {
+    if (!disasterActive.value) void enterTyphoonMode()
+    else if (store.current.level !== 'province') void store.resetToProvince() // 台风激活时切回：下钻残留回省
+  } else if (tab === 'risk' && !precipitationStore.isOpen) {
+    void enterPrecipitationMode()
+  }
 }
 
 function refreshVillageCard() {
