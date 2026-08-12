@@ -31,7 +31,7 @@
         <span class="stage-chip" :class="{ dormant: model.dormant }">当前阶段：{{ model.stageLabel }}</span>
         <span v-if="model.stageNote" class="stage-note">{{ model.stageNote }}</span>
         <ul>
-          <li v-for="item in model.measures" :key="item">{{ item }}</li>
+          <li v-for="item in model.measures" :key="item"><i class="measure-dot" aria-hidden="true">▸</i><span>{{ item }}</span></li>
         </ul>
       </section>
 
@@ -156,7 +156,7 @@ section { padding: 12px 14px 11px; }
 section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .section-kicker {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -191,7 +191,7 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .stage-chip {
   display: inline-flex;
   align-items: center;
-  margin: 1px 0 8px;
+  margin: 1px 0 8px 16px; /* 与信号行/措施文字左边缘对齐 */
   padding: 3px 10px;
   border-radius: 999px;
   background: #eff6ff;
@@ -209,16 +209,15 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .measures ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .measures li {
-  padding-left: 14px;
-  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   color: #334155;
   font-size: 12.5px;
 }
-.measures li::before {
-  content: '▸';
-  position: absolute;
-  left: 0;
-  top: 0;
+.measure-dot {
+  flex: none;
+  font-style: normal;
   color: #2563eb;
   font-size: 10px;
   line-height: 1.6;
@@ -245,7 +244,7 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .trend-fill {
   position: absolute; left: 2px; right: 2px; bottom: 0;
-  border-radius: 3px;
+  border-radius: 3px 3px 0 0;
   background: linear-gradient(180deg, #93c5fd, #60a5fa);
 }
 /* 峰值日：深蓝柱 + 蓝字日期 */
@@ -277,6 +276,8 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 }
 .trend-bar:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
 .trend-day {
+  width: 100%;
+  text-align: center;
   font-size: 9.5px;
   color: #64748b;
   font-variant-numeric: tabular-nums;
