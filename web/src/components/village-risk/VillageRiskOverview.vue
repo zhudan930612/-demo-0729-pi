@@ -6,20 +6,24 @@
     <div v-else-if="snapshotError" class="status-block error" role="status">降水预报数据暂不可用</div>
 
     <template v-else-if="model">
-      <!-- 统计区：高/中风险承保责任卡片（深石墨数据面板） -->
+      <!-- 统计区：单卡两行（高风险/中风险等级行 + 指标 inline） -->
       <section class="stats" aria-label="受灾风险统计">
-        <div class="stat-cards">
-          <div class="stat-card high">
-            <header class="stat-card-head"><i class="stat-dot high" aria-hidden="true"></i>高风险 <b>{{ model.highCount }}</b> 村</header>
-            <div class="stat-metric"><strong>{{ fmtArea(model.highStat.areaMu) }}</strong><span>亩</span></div>
-            <div class="stat-metric"><strong>{{ fmtYuan(model.highStat.sumInsuredYuan) }}</strong></div>
-            <div class="stat-metric"><strong>{{ model.highStat.householdCount }}</strong><span>户</span></div>
+        <div class="stat-panel">
+          <div class="stat-row high">
+            <span class="stat-label"><i class="stat-dot" aria-hidden="true"></i>高风险 <b>{{ model.highCount }}</b> 村</span>
+            <span class="stat-items">
+              <span class="stat-item"><strong>{{ fmtArea(model.highStat.areaMu) }}</strong><em>亩</em></span>
+              <span class="stat-item"><strong>{{ fmtYuan(model.highStat.sumInsuredYuan) }}</strong></span>
+              <span class="stat-item"><strong>{{ model.highStat.householdCount }}</strong><em>户</em></span>
+            </span>
           </div>
-          <div class="stat-card mid">
-            <header class="stat-card-head"><i class="stat-dot mid" aria-hidden="true"></i>中风险 <b>{{ model.midCount }}</b> 村</header>
-            <div class="stat-metric"><strong>{{ fmtArea(model.midStat.areaMu) }}</strong><span>亩</span></div>
-            <div class="stat-metric"><strong>{{ fmtYuan(model.midStat.sumInsuredYuan) }}</strong></div>
-            <div class="stat-metric"><strong>{{ model.midStat.householdCount }}</strong><span>户</span></div>
+          <div class="stat-row mid">
+            <span class="stat-label"><i class="stat-dot" aria-hidden="true"></i>中风险 <b>{{ model.midCount }}</b> 村</span>
+            <span class="stat-items">
+              <span class="stat-item"><strong>{{ fmtArea(model.midStat.areaMu) }}</strong><em>亩</em></span>
+              <span class="stat-item"><strong>{{ fmtYuan(model.midStat.sumInsuredYuan) }}</strong></span>
+              <span class="stat-item"><strong>{{ model.midStat.householdCount }}</strong><em>户</em></span>
+            </span>
           </div>
         </div>
         <p v-if="model.policyAllFailed" class="policy-warn">保单数据暂不可用</p>
@@ -83,24 +87,28 @@ function fmtYuan(yuan: number): string {
 .status-block{margin:4px;padding:10px 8px;border-radius:6px;background:#f8fafc;color:#475569;font-size:11px}
 .status-block.error{color:#b91c1c}
 .stats{margin-bottom:8px}
-.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.stat-card{
+.stat-panel{
   border-radius:8px;
-  padding:8px 10px 7px;
+  overflow:hidden;
   background:#f8fafc;
   border:1px solid #e2e8f0;
-  display:flex;flex-direction:column;gap:4px;
 }
-.stat-card-head{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;margin-bottom:1px}
-.stat-card.high .stat-card-head{color:#b91c1c}
-.stat-card.mid .stat-card-head{color:#ca8a04}
-.stat-card-head b{font-size:10.5px;font-variant-numeric:tabular-nums}
+.stat-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:6px 10px;
+}
+.stat-row + .stat-row{border-top:1px solid #e2e8f0}
+.stat-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;white-space:nowrap}
+.stat-row.high .stat-label{color:#b91c1c}
+.stat-row.mid .stat-label{color:#ca8a04}
+.stat-label b{font-variant-numeric:tabular-nums}
 .stat-dot{width:6px;height:6px;border-radius:50%;flex:none}
-.stat-dot.high{background:#b91c1c}
-.stat-dot.mid{background:#ca8a04}
-.stat-metric{display:flex;align-items:baseline;gap:4px;min-width:0}
-.stat-metric strong{font-size:13px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;line-height:1.25;white-space:nowrap}
-.stat-metric span{font-size:9px;color:#64748b;white-space:nowrap}
+.stat-row.high .stat-dot{background:#b91c1c}
+.stat-row.mid .stat-dot{background:#ca8a04}
+.stat-items{display:inline-flex;align-items:baseline;gap:12px;min-width:0}
+.stat-item{display:inline-flex;align-items:baseline;gap:3px;white-space:nowrap}
+.stat-item strong{font-size:12.5px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;line-height:1.3}
+.stat-item em{font-style:normal;font-size:9px;color:#64748b}
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
 .village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:calc(60vh - 210px);overflow-y:auto}
