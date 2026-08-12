@@ -11,14 +11,14 @@
         <div class="stat-cards">
           <div class="stat-card high">
             <header class="stat-card-head"><i class="stat-dot high" aria-hidden="true"></i>高风险 <b>{{ model.highCount }}</b> 村</header>
-            <div class="stat-metric"><strong>{{ fmtArea(model.highStat.areaMu) }}</strong><span>亩参保面积</span></div>
-            <div class="stat-metric"><strong>{{ fmtYuan(model.highStat.sumInsuredYuan) }}</strong><span>保额</span></div>
+            <div class="stat-metric"><strong>{{ fmtArea(model.highStat.areaMu) }}</strong><span>亩</span></div>
+            <div class="stat-metric"><strong>{{ fmtYuan(model.highStat.sumInsuredYuan) }}</strong></div>
             <div class="stat-metric"><strong>{{ model.highStat.householdCount }}</strong><span>户</span></div>
           </div>
           <div class="stat-card mid">
             <header class="stat-card-head"><i class="stat-dot mid" aria-hidden="true"></i>中风险 <b>{{ model.midCount }}</b> 村</header>
-            <div class="stat-metric"><strong>{{ fmtArea(model.midStat.areaMu) }}</strong><span>亩参保面积</span></div>
-            <div class="stat-metric"><strong>{{ fmtYuan(model.midStat.sumInsuredYuan) }}</strong><span>保额</span></div>
+            <div class="stat-metric"><strong>{{ fmtArea(model.midStat.areaMu) }}</strong><span>亩</span></div>
+            <div class="stat-metric"><strong>{{ fmtYuan(model.midStat.sumInsuredYuan) }}</strong></div>
             <div class="stat-metric"><strong>{{ model.midStat.householdCount }}</strong><span>户</span></div>
           </div>
         </div>
@@ -85,21 +85,22 @@ function fmtYuan(yuan: number): string {
 .stats{margin-bottom:8px}
 .stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .stat-card{
-  border-radius:12px;
-  padding:10px 11px 9px;
-  background:#0f172a;
-  color:#f8fafc;
-  box-shadow:0 4px 14px rgba(15,23,42,0.16),0 1px 2px rgba(15,23,42,0.1);
-  display:flex;flex-direction:column;gap:5px;
+  border-radius:10px;
+  padding:9px 11px 8px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  display:flex;flex-direction:column;gap:4px;
 }
-.stat-card-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#cbd5e1}
-.stat-card-head b{font-size:12px;color:#fff;font-variant-numeric:tabular-nums}
-.stat-dot{width:7px;height:7px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,0.12)}
-.stat-dot.high{background:#f87171}
-.stat-dot.mid{background:#facc15}
+.stat-card-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-bottom:3px}
+.stat-card.high .stat-card-head{color:#b91c1c}
+.stat-card.mid .stat-card-head{color:#ca8a04}
+.stat-card-head b{font-size:12px;font-variant-numeric:tabular-nums}
+.stat-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.stat-dot.high{background:#b91c1c}
+.stat-dot.mid{background:#ca8a04}
 .stat-metric{display:flex;align-items:baseline;gap:6px;min-width:0}
-.stat-metric strong{font-size:17px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1.15;white-space:nowrap}
-.stat-metric span{font-size:9.5px;color:#94a3b8;white-space:nowrap}
+.stat-metric strong{font-size:16px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;line-height:1.15;white-space:nowrap}
+.stat-metric span{font-size:9.5px;color:#64748b;white-space:nowrap}
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
 .village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:calc(60vh - 210px);overflow-y:auto}
