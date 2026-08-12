@@ -1942,7 +1942,7 @@ onMounted(async () => {
     },
   )
   map.on('click', (event) => {
-    if (villageCard.value) closeVillageCard()
+    // 点地图空白不自动关闭风险详情/不切列表（用户确认）；详情用返回/Esc 关闭
     if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
