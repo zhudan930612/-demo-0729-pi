@@ -1,7 +1,7 @@
 <template>
   <div class="typhoon-body" :class="{ 'timeline-open': timelineOpen }">
-    <div v-if="phase === 'loading-live' || phase === 'error'" class="transient-status" :class="phase" role="status" aria-live="polite">
-      {{ phase === 'loading-live' ? '台风数据加载中…' : '台风数据加载异常' }}
+    <div v-if="phase !== 'ready'" class="transient-status" :class="phase" role="status" aria-live="polite">
+      {{ phase === 'error' ? '台风数据加载异常' : '台风数据加载中…' }}
     </div>
 
     <div v-if="model.displayedCount" class="panel-scroll">
