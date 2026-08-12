@@ -55,6 +55,7 @@
       <!-- 底部署名 -->
       <footer class="risk-footer">
         <p v-if="model.updatedAt">数据时间 {{ model.updatedAt }}</p>
+        <p>台风按上游预报覆盖时长评估（约 72h）</p>
       </footer>
     </template>
   </div>
