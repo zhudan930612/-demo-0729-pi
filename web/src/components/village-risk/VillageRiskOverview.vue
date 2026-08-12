@@ -85,22 +85,22 @@ function fmtYuan(yuan: number): string {
 .stats{margin-bottom:8px}
 .stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .stat-card{
-  border-radius:10px;
-  padding:9px 11px 8px;
+  border-radius:8px;
+  padding:8px 10px 7px;
   background:#f8fafc;
   border:1px solid #e2e8f0;
   display:flex;flex-direction:column;gap:4px;
 }
-.stat-card-head{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;margin-bottom:3px}
+.stat-card-head{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;margin-bottom:1px}
 .stat-card.high .stat-card-head{color:#b91c1c}
 .stat-card.mid .stat-card-head{color:#ca8a04}
-.stat-card-head b{font-size:12px;font-variant-numeric:tabular-nums}
-.stat-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.stat-card-head b{font-size:10.5px;font-variant-numeric:tabular-nums}
+.stat-dot{width:6px;height:6px;border-radius:50%;flex:none}
 .stat-dot.high{background:#b91c1c}
 .stat-dot.mid{background:#ca8a04}
-.stat-metric{display:flex;align-items:baseline;gap:6px;min-width:0}
-.stat-metric strong{font-size:16px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;line-height:1.15;white-space:nowrap}
-.stat-metric span{font-size:9.5px;color:#64748b;white-space:nowrap}
+.stat-metric{display:flex;align-items:baseline;gap:4px;min-width:0}
+.stat-metric strong{font-size:13px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;line-height:1.25;white-space:nowrap}
+.stat-metric span{font-size:9px;color:#64748b;white-space:nowrap}
 .policy-warn{margin:3px 0 0;color:#b45309;font-size:10.5px}
 .section-title{margin:0 0 6px;font-size:11px;color:#2563eb}
 .village-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-height:calc(60vh - 210px);overflow-y:auto}
