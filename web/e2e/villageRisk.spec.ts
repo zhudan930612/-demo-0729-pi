@@ -265,6 +265,17 @@ test('降雨量共用面板风险 tab：统计/列表/下钻详情/村级收起/
   await expect(page.locator('.trend-bar-col.active .trend-fill').first()).toBeVisible()
   await page.locator('.trend-bar').first().hover()
   await expect(page.locator('.trend-tip').first()).toBeVisible()
+  await expect(page.locator('.trend-tip').first()).toContainText('mm')
+  // 柱高与数值对应：全局刻度归一，最高柱=100%，hover 数值/全局最大×100 ≈ 柱高
+  const barCheck = await page.evaluate(() => {
+    const fills = Array.from(document.querySelectorAll('.trend-fill'))
+    const tips = Array.from(document.querySelectorAll('.trend-tip'))
+    const heights = fills.map((el) => parseFloat((el as HTMLElement).style.height || '0'))
+    const values = tips.map((el) => parseFloat((el.textContent || '').match(/([\d.]+)mm/)?.[1] || '0'))
+    const globalMax = Math.max(...values, 0.1)
+    return heights.every((h, i) => Math.abs(h - Math.max(2, (values[i] / globalMax) * 100)) < 0.6)
+  })
+  expect(barCheck).toBe(true)
   // 关闭详情 → 回列表 + 村级默认收起为 tab 条
   await page.keyboard.press('Escape')
   await expect(page.locator('.village-risk-card')).toHaveCount(0)

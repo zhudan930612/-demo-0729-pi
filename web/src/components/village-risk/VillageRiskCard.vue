@@ -87,8 +87,9 @@ function shortDay(index: number): string {
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : `D${index + 1}`
 }
 function barHeight(stat: VillageDayStat): string {
-  const max = Math.max(stat.max, 0.1)
-  return `${Math.max(2, Math.min(100, (stat.mean / max) * 100))}%`
+  // 全局统一刻度：柱高 = 当日累计 / 7 天最大累计 × 100%（数值与柱高严格对应）
+  const globalMax = Math.max(0.1, ...(props.model?.trend?.stats ?? []).map((s) => s.mean))
+  return `${Math.max(2, Math.min(100, (stat.mean / globalMax) * 100))}%`
 }
 function trendTitle(index: number, stat: VillageDayStat): string {
   return `${shortDay(index)} 累计 ${stat.mean.toFixed(1)}mm`
@@ -104,7 +105,9 @@ function trendTitle(index: number, stat: VillageDayStat): string {
   line-height: 1.5;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
+  scrollbar-width: none;
 }
+.village-risk-card::-webkit-scrollbar { display: none; }
 
 /* ---- 头部：返回 + 村名 + 等级徽标（蓝底白字） ---- */
 .card-header {
@@ -235,7 +238,7 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .trend-chevron { transition: transform 0.18s ease; font-size: 10px; color: #2563eb; }
 .trend-chevron.open { transform: rotate(90deg); }
 .trend-body { margin-top: 10px; }
-.trend-bars { display: flex; gap: 8px; align-items: flex-end; overflow-x: hidden; }
+.trend-bars { display: flex; gap: 8px; align-items: flex-end; }
 .trend-bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .trend-bar {
   position: relative;
