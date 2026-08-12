@@ -28,7 +28,7 @@
       <!-- 防灾措施 -->
       <section class="measures">
         <span class="section-kicker">防灾措施</span>
-        <span class="stage-label">当前阶段：{{ model.stageLabel }}</span>
+        <span class="stage-chip" :class="{ dormant: model.dormant }">当前阶段：{{ model.stageLabel }}</span>
         <span v-if="model.stageNote" class="stage-note">{{ model.stageNote }}</span>
         <ul>
           <li v-for="item in model.measures" :key="item">{{ item }}</li>
@@ -188,12 +188,24 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .policy .policy-line.unavailable { color: #b45309; }
 
 /* ---- 防灾措施 ---- */
-.stage-label {
-  display: block;
-  margin-bottom: 4px;
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  margin: 1px 0 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
   font-size: 11px;
-  color: #475569;
   font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+.stage-chip.dormant {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
 }
 .measures ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .measures li {
