@@ -29,7 +29,10 @@ const base = {
 }
 
 function summary(): VillagePolicySummary {
-  return { code: '330604102016', insuredAreaMu: 580, sumInsuredYuan: 720_000, householdCount: 64, policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60 }
+  return {
+    code: '330604102016', insuredAreaMu: 580, sumInsuredYuan: 720_000, householdCount: 64, policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60,
+    product: '政策性水稻完全成本保险', crop: '水稻', unitSumInsuredYuanPerMu: 1250, premiumRate: 0.032, periodStart: '2025-05-01', periodEnd: '2025-11-30', inForce: true,
+  }
 }
 
 describe('buildVillageRiskCardModel 卡片模型', () => {
@@ -93,7 +96,12 @@ describe('buildVillageRiskCardModel 卡片模型', () => {
 
   it('保单概况：保单数 / 大户保单 + 清单户', () => {
     const model = buildVillageRiskCardModel({ ...base, policy: summary(), snapshot: null, covered: [], result: result() })
-    expect(model.policy).toEqual({ policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60 })
+    expect(model.policy).toEqual({
+      policyCount: 5, bigHolderPolicyCount: 4, rosterHouseholdCount: 60,
+      insuredAreaMu: 580, sumInsuredYuan: 720_000, householdCount: 64,
+      product: '政策性水稻完全成本保险', crop: '水稻', unitSumInsuredYuanPerMu: 1250, premiumRate: 0.032,
+      periodStart: '2025-05-01', periodEnd: '2025-11-30', inForce: true,
+    })
   })
 
   it('保单数据不可用：policy 为 null（组件显示不可用）', () => {

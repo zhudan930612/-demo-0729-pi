@@ -18,6 +18,14 @@ export interface VillagePolicySummary {
   policyCount: number
   bigHolderPolicyCount: number
   rosterHouseholdCount: number
+  // 保障参数（v3.12：多行信息块）
+  product: string | null
+  crop: string | null
+  unitSumInsuredYuanPerMu: number
+  premiumRate: number
+  periodStart: string | null
+  periodEnd: string | null
+  inForce: boolean
 }
 
 /** 村码 → 保单 fixture URL（龙江村沿用 policy-v1.json，其余带村码）。 */
@@ -42,6 +50,11 @@ interface RawPolicy {
   unitSumInsuredCentsPerMu?: unknown
   status?: unknown
   insuredMode?: unknown
+  product?: unknown
+  insuredObject?: unknown
+  premiumRate?: unknown
+  periodStart?: unknown
+  periodEnd?: unknown
 }
 export interface RawFixture {
   policies?: RawPolicy[]
@@ -94,6 +107,14 @@ export function summarizePolicyFixture(fixture: RawFixture): Omit<VillagePolicyS
     policyCount: activePolicies.length,
     bigHolderPolicyCount: activePolicies.filter((policy) => String(policy.insuredMode ?? '') === 'single_insured').length,
     rosterHouseholdCount: rosterHouseholdIds.size,
+    // 保障参数取首张保障中保单（同村保单参数一致）；无保障中保单时取最后一张保单并标记 inForce=false
+    product: activePolicies[0]?.product != null ? String(activePolicies[0].product) : null,
+    crop: activePolicies[0]?.insuredObject != null ? String(activePolicies[0].insuredObject) : null,
+    unitSumInsuredYuanPerMu: Math.round(finiteNumber(activePolicies[0]?.unitSumInsuredCentsPerMu ?? (fixture.policies?.[fixture.policies.length - 1]?.unitSumInsuredCentsPerMu ?? 0)) / 100),
+    premiumRate: finiteNumber(activePolicies[0]?.premiumRate ?? fixture.policies?.[fixture.policies.length - 1]?.premiumRate),
+    periodStart: activePolicies[0]?.periodStart != null ? String(activePolicies[0].periodStart) : null,
+    periodEnd: activePolicies[0]?.periodEnd != null ? String(activePolicies[0].periodEnd) : null,
+    inForce: activePolicies.length > 0,
   }
 }
 
@@ -112,7 +133,7 @@ export async function loadPolicySummaries(options: PolicySummaryLoadOptions = {}
       const fixture = (await response.json()) as RawFixture
       results.set(code, { code, ...summarizePolicyFixture(fixture) })
     } catch {
-      results.set(code, { code, insuredAreaMu: 0, sumInsuredYuan: 0, householdCount: 0, policyCount: 0, bigHolderPolicyCount: 0, rosterHouseholdCount: 0 })
+      results.set(code, { code, insuredAreaMu: 0, sumInsuredYuan: 0, householdCount: 0, policyCount: 0, bigHolderPolicyCount: 0, rosterHouseholdCount: 0, product: null, crop: null, unitSumInsuredYuanPerMu: 0, premiumRate: 0, periodStart: null, periodEnd: null, inForce: false })
     }
   }))
   return results

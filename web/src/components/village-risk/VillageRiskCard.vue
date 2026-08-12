@@ -18,10 +18,20 @@
         </dl>
       </section>
 
-      <!-- 保单概况：仅保单结构（承保概况不重复） -->
+      <!-- 保单概况（多行信息块：承保概况 + 保障参数 + 保障期 + 保单结构） -->
       <section class="policy">
         <span class="section-kicker">保单概况</span>
-        <p v-if="model.policy" class="policy-line">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
+        <template v-if="model.policy">
+          <p class="policy-line strong">{{ fmtArea(model.policy.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(model.policy.sumInsuredYuan) }} · {{ model.policy.householdCount }} 户</p>
+          <p v-if="model.policy.product || model.policy.unitSumInsuredYuanPerMu" class="policy-line">
+            {{ [model.policy.product, model.policy.unitSumInsuredYuanPerMu ? `每亩保额 ¥${model.policy.unitSumInsuredYuanPerMu.toLocaleString('zh-CN')}` : '', model.policy.premiumRate ? `费率 ${(model.policy.premiumRate * 100).toFixed(1)}%` : ''].filter(Boolean).join(' · ') }}
+          </p>
+          <p v-if="model.policy.periodStart || model.policy.inForce" class="policy-period">
+            <span class="period-badge" :class="{ active: model.policy.inForce }">{{ model.policy.inForce ? '保障中' : '已到期' }}</span>
+            <span v-if="model.policy.periodStart" class="period-range">{{ model.policy.periodStart }} ~ {{ model.policy.periodEnd }}</span>
+          </p>
+          <p class="policy-meta">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
+        </template>
         <p v-else class="policy-line unavailable">保单数据暂不可用</p>
       </section>
 
@@ -89,6 +99,13 @@ function barHeight(stat: VillageDayStat): string {
 }
 function trendTitle(_index: number, stat: VillageDayStat): string {
   return `累计 ${stat.mean.toFixed(1)}mm`
+}
+function fmtArea(mu: number): string {
+  return mu.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+}
+function fmtYuan(yuan: number): string {
+  if (yuan >= 10_000) return `¥${(yuan / 10_000).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}万`
+  return `¥${yuan.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`
 }
 </script>
 
@@ -182,9 +199,44 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 
 /* ---- 保单概况 ---- */
 .policy .policy-line {
-  margin: 1px 0 0;
+  margin: 2px 0 0;
   color: #334155;
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+.policy .policy-line.strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+.policy-period {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 5px 0 0;
+  line-height: 1.4;
+}
+.period-badge {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 600;
+}
+.period-badge.active { background: #dcfce7; border-color: #86efac; color: #166534; }
+.period-badge:not(.active) { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+.period-range {
+  font-size: 11px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.policy-meta {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
   font-variant-numeric: tabular-nums;
 }
 .policy .policy-line.unavailable { color: #b45309; }

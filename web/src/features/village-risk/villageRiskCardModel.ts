@@ -20,7 +20,21 @@ export interface VillageRiskCardModel {
   levelText: string
   signalRows: string[]
   unavailableRows: string[]
-  policy: { policyCount: number; bigHolderPolicyCount: number; rosterHouseholdCount: number } | null
+  policy: {
+    policyCount: number
+    bigHolderPolicyCount: number
+    rosterHouseholdCount: number
+    insuredAreaMu: number
+    sumInsuredYuan: number
+    householdCount: number
+    product: string | null
+    crop: string | null
+    unitSumInsuredYuanPerMu: number
+    premiumRate: number
+    periodStart: string | null
+    periodEnd: string | null
+    inForce: boolean
+  } | null
   stageLabel: string
   stageNote: string | null
   measures: string[]
@@ -140,6 +154,16 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
           policyCount: input.policy.policyCount,
           bigHolderPolicyCount: input.policy.bigHolderPolicyCount,
           rosterHouseholdCount: input.policy.rosterHouseholdCount,
+          insuredAreaMu: input.policy.insuredAreaMu,
+          sumInsuredYuan: input.policy.sumInsuredYuan,
+          householdCount: input.policy.householdCount,
+          product: input.policy.product,
+          crop: input.policy.crop,
+          unitSumInsuredYuanPerMu: input.policy.unitSumInsuredYuanPerMu,
+          premiumRate: input.policy.premiumRate,
+          periodStart: input.policy.periodStart,
+          periodEnd: input.policy.periodEnd,
+          inForce: input.policy.inForce,
         }
       : null,
     stageLabel: measures.stageLabel,
