@@ -49,7 +49,7 @@ export function readServerConfig(env = process.env) {
     upstreamConcurrency: positiveInteger(env.APIHZ_UPSTREAM_CONCURRENCY, 6),
     cacheTtlMs: positiveInteger(env.APIHZ_CACHE_TTL_MS, 30_000),
     cacheMaxEntries: positiveInteger(env.APIHZ_CACHE_MAX_ENTRIES, 128),
-    rateLimitPerMinute: positiveInteger(env.APIHZ_RATE_LIMIT_PER_MINUTE, 60),
+    rateLimitPerMinute: positiveInteger(env.APIHZ_RATE_LIMIT_PER_MINUTE, 600),
     rateLimitMaxClients: positiveInteger(env.APIHZ_RATE_LIMIT_MAX_CLIENTS, 2048),
     weather: {
       authMode: env.QWEATHER_AUTH_MODE || 'api-key',
