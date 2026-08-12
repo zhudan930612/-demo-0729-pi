@@ -42,7 +42,7 @@
         <div v-show="trendOpen" :id="trendId" class="trend-body">
           <div class="trend-bars">
             <div v-for="(stat, index) in model.trend?.stats ?? []" :key="index" class="trend-bar-col" :class="{ active: index === model.trend?.dayIndex }">
-              <div class="trend-bar" :title="trendTitle(index, stat)">
+              <div class="trend-bar">
                 <i class="trend-fill" :style="{ height: barHeight(stat) }"></i>
                 <span class="trend-tip" role="tooltip">{{ trendTitle(index, stat) }}</span>
               </div>
@@ -91,8 +91,8 @@ function barHeight(stat: VillageDayStat): string {
   const globalMax = Math.max(0.1, ...(props.model?.trend?.stats ?? []).map((s) => s.mean))
   return `${Math.max(2, Math.min(100, (stat.mean / globalMax) * 100))}%`
 }
-function trendTitle(index: number, stat: VillageDayStat): string {
-  return `${shortDay(index)} 累计 ${stat.mean.toFixed(1)}mm`
+function trendTitle(_index: number, stat: VillageDayStat): string {
+  return `累计 ${stat.mean.toFixed(1)}mm`
 }
 </script>
 
