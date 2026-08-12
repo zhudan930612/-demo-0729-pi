@@ -27,8 +27,10 @@
 
       <!-- 防灾措施 -->
       <section class="measures">
-        <span class="section-kicker">防灾措施</span>
-        <span class="stage-chip" :class="{ dormant: model.dormant }">当前阶段：{{ model.stageLabel }}</span>
+        <div class="measures-head">
+          <span class="section-kicker">防灾措施</span>
+          <span class="stage-chip" :class="{ dormant: model.dormant }">当前阶段：{{ model.stageLabel }}</span>
+        </div>
         <span v-if="model.stageNote" class="stage-note">{{ model.stageNote }}</span>
         <ul>
           <li v-for="item in model.measures" :key="item"><i class="measure-dot" aria-hidden="true">▸</i><span>{{ item }}</span></li>
@@ -188,10 +190,22 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
 .policy .policy-line.unavailable { color: #b45309; }
 
 /* ---- 防灾措施 ---- */
+.measures-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.measures .section-kicker { margin-bottom: 0; }
 .stage-chip {
   display: inline-flex;
   align-items: center;
-  margin: 1px 0 8px; /* 与 kicker/▸ 图标同列，无台阶 */
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 3px 10px;
   border-radius: 999px;
   background: #eff6ff;
