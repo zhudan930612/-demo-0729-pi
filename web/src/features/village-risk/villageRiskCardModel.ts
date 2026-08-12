@@ -5,7 +5,7 @@ import { RISK_LEVEL_TEXT } from './villageRisk'
 import { coveredDayValues, villageDayStats } from './villageRisk'
 import { measuresFor, type TyphoonScenario } from './cropCycle'
 import type { VillageRiskResult } from './villageRiskData'
-import type { VillagePolicySummary } from './villagePolicySummary'
+import type { PolicyGroupStat, VillagePolicySummary } from './villagePolicySummary'
 
 /**
  * 参保村风险卡片 —— view-model 构建（需求 §4.5）
@@ -27,10 +27,8 @@ export interface VillageRiskCardModel {
     insuredAreaMu: number
     sumInsuredYuan: number
     householdCount: number
-    product: string | null
-    crop: string | null
-    unitSumInsuredYuanPerMu: number
-    premiumRate: number
+    bigHolderStat: PolicyGroupStat
+    rosterStat: PolicyGroupStat
     periodStart: string | null
     periodEnd: string | null
     inForce: boolean
@@ -157,10 +155,8 @@ export function buildVillageRiskCardModel(input: VillageRiskCardInput): VillageR
           insuredAreaMu: input.policy.insuredAreaMu,
           sumInsuredYuan: input.policy.sumInsuredYuan,
           householdCount: input.policy.householdCount,
-          product: input.policy.product,
-          crop: input.policy.crop,
-          unitSumInsuredYuanPerMu: input.policy.unitSumInsuredYuanPerMu,
-          premiumRate: input.policy.premiumRate,
+          bigHolderStat: input.policy.bigHolderStat,
+          rosterStat: input.policy.rosterStat,
           periodStart: input.policy.periodStart,
           periodEnd: input.policy.periodEnd,
           inForce: input.policy.inForce,

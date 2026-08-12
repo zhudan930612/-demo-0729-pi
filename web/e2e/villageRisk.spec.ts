@@ -122,9 +122,14 @@ test('点击风险标记：下钻村级 + 右上面板显示该村风险详情�
   await expect(page.locator('.village-risk-card')).toContainText('连续 3 日累计')
   await expect(page.locator('.village-risk-card .measures li').first()).toBeVisible()
   await expect(page.locator('.village-risk-card')).toContainText('防灾措施')
-  // 保单概况：仅保单结构
+  // 保单概况：承保概况 + 大户/团单结构表格 + 保障期
   await expect(page.locator('.village-risk-card')).toContainText('保单概况')
-  await expect(page.locator('.village-risk-card')).toContainText('保单 5 · 大户保单')
+  await expect(page.locator('.village-risk-card')).toContainText('亩 · 保额')
+  await expect(page.locator('.village-risk-card')).toContainText('类型')
+  await expect(page.locator('.village-risk-card')).toContainText('承保户数')
+  await expect(page.locator('.village-risk-card')).toContainText('大户')
+  await expect(page.locator('.village-risk-card')).toContainText('团单')
+  await expect(page.locator('.village-risk-card')).toContainText('保障中')
   // 三源齐全（v3.11 自动补拉）：台风/预警数据已加载（mock 接口返回），无不可用行
   await expect(page.locator('.village-risk-card')).not.toContainText('台风数据暂不可用')
   await expect(page.locator('.village-risk-card')).not.toContainText('预警数据暂不可用')

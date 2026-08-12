@@ -18,7 +18,7 @@ function result(level: number, peakMm: number, peakDayIndex: number): VillageRis
 }
 
 function summary(area: number, sumInsured: number, households: number): VillagePolicySummary {
-  return { code: 'x', insuredAreaMu: area, sumInsuredYuan: sumInsured, householdCount: households, policyCount: 1, bigHolderPolicyCount: 1, rosterHouseholdCount: households, product: null, crop: null, unitSumInsuredYuanPerMu: 0, premiumRate: 0, periodStart: null, periodEnd: null, inForce: true }
+  return { code: 'x', insuredAreaMu: area, sumInsuredYuan: sumInsured, householdCount: households, policyCount: 1, bigHolderPolicyCount: 1, rosterHouseholdCount: households, bigHolderStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 }, rosterStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 }, periodStart: null, periodEnd: null, inForce: true }
 }
 
 function build(villages: Array<{ code: string; name: string; result: VillageRiskResult }>, policies: Map<string, VillagePolicySummary>) {

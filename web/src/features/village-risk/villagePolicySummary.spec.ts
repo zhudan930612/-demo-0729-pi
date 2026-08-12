@@ -42,28 +42,30 @@ describe('summarizePolicyFixture 敞口汇总（仅保障中）', () => {
     expect(summary.bigHolderPolicyCount).toBe(1) // 仅 single_insured 的 policy-1
     expect(summary.rosterHouseholdCount).toBe(2) // enrollmentItems 去重 {a, c}
   })
-  it('保障参数与保障期：取首张保障中保单，inForce=true', () => {
+  it('大户/团单分类统计与保障期：按 insuredMode 归属覆盖', () => {
     const summary = summarizePolicyFixture(makeFixture())
-    expect(summary.product).toBe('政策性水稻完全成本保险')
-    expect(summary.crop).toBe('水稻')
-    expect(summary.unitSumInsuredYuanPerMu).toBe(40) // 4000 分 / 100
-    expect(summary.premiumRate).toBe(0.032)
+    // policy-1(single_insured) 覆盖：100 + 25.5 = 125.5 亩，保额 125.5×4000=502000 分=5020 元，户数 {a}
+    expect(summary.bigHolderStat).toEqual({ householdCount: 1, insuredAreaMu: 125.5, sumInsuredYuan: 5020 })
+    // policy-2(insured_roster) 覆盖：50 亩，50×5000=250000 分=2500 元，覆盖户 {b} + 清单户 {a, c}
+    expect(summary.rosterStat.insuredAreaMu).toBe(50)
+    expect(summary.rosterStat.sumInsuredYuan).toBe(2500)
+    expect(summary.rosterStat.householdCount).toBe(3) // {b} ∪ 清单 {a, c}
     expect(summary.periodStart).toBe('2025-05-01')
     expect(summary.periodEnd).toBe('2025-11-30')
     expect(summary.inForce).toBe(true)
   })
-  it('无保障中保单：inForce=false，保障参数取最后一张保单', () => {
+  it('无保障中保单：inForce=false', () => {
     const summary = summarizePolicyFixture(makeFixture({
-      policies: [{ id: 'p-old', unitSumInsuredCentsPerMu: 8000, status: '已到期', premiumRate: 0.03, periodStart: '2024-05-01', periodEnd: '2024-11-30' }],
+      policies: [{ id: 'p-old', unitSumInsuredCentsPerMu: 8000, status: '已到期', periodStart: '2024-05-01', periodEnd: '2024-11-30' }],
     }))
     expect(summary.inForce).toBe(false)
-    expect(summary.unitSumInsuredYuanPerMu).toBe(80)
-    expect(summary.premiumRate).toBe(0.03)
   })
   it('空 fixture 全 0 不报错', () => {
     expect(summarizePolicyFixture({})).toEqual({
       insuredAreaMu: 0, sumInsuredYuan: 0, householdCount: 0, policyCount: 0, bigHolderPolicyCount: 0, rosterHouseholdCount: 0,
-      product: null, crop: null, unitSumInsuredYuanPerMu: 0, premiumRate: 0, periodStart: null, periodEnd: null, inForce: false,
+      bigHolderStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 },
+      rosterStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 },
+      periodStart: null, periodEnd: null, inForce: false,
     })
   })
   it('字符串/缺失字段容错', () => {
@@ -105,7 +107,9 @@ describe('loadPolicySummaries 并行加载', () => {
     const result = await loadPolicySummaries({ fetchImpl: fetchImpl as unknown as typeof fetch })
     expect(result.get('330604102014')).toEqual({
       code: '330604102014', insuredAreaMu: 0, sumInsuredYuan: 0, householdCount: 0, policyCount: 0, bigHolderPolicyCount: 0, rosterHouseholdCount: 0,
-      product: null, crop: null, unitSumInsuredYuanPerMu: 0, premiumRate: 0, periodStart: null, periodEnd: null, inForce: false,
+      bigHolderStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 },
+      rosterStat: { householdCount: 0, insuredAreaMu: 0, sumInsuredYuan: 0 },
+      periodStart: null, periodEnd: null, inForce: false,
     })
     expect(result.get('330604102016')?.insuredAreaMu).toBe(5)
   })

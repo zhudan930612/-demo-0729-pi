@@ -18,19 +18,20 @@
         </dl>
       </section>
 
-      <!-- 保单概况（多行信息块：承保概况 + 保障参数 + 保障期 + 保单结构） -->
+      <!-- 保单概况（承保概况 + 保单结构表格 + 保障期） -->
       <section class="policy">
         <span class="section-kicker">保单概况</span>
         <template v-if="model.policy">
           <p class="policy-line strong">{{ fmtArea(model.policy.insuredAreaMu) }} 亩 · 保额 {{ fmtYuan(model.policy.sumInsuredYuan) }} · {{ model.policy.householdCount }} 户</p>
-          <p v-if="model.policy.product || model.policy.unitSumInsuredYuanPerMu" class="policy-line">
-            {{ [model.policy.product, model.policy.unitSumInsuredYuanPerMu ? `每亩保额 ¥${model.policy.unitSumInsuredYuanPerMu.toLocaleString('zh-CN')}` : '', model.policy.premiumRate ? `费率 ${(model.policy.premiumRate * 100).toFixed(1)}%` : ''].filter(Boolean).join(' · ') }}
-          </p>
+          <div class="policy-table" role="table" aria-label="保单结构">
+            <div class="pt-head" role="row"><span>类型</span><span>承保户数(户)</span><span>承保面积(万亩)</span><span>承保金额(万元)</span></div>
+            <div class="pt-row" role="row"><span>大户</span><span>{{ model.policy.bigHolderStat.householdCount }}</span><span>{{ fmtWanMu(model.policy.bigHolderStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.bigHolderStat.sumInsuredYuan) }}</span></div>
+            <div class="pt-row roster" role="row"><span>团单</span><span>{{ model.policy.rosterStat.householdCount }}</span><span>{{ fmtWanMu(model.policy.rosterStat.insuredAreaMu) }}</span><span>{{ fmtWanYuan(model.policy.rosterStat.sumInsuredYuan) }}</span></div>
+          </div>
           <p v-if="model.policy.periodStart || model.policy.inForce" class="policy-period">
             <span class="period-badge" :class="{ active: model.policy.inForce }">{{ model.policy.inForce ? '保障中' : '已到期' }}</span>
             <span v-if="model.policy.periodStart" class="period-range">{{ model.policy.periodStart }} ~ {{ model.policy.periodEnd }}</span>
           </p>
-          <p class="policy-meta">保单 {{ model.policy.policyCount }} · 大户保单 {{ model.policy.bigHolderPolicyCount }} + 清单户 {{ model.policy.rosterHouseholdCount }}</p>
         </template>
         <p v-else class="policy-line unavailable">保单数据暂不可用</p>
       </section>
@@ -106,6 +107,12 @@ function fmtArea(mu: number): string {
 function fmtYuan(yuan: number): string {
   if (yuan >= 10_000) return `¥${(yuan / 10_000).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}万`
   return `¥${yuan.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}`
+}
+function fmtWanMu(mu: number): string {
+  return (mu / 10_000).toFixed(2)
+}
+function fmtWanYuan(yuan: number): string {
+  return (yuan / 10_000).toFixed(2)
 }
 </script>
 
@@ -213,31 +220,44 @@ section + section { border-top: 1px solid rgba(148, 163, 184, 0.22); }
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 5px 0 0;
+  margin: 7px 0 0;
   line-height: 1.4;
 }
 .period-badge {
   flex: none;
   padding: 1px 8px;
   border-radius: 999px;
-  background: #dcfce7;
-  border: 1px solid #86efac;
-  color: #166534;
   font-size: 10px;
   font-weight: 600;
 }
-.period-badge.active { background: #dcfce7; border-color: #86efac; color: #166534; }
-.period-badge:not(.active) { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+.period-badge.active { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
+.period-badge:not(.active) { background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; }
 .period-range {
   font-size: 11px;
   color: #64748b;
   font-variant-numeric: tabular-nums;
 }
-.policy-meta {
-  margin: 5px 0 0;
+/* 保单结构表格（参考图：深蓝底白字，团单行斜纹） */
+.policy-table {
+  margin-top: 7px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e3a5f;
+  color: #f8fafc;
   font-size: 11px;
-  color: #94a3b8;
   font-variant-numeric: tabular-nums;
+}
+.policy-table > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr 1.3fr;
+  align-items: center;
+}
+.policy-table > div > span { padding: 5px 8px; text-align: right; white-space: nowrap; }
+.policy-table > div > span:first-child { text-align: left; }
+.pt-head { background: rgba(255, 255, 255, 0.1); font-weight: 600; color: #dbeafe; }
+.pt-row { border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.pt-row.roster {
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 6px, transparent 6px 12px);
 }
 .policy .policy-line.unavailable { color: #b45309; }
 
