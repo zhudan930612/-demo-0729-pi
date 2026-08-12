@@ -1478,8 +1478,8 @@ async function enterTyphoonMode() {
     enterRepository: () => {
       pendingNoFly = false
       fittedTyphoonSessionId = null
-      // 方案 B：降水活动时台风进入不抢相机（不设 z=4.5，保持降水全省视角）
-      if (!precipitationStore.isOpen) map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
+      // 台风视角优先：降水叠加时进入台风也切台风初始视野（用户 2026-08-11 确认）
+      map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
       void typhoonRepository.enter()
     },
     rollback: rollbackTyphoonMode,
@@ -1836,8 +1836,8 @@ watch(() => ({
     visibleObservationCountByTyphoon: state.visibleCounts,
   }))
   if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
-    // 方案 B：降水活动时台风不自动居中，也不标记已 fitted（退出降水后可恢复）
-    if (!precipitationStore.isOpen && typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
+    // 台风视角优先：降水叠加时进入台风也切台风路径视野（用户 2026-08-11 确认）
+    if (typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
       fittedTyphoonSessionId = state.sessionId
     }
   }
