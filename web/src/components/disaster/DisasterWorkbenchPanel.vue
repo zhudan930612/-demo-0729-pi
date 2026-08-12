@@ -72,7 +72,7 @@ const workbenchLabel = computed(() => (props.collapsed ? '灾害风险工作台�
 
 <style scoped>
 .disaster-workbench{
-  position:absolute;top:12px;right:12px;z-index:1000;width:390px;max-width:calc(100% - 24px);
+  position:absolute;top:12px;right:12px;z-index:1020;width:390px;max-width:calc(100% - 24px);
   max-height:calc(100% - 24px);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;
   border:5px solid #2563eb;border-radius:10px;background:#2563eb;box-shadow:0 7px 22px rgba(15,23,42,.24);color:#0f172a;
 }
