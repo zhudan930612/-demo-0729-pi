@@ -40,7 +40,8 @@
 ```bash
 pnpm --dir web test
 pnpm --dir web build
-pnpm --dir server test              # 修改台风代理时
+pnpm --dir web test:e2e             # 修改前端交互/共用面板/下钻时（跑前先清理 8790/4173 残留端口）
+pnpm --dir server test              # 修改 server（台风代理/预警/限流）时
 python scripts/validate-data.py     # 修改数据脚本或层级链路时
 python scripts/check-codes.py       # 修改编码归属逻辑时
 git diff --check
