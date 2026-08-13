@@ -6,7 +6,6 @@
 
     <div v-else-if="realtimeCount === 0" class="empty-typhoon" role="status">
       <p class="empty-title">当前无活跃台风</p>
-      <p class="empty-desc">台风数据已正常返回（本年 {{ realtimeCount }} 个活跃台风）；可点击左下角"查看当年台风"查看历史台风路径。</p>
     </div>
 
     <div v-else-if="model.displayedCount" class="panel-scroll">

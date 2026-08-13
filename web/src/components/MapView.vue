@@ -5,7 +5,10 @@
     <NationalAlarmPanel v-if="nationalAlarmsActive" :phase="nationalAlarmStore.phase" :snapshot="nationalAlarmStore.snapshot" :selection="nationalAlarmStore.selection" :error-message="nationalAlarmStore.errorMessage" @refresh="refreshNationalAlarms" @close="exitNationalAlarms" @select="selectNationalAlarmFromList" />
     <NationalAlarmPopup v-if="nationalAlarmsActive && selectedNationalAlarm && nationalAlarmStore.selection?.source==='map'" :alarm="selectedNationalAlarm" :detail="nationalAlarmStore.detail" :x="nationalAlarmPopupPosition.x" :y="nationalAlarmPopupPosition.y" @close="nationalAlarmStore.select(null)" @retry="retryNationalAlarmDetail" />
     <div v-if="nationalAlarmMapNotice" class="save-notice national-alarm-map-notice" role="status">{{ nationalAlarmMapNotice }}</div>
-    <div v-if="disasterActive && typhoonStore.hasNoActiveTyphoon" class="typhoon-empty-notice" role="status">当前无活跃台风，台风数据已正常返回——可查看当年历史台风</div>
+    <div v-if="disasterActive && typhoonStore.hasNoActiveTyphoon" class="typhoon-empty-notice" role="status">
+      <strong class="notice-title">当前无活跃台风</strong>
+      <span class="notice-desc">可查看当年历史台风</span>
+    </div>
     <div v-if="weatherPickHintVisible" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
     <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.selectedSeatCode ? weatherMarkersStore.list.find((m) => m.code === weatherStore.selectedSeatCode)?.name : weatherStore.query?.contextName" :context-path="weatherStore.selectedSeatCode ? seatContextPath : store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
