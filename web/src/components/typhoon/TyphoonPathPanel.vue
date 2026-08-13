@@ -1,17 +1,14 @@
 <template>
-  <aside class="typhoon-path-panel" :class="{ 'timeline-open': timelineOpen }" aria-labelledby="typhoon-panel-title">
-    <header class="panel-header">
-      <h2 id="typhoon-panel-title">台风路径</h2>
-      <button type="button" class="close-button" aria-label="关闭台风路径并退出灾害风险模式" title="退出灾害风险模式" @click="emit('close')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-      </button>
-    </header>
-
-    <div v-if="phase === 'loading-live' || phase === 'error'" class="transient-status" :class="phase" role="status" aria-live="polite">
-      {{ phase === 'loading-live' ? '台风数据加载中…' : '台风数据加载异常' }}
+  <div class="typhoon-body" :class="{ 'timeline-open': timelineOpen }">
+    <div v-if="phase !== 'ready'" class="transient-status" :class="phase" role="status" aria-live="polite">
+      {{ phase === 'error' ? '台风数据加载异常' : '台风数据加载中…' }}
     </div>
 
-    <div v-if="model.displayedCount" class="panel-scroll">
+    <div v-else-if="realtimeCount === 0" class="empty-typhoon" role="status">
+      <p class="empty-title">当前无活跃台风</p>
+    </div>
+
+    <div v-else-if="model.displayedCount" class="panel-scroll">
       <div class="card-list">
         <TyphoonCard
           v-for="card in model.cards"
@@ -25,7 +22,7 @@
         />
       </div>
     </div>
-  </aside>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -34,7 +31,7 @@ import type { TyphoonPathPanelViewModel } from '../../features/typhoon/typhoonPa
 import type { TyphoonPhase } from '../../stores/typhoon'
 import TyphoonCard from './TyphoonCard.vue'
 const props = defineProps<{ phase: TyphoonPhase; realtimeCount: number; model: TyphoonPathPanelViewModel; timelineOpen: boolean; revealToken?: number }>()
-const emit = defineEmits<{ close: []; toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string] }>()
+const emit = defineEmits<{ toggle: [typhoonId: string]; 'close-history': [typhoonId: string]; 'select-node': [typhoonId: string, nodeId: string] }>()
 const forwardNode = (typhoonId: string, nodeId: string) => emit('select-node', typhoonId, nodeId)
 const cardRefs = new Map<string, Element>()
 function setCardRef(id: string, element: unknown) {
@@ -49,5 +46,12 @@ watch(() => [props.model.cards.find((card) => card.focused)?.id, props.revealTok
 </script>
 
 <style scoped>
-.typhoon-path-panel{position:absolute;top:12px;right:12px;z-index:1000;width:390px;max-width:calc(100% - 24px);max-height:calc(100% - 24px);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;border:5px solid #2563eb;border-radius:10px;background:#2563eb;box-shadow:0 7px 22px rgba(15,23,42,.24);color:#0f172a}.panel-header{height:34px;display:flex;flex:none;align-items:center;justify-content:space-between;padding:0 5px 0 7px;color:#fff}.panel-header h2{margin:0;font-size:14px;line-height:1}.close-button{width:28px;height:28px;display:grid;place-items:center;padding:0;border:0;border-radius:5px;background:transparent;color:#bfdbfe;cursor:pointer}.close-button:hover{background:rgba(255,255,255,.16);color:#fff}.close-button:focus-visible{outline:2px solid #fff;outline-offset:-2px}.close-button svg{width:15px;height:15px}.transient-status{margin:0 2px 5px;padding:7px 8px;border-radius:6px;background:#fff;color:#475569;font-size:11px}.transient-status.error{color:#b91c1c}.panel-scroll{min-height:0;flex:0 1 auto;overflow-y:auto;padding:0 1px 1px}.card-list{display:grid;gap:7px}.typhoon-path-panel.timeline-open{max-height:calc(100% - 218px)}@media(max-width:720px){.typhoon-path-panel{width:min(390px,calc(100% - 24px))}.typhoon-path-panel.timeline-open{max-height:calc(100% - 206px)}}@media(max-width:520px){.typhoon-path-panel{left:12px;right:12px;width:auto;min-width:0}.typhoon-path-panel.timeline-open{max-height:calc(100% - 202px)}}
+.typhoon-body{min-height:0;display:flex;flex-direction:column}
+.transient-status{margin:0 2px 5px;padding:7px 8px;border-radius:6px;background:#fff;color:#475569;font-size:11px}
+.transient-status.error{color:#b91c1c}
+.empty-typhoon{margin:0 2px 5px;padding:12px 10px;border-radius:8px;background:#fff;border:1px dashed #cbd5e1;color:#475569}
+.empty-title{margin:0 0 3px;font-size:12px;font-weight:700;color:#0f172a}
+.empty-desc{margin:0;font-size:10.5px;line-height:1.5;color:#64748b}
+.panel-scroll{min-height:0;flex:0 1 auto;overflow-y:auto;padding:0 1px 1px}
+.card-list{display:grid;gap:7px}
 </style>

@@ -5,21 +5,52 @@
     <NationalAlarmPanel v-if="nationalAlarmsActive" :phase="nationalAlarmStore.phase" :snapshot="nationalAlarmStore.snapshot" :selection="nationalAlarmStore.selection" :error-message="nationalAlarmStore.errorMessage" @refresh="refreshNationalAlarms" @close="exitNationalAlarms" @select="selectNationalAlarmFromList" />
     <NationalAlarmPopup v-if="nationalAlarmsActive && selectedNationalAlarm && nationalAlarmStore.selection?.source==='map'" :alarm="selectedNationalAlarm" :detail="nationalAlarmStore.detail" :x="nationalAlarmPopupPosition.x" :y="nationalAlarmPopupPosition.y" @close="nationalAlarmStore.select(null)" @retry="retryNationalAlarmDetail" />
     <div v-if="nationalAlarmMapNotice" class="save-notice national-alarm-map-notice" role="status">{{ nationalAlarmMapNotice }}</div>
+    <div v-if="disasterActive && typhoonStore.hasNoActiveTyphoon" class="typhoon-empty-notice" role="status">
+      <strong class="notice-title">当前无活跃台风</strong>
+      <span class="notice-desc">可查看当年历史台风</span>
+    </div>
     <div v-if="weatherPickHintVisible" class="weather-shortcut-hint" role="status"><kbd>Ctrl</kbd><span>+</span><span>左键单击可以按点选查询天气</span></div>
     <WeatherPopup v-if="weatherCurrentActive && weatherStore.locationPopup !== 'none'" kind="location" title="实时天气" :bundle="weatherStore.bundle" :phase="weatherStore.phase" :error-message="weatherStore.errorMessage" :context-name="weatherStore.selectedSeatCode ? weatherMarkersStore.list.find((m) => m.code === weatherStore.selectedSeatCode)?.name : weatherStore.query?.contextName" :context-path="weatherStore.selectedSeatCode ? seatContextPath : store.path.map((crumb) => crumb.name)" :x="weatherPopupPosition.x" :y="weatherPopupPosition.y" @close="closeWeatherLocation" @retry="refreshWeather" />
 
-    <TyphoonPathPanel
-      v-if="disasterActive"
-      :phase="typhoonStore.phase"
-      :realtime-count="typhoonStore.realtimeDetails.length"
-      :model="typhoonPanelModel"
-      :timeline-open="typhoonStore.timelineOpen"
-      :reveal-token="typhoonRevealToken"
-      @close="exitTyphoonMode"
-      @toggle="toggleTyphoonCard"
-      @close-history="closeHistoricalTyphoon"
-      @select-node="selectTyphoonPanelNode"
-    />
+    <DisasterWorkbenchPanel
+      v-if="workbenchActive"
+      :active-tabs="workbenchActiveTabs"
+      :active-tab="workbenchTab"
+      :collapsed="workbenchCollapsed"
+      :timeline-open="disasterActive && typhoonStore.timelineOpen"
+      :close-label="workbenchCloseLabel"
+      @select-tab="selectWorkbenchTab"
+      @toggle-collapsed="workbenchCollapsed = !workbenchCollapsed"
+      @close="closeWorkbench"
+    >
+      <template #typhoon>
+        <TyphoonPathPanel
+          v-if="disasterActive"
+          :phase="typhoonStore.phase"
+          :realtime-count="typhoonStore.realtimeDetails.length"
+          :model="typhoonPanelModel"
+          :timeline-open="typhoonStore.timelineOpen"
+          :reveal-token="typhoonRevealToken"
+          @toggle="toggleTyphoonCard"
+          @close-history="closeHistoricalTyphoon"
+          @select-node="selectTyphoonPanelNode"
+        />
+      </template>
+      <template #risk>
+        <VillageRiskOverview
+          v-if="precipitationStore.isOpen && !villageCard"
+          :model="riskOverviewModel"
+          :precip-loading="precipitationStore.phase === 'loading'"
+          :snapshot-error="riskSnapshotError"
+          @select-village="selectVillageFromOverview"
+        />
+        <VillageRiskCard
+          v-if="precipitationStore.isOpen && villageCard"
+          :model="villageCard.model"
+          @back="backFromVillageDetail"
+        />
+      </template>
+    </DisasterWorkbenchPanel>
     <TyphoonHoverPopup
       v-if="disasterActive"
       :model="typhoonHoverModel"
@@ -189,6 +220,10 @@ import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
 import TyphoonTimelineDrawer from './typhoon/TyphoonTimelineDrawer.vue'
+import DisasterWorkbenchPanel, { type WorkbenchTab } from './disaster/DisasterWorkbenchPanel.vue'
+import VillageRiskOverview from './village-risk/VillageRiskOverview.vue'
+import { loadPolicySummaries, type VillagePolicySummary } from '../features/village-risk/villagePolicySummary'
+import { buildVillageRiskOverviewModel, type VillageRiskOverviewModel } from '../features/village-risk/villageRiskOverviewModel'
 import TyphoonHoverPopup from './typhoon/TyphoonHoverPopup.vue'
 import WeatherPopup from './weather/WeatherPopup.vue'
 import NationalAlarmPanel from './weather/NationalAlarmPanel.vue'
@@ -232,6 +267,13 @@ import { createPrecipitationRepository, type PrecipitationRepository } from '../
 import { usePrecipitationStore } from '../stores/precipitation'
 import { PRECIP_DAY_KEYS } from '../features/precipitation/precipitationTypes'
 import PrecipitationPanel from './precipitation/PrecipitationPanel.vue'
+import VillageRiskCard from './village-risk/VillageRiskCard.vue'
+import { createVillageRiskLayerController, type VillageRiskLayerController } from '../map/villageRiskLayerController'
+import { loadInsuredVillages, coveredGridPoints, computeVillageRisk, townshipFileOf, latestTyphoonRiskPaths, alarmItems, type VillageBoundary } from '../features/village-risk/villageRiskData'
+import type { VillageRiskResult } from '../features/village-risk/villageRiskData'
+import { buildVillageRiskCardModel, type VillageRiskCardModel } from '../features/village-risk/villageRiskCardModel'
+import { windowStage } from '../features/village-risk/cropCycle'
+import type { PrecipGridPoint } from '../features/precipitation/precipitationTypes'
 import { pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import {
@@ -257,6 +299,8 @@ import {
   childrenUrl,
   NEXT_LEVEL,
   LEVEL_WEIGHT,
+  type Level,
+  type Crumb,
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
@@ -300,6 +344,43 @@ const nationalAlarmStore = useNationalAlarmStore()
 const precipitationStore = usePrecipitationStore()
 let precipitationRepository: PrecipitationRepository | null = null
 let precipitationLayerController: PrecipitationLayerController | null = null
+const villageRiskLayerController = ref<VillageRiskLayerController | null>(null)
+const villageCard = ref<{ code: string; model: VillageRiskCardModel } | null>(null)
+let villageBoundaries: VillageBoundary[] = []
+const villageRiskResults = new Map<string, VillageRiskResult>()
+const villageCovered = new Map<string, PrecipGridPoint[]>()
+// 村界为普通 let（由异步加载赋值），computed 依赖需用版本号触发重算
+const villageBoundariesVersion = ref(0)
+// 共用面板（台风路径 / 风险概览 双 tab）
+const workbenchTab = ref<WorkbenchTab>('typhoon')
+const workbenchCollapsed = ref(false)
+const policySummaries = ref<Map<string, VillagePolicySummary> | null>(null)
+const workbenchActive = computed(() => disasterActive.value || precipitationStore.isOpen)
+const workbenchActiveTabs = computed<WorkbenchTab[]>(() => {
+  const tabs: WorkbenchTab[] = []
+  if (disasterActive.value) tabs.push('typhoon')
+  if (precipitationStore.isOpen) tabs.push('risk')
+  return tabs
+})
+const workbenchCloseLabel = computed(() => (workbenchTab.value === 'typhoon' ? '关闭台风路径并退出灾害风险模式' : '关闭风险概览并退出降雨量模式'))
+const riskSnapshotError = computed(() => precipitationStore.phase === 'error' || (precipitationStore.phase === 'ready' && precipitationStore.snapshot === null))
+const riskOverviewModel = computed<VillageRiskOverviewModel | null>(() => {
+  void villageBoundariesVersion.value // 村界加载完成后触发重算（须在最前建立依赖）
+  if (!precipitationStore.isOpen || villageBoundaries.length === 0) return null
+  const snapshot = precipitationStore.snapshot
+  if (!snapshot) return null
+  const villages = villageBoundaries.map((village) => ({
+    code: village.code,
+    name: village.name,
+    result: villageRiskResults.get(village.code) ?? computeVillageRisk({
+      village,
+      snapshot,
+      typhoons: currentTyphoonRiskEntries(),
+      alarms: alarmItems(nationalAlarmStore.snapshot),
+    }),
+  }))
+  return buildVillageRiskOverviewModel({ villages, policies: policySummaries.value ?? new Map(), days: snapshot.days, updatedAt: snapshot.updatedAt })
+})
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
 const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
@@ -1059,7 +1140,7 @@ async function enterNationalAlarms(){
  if(precipitationStore.isOpen)exitPrecipitationMode()
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
-function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();nationalAlarmStore.close();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();/* 保留 NMC 全省预警列表（snapshot）供风险判定复用：仅关闭模式 UI，不清数据（v3.11） */nationalAlarmStore.phase='closed';nationalAlarmStore.selection=null;nationalAlarmStore.detail=null;void nextTick(()=>mapControlRef.value?.focusWeather())}
 function closeWeatherFromToolbar(module:WeatherModuleKind){if(module==='alerts')exitNationalAlarms();else if(module==='precipitation')exitPrecipitationMode();else exitWeatherMode()}
 
 function precipitationRepositoryLoad() {
@@ -1071,13 +1152,207 @@ function precipitationRepositoryLoad() {
   return precipitationRepository.load()
 }
 
+function riskDataAvailability() {
+  return {
+    precip: precipitationStore.snapshot !== null,
+    typhoon: typhoonStore.phase === 'ready',
+    alarm: nationalAlarmStore.snapshot !== null,
+  }
+}
+
+function currentTyphoonRiskEntries() {
+  return latestTyphoonRiskPaths(typhoonStore.realtimeDetails)
+}
+
+/** 重算 13 村风险并渲染标注（快照/台风/预警任一变化时调用）。 */
+function computeVillageRisks() {
+  if (!precipitationStore.isOpen) return
+  const snapshot = precipitationStore.snapshot
+  const typhoons = currentTyphoonRiskEntries()
+  const alarms = alarmItems(nationalAlarmStore.snapshot)
+  villageRiskResults.clear()
+  villageCovered.clear()
+  for (const village of villageBoundaries) {
+    const covered = snapshot ? coveredGridPoints(village, snapshot.grid) : []
+    villageCovered.set(village.code, covered)
+    villageRiskResults.set(village.code, computeVillageRisk({ village, snapshot, typhoons, alarms }))
+  }
+  renderVillageRiskLayer()
+  refreshVillageCard()
+}
+
+/** 渲染标注：省市不显示；乡镇级仅当前乡镇的村；村级全部高亮。 */
+function renderVillageRiskLayer() {
+  const controller = villageRiskLayerController.value
+  if (!controller) return
+  controller.setLevel(store.current.level)
+  controller.setCurrent(store.current.level === 'village' ? store.current.code : null)
+  let entries = villageBoundaries.map((village) => ({ village, level: villageRiskResults.get(village.code)?.level ?? 0 }))
+  if (store.current.level === 'township') {
+    const file = `/data/villages/${store.current.code}.geojson`
+    entries = entries.filter((entry) => townshipFileOf(entry.village.code) === file)
+  }
+  controller.setData(entries)
+}
+
+function buildVillageCardModel(village: VillageBoundary): VillageRiskCardModel {
+  const snapshot = precipitationStore.snapshot
+  const result = villageRiskResults.get(village.code)
+    ?? computeVillageRisk({ village, snapshot, typhoons: currentTyphoonRiskEntries(), alarms: alarmItems(nationalAlarmStore.snapshot) })
+  const month = new Date().getMonth() + 1
+  const days = snapshot?.days ?? []
+  const monthOf = (ymd: string) => { const parts = ymd.split('-'); return Number(parts[1]) || month }
+  const startMonth = days.length > 0 ? monthOf(days[0]!) : month
+  const endMonth = days.length > 0 ? monthOf(days[days.length - 1]!) : month
+  const stageWindow = windowStage(startMonth, endMonth)
+  const typhoonScenario = result.typhoonSignal >= 3 ? 'storm' : result.typhoonSignal >= 2 ? 'path' : null
+  return buildVillageRiskCardModel({
+    villageName: village.name,
+    result,
+    snapshot,
+    covered: villageCovered.get(village.code) ?? [],
+    month,
+    selectedDay: precipitationStore.selectedDay,
+    stageNote: stageWindow.note,
+    typhoonScenario,
+    dataAvailable: riskDataAvailability(),
+    policy: policySummaries.value?.get(village.code) ?? null,
+  })
+}
+
+function openVillageCard(code: string) {
+  if (villageCard.value?.code === code) { closeVillageCard(); return }
+  const village = villageBoundaries.find((v) => v.code === code)
+  if (!village) return
+  villageCard.value = { code, model: buildVillageCardModel(village) }
+  villageRiskLayerController.value?.setSelected(code)
+  workbenchCollapsed.value = false // 详情在右上面板展示，打开时展开面板
+}
+
+function closeVillageCard() {
+  villageCard.value = null
+  villageRiskLayerController.value?.setSelected(null)
+  // 关闭详情后面板保持展开（显示列表，用户确认：点空白/Esc 回列表不折叠）
+}
+
+/** 详情返回按钮：关闭详情回列表，地图视角回镇级（用户 2026-08-10 确认）。 */
+function backFromVillageDetail() {
+  closeVillageCard()
+  if (store.current.level === 'village') void store.back()
+}
+
+/** 按 code 在边界文件中查找行政区 feature（市/区/镇补齐路径用）。 */
+async function findBoundaryFeature(url: string, code: string): Promise<{ name: string; geometry: Geometry } | null> {
+  try {
+    const fc = await fetchJSON<FeatureCollection>(url)
+    const feature = fc.features.find((f) => String(f.properties?.code) === code)
+    if (feature?.geometry) return { name: String(feature.properties?.name ?? code), geometry: feature.geometry }
+  } catch {
+    // 数据缺失：放弃补齐该级
+  }
+  return null
+}
+
+/**
+ * 下钻到目标村并补齐完整路径（省/市/区/镇/村）：一次性 navigateTo + 单次 flyTo（与返回动画对称，丝滑不卡）。
+ * 中间边界数据缺失时路径截断（从已有层级直接跳到村）。
+ */
+async function drillToVillageWithFullPath(village: VillageBoundary) {
+  const current = store.current
+  if (current.level === 'village' && current.code === village.code) {
+    openVillageCard(village.code)
+    return
+  }
+  const countyCode = village.countyCode
+  const cityCode = `${countyCode.slice(0, 4)}00`
+  const townshipCode = (townshipFileOf(village.code)?.split('/').pop() ?? '').replace(/\.geojson$/, '')
+  // 构造完整路径：省 → 市 → 区 → 镇 → 村（缺中间数据则截断）
+  const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
+  const chain: Array<{ level: Level; code: string; url: string }> = [
+    { level: 'city', code: cityCode, url: childrenUrl({ level: 'province', code: '330000', name: '浙江省' })! },
+    { level: 'county', code: countyCode, url: `/data/boundary/county/${cityCode}.geojson` },
+    { level: 'township', code: townshipCode, url: `/data/boundary/township/${countyCode}.geojson` },
+  ]
+  for (const step of chain) {
+    const feature = await findBoundaryFeature(step.url, step.code)
+    if (!feature) break
+    crumbs.push({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
+  }
+  crumbs.push({
+    level: 'village',
+    code: village.code,
+    name: village.name,
+    geometry: { type: 'MultiPolygon', coordinates: village.polygons },
+  })
+  pendingNoFly = false
+  // 先打开详情（同步设置 villageCard），再导航——避免 navigateTo 的村级 watch 先自动打开、随后 openVillageCard 同码 toggle 误关
+  openVillageCard(village.code)
+  await store.navigateTo(crumbs)
+}
+
+/** 风险概览列表/地图标记点击 → 补齐路径下钻该村（村级视图）+ 右上面板展示详情。 */
+function selectVillageFromOverview(code: string) {
+  const village = villageBoundaries.find((v) => v.code === code)
+  if (!village) return
+  void drillToVillageWithFullPath(village)
+}
+
+/** 共用面板关闭：关闭当前激活 tab 对应模式。 */
+function closeWorkbench() {
+  if (workbenchTab.value === 'typhoon') void exitTyphoonMode()
+  else exitPrecipitationMode()
+}
+
+/** tab 点击 = 视图 + 模式联动：点台风 tab 时若台风模式未激活则进入（若已激活但下钻过则回省），点风险 tab 时若降水未激活则进入。 */
+function selectWorkbenchTab(tab: WorkbenchTab) {
+  workbenchTab.value = tab
+  if (tab === 'typhoon') {
+    if (!disasterActive.value) void enterTyphoonMode()
+    else if (store.current.level !== 'province') void store.resetToProvince() // 台风激活时切回：下钻残留回省
+  } else if (tab === 'risk' && !precipitationStore.isOpen) {
+    void enterPrecipitationMode()
+  }
+}
+
+
+
+function refreshVillageCard() {
+  if (!villageCard.value) return
+  const village = villageBoundaries.find((v) => v.code === villageCard.value!.code)
+  if (village) villageCard.value = { ...villageCard.value, model: buildVillageCardModel(village) }
+}
+
 async function enterPrecipitationMode() {
   if (hasUnsavedParcelWork()) return
   // 天气与降水互斥；台风保留（可叠加）
   if (anyWeatherActive.value) { exitWeatherMode(); exitNationalAlarms() }
+  // 三源齐全（v3.11）：台风/预警数据未加载时静默补拉（不进入对应模式，只填充数据源供风险判定）
+  if (typhoonStore.phase !== 'ready') void typhoonRepository.enter()
+  if (nationalAlarmStore.snapshot === null) {
+    // 静默补拉：silentLoading 期间 isOpen=false（面板不出现），结束后恢复 closed（保留 snapshot 供风险判定）
+    nationalAlarmStore.beginSilent()
+    void nationalAlarmRepository.load(false, false).finally(() => {
+      nationalAlarmStore.endSilent()
+      if (nationalAlarmStore.phase !== 'closed') nationalAlarmStore.phase = 'closed'
+    })
+  }
   precipitationStore.open()
   precipitationLayerController = precipitationLayerController ?? createPrecipitationLayerController()
   precipitationLayerController.mount(map)
+  // 参保村风险标注：挂载图层 + 异步加载村界后重算
+  villageRiskLayerController.value = villageRiskLayerController.value ?? createVillageRiskLayerController({ onVillageClick: selectVillageFromOverview })
+  villageRiskLayerController.value.mount(map)
+  villageRiskLayerController.value.setVisible(true)
+  void loadInsuredVillages().then((villages) => {
+    if (!precipitationStore.isOpen) return
+    villageBoundaries = villages
+    villageBoundariesVersion.value++
+    computeVillageRisks()
+  })
+  // 保单敞口汇总（进入降水即并行拉取 13 村）
+  void loadPolicySummaries().then((summaries) => {
+    if (precipitationStore.isOpen) policySummaries.value = summaries
+  })
   await store.resetToProvince()
   void render() // 进入定位浙江省全省全景（方案 B：叠加时降水优先）
   void precipitationRepositoryLoad()
@@ -1088,6 +1363,14 @@ function exitPrecipitationMode() {
   // 退出即销毁图层（移除 canvas 与监听），验收 10：退出后色斑图层清除
   precipitationLayerController?.destroy()
   precipitationLayerController = null
+  // 参保村风险标注与卡片一并清除
+  closeVillageCard()
+  villageRiskLayerController.value?.destroy()
+  villageRiskLayerController.value = null
+  villageBoundaries = []
+  villageRiskResults.clear()
+  villageCovered.clear()
+  policySummaries.value = null
   precipitationStore.close()
   // 台风仍活动：保持当前视图不重置（方案 B：最后一个活动模式退出才恢复省界相机）
   if (!disasterActive.value) {
@@ -1119,6 +1402,38 @@ function setPrecipOpacity(value: number) {
 watch(() => precipitationStore.snapshot, (snapshot) => { precipitationLayerController?.setSnapshot(snapshot) })
 watch(() => precipitationStore.selectedDay, (day) => { precipitationLayerController?.setDay(PRECIP_DAY_KEYS[day]) })
 watch(() => precipitationStore.opacity, (opacity) => { precipitationLayerController?.setOpacity(opacity) })
+// 参保村风险联动：数据源与层级变化 → 重算/重渲/刷新卡片
+watch(() => precipitationStore.snapshot, () => { if (precipitationStore.isOpen) computeVillageRisks() })
+watch(() => typhoonStore.phase, () => { if (precipitationStore.isOpen) computeVillageRisks() })
+watch(() => typhoonStore.liveIds, () => { if (precipitationStore.isOpen) computeVillageRisks() })
+watch(() => typhoonStore.details, () => { if (precipitationStore.isOpen) computeVillageRisks() }, { deep: true })
+watch(() => nationalAlarmStore.snapshot, () => { if (precipitationStore.isOpen) computeVillageRisks() })
+watch(() => store.current.level, () => { if (precipitationStore.isOpen) renderVillageRiskLayer() })
+watch(() => precipitationStore.selectedDay, () => { if (precipitationStore.isOpen) refreshVillageCard() })
+// 共用面板：模式联动（后进入优先；退出后切到仍激活的模式）
+watch(() => disasterActive.value, (active) => {
+  if (active) workbenchTab.value = 'typhoon'
+  else if (precipitationStore.isOpen) workbenchTab.value = 'risk'
+})
+watch(() => precipitationStore.isOpen, (open) => {
+  if (open) workbenchTab.value = 'risk'
+  else if (disasterActive.value) workbenchTab.value = 'typhoon'
+})
+watch(() => store.current.level, (level) => {
+  if (level === 'village') {
+    // 村级：自动展开右上面板并显示当前村风险概况（未手动打开详情时）
+    if (!villageCard.value) {
+      const code = store.current.code
+      const village = villageBoundaries.find((v) => v.code === code)
+      if (village) villageCard.value = { code, model: buildVillageCardModel(village) }
+    }
+    workbenchCollapsed.value = false
+  } else {
+    // 离开村级：关闭详情回列表，面板展开（非村级默认展开）
+    closeVillageCard()
+    workbenchCollapsed.value = false
+  }
+})
 function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
 async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  nationalAlarmStore.select({id:alarm.id,source:'list'})
@@ -1170,6 +1485,8 @@ function rollbackTyphoonMode(error?: unknown) {
 
 async function enterTyphoonMode() {
   if(anyWeatherActive.value)return
+  // 立即切台风 tab（与点击台风 tab 一致的视图路径；用户 2026-08-11 反馈：按钮进入后面板未显示台风）
+  workbenchTab.value = 'typhoon'
   // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
   pendingNoFly = true
   const entered = await disasterModeCoordinator.enter({
@@ -1182,8 +1499,8 @@ async function enterTyphoonMode() {
     enterRepository: () => {
       pendingNoFly = false
       fittedTyphoonSessionId = null
-      // 方案 B：降水活动时台风进入不抢相机（不设 z=4.5，保持降水全省视角）
-      if (!precipitationStore.isOpen) map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
+      // 台风视角优先：降水叠加时进入台风也切台风初始视野（用户 2026-08-11 确认）
+      map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
       void typhoonRepository.enter()
     },
     rollback: rollbackTyphoonMode,
@@ -1301,6 +1618,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 function onManualKeydown(event: KeyboardEvent) {
   if (isTypingTarget(event.target)) return
   if(event.key==='Escape'&&nationalAlarmsActive.value&&nationalAlarmStore.selection){event.preventDefault();nationalAlarmStore.select(null);return}
+  if(event.key==='Escape'&&villageCard.value){event.preventDefault();closeVillageCard();return}
   if(event.key==='Escape'&&weatherCurrentActive.value&&weatherStore.locationPopup!=='none'){event.preventDefault();closeWeatherLocation();return}
   if (event.key === 'Escape' && typhoonPopupState.value.pinned) {
     event.preventDefault()
@@ -1539,12 +1857,13 @@ watch(() => ({
     visibleObservationCountByTyphoon: state.visibleCounts,
   }))
   if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
-    // 方案 B：降水活动时台风不自动居中，也不标记已 fitted（退出降水后可恢复）
-    if (!precipitationStore.isOpen && typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
+    // 台风视角优先：降水叠加时进入台风也切台风路径视野（用户 2026-08-11 确认）
+    if (typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
       fittedTyphoonSessionId = state.sessionId
     }
   }
 }, { deep: true })
+
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
@@ -1645,6 +1964,7 @@ onMounted(async () => {
     },
   )
   map.on('click', (event) => {
+    // 点地图空白不自动关闭风险详情/不切列表（用户确认）；详情用返回/Esc 关闭
     if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)

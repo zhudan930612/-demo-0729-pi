@@ -188,6 +188,13 @@ export function createAppServer(config, options = {}) {
       subscription = broker.subscribe(key, loader)
       const payload = await subscription.promise
       if (clientGone) return
+      // 上游字段 type（'start'/'stop'）→ 前端契约 status：前端以 status 判定实时/历史（2026-08-11 修复字段不匹配）
+      if (url.pathname === '/api/typhoons' && payload && typeof payload === 'object' && Array.isArray(payload.list)) {
+        payload.list = payload.list.map((item) => ({
+          ...item,
+          status: typeof item.type === 'string' ? item.type : (item.status ?? 'stop'),
+        }))
+      }
       status = 200
       sendJson(response, status, payload, requestId)
     } catch (error) {
