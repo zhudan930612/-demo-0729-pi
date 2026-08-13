@@ -1329,8 +1329,10 @@ async function enterPrecipitationMode() {
   // 三源齐全（v3.11）：台风/预警数据未加载时静默补拉（不进入对应模式，只填充数据源供风险判定）
   if (typhoonStore.phase !== 'ready') void typhoonRepository.enter()
   if (nationalAlarmStore.snapshot === null) {
-    void nationalAlarmRepository.load(false, false).then(() => {
-      // 静默补拉完成后关闭预警模式（isOpen = phase !== 'closed'），保留 snapshot 供风险判定
+    // 静默补拉：silentLoading 期间 isOpen=false（面板不出现），结束后恢复 closed（保留 snapshot 供风险判定）
+    nationalAlarmStore.beginSilent()
+    void nationalAlarmRepository.load(false, false).finally(() => {
+      nationalAlarmStore.endSilent()
       if (nationalAlarmStore.phase !== 'closed') nationalAlarmStore.phase = 'closed'
     })
   }

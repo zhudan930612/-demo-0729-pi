@@ -2,9 +2,11 @@ import { defineStore } from 'pinia'
 import type { NationalAlarmDetailState, NationalAlarmPhase, NationalAlarmSelection, NationalAlarmSnapshot } from '../features/national-alarms/nationalAlarmTypes'
 
 export const useNationalAlarmStore = defineStore('nationalAlarms', {
-  state: () => ({ phase: 'closed' as NationalAlarmPhase, generation: 0, snapshot: null as NationalAlarmSnapshot | null, errorMessage: '', selection: null as NationalAlarmSelection | null, detail: null as NationalAlarmDetailState | null }),
-  getters: { isOpen: (state) => state.phase !== 'closed' },
+  state: () => ({ phase: 'closed' as NationalAlarmPhase, generation: 0, snapshot: null as NationalAlarmSnapshot | null, errorMessage: '', selection: null as NationalAlarmSelection | null, detail: null as NationalAlarmDetailState | null, silentLoading: false }),
+  getters: { isOpen: (state) => state.phase !== 'closed' && !state.silentLoading },
   actions: {
+    beginSilent() { this.silentLoading = true },
+    endSilent() { this.silentLoading = false },
     open() { this.$reset(); this.phase = 'loading'; return ++this.generation },
     begin(refresh = false) { this.errorMessage = ''; this.phase = refresh && this.snapshot ? 'refreshing' : 'loading'; return ++this.generation },
     receive(generation: number, snapshot: NationalAlarmSnapshot) { if (generation !== this.generation) return false; this.snapshot = snapshot; this.phase = 'ready'; if (this.selection && !snapshot.items.some((item) => item.id === this.selection?.id)) { this.selection = null; this.detail = null } return true },
