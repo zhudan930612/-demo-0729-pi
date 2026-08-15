@@ -665,30 +665,26 @@ async function render(noFly = false) {
     bounds = L.geoJSON(prov).getBounds()
   }
   if (!noFly && bounds.isValid()) {
-    // zoomend 早于 moveend：保持抑制到本次程序化移动完全结束，防止点击下钻后被自动退出逻辑撤销。
+    // 程序化移动期间抑制自动层级（zoomend 早于 moveend：落点 zoomend 仍受抑制保护）。
+    // 关键不变式：目标 zoom 保底到本层级退出阈值之上（floor = EXIT_ZOOM + 0.25），
+    // 使落点天然不落在"缩小退回"区间内——即使抑制被旧动画中断残留事件提前解除，
+    // 落点 zoomend 也不可能触发误退级（villageRisk 返回按钮偶发多退一级的根因：
+    // 旧 flyTo 被中断时其 transitionend 残留事件会异步到达并提前清掉抑制，
+    // 使新 flyTo 落点 z≤EXIT_ZOOM 被 onAutoLevel 误判为用户缩小退出）。
+    // 不再需要移动结束后的二次抬升收尾，抑制只覆盖动画期间，简单且无残留时序依赖。
     suppressAutoZoom = true
-    map.once('moveend', () => {
-      if (!isCurrent()) return
-      suppressAutoZoom = false
-      // 下钻/返回后若视野仍落在本层级"缩小退回"区间(大区域或小视口时 fitBounds 缩放级过低),
-      // 抬升到退出阈值之上, 否则用户随后的任意缩放都会被误判为退回上级。
-      const exitZ = EXIT_ZOOM[store.current.level]
-      const floor = exitZ !== undefined ? exitZ + 0.25 : -Infinity
-      if (map.getZoom() < floor) {
-        suppressAutoZoom = true
-        map.once('zoomend', () => { if (isCurrent()) suppressAutoZoom = false })
-        setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 500)
-        map.setZoom(floor)
-      }
-    })
+    const exitZ = EXIT_ZOOM[crumb.level]
+    const floor = exitZ !== undefined ? exitZ + 0.25 : -Infinity
+    const targetZoom = Math.max(map.getBoundsZoom(bounds), floor)
+    map.once('moveend', () => { if (isCurrent()) suppressAutoZoom = false })
     setTimeout(() => { if (isCurrent()) suppressAutoZoom = false }, 1500)
     if (firstRender) {
       // 首次渲染: 瞬时贴合省界(不播动画), 默认视野铺满屏幕
       map.fitBounds(bounds.pad(0.02))
       firstRender = false
     } else {
-      // 下钻/返回: 同样的紧贴边距, 飞行动画
-      map.flyToBounds(bounds.pad(0.02), { duration: 1.0 })
+      // 下钻/返回: 同样的紧贴边距, 飞行动画；落点由 floor 保底，避免进入退出区间
+      map.flyTo(bounds.getCenter(), targetZoom, { duration: 1.0 })
     }
   }
 
