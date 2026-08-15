@@ -20,6 +20,7 @@
 
 - 用户可见行为、业务规则和验收标准：`docs/README.md` 指向的对应现役需求。
 - 产品边界与术语：`PRODUCT.md`；视觉与交互：`DESIGN.md`。
+- 项目语言与统一术语（含避免词）：`CONTEXT.md`；代码、文档、验收中的用词遵循其术语表，不得使用避免词。
 - 当前架构职责：对应源码和测试；`docs/archive/` 仅用于追溯历史决策和阶段性证据。
 - 本地运行、环境变量、依赖和版权：`README.md`、`web/package.json`、`server/package.json`。
 - 数据产物格式和生成规则：相应的 `scripts/*.py`。
