@@ -12,7 +12,7 @@
 - `PRODUCT.md`：稳定的产品定位、能力边界和术语。
 - `DESIGN.md`：地图工作台的视觉令牌与组件模式。
 - `docs/README.md`：项目文档总入口；从这里进入现役需求或历史归档。
-- `web/src/`：Vue/Leaflet 前端；`web/src/components/MapView.vue` 负责装配，`web/src/map/`、`web/src/features/`、`web/src/stores/` 持有地图和业务逻辑。
+- `web/src/`：Vue/Leaflet 前端；`web/src/components/MapView.vue` 负责装配（地图核心 + 跨域协调），`web/src/map/`、`web/src/features/`、`web/src/stores/` 持有地图和业务逻辑；台风/天气/降水/地块四个域各有一个 `useXxxMode` 装配 composable（`web/src/features/<域>/useXxxMode.ts`），新增域装配逻辑放对应 composable，不堆回 MapView。
 - `server/`：APIHz 台风代理、资源保护、脱敏探针和测试。
 - `scripts/`：边界、影像、地块预处理与数据链路检查。
 
