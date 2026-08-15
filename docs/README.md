@@ -28,6 +28,8 @@
 
 ## 其他入口
 
+- 项目语言、统一术语与长期上下文：[../CONTEXT.md](../CONTEXT.md)
+- 架构决策记录（ADR）：[adr/](./adr/)
 - 项目定位与能力边界：[../PRODUCT.md](../PRODUCT.md)
 - 视觉与交互系统：[../DESIGN.md](../DESIGN.md)
 - 本地运行、数据准备与版权约束：[../README.md](../README.md)
