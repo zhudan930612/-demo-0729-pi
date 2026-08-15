@@ -241,21 +241,12 @@ import { createParcelLayerController, type ParcelLayerController } from '../map/
 import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
-import { createWeatherLayerController } from '../map/weatherLayerController'
-import { createWeatherInteractionController } from '../map/weatherInteractionController'
-import { createWeatherMarkerLayerController } from '../map/weatherMarkerLayerController'
 import { autoLevelAllowed } from '../features/typhoon/disasterModeLifecycle'
 import { useTyphoonMode } from '../features/typhoon/useTyphoonMode'
 import { useTyphoonStore } from '../stores/typhoon'
 import { useWeatherStore } from '../stores/weather'
 import { useWeatherMarkersStore } from '../stores/weatherMarkers'
 import { useNationalAlarmStore } from '../stores/nationalAlarms'
-import { createWeatherRepository, type WeatherRepository } from '../features/weather/weatherRepository'
-import { createWeatherMarkerRepository, type WeatherMarkerRepository } from '../features/weather/weatherMarkerRepository'
-import { createNationalAlarmRepository } from '../features/national-alarms/nationalAlarmRepository'
-import { alarmsForMap, mapNotice } from '../features/national-alarms/nationalAlarmSelectors'
-import type { NationalWeatherAlarm } from '../features/national-alarms/nationalAlarmTypes'
-import { createNationalAlarmLayerController } from '../map/nationalAlarmLayerController'
 import { createPrecipitationLayerController, type PrecipitationLayerController } from '../map/precipitationLayerController'
 import { createPrecipitationRepository, type PrecipitationRepository } from '../features/precipitation/precipitationRepository'
 import { usePrecipitationStore } from '../stores/precipitation'
@@ -268,8 +259,9 @@ import type { VillageRiskResult } from '../features/village-risk/villageRiskData
 import { buildVillageRiskCardModel, type VillageRiskCardModel } from '../features/village-risk/villageRiskCardModel'
 import { windowStage } from '../features/village-risk/cropCycle'
 import type { PrecipGridPoint } from '../features/precipitation/precipitationTypes'
-import { pickedWeatherQuery, weatherEntryState } from '../features/weather/weatherLifecycle'
+import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
+import { useWeatherMode } from '../features/weather/useWeatherMode'
 import {
   addPendingManualParcel,
   commitManualBatch,
@@ -375,26 +367,6 @@ const riskOverviewModel = computed<VillageRiskOverviewModel | null>(() => {
   return buildVillageRiskOverviewModel({ villages, policies: policySummaries.value ?? new Map(), days: snapshot.days, updatedAt: snapshot.updatedAt })
 })
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
-const nationalAlarmPopupPosition = ref({x:0,y:0})
-const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
-const currentCountyCode = computed(() => {
-  for (let index = store.path.length - 1; index >= 0; index -= 1) {
-    if (store.path[index]?.level === 'county') return store.path[index].code
-  }
-  return null
-})
-const nationalAlarmMapItems = computed(() => alarmsForMap(nationalAlarmStore.snapshot?.items ?? [], {
-  level: store.current.level,
-  code: store.current.code,
-  countyCode: currentCountyCode.value,
-}))
-const nationalAlarmMapNotice = computed(() => nationalAlarmsActive.value
-  ? mapNotice(nationalAlarmStore.snapshot?.items ?? [], {
-      level: store.current.level,
-      code: store.current.code,
-      countyCode: currentCountyCode.value,
-    })
-  : '')
 const disasterActive = ref(false)
 const weatherActive = computed(()=>weatherStore.isOpen)
 const anyWeatherActive = computed(()=>weatherActive.value||nationalAlarmsActive.value)
@@ -410,7 +382,6 @@ const activeWeatherModules = computed<WeatherModuleKind[]>(() => {
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
-const weatherPopupPosition=ref({x:0,y:0})
 const mapViewport = ref({ width: 0, height: 0 })
 const rsVisible = ref(false)
 const rsHint = ref('')
@@ -518,13 +489,6 @@ let navigationController: MapNavigationController
 let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
 let workModeController: ParcelWorkModeController
-let weatherLayerController: ReturnType<typeof createWeatherLayerController>
-let weatherMarkerLayerController: ReturnType<typeof createWeatherMarkerLayerController>
-let weatherInteractionController: ReturnType<typeof createWeatherInteractionController>
-let weatherRepository: WeatherRepository
-let weatherMarkerRepository: WeatherMarkerRepository
-let nationalAlarmRepository: ReturnType<typeof createNationalAlarmRepository>
-let nationalAlarmLayerController: ReturnType<typeof createNationalAlarmLayerController>
 let provinceGeometry: Geometry | null = null
 let zoomLevelOutput: HTMLOutputElement | null = null
 let parcelSource: FeatureCollection | null = null
@@ -579,6 +543,39 @@ const {
   toggleHistoricalFromTimeline,
   enterTyphoonMode,
 } = typhoonMode
+
+const weatherMode = useWeatherMode({
+  store,
+  parcelMode,
+  rosterOpen,
+  mapControlRef,
+  disasterActive,
+  provinceGeometry: () => provinceGeometry,
+  weatherActive: () => weatherActive.value,
+  weatherCurrentActive: () => weatherCurrentActive.value,
+  nationalAlarmsActive: () => nationalAlarmsActive.value,
+  weatherEntry: () => weatherEntry.value,
+  exits: {
+    typhoon: (restoreView) => typhoonMode.exitTyphoonMode(restoreView),
+    precipitation: () => { void enterPrecipitationMode() },
+  },
+  closeBusinessForDisaster,
+  showNotice,
+})
+const {
+  weatherPopupPosition,
+  nationalAlarmPopupPosition,
+  selectedNationalAlarm,
+  nationalAlarmMapNotice,
+  seatContextPath,
+  enterWeatherMode,
+  exitNationalAlarms,
+  closeWeatherLocation,
+  refreshWeather,
+  refreshNationalAlarms,
+  retryNationalAlarmDetail,
+  selectNationalAlarmFromList,
+} = weatherMode
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
@@ -712,14 +709,14 @@ async function selectParcel(parcel: ParcelSummaryInput) {
     }
   }
   renderParcelLayer()
-  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.selectedSeatCode=null;weatherStore.locationPopup='none'}
+  if(weatherCurrentActive.value)weatherMode.deselectPicked()
 }
 
 async function requestCloseDetail() {
   if (cultivationEditing.value && !await openManualDialog('关闭地块详情', '当前种植档案尚未保存，是否确认放弃？', '确认放弃')) return
   clearSelection()
   renderParcelLayer()
-  if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherStore.selectedSeatCode=null;weatherStore.locationPopup='none'}
+  if(weatherCurrentActive.value)weatherMode.deselectPicked()
 }
 
 async function requestRestoreCultivation() {
@@ -1144,59 +1141,10 @@ function hasUnsavedParcelWork(): boolean {
   return pendingChangeCount.value > 0
 }
 
-function weatherMarkerPlaceName(){return weatherStore.query?.contextName||store.current.name}
-const seatContextPath = computed(() => {
-  const marker = weatherMarkersStore.list.find((entry) => entry.code === weatherStore.selectedSeatCode)
-  return marker ? [...store.path.map((crumb) => crumb.name), marker.name] : []
-})
-async function enterWeatherMode(module:WeatherModuleKind){
- if(module==='alerts'){ void enterNationalAlarms(); return }
- if(module==='precipitation'){ void enterPrecipitationMode(); return }
- if(weatherActive.value&&weatherStore.module===module)return
- if(!weatherActive.value&&!weatherEntry.value.enabled)return
- if(disasterActive.value)typhoonMode.exitTyphoonMode(false)
- if(precipitationStore.isOpen)exitPrecipitationMode()
- weatherRepository.exit()
- weatherMarkerRepository?.exit()
- weatherLayerController?.clear()
- weatherMarkerLayerController?.clear()
- rosterOpen.value = false
- weatherStore.open(module)
- if(module==='current'){
-   // 多级政府驻地标牌：打开实时天气即按当前层级拉取骨架与逐项摘要；乡镇/村/地块无预置标牌。
-   weatherMarkerRepository?.open(store.current.level,store.current.code)
-   weatherMarkerRepository?.startAutoRefresh()
- }
-}
-function exitWeatherMode() {
-  weatherRepository.exit()
-  weatherMarkerRepository?.exit()
-  weatherLayerController?.clear()
-  weatherMarkerLayerController?.clear()
-  weatherStore.close()
-  weatherMarkersStore.clear()
-  void nextTick(() => mapControlRef.value?.focusWeather())
-}
-async function enterNationalAlarms(){
- if(nationalAlarmsActive.value)return
- if(!weatherActive.value&&!weatherEntry.value.enabled)return
- if(disasterActive.value)typhoonMode.exitTyphoonMode(false)
- if(precipitationStore.isOpen)exitPrecipitationMode()
- closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
-}
-function exitNationalAlarms() {
-  nationalAlarmRepository.exit()
-  nationalAlarmLayerController?.clear()
-  // 保留 NMC 全省预警列表（snapshot）供风险判定复用：仅关闭模式 UI，不清数据（v3.11）
-  nationalAlarmStore.phase = 'closed'
-  nationalAlarmStore.selection = null
-  nationalAlarmStore.detail = null
-  void nextTick(() => mapControlRef.value?.focusWeather())
-}
 function closeWeatherFromToolbar(module: WeatherModuleKind) {
-  if (module === 'alerts') exitNationalAlarms()
+  if (module === 'alerts') weatherMode.exitNationalAlarms()
   else if (module === 'precipitation') exitPrecipitationMode()
-  else exitWeatherMode()
+  else weatherMode.exitWeatherMode()
 }
 
 function precipitationRepositoryLoad() {
@@ -1381,16 +1329,12 @@ function refreshVillageCard() {
 async function enterPrecipitationMode() {
   if (hasUnsavedParcelWork()) return
   // 天气与降水互斥；台风保留（可叠加）
-  if (anyWeatherActive.value) { exitWeatherMode(); exitNationalAlarms() }
+  if (anyWeatherActive.value) { weatherMode.exitWeatherMode(); weatherMode.exitNationalAlarms() }
   // 三源齐全（v3.11）：台风/预警数据未加载时静默补拉（不进入对应模式，只填充数据源供风险判定）
   if (typhoonStore.phase !== 'ready') void typhoonMode.typhoonRepository.enter()
   if (nationalAlarmStore.snapshot === null) {
     // 静默补拉：silentLoading 期间 isOpen=false（面板不出现），结束后恢复 closed（保留 snapshot 供风险判定）
-    nationalAlarmStore.beginSilent()
-    void nationalAlarmRepository.load(false, false).finally(() => {
-      nationalAlarmStore.endSilent()
-      if (nationalAlarmStore.phase !== 'closed') nationalAlarmStore.phase = 'closed'
-    })
+    weatherMode.silentLoadNationalAlarms()
   }
   precipitationStore.open()
   precipitationLayerController = precipitationLayerController ?? createPrecipitationLayerController()
@@ -1490,87 +1434,6 @@ watch(() => store.current.level, (level) => {
     workbenchCollapsed.value = false
   }
 })
-function refreshNationalAlarms(){void nationalAlarmRepository.load(true)}
-async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
- nationalAlarmStore.select({id:alarm.id,source:'list'})
- if(!alarm.mappableInZhejiang||!alarm.adminCode){showNotice('该预警暂无法定位到当前地图',true);return}
- if(alarm.adminLevel==='province'){await store.resetToProvince();return}
- const cityCode=`${alarm.adminCode.slice(0,4)}00`
- const cities=await fetchJSON<FeatureCollection>('/data/boundary/city/330000.geojson').catch(()=>null)
- const city=cities?.features.find(feature=>String(feature.properties?.code)===cityCode)
- if(!city){showNotice('该预警暂无法定位到当前地图',true);return}
- await store.resetToProvince();await store.drill({level:'city',code:cityCode,name:String(city.properties?.name??''),geometry:city.geometry})
- if(alarm.adminLevel==='city')return
- const counties=await fetchJSON<FeatureCollection>(`/data/boundary/county/${cityCode}.geojson`).catch(()=>null)
- const county=counties?.features.find(feature=>String(feature.properties?.code)===alarm.adminCode)
- if(!county){showNotice('该预警暂无法定位到当前地图',true);return}
- await store.drill({level:'county',code:alarm.adminCode,name:String(county.properties?.name??''),geometry:county.geometry})
-}
-function selectNationalAlarmFromMap(alarm: NationalWeatherAlarm, point: { x: number; y: number }) {
-  const same = nationalAlarmStore.selection?.id === alarm.id && nationalAlarmStore.selection.source === 'map'
-  if (same) {
-    nationalAlarmStore.select(null)
-    return
-  }
-  nationalAlarmPopupPosition.value = point
-  nationalAlarmStore.select({ id: alarm.id, source: 'map' })
-  void nationalAlarmRepository.detail(alarm.id)
-}
-function retryNationalAlarmDetail(){const id=nationalAlarmStore.selection?.id;if(id)void nationalAlarmRepository.detail(id,true)}
-function refreshWeather(){void weatherMarkerRepository?.retry();void weatherRepository.retry()}
-function closeWeatherLocation() {
-  weatherStore.selectedSeatCode = null
-  const picked = weatherStore.closeLocation()
-  if (picked) {
-    weatherRepository.restore(weatherStore.defaultQuery)
-    weatherLayerController.clearPicked()
-    if (weatherStore.defaultBundle) weatherLayerController.renderDefault(weatherStore.defaultBundle, weatherMarkerPlaceName())
-  }
-}
-function loadPickedWeather(lat: number, lon: number) {
-  if (!weatherCurrentActive.value) return
-  weatherStore.selectedSeatCode = null
-  weatherStore.closeLocation()
-  weatherLayerController.clearPicked()
-  weatherLayerController.renderLoading({ lat, lon }, 'picked', '地图点选')
-  const p = map.latLngToContainerPoint([lat, lon])
-  weatherPopupPosition.value = { x: p.x, y: p.y }
-  weatherStore.openLocation('picked')
-  void weatherRepository.load(pickedWeatherQuery(store.current, lat, lon)).then(() => {
-    if (weatherStore.bundle?.target === 'picked') weatherLayerController.renderPicked(weatherStore.bundle, '地图点选')
-  })
-}
-function onSeatMarkerClick(code: string, point: { x: number; y: number }) {
-  if (!weatherCurrentActive.value) return
-  const item = weatherMarkersStore.list.find((entry) => entry.code === code)
-  if (!item) return
-  weatherPopupPosition.value = point
-  weatherStore.selectedSeatCode = code
-  weatherStore.openLocation('default')
-  void weatherRepository.load({ contextLevel: item.level, contextCode: item.code, contextName: item.name, target: 'seat' })
-}
-function updateWeatherPopupPosition() {
-  if (!weatherCurrentActive.value || weatherStore.locationPopup === 'none') return
-  if (weatherStore.bundle?.target === 'seat' && weatherStore.selectedSeatCode) {
-    const display = weatherMarkerLayerController?.displayPoint(weatherStore.selectedSeatCode)
-    if (display) {
-      weatherPopupPosition.value = display
-      return
-    }
-  }
-  if (!weatherStore.bundle) return
-  const point = weatherStore.bundle.target === 'picked' ? weatherStore.bundle.originalLocation : weatherStore.bundle.location
-  const p = map.latLngToContainerPoint([point.lat, point.lon])
-  weatherPopupPosition.value = { x: p.x, y: p.y }
-}
-function updateNationalAlarmPopupPosition() {
-  const alarm = selectedNationalAlarm.value
-  if (!nationalAlarmsActive.value || nationalAlarmStore.selection?.source !== 'map' || !alarm?.mapLocation.point) return
-  const [lon, lat] = alarm.mapLocation.point
-  const p = map.latLngToContainerPoint([lat, lon])
-  nationalAlarmPopupPosition.value = { x: p.x, y: p.y }
-}
-function updateMapPopupPositions(){updateWeatherPopupPosition();updateNationalAlarmPopupPosition()}
 function closeBusinessForDisaster() {
   clearSelection()
   rosterOpen.value = false
@@ -1593,7 +1456,7 @@ function onManualKeydown(event: KeyboardEvent) {
   if (isTypingTarget(event.target)) return
   if(event.key==='Escape'&&nationalAlarmsActive.value&&nationalAlarmStore.selection){event.preventDefault();nationalAlarmStore.select(null);return}
   if(event.key==='Escape'&&villageCard.value){event.preventDefault();closeVillageCard();return}
-  if(event.key==='Escape'&&weatherCurrentActive.value&&weatherStore.locationPopup!=='none'){event.preventDefault();closeWeatherLocation();return}
+  if(event.key==='Escape'&&weatherCurrentActive.value&&weatherStore.locationPopup!=='none'){event.preventDefault();weatherMode.closeWeatherLocation();return}
   if (event.key === 'Escape' && typhoonMode.typhoonPopupState.value.pinned) {
     event.preventDefault()
     typhoonMode.clearPinnedPopup()
@@ -1784,8 +1647,7 @@ async function render(noFly = false) {
 }
 
 watch(() => store.path.length, () => {
-  if(nationalAlarmsActive.value){if(nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null);nationalAlarmLayerController?.clear()}
-  if(weatherActive.value){weatherStore.selection=null;weatherStore.locationPopup='none';weatherStore.selectedSeatCode=null;if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherMarkerLayerController?.clear();weatherMarkerRepository?.open(store.current.level,store.current.code)}}
+  weatherMode.onNavigate()
   const nf = pendingNoFly.value
   pendingNoFly.value = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
@@ -1798,51 +1660,6 @@ watch(() => store.path.length, () => {
   manualDraftPoints.value = []
   manualDraftDirty.value = false
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
-})
-
-watch(() => weatherStore.bundle, (bundle) => {
-  if (!weatherCurrentActive.value || !bundle) return
-  if (bundle.target === 'picked') weatherLayerController?.renderPicked(bundle, '地图点选')
-  // 浮窗与标牌共用政府驻地坐标：bundle 刷新后同步对应标牌，避免上游天气变化后浮窗新、标牌旧导致图标不一致。
-  if (bundle.target === 'seat' && weatherStore.selectedSeatCode) {
-    const current = bundle.current
-    if (current.status === 'success') {
-      weatherMarkersStore.setReady(weatherMarkersStore.generation, weatherStore.selectedSeatCode, {
-        condition: current.data.condition,
-        temperature: current.data.temperature,
-        high: current.data.high,
-        low: current.data.low,
-        fetchedAt: bundle.fetchedAt,
-      })
-    }
-  }
-})
-watch(() => weatherStore.phase, (phase) => {
-  if (!weatherCurrentActive.value || phase !== 'error' || weatherStore.bundle) return
-  const query = weatherStore.query
-  if (query?.target !== 'picked') return
-  if (query.lat != null && query.lon != null) weatherLayerController?.renderError({ lat: query.lat, lon: query.lon }, 'picked', '地图点选')
-})
-// 多级政府驻地标牌：骨架/逐项成功/失败/选中变化都重建集合；旧层级流事件不会进入新层级（store generation 守卫）。
-watch(() => [weatherMarkersStore.phase, weatherMarkersStore.list, weatherStore.selectedSeatCode] as const, () => {
-  if (!weatherCurrentActive.value || weatherMarkersStore.phase === 'closed') {
-    weatherMarkerLayerController?.clear()
-    return
-  }
-  weatherMarkerLayerController?.render(weatherMarkersStore.list, weatherStore.selectedSeatCode)
-}, { deep: true })
-// Do not rebuild markers when hover selection changes: replacing the button beneath
-// a stationary pointer emits a new mouseover and immediately reopens a just-closed popup.
-watch(() => [nationalAlarmsActive.value, nationalAlarmStore.snapshot, store.current.code] as const, () => {
-  if (!nationalAlarmsActive.value) {
-    nationalAlarmLayerController?.clear()
-    return
-  }
-  nationalAlarmLayerController?.render(nationalAlarmMapItems.value, nationalAlarmStore.selection?.id ?? null)
-}, { deep: true })
-watch(() => nationalAlarmStore.selection?.id, (id) => {
-  if (!id || nationalAlarmStore.selection?.source !== 'map') return
-  if (!nationalAlarmMapItems.value.some((alarm) => alarm.id === id)) nationalAlarmStore.select(null)
 })
 
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
@@ -1946,7 +1763,7 @@ onMounted(async () => {
   map.on('click', (event) => {
     // 点地图空白不自动关闭风险详情/不切列表（用户确认）；详情用返回/Esc 关闭
     if (typhoonMode.typhoonPopupState.value.pinned) typhoonMode.clearPinnedPopup()
-    if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
+    if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')weatherMode.closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
     if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
     const target = event.originalEvent.target
@@ -1984,34 +1801,7 @@ onMounted(async () => {
     onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
-  weatherLayerController = createWeatherLayerController(map, {
-    onLocationClick: (kind, point) => {
-      weatherPopupPosition.value = point
-      weatherStore.openLocation(kind)
-    },
-    onAlertClick: (selection, point) => {
-      weatherPopupPosition.value = point
-      weatherStore.selectAlert(selection)
-    },
-  })
-  weatherMarkerLayerController=createWeatherMarkerLayerController(map,{onMarkerClick:(code,point)=>{onSeatMarkerClick(code,point)}})
-  weatherInteractionController = createWeatherInteractionController(map, {
-    active: () => weatherCurrentActive.value,
-    editing: () => parcelMode.value !== 'idle',
-    provinceGeometry: () => provinceGeometry,
-    onPicked: loadPickedWeather,
-    onOutside: () => showNotice('天气当前仅支持浙江省范围', true),
-  })
-  weatherRepository=createWeatherRepository(weatherStore)
-  weatherMarkerRepository = createWeatherMarkerRepository({
-    begin: (level, code) => weatherMarkersStore.begin(level, code),
-    targets: (g, l, c, t) => weatherMarkersStore.setTargets(g, l, c, t),
-    ready: (g, c, s) => weatherMarkersStore.setReady(g, c, s),
-    fail: (g, c, e) => weatherMarkersStore.setFail(g, c, e),
-    streamFail: (g, e) => weatherMarkersStore.setStreamFail(g, e),
-  })
-  nationalAlarmRepository=createNationalAlarmRepository(nationalAlarmStore)
-  nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap})
+  weatherMode.init(map)
   typhoonMode.init(map)
   // 业务数据按村加载：初始无村级上下文，不预加载；进入村级时在 render 分支内触发。
   clearBusinessData()
@@ -2023,7 +1813,6 @@ onMounted(async () => {
   }
   syncMapViewport()
   map.on('resize', syncMapViewport)
-  map.on('move zoom',updateMapPopupPositions)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
     if (zoomLevelOutput) zoomLevelOutput.textContent = `Z ${currentZoom.value.toFixed(2)}`
@@ -2044,8 +1833,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  exitWeatherMode()
-  exitNationalAlarms()
+  weatherMode.exitWeatherMode()
+  weatherMode.exitNationalAlarms()
   exitPrecipitationMode()
   typhoonMode.exitTyphoonMode(false)
   disposed = true
@@ -2055,10 +1844,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onManualKeydown)
   store.setNavigationGuard(null)
   typhoonMode.destroy()
+  weatherMode.destroy()
   precipitationLayerController?.destroy()
-  weatherInteractionController?.destroy()
-  weatherLayerController?.destroy()
-  nationalAlarmLayerController?.destroy()
   workModeController?.destroy()
   manualDrawingController?.destroy()
   parcelLayerController?.destroy()
