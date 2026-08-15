@@ -339,7 +339,7 @@ export function useTyphoonMode(ctx: TyphoonModeContext): TyphoonMode {
     typhoonPanelModel,
     typhoonTimelineModel,
     visibleObservationCountByTyphoon,
-    typhoonRepository,
+    get typhoonRepository() { return typhoonRepository },
     enterTyphoonMode,
     exitTyphoonMode,
     rollbackTyphoonMode,

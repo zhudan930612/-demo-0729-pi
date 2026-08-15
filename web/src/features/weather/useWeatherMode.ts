@@ -38,8 +38,11 @@ export interface WeatherModeContext {
   weatherEntry(): ReturnType<typeof weatherEntryState>
   exits: {
     typhoon(restoreView?: boolean): void
-    precipitation(): void
   }
+  /** 天气菜单点降水模块：进入降水模式 */
+  enterPrecipitation(): void
+  /** 天气激活时已开降水：先退出降水 */
+  exitPrecipitation(): void
   closeBusinessForDisaster(): void
   showNotice(message: string, error?: boolean): void
 }
@@ -120,11 +123,11 @@ export function useWeatherMode(ctx: WeatherModeContext): WeatherMode {
 
   async function enterWeatherMode(module: WeatherModuleKind) {
     if (module === 'alerts') { void enterNationalAlarms(); return }
-    if (module === 'precipitation') { ctx.exits.precipitation(); return }
+    if (module === 'precipitation') { ctx.enterPrecipitation(); return }
     if (ctx.weatherActive() && weatherStore.module === module) return
     if (!ctx.weatherActive() && !ctx.weatherEntry().enabled) return
     if (disasterActive.value) ctx.exits.typhoon(false)
-    if (precipitationStore.isOpen) ctx.exits.precipitation()
+    if (precipitationStore.isOpen) ctx.exitPrecipitation()
     weatherRepository.exit()
     weatherMarkerRepository?.exit()
     weatherLayerController?.clear()
@@ -152,7 +155,7 @@ export function useWeatherMode(ctx: WeatherModeContext): WeatherMode {
     if (ctx.nationalAlarmsActive()) return
     if (!ctx.weatherActive() && !ctx.weatherEntry().enabled) return
     if (disasterActive.value) ctx.exits.typhoon(false)
-    if (precipitationStore.isOpen) ctx.exits.precipitation()
+    if (precipitationStore.isOpen) ctx.exitPrecipitation()
     ctx.closeBusinessForDisaster()
     await ctx.store.resetToProvince()
     void nationalAlarmRepository.load(false, true)
