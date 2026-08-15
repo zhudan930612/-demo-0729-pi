@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onBeforeUnmount, reactive, ref, toRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import L from 'leaflet'
 import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
@@ -228,19 +228,9 @@ import TyphoonHoverPopup from './typhoon/TyphoonHoverPopup.vue'
 import WeatherPopup from './weather/WeatherPopup.vue'
 import NationalAlarmPanel from './weather/NationalAlarmPanel.vue'
 import NationalAlarmPopup from './weather/NationalAlarmPopup.vue'
-import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
-import { loadCultivationFixture, loadPolicyFixture } from '../features/policy/policyRepository'
-import { addCultivationRecord, readEffectiveCultivation, removeAddedCultivation, removeCultivationForParcel, restoreInitialCultivation, saveCultivationOverride, updateAddedCultivation } from '../features/policy/cultivationStorage'
-import { cultivationKey, type CultivationRecord } from '../features/policy/cultivationState'
-import { fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../features/policy/policySelectors'
-import type { EnrollmentItem, PolicyFixture } from '../features/policy/policyTypes'
-import { linkedParcelStyle } from '../features/policy/policyVisual'
-import type { ParcelId, ParcelMode } from '../features/parcels/parcelTypes'
-import { createManualDrawingController, type ManualDrawingController } from '../map/manualDrawingController'
-import { createParcelLayerController, type ParcelLayerController } from '../map/parcelLayerController'
-import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
+import type { Feature, FeatureCollection, Geometry } from 'geojson'
+import type { ParcelMode } from '../features/parcels/parcelTypes'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
-import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
 import { autoLevelAllowed } from '../features/typhoon/disasterModeLifecycle'
 import { useTyphoonMode } from '../features/typhoon/useTyphoonMode'
 import { useTyphoonStore } from '../stores/typhoon'
@@ -252,24 +242,7 @@ import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import { useWeatherMode } from '../features/weather/useWeatherMode'
 import { usePrecipitationMode } from '../features/precipitation/usePrecipitationMode'
-import {
-  addPendingManualParcel,
-  commitManualBatch,
-  createManualBatchState,
-  hasManualBatchChanges,
-  removeManualParcel,
-  resetManualBatch,
-  undoLatestPendingManualParcel,
-  updateManualParcel,
-} from '../features/parcels/manualBatchState'
-import { loadHiddenParcelIds, persistHiddenParcelIds } from '../features/parcels/parcelHiddenStorage'
-import {
-  calculateNextHiddenIds,
-  clearPendingParcelFilterState,
-  createParcelFilterState,
-  restoreAllParcels,
-  toggleParcelFilterSelection as toggleFilterSelection,
-} from '../features/parcels/parcelFilterState'
+import { useParcelWorkbench } from '../features/parcels/useParcelWorkbench'
 import {
   useDrilldownStore,
   childrenUrl,
@@ -279,14 +252,6 @@ import {
 import { createBasemaps, type Basemaps } from '../api/tianditu'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
 import { pointInGeometry } from '../utils/geo'
-import { inspectManualGeometry, prepareManualGeometry } from '../utils/parcelGeometry'
-import {
-  MANUAL_PARCEL_NOTICE_KEY,
-  makeManualParcel,
-  readManualParcels,
-  writeManualParcels,
-  type ManualParcelFeature,
-} from '../utils/manualParcelStorage'
 
 // 缩放下钻阈值: 放大进入下一级 / 缩小退回上级(差 0.5 级防抖滞后)
 const ENTER_ZOOM: Partial<Record<string, number>> = {
@@ -310,6 +275,14 @@ const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 const mapEl = ref<HTMLDivElement>()
 const mapControlRef = ref<InstanceType<typeof MapControlStack>>()
 const store = useDrilldownStore()
+// 跨域共享的 UI 状态：saveNotice 为多域提示；parcelMode/rosterOpen/parcelVisible/parcelOn/detailPanelRef 由地块域写入、模板与天气/台风域读取。
+const saveNotice = ref('')
+const saveNoticeError = ref(false)
+const parcelMode = ref<ParcelMode>('idle')
+const rosterOpen = ref(false)
+const parcelVisible = ref(false)
+const parcelOn = ref(true)
+const detailPanelRef = ref<InstanceType<typeof ParcelDetailPanel>>()
 const typhoonStore = useTyphoonStore()
 const weatherStore = useWeatherStore()
 const weatherMarkersStore = useWeatherMarkersStore()
@@ -340,128 +313,25 @@ const activeWeatherModules = computed<WeatherModuleKind[]>(() => {
 })
 // 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
-const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
-const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
+const disasterEntryDisabled = computed(() => parcelHasUnsavedWork())
+const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:parcelHasUnsavedWork()}))
 const mapViewport = ref({ width: 0, height: 0 })
 const rsVisible = ref(false)
 const rsHint = ref('')
 const rsOn = ref(true)
-const parcelVisible = ref(false)
-const parcelOn = ref(true)
-const parcelMode = ref<ParcelMode>('idle')
-const hasAiParcels = ref(false)
-const hasManualParcels = ref(false)
-const hasFilterableParcels = computed(() => hasAiParcels.value || hasManualParcels.value)
-const manualDraftPoints = ref<Position[]>([])
-const manualDraftDirty = ref(false)
-const manualBatchState = reactive(createManualBatchState())
-const pendingManualParcels = toRef(manualBatchState, 'pendingParcels')
-const pendingManualEdits = toRef(manualBatchState, 'pendingEdits')
-const pendingRemovedManualIds = toRef(manualBatchState, 'removedIds')
-const batchSavedCount = computed(() => pendingManualParcels.value.length)
-const batchHasChanges = computed(() => hasManualBatchChanges(manualBatchState))
-const manualDistinctPointCount = computed(() => new Set(manualDraftPoints.value.map(([lng, lat]) => `${lng},${lat}`)).size)
-const manualDraftAreaText = computed(() => {
-  const prepared = prepareManualGeometry(manualDraftPoints.value).prepared
-  return prepared ? `${prepared.areaMu.toFixed(2)} 亩` : '边界待校验'
-})
-
-const pendingHideCount = ref(0)
-const pendingRestoreCount = ref(0)
-const pendingChangeCount = computed(() => pendingHideCount.value + pendingRestoreCount.value)
-const hiddenParcelCount = ref(0)
-const saveNotice = ref('')
-const saveNoticeError = ref(false)
-type ManualDialogState = { open: boolean; title: string; message: string; confirmLabel: string }
-const manualDialog = ref<ManualDialogState>({ open: false, title: '', message: '', confirmLabel: '确定' })
-const parcelDisplayCount = ref(0)
-const parcelDisplayAreaMu = ref(0)
-const parcelDisplayAreaText = computed(() => parcelDisplayAreaMu.value.toLocaleString('zh-CN', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-}))
 const currentZoom = ref(DEFAULT_MIN_ZOOM)
 const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
 const canZoomIn = computed(() => currentZoom.value < 19)
 const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
 const basemap = ref<'img' | 'vec'>('img')
-const policyFixture = ref<PolicyFixture | null>(null)
-const initialCultivationRecords = ref<CultivationRecord[]>([])
-const policyLoadError = ref('')
-const cultivationLoadError = ref('')
-async function loadBusinessData(villageCode?: string) {
-  const code = villageCode ?? ''
-  const [policy, cultivation] = await Promise.all([
-    code ? loadPolicyFixture(code) : Promise.resolve({ data: null as PolicyFixture | null, error: '' }),
-    code ? loadCultivationFixture(code) : Promise.resolve({ data: null as CultivationRecord[] | null, error: '' }),
-  ])
-  policyFixture.value = policy.data
-  initialCultivationRecords.value = cultivation.data ?? []
-  policyLoadError.value = policy.error ?? ''
-  cultivationLoadError.value = cultivation.error ?? ''
-}
-
-function clearBusinessData() {
-  policyFixture.value = null
-  initialCultivationRecords.value = []
-  policyLoadError.value = ''
-  cultivationLoadError.value = ''
-}
-
-function retryBusinessData() {
-  if (parcelVillageCode) void loadBusinessData(parcelVillageCode)
-  else clearBusinessData()
-}
-const selectedParcel = ref<ParcelSummaryInput | null>(null)
-const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
-const selectedCultivationRecords = ref<CultivationRecord[]>([])
-const selectedInitialRecordKeys = computed(() => selectedParcel.value
-  ? initialCultivationRecords.value
-      .filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id)
-      .map(cultivationKey)
-  : [])
-const cultivationEditing = ref(false)
-const rosterOpen = ref(false)
-const highlightedInsuredIds = ref<Set<string>>(new Set())
-const highlightedPolicyIds = ref<Set<string>>(new Set())
-const detailPanelRef = ref<InstanceType<typeof ParcelDetailPanel>>()
-const selectedRosterItems = computed(() => {
-  const policy = selectedPolicyContext.value?.currentPolicy
-  if (!policyFixture.value || !policy?.enrollmentListId) return []
-  const list = policyFixture.value.enrollmentLists.find((entry) => entry.id === policy.enrollmentListId)
-  if (!list) return []
-  const itemById = new Map(policyFixture.value.enrollmentItems.map((item) => [item.id, item]))
-  return list.itemIds.map((itemId) => itemById.get(itemId)).filter((item): item is EnrollmentItem => Boolean(item))
-})
-const selectedRosterPartyDisplay = computed(() => {
-  if (selectedPolicyContext.value?.currentPolicy?.insuredMode !== 'insured_roster') return ''
-  const firstItem = selectedRosterItems.value[0]
-  const firstParty = firstItem && policyFixture.value?.parties.find((party) => party.id === firstItem.insuredPartyId)
-  return firstParty ? `${firstParty.name}等${selectedRosterItems.value.length}户种植户` : '—'
-})
-
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
 
 let map: L.Map
 let navigationController: MapNavigationController
-let parcelLayerController: ParcelLayerController
-let manualDrawingController: ManualDrawingController
-let workModeController: ParcelWorkModeController
 let provinceGeometry: Geometry | null = null
 let zoomLevelOutput: HTMLOutputElement | null = null
-let parcelSource: FeatureCollection | null = null
-let manualParcels: ManualParcelFeature[] = []
-
-let editingManualOriginal: ManualParcelFeature | null = null
-let editingPendingManualId: string | null = null
-let editingBatchManualKind: 'new' | 'existing' | null = null
-let parcelVillageCode = ''
-const parcelFilterState = createParcelFilterState()
-const hiddenParcelIds = parcelFilterState.hiddenIds
-const pendingHideParcelIds = parcelFilterState.pendingHideIds
-const pendingRestoreParcelIds = parcelFilterState.pendingRestoreIds
 let saveNoticeTimer: ReturnType<typeof setTimeout> | null = null
 let rsInfo: RsInfo | null = null
 let flySeq = 0
@@ -472,10 +342,11 @@ let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触�
 let lastZoom = DEFAULT_MIN_ZOOM // 上一次 zoomend 的缩放级, 用于区分放大/缩小方向
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
-let manualDialogResolve: ((confirmed: boolean) => void) | null = null
 let provinceRenderPromise: Promise<void> | null = null
-// Leaflet Canvas 在部分浏览器中会让地块点击继续触发 map click；显式守卫是详情入口的回归保护。
-const parcelDetailClickGuard = createParcelDetailClickGuard()
+
+// 地块域在最后创建；台风/天气/降水依赖的 hasUnsavedParcelWork 与 closeBusinessPanels 经 holder 延迟绑定，避免循环依赖。
+let parcelHasUnsavedWork: () => boolean = () => false
+let closeBusinessPanels: () => void = () => {}
 
 const typhoonMode = useTyphoonMode({
   store,
@@ -484,8 +355,8 @@ const typhoonMode = useTyphoonMode({
   pendingNoFly,
   viewportWidth: () => mapViewport.value.width,
   anyWeatherActive: () => anyWeatherActive.value,
-  hasUnsavedParcelWork,
-  closeBusinessForDisaster,
+  hasUnsavedParcelWork: () => parcelHasUnsavedWork(),
+  closeBusinessForDisaster: () => closeBusinessPanels(),
   prepareProvinceLayers: prepareProvinceLayersWithoutMovingCamera,
   renderProvinceView,
   invalidateNavigation,
@@ -523,7 +394,7 @@ const weatherMode = useWeatherMode({
   },
   enterPrecipitation: () => precipitationEnter(),
   exitPrecipitation: () => precipitationExit(),
-  closeBusinessForDisaster,
+  closeBusinessForDisaster: () => closeBusinessPanels(),
   showNotice,
 })
 const {
@@ -548,7 +419,7 @@ const precipitationMode = usePrecipitationMode({
   workbenchCollapsed,
   pendingNoFly,
   anyWeatherActive: () => anyWeatherActive.value,
-  hasUnsavedParcelWork,
+  hasUnsavedParcelWork: () => parcelHasUnsavedWork(),
   exits: {
     weather: () => weatherMode.exitWeatherMode(),
     nationalAlarms: () => weatherMode.exitNationalAlarms(),
@@ -559,6 +430,72 @@ const precipitationMode = usePrecipitationMode({
 })
 precipitationEnter = () => { void precipitationMode.enterPrecipitationMode() }
 precipitationExit = () => precipitationMode.exitPrecipitationMode()
+
+const parcelWorkbench = useParcelWorkbench({
+  store,
+  parcelMode,
+  rosterOpen,
+  parcelVisible,
+  parcelOn,
+  detailPanelRef,
+  disasterActive: () => disasterActive.value,
+  weatherCurrentActive: () => weatherCurrentActive.value,
+  deselectPicked: () => weatherMode.deselectPicked(),
+  showNotice,
+  onAfterRender: () => { navigationController.bringOutlineToFront() },
+  onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
+  defaultMinZoom: DEFAULT_MIN_ZOOM,
+  editMinZoom: PARCEL_EDIT_MIN_ZOOM,
+})
+parcelHasUnsavedWork = () => parcelWorkbench.hasUnsavedParcelWork()
+closeBusinessPanels = () => parcelWorkbench.closeBusinessPanels()
+const {
+  hasFilterableParcels,
+  manualDraftPoints,
+  batchSavedCount,
+  batchHasChanges,
+  manualDraftAreaText,
+  pendingHideCount,
+  pendingRestoreCount,
+  pendingChangeCount,
+  hiddenParcelCount,
+  manualDialog,
+  parcelDisplayCount,
+  parcelDisplayAreaText,
+  policyFixture,
+  policyLoadError,
+  cultivationLoadError,
+  selectedParcel,
+  selectedPolicyContext,
+  selectedCultivationRecords,
+  selectedInitialRecordKeys,
+  cultivationEditing,
+  selectedRosterItems,
+  selectedRosterPartyDisplay,
+  retryBusinessData,
+  toggleParcels,
+  requestCloseDetail,
+  requestRestoreCultivation,
+  saveCultivationRecord,
+  removeCultivationRecord,
+  selectRosterItem,
+  restoreAllHiddenParcels,
+  saveParcelEdits,
+  cancelParcelEditing,
+  startParcelEditing,
+  startBatchDrawing,
+  exitBatchDrawing,
+  undoManualPoint,
+  finishManualDrawing,
+  saveManualBatch,
+  cancelManualBatch,
+  saveManualDraft,
+  cancelManualSession,
+  closeManualDialog,
+  removeBatchManualParcel,
+  startManualDrawing,
+} = parcelWorkbench
+const parcelVillageCode = parcelWorkbench.parcelVillageCode
 const {
   riskOverviewModel,
   riskSnapshotError,
@@ -594,66 +531,10 @@ const baseStyle = (level: keyof typeof LEVEL_WEIGHT): L.PathOptions => ({
   fillOpacity: 0.08,
 })
 
-function clearSelection() {
-  selectedParcel.value = null
-  selectedPolicyContext.value = null
-  selectedCultivationRecords.value = []
-  cultivationEditing.value = false
-  rosterOpen.value = false
-  highlightedInsuredIds.value = new Set()
-  highlightedPolicyIds.value = new Set()
-}
-
-function clearLayers() {
-  clearSelection()
-  leaveParcelWorkMode()
-  pendingHideParcelIds.clear()
-  pendingRestoreParcelIds.clear()
-  pendingHideCount.value = 0
-  pendingRestoreCount.value = 0
-  parcelSource = null
-  hasAiParcels.value = false
-  hasManualParcels.value = false
-  manualParcels = []
-  editingManualOriginal = null
-  manualDraftPoints.value = []
-  manualDraftDirty.value = false
-  resetManualBatch(manualBatchState)
-  editingPendingManualId = null
-  editingBatchManualKind = null
-  parcelVillageCode = ''
-  hiddenParcelIds.clear()
-  hiddenParcelCount.value = 0
-  parcelDisplayCount.value = 0
-  parcelDisplayAreaMu.value = 0
-  clearBusinessData()
-  navigationController?.clear()
-  parcelLayerController?.clear()
-  manualDrawingController?.clear()
-  rsVisible.value = false
-  parcelVisible.value = false
-  rsHint.value = ''
-  rsOn.value = true
-  // 台风专题与业务图层可同时显示；行政切换后地块默认保持开启。
-  parcelOn.value = true
-}
-
 /** 高分影像 开/关 */
 function toggleRs() {
   rsOn.value = !rsOn.value
   navigationController.setImageryOpacity(rsOn.value ? RS_OPACITY : 0)
-}
-
-/** AI 地块独立开/关 */
-async function toggleParcels() {
-  if (parcelMode.value !== 'idle') return
-  if (parcelOn.value && selectedParcel.value && cultivationEditing.value) {
-    const confirmed = await openManualDialog('关闭地块图层', '当前种植档案尚未保存，关闭后将丢失编辑内容。', '确认关闭')
-    if (!confirmed) return
-  }
-  parcelOn.value = !parcelOn.value
-  if (!parcelOn.value) clearSelection()
-  renderParcelLayer()
 }
 
 function zoomIn() {
@@ -664,477 +545,11 @@ function zoomOut() {
   if (canZoomOut.value) map.zoomOut()
 }
 
-function parcelId(feature: Feature): ParcelId | null {
-  const id = feature.properties?.id
-  return id === null || id === undefined ? null : String(id)
-}
-
-function refreshSelectedCultivation() {
-  if (!selectedParcel.value) return
-  selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords.value)
-}
-
-function requestSelectParcel(parcel: ParcelSummaryInput, event: L.LeafletMouseEvent) {
-  parcelDetailClickGuard.markParcelClick(event.originalEvent)
-  void selectParcel(parcel)
-}
-
-async function selectParcel(parcel: ParcelSummaryInput) {
-  if (parcelMode.value !== 'idle' || !parcelOn.value) return
-  if (cultivationEditing.value && !await openManualDialog('切换地块', '当前种植档案尚未保存，是否确认放弃并切换地块？', '确认切换')) return
-  selectedParcel.value = parcel
-  selectedPolicyContext.value = policyFixture.value
-    ? parcelPolicyContext(policyFixture.value, parcel.id)
-    : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
-  refreshSelectedCultivation()
-  const context = selectedPolicyContext.value
-  rosterOpen.value = false
-  const currentPolicyCoverages = policyFixture.value && context?.currentPolicy
-    ? policyCoverages(policyFixture.value, context.currentPolicy.id)
-    : []
-  if (currentPolicyCoverages.length > 1) {
-    // 只要当前保单关联多个地块，点击其中任一地块就展示同一保单的全部可见关联地块。
-    // 当前地块仍由 selectionStyle 使用橙色主高亮，其余关联地块使用绿色次级高亮。
-    highlightedInsuredIds.value = new Set(currentPolicyCoverages.map((entry) => entry.parcelId))
-    highlightedPolicyIds.value = new Set()
-  } else {
-    const sameInsuredContext = selectedPolicyContext.value?.currentInsured?.id && highlightedInsuredIds.value.has(parcel.id)
-    if (!sameInsuredContext) {
-      highlightedInsuredIds.value = new Set()
-      highlightedPolicyIds.value = new Set()
-    }
-  }
-  renderParcelLayer()
-  if(weatherCurrentActive.value)weatherMode.deselectPicked()
-}
-
-async function requestCloseDetail() {
-  if (cultivationEditing.value && !await openManualDialog('关闭地块详情', '当前种植档案尚未保存，是否确认放弃？', '确认放弃')) return
-  clearSelection()
-  renderParcelLayer()
-  if(weatherCurrentActive.value)weatherMode.deselectPicked()
-}
-
-async function requestRestoreCultivation() {
-  if (!selectedParcel.value || !await openManualDialog('恢复初始档案', '将清除当前地块的本机覆盖与新增记录，是否继续？', '确认恢复')) return
-  const result = restoreInitialCultivation(parcelVillageCode, selectedParcel.value.id)
-  if (!result.ok) { showNotice(result.error ?? '恢复失败', true); return }
-  refreshSelectedCultivation(); showNotice('已恢复当前地块初始档案')
-}
-
-function saveCultivationRecord(record: CultivationRecord, isExisting: boolean) {
-  const initial = selectedInitialRecordKeys.value.includes(cultivationKey(record))
-  const result = isExisting
-    ? (initial
-        ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords.value)
-        : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords.value))
-    : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords.value)
-  if (!result.ok) {
-    showNotice(result.error ?? '种植档案保存失败', true)
-    return
-  }
-  refreshSelectedCultivation()
-  cultivationEditing.value = false
-  detailPanelRef.value?.markSaved()
-  showNotice('种植档案已保存到当前浏览器')
-}
-
-function removeCultivationRecord(record: CultivationRecord) {
-  const result = removeAddedCultivation(parcelVillageCode, record)
-  if (!result.ok) { showNotice(result.error ?? '删除失败', true); return }
-  refreshSelectedCultivation(); showNotice('新增种植档案已删除')
-}
-
-function selectRosterItem(item: EnrollmentItem) {
-  if (!policyFixture.value || !selectedPolicyContext.value?.currentPolicy) return
-  highlightedInsuredIds.value = new Set(insuredCoverages(policyFixture.value, item.insuredPartyId, selectedPolicyContext.value.currentPolicy.id).map((entry) => entry.parcelId))
-  renderParcelLayer()
-}
-
-function selectionStyle(feature: Feature): L.PathOptions | null {
-  const id = parcelId(feature)
-  if (!id || !selectedParcel.value) return null
-  if (id === selectedParcel.value.id) return { color: '#f97316', weight: 4, fillColor: '#fb923c', fillOpacity: 0.34 }
-  if (highlightedInsuredIds.value.has(id)) return linkedParcelStyle(selectedPolicyContext.value?.currentPolicy?.insuredMode)
-  if (highlightedPolicyIds.value.has(id)) return { color: '#a78bfa', weight: 2, dashArray: '7 5', fillColor: '#c4b5fd', fillOpacity: 0.14 }
-  return null
-}
-
-function syncPendingParcelCounts() {
-  pendingHideCount.value = pendingHideParcelIds.size
-  pendingRestoreCount.value = pendingRestoreParcelIds.size
-}
-
-function toggleParcelFilterSelection(id: ParcelId) {
-  toggleFilterSelection(parcelFilterState, id)
-  syncPendingParcelCounts()
-}
-
-function renderParcelLayer() {
-  manualDrawingController.clearRemoveAction()
-  const metrics = parcelLayerController.render()
-  parcelVisible.value = metrics.parcelVisible
-  hiddenParcelCount.value = metrics.hiddenCount
-  parcelDisplayCount.value = metrics.displayCount
-  parcelDisplayAreaMu.value = metrics.displayAreaMu
-  if (parcelMode.value === 'batch' && editingPendingManualId) manualDrawingController.renderRemoveAction()
-}
-
-function enterParcelWorkMode(mode: ParcelMode, dim = true) {
-  workModeController.enter(mode, dim)
-}
-
-function leaveParcelWorkMode() {
-  workModeController?.leave()
-}
-
-async function startParcelEditing() {
-  if (disasterActive.value || !parcelOn.value || !hasFilterableParcels.value) return
-  if (cultivationEditing.value && !await openManualDialog('进入筛选模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
-  clearSelection()
-  clearPendingParcelFilterState(parcelFilterState)
-  syncPendingParcelCounts()
-  enterParcelWorkMode('filter')
-  renderParcelLayer()
-}
-
-function finishParcelEditing() {
-  leaveParcelWorkMode()
-  clearPendingParcelFilterState(parcelFilterState)
-  syncPendingParcelCounts()
-  renderParcelLayer()
-}
-
-function showSaveNotice(hiddenCount: number, restoredCount: number) {
-  showNotice(`已隐藏 ${hiddenCount} 个地块，恢复 ${restoredCount} 个地块`)
-}
-
-function saveParcelEdits() {
-  if (!pendingChangeCount.value || !parcelVillageCode) return
-  const hiddenCount = pendingHideParcelIds.size
-  const restoredCount = pendingRestoreParcelIds.size
-  const nextHidden = calculateNextHiddenIds(parcelFilterState)
-  if (!persistHiddenParcelIds(parcelVillageCode, nextHidden)) {
-    window.alert('保存失败，本次修改尚未生效。请检查浏览器是否允许本地存储。')
-    return
-  }
-  hiddenParcelIds.clear()
-  for (const id of nextHidden) hiddenParcelIds.add(id)
-  finishParcelEditing()
-  showSaveNotice(hiddenCount, restoredCount)
-}
-
-function cancelParcelEditing() {
-  finishParcelEditing()
-}
-
-function restoreAllHiddenParcels() {
-  if (!hiddenParcelIds.size) return
-  restoreAllParcels(parcelFilterState)
-  syncPendingParcelCounts()
-  renderParcelLayer()
-}
-
 function showNotice(message: string, error = false) {
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
   saveNoticeError.value = error
   saveNotice.value = message
   saveNoticeTimer = setTimeout(() => { saveNotice.value = ''; saveNoticeError.value = false }, error ? 5000 : 3000)
-}
-
-function showManualStorageNoticeOnce() {
-  try {
-    if (localStorage.getItem(MANUAL_PARCEL_NOTICE_KEY)) return
-    window.alert('人工地块仅保存在当前浏览器。清理浏览器数据、更换浏览器或设备后将无法恢复。')
-    localStorage.setItem(MANUAL_PARCEL_NOTICE_KEY, 'shown')
-  } catch {
-    // 存储不可用会在实际保存时给出明确错误，不阻塞绘制。
-  }
-}
-
-function effectiveBatchManualParcels(): ManualParcelFeature[] {
-  const edits = new Map(pendingManualEdits.value.map((feature) => [feature.properties.id, feature]))
-  return manualParcels
-    .filter((feature) => !pendingRemovedManualIds.value.includes(feature.properties.id))
-    .map((feature) => edits.get(feature.properties.id) ?? feature)
-}
-
-function manualGeometryWarnings(preparedGeometry: ManualParcelFeature['geometry'], excludedPendingId?: string) {
-  const otherFeatures: Feature[] = [
-    ...(parcelSource?.features ?? []),
-    ...effectiveBatchManualParcels().filter((feature) => feature.properties.id !== excludedPendingId),
-    ...pendingManualParcels.value.filter((feature) => feature.properties.id !== excludedPendingId),
-  ]
-  return inspectManualGeometry(preparedGeometry, store.current.geometry, otherFeatures)
-}
-
-function openManualDialog(title: string, message: string, confirmLabel = '确定'): Promise<boolean> {
-  if (manualDialogResolve) manualDialogResolve(false)
-  manualDialog.value = { open: true, title, message, confirmLabel }
-  return new Promise((resolve) => { manualDialogResolve = resolve })
-}
-
-function closeManualDialog(confirmed: boolean) {
-  manualDialog.value.open = false
-  const resolve = manualDialogResolve
-  manualDialogResolve = null
-  resolve?.(confirmed)
-}
-
-async function confirmManualWarnings(preparedGeometry: ManualParcelFeature['geometry'], excludedPendingId?: string) {
-  const warnings = manualGeometryWarnings(preparedGeometry, excludedPendingId)
-  if (!(warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)) return true
-  return openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要继续')
-}
-
-async function startManualDrawing() {
-  if (disasterActive.value || store.current.level !== 'village') return
-  if (cultivationEditing.value && !await openManualDialog('进入新增模式', '当前种植档案尚未保存，是否确认放弃？', '确认进入')) return
-  clearSelection()
-  showManualStorageNoticeOnce()
-  parcelOn.value = true
-  editingManualOriginal = null
-  editingPendingManualId = null
-  manualDraftPoints.value = []
-  resetManualBatch(manualBatchState)
-  manualDraftDirty.value = false
-  enterParcelWorkMode('batch')
-  manualDrawingController.setInteraction('batch')
-  renderParcelLayer()
-}
-
-async function startBatchDrawing() {
-  if (parcelMode.value !== 'batch') return
-  if (editingPendingManualId && !await finishPendingManualEditing()) return
-  editingPendingManualId = null
-  editingBatchManualKind = null
-  manualDraftPoints.value = []
-  manualDrawingController.clearDraft()
-  parcelMode.value = 'drawing'
-  manualDrawingController.setInteraction('drawing')
-  renderParcelLayer()
-}
-
-function exitBatchDrawing() {
-  if (parcelMode.value !== 'drawing') return
-  manualDraftPoints.value = []
-  manualDrawingController.clearDraft()
-  parcelMode.value = 'batch'
-  manualDrawingController.setInteraction('batch')
-  manualDraftDirty.value = batchHasChanges.value
-  renderParcelLayer()
-}
-
-function undoManualPoint() {
-  if (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing') return
-  if (editingPendingManualId) {
-    editingPendingManualId = null
-    editingBatchManualKind = null
-    manualDraftPoints.value = []
-    manualDrawingController.clearDraft()
-    renderParcelLayer()
-    return
-  }
-  if (manualDraftPoints.value.length) {
-    manualDraftPoints.value = manualDraftPoints.value.slice(0, -1)
-    manualDrawingController.renderDraft(false)
-  } else if (pendingManualParcels.value.length) {
-    undoLatestPendingManualParcel(manualBatchState)
-    renderParcelLayer()
-  }
-  manualDraftDirty.value = manualDraftPoints.value.length > 0 || pendingManualParcels.value.length > 0
-}
-
-async function finishManualDrawing() {
-  if (parcelMode.value !== 'drawing' || editingPendingManualId) return
-  const checked = prepareManualGeometry(manualDraftPoints.value)
-  if (!checked.prepared) {
-    showNotice(checked.error ?? '至少需要 3 个不同顶点才能闭合地块。', true)
-    return
-  }
-  if (!await confirmManualWarnings(checked.prepared.geometry)) return
-  addPendingManualParcel(manualBatchState, makeManualParcel(parcelVillageCode, checked.prepared))
-  manualDraftPoints.value = []
-  manualDraftDirty.value = true
-  manualDrawingController.clearDraft()
-  parcelMode.value = 'batch'
-  manualDrawingController.setInteraction('batch')
-  renderParcelLayer()
-}
-
-async function startPendingManualEditing(feature: ManualParcelFeature) {
-  await startBatchManualEditing(feature, 'new')
-}
-
-async function startBatchExistingManualEditing(feature: ManualParcelFeature) {
-  await startBatchManualEditing(feature, 'existing')
-}
-
-async function startBatchManualEditing(feature: ManualParcelFeature, kind: 'new' | 'existing') {
-  if (manualDraftPoints.value.length && !editingPendingManualId) {
-    showNotice('请先点击第一个顶点或按 N 闭合当前地块，或撤销当前顶点。', true)
-    return
-  }
-  if (editingPendingManualId === feature.properties.id && editingBatchManualKind === kind) return
-  if (editingPendingManualId && !await finishPendingManualEditing()) return
-  editingPendingManualId = feature.properties.id
-  editingBatchManualKind = kind
-  manualDraftPoints.value = feature.geometry.coordinates[0].slice(0, -1).map(([lng, lat]) => [lng, lat])
-  renderParcelLayer()
-  manualDrawingController.renderDraft(true)
-}
-
-async function finishPendingManualEditing(): Promise<boolean> {
-  if (!editingPendingManualId) return true
-  const checked = prepareManualGeometry(manualDraftPoints.value)
-  if (!checked.prepared) {
-    showNotice(checked.error ?? '地块几何无效。', true)
-    return false
-  }
-  if (!await confirmManualWarnings(checked.prepared.geometry, editingPendingManualId)) return false
-  const source = editingBatchManualKind === 'existing' ? effectiveBatchManualParcels() : pendingManualParcels.value
-  const original = source.find((feature) => feature.properties.id === editingPendingManualId)
-  if (!original) return false
-  const updated = makeManualParcel(parcelVillageCode, checked.prepared, original)
-  updateManualParcel(manualBatchState, updated, editingBatchManualKind === 'existing' ? 'existing' : 'new')
-  editingPendingManualId = null
-  editingBatchManualKind = null
-  manualDraftPoints.value = []
-  manualDrawingController.clearDraft()
-  renderParcelLayer()
-  return true
-}
-
-function removeBatchManualParcel(id: string) {
-  const kind = editingBatchManualKind === 'existing' || manualParcels.some((feature) => feature.properties.id === id) ? 'existing' : 'new'
-  removeManualParcel(manualBatchState, id, kind)
-  if (editingPendingManualId === id) {
-    editingPendingManualId = null
-    editingBatchManualKind = null
-    manualDraftPoints.value = []
-    manualDrawingController.clearDraft()
-  }
-  manualDraftDirty.value = batchHasChanges.value
-  renderParcelLayer()
-}
-
-async function saveManualBatch() {
-  if (!parcelVillageCode || (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing')) return
-  if (editingPendingManualId && !await finishPendingManualEditing()) return
-  if (manualDraftPoints.value.length) {
-    showNotice('当前地块尚未闭合，请点击第一个顶点或按 N 完成绘制。', true)
-    return
-  }
-  if (!batchHasChanges.value) return
-  const nextFeatures = commitManualBatch(manualParcels, manualBatchState)
-  for (const id of pendingRemovedManualIds.value) {
-    const cleaned = removeCultivationForParcel(parcelVillageCode, id)
-    if (!cleaned.ok) { showNotice(cleaned.error ?? '删除地块关联档案失败，未保存本批次。', true); return }
-  }
-  const addedCount = pendingManualParcels.value.length
-  const changedCount = pendingManualEdits.value.length
-  const removedCount = pendingRemovedManualIds.value.length
-  const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
-  if (!persisted.ok) {
-    showNotice(persisted.error, true)
-    return
-  }
-  manualParcels = persisted.features
-  hasManualParcels.value = manualParcels.length > 0
-  for (const id of pendingRemovedManualIds.value) {
-    hiddenParcelIds.delete(id)
-    pendingHideParcelIds.delete(id)
-    pendingRestoreParcelIds.delete(id)
-  }
-  persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
-  resetManualBatch(manualBatchState)
-  manualDraftDirty.value = false
-  leaveParcelWorkMode()
-  manualDrawingController.clearDraft()
-  renderParcelLayer()
-  showNotice(`已保存：新增 ${addedCount} 个，修改 ${changedCount} 个，移除 ${removedCount} 个`)
-}
-
-async function cancelManualBatch(silent = false) {
-  const hasOpenDraft = manualDraftPoints.value.length > 0 && !editingPendingManualId
-  const hasPendingEdit = Boolean(editingPendingManualId)
-  const hasContent = pendingManualParcels.value.length > 0 || pendingManualEdits.value.length > 0 || pendingRemovedManualIds.value.length > 0 || hasOpenDraft || hasPendingEdit
-  if (!silent && hasContent
-      && !await openManualDialog('取消新增地块', '当前有未保存的操作，是否确认放弃？', '确认放弃')) return
-  resetManualBatch(manualBatchState)
-  editingPendingManualId = null
-  editingBatchManualKind = null
-  manualDraftPoints.value = []
-  manualDraftDirty.value = false
-  manualDrawingController.clearDraft()
-  leaveParcelWorkMode()
-  renderParcelLayer()
-}
-
-function cancelManualSession() {
-  manualDrawingController.setInteraction('none')
-  manualDrawingController.clearDraft()
-  manualDraftPoints.value = []
-  manualDraftDirty.value = false
-  editingManualOriginal = null
-  leaveParcelWorkMode()
-  renderParcelLayer()
-}
-
-function manualWarningMessage(overlapCount: number, outsideVillage: boolean, incompleteChecks: number): string {
-  const parts: string[] = []
-  if (overlapCount) parts.push(`与 ${overlapCount} 个已有地块重叠`)
-  if (outsideVillage) parts.push('部分范围越过当前村界')
-  if (incompleteChecks) parts.push(`${incompleteChecks} 项空间关系无法完整校验`)
-  return `当前地块${parts.join('，')}。是否仍要保存？`
-}
-
-async function saveManualDraft() {
-  if (!parcelVillageCode) return
-  const checked = prepareManualGeometry(manualDraftPoints.value)
-  if (!checked.prepared) {
-    showNotice(checked.error ?? '地块几何无效。', true)
-    return
-  }
-  const editingId = editingManualOriginal?.properties.id
-  const otherFeatures: Feature[] = [
-    ...(parcelSource?.features ?? []),
-    ...manualParcels.filter((feature) => feature.properties.id !== editingId),
-  ]
-  const warnings = inspectManualGeometry(checked.prepared.geometry, store.current.geometry, otherFeatures)
-  if ((warnings.overlapCount || warnings.outsideVillage || warnings.incompleteChecks)
-      && !await openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要保存')) return
-
-  const next = makeManualParcel(
-    parcelVillageCode,
-    checked.prepared,
-    editingManualOriginal ?? undefined,
-    undefined,
-  )
-  const nextFeatures = editingManualOriginal
-    ? manualParcels.map((feature) => feature.properties.id === editingManualOriginal!.properties.id ? next : feature)
-    : [...manualParcels, next]
-  const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
-  if (!persisted.ok) {
-    showNotice(persisted.error, true)
-    return
-  }
-  manualParcels = persisted.features
-  hasManualParcels.value = manualParcels.length > 0
-  manualDrawingController.clearDraft()
-  manualDraftPoints.value = []
-  manualDraftDirty.value = false
-  editingManualOriginal = null
-  leaveParcelWorkMode()
-  renderParcelLayer()
-  showNotice('人工地块已保存到当前浏览器')
-}
-
-function hasUnsavedParcelWork(): boolean {
-  if (cultivationEditing.value) return true
-  if (parcelMode.value === 'batch' || parcelMode.value === 'drawing') return manualDraftPoints.value.length > 0 || batchHasChanges.value || Boolean(editingPendingManualId)
-  if (parcelMode.value === 'editing') return manualDraftDirty.value
-  return pendingChangeCount.value > 0
 }
 
 function closeWeatherFromToolbar(module: WeatherModuleKind) {
@@ -1168,11 +583,6 @@ watch(() => precipitationStore.isOpen, (open) => {
   if (open) workbenchTab.value = 'risk'
   else if (disasterActive.value) workbenchTab.value = 'typhoon'
 })
-function closeBusinessForDisaster() {
-  clearSelection()
-  rosterOpen.value = false
-}
-
 async function prepareProvinceLayersWithoutMovingCamera() {
   await nextTick()
   if (provinceRenderPromise) await provinceRenderPromise
@@ -1214,9 +624,9 @@ function onManualKeydown(event: KeyboardEvent) {
     cancelManualSession()
     return
   }
-  if (event.key === 'Delete' && parcelMode.value === 'batch' && editingPendingManualId) {
+  if (event.key === 'Delete' && parcelMode.value === 'batch' && parcelWorkbench.editingPendingManualId) {
     event.preventDefault()
-    removeBatchManualParcel(editingPendingManualId)
+    removeBatchManualParcel(parcelWorkbench.editingPendingManualId)
     return
   }
   if ((parcelMode.value === 'batch' || parcelMode.value === 'drawing') && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'n') {
@@ -1238,7 +648,11 @@ async function render(noFly = false) {
   const crumb = store.current
   const seq = ++flySeq
   const isCurrent = () => !disposed && seq === flySeq
-  clearLayers()
+  parcelWorkbench.clearForNavigation()
+  navigationController.clear()
+  rsVisible.value = false
+  rsHint.value = ''
+  rsOn.value = true
   navigationController.renderOutline(crumb, { color: HOVER, weight: 3, fill: false, dashArray: '6 4' })
 
   // 视野: flyTo 当前区域 (决策#4 动效); 自动切换层级时不动视野
@@ -1290,19 +704,10 @@ async function render(noFly = false) {
 
   // 人工地块不依赖高分影像或 AI 产物：进入任意村时先建立当前村上下文并读取本机记录。
   if (crumb.level === 'village') {
-    parcelVillageCode = crumb.code
-    const manualResult = readManualParcels(crumb.code)
-    manualParcels = manualResult.features
-    hasManualParcels.value = manualParcels.length > 0
-    hiddenParcelIds.clear()
-    for (const id of loadHiddenParcelIds(crumb.code)) hiddenParcelIds.add(id)
-    if (manualResult.error) showNotice(manualResult.error, true)
-    renderParcelLayer()
-    // 进入村级后按村代码加载保单/种植档案业务数据（无产物村静默为空，不报阻断错误）
-    void loadBusinessData(crumb.code)
+    parcelWorkbench.enterVillageContext(crumb.code)
   } else {
     // 非村级：清空业务数据，避免上一村数据残留串村
-    clearBusinessData()
+    parcelWorkbench.clearBusinessData()
   }
 
   // 乡镇和村级共用高分影像；AI 地块仍只在村级按需加载。
@@ -1326,18 +731,7 @@ async function render(noFly = false) {
         if (crumb.level === 'village') {
           const parcels = await fetchJSON<FeatureCollection>(`/data/parcels/${crumb.code}.geojson`).catch(() => null)
           if (!isCurrent()) return
-          if (parcels?.features.length) {
-            parcelSource = parcels
-            hasAiParcels.value = true
-            const validIds = new Set([
-              ...parcels.features.map(parcelId).filter((id): id is ParcelId => id !== null),
-              ...manualParcels.map((feature) => feature.properties.id),
-            ])
-            for (const id of [...hiddenParcelIds]) {
-              if (!validIds.has(id)) hiddenParcelIds.delete(id)
-            }
-            renderParcelLayer()
-          }
+          if (parcels?.features.length) parcelWorkbench.applyAiParcels(parcels)
         }
 
         // 乡镇/村级低于影像最低级别时抬升，保证进入层级后影像实际可见。
@@ -1385,14 +779,7 @@ watch(() => store.path.length, () => {
   const nf = pendingNoFly.value
   pendingNoFly.value = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
-  if (parcelMode.value === 'filter') {
-    clearPendingParcelFilterState(parcelFilterState)
-    syncPendingParcelCounts()
-  }
-  manualDrawingController.setInteraction('none')
-  manualDrawingController.clearDraft()
-  manualDraftPoints.value = []
-  manualDraftDirty.value = false
+  parcelWorkbench.onNavigateReset()
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
 
@@ -1466,80 +853,17 @@ onMounted(async () => {
   map.getPane('annotationPane')!.style.zIndex = '450'
   map.getPane('annotationPane')!.style.pointerEvents = 'none'
   navigationController = createMapNavigationController(map)
-  parcelLayerController = createParcelLayerController(
-    map,
-    () => ({
-      mode: parcelMode.value,
-      parcelOn: parcelOn.value,
-      parcelSource,
-      manualParcels,
-      pendingManualParcels: pendingManualParcels.value,
-      pendingManualEdits: pendingManualEdits.value,
-      removedManualIds: pendingRemovedManualIds.value,
-      editingManualOriginalId: editingManualOriginal?.properties.id ?? null,
-      editingPendingManualId,
-      editingBatchKind: editingBatchManualKind,
-      hiddenIds: hiddenParcelIds,
-      pendingHideIds: pendingHideParcelIds,
-      pendingRestoreIds: pendingRestoreParcelIds,
-    }),
-    {
-      parcelId,
-      onFilterToggle: toggleParcelFilterSelection,
-      onSelectBase: (feature, event) => { const parcel = fromBaseParcel(feature.properties ?? {}); if (parcel) requestSelectParcel(parcel, event) },
-      onSelectManual: (feature, event) => { requestSelectParcel(fromManualParcel(feature), event) },
-      onEditExisting: (feature) => { void startBatchExistingManualEditing(feature) },
-      onEditPending: (feature) => { void startPendingManualEditing(feature) },
-      onAfterRender: navigationController.bringOutlineToFront,
-      selectionStyle,
-    },
-  )
+  parcelWorkbench.init(map)
   map.on('click', (event) => {
     // 点地图空白不自动关闭风险详情/不切列表（用户确认）；详情用返回/Esc 关闭
     if (typhoonMode.typhoonPopupState.value.pinned) typhoonMode.clearPinnedPopup()
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')weatherMode.closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
-    if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
-    const target = event.originalEvent.target
-    // Canvas 矢量地块共用地图 canvas；点击 canvas 不等同于地图空白，不能用于关闭详情。
-    if (target instanceof HTMLCanvasElement) return
-    if (parcelMode.value === 'idle' && selectedParcel.value && !rosterOpen.value) void requestCloseDetail()
-  })
-  manualDrawingController = createManualDrawingController(
-    map,
-    () => ({
-      mode: parcelMode.value,
-      points: manualDraftPoints.value,
-      distinctPointCount: manualDistinctPointCount.value,
-      selectedId: editingPendingManualId,
-    }),
-    {
-      onPointAdded: (point) => {
-        manualDraftPoints.value = [...manualDraftPoints.value, point]
-        manualDraftDirty.value = true
-        manualDrawingController.renderDraft(false)
-      },
-      onPointMoved: (index, point) => {
-        manualDraftPoints.value[index] = point
-        manualDraftDirty.value = true
-      },
-      onCloseRequested: () => { void finishManualDrawing() },
-      onBlankMapClick: () => { if (parcelMode.value === 'idle' && selectedParcel.value) void requestCloseDetail(); else void finishPendingManualEditing() },
-      onRemoveRequested: removeBatchManualParcel,
-    },
-  )
-  workModeController = createParcelWorkModeController(map, {
-    defaultMinZoom: DEFAULT_MIN_ZOOM,
-    editMinZoom: PARCEL_EDIT_MIN_ZOOM,
-    onModeChange: (mode) => { parcelMode.value = mode },
-    onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
-    stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
+    parcelWorkbench.onMapClick(event)
   })
   weatherMode.init(map)
   precipitationMode.init(map)
   typhoonMode.init(map)
-  // 业务数据按村加载：初始无村级上下文，不预加载；进入村级时在 render 分支内触发。
-  clearBusinessData()
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {
@@ -1554,12 +878,9 @@ onMounted(async () => {
     onAutoLevel()
     lastZoom = map.getZoom()
   })
-  store.setNavigationGuard(async () => {
-    if (!hasUnsavedParcelWork()) { clearSelection(); return true }
-    return openManualDialog('离开当前村', '当前修改尚未保存，离开后将丢失。是否继续？', '确认离开')
-  })
+  store.setNavigationGuard(() => parcelWorkbench.navigationGuard())
   beforeUnloadHandler = (event: BeforeUnloadEvent) => {
-    if (!hasUnsavedParcelWork()) return
+    if (!parcelWorkbench.hasUnsavedParcelWork()) return
     event.preventDefault()
   }
   window.addEventListener('beforeunload', beforeUnloadHandler)
@@ -1581,9 +902,7 @@ onBeforeUnmount(() => {
   typhoonMode.destroy()
   weatherMode.destroy()
   precipitationMode.destroy()
-  workModeController?.destroy()
-  manualDrawingController?.destroy()
-  parcelLayerController?.destroy()
+  parcelWorkbench.destroy()
   navigationController?.destroy()
   map?.remove()
 })
