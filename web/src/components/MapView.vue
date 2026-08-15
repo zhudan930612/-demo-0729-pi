@@ -384,14 +384,35 @@ const riskOverviewModel = computed<VillageRiskOverviewModel | null>(() => {
 const nationalAlarmsActive = computed(()=>nationalAlarmStore.isOpen)
 const nationalAlarmPopupPosition = ref({x:0,y:0})
 const selectedNationalAlarm = computed(()=>nationalAlarmStore.snapshot?.items.find((alarm)=>alarm.id===nationalAlarmStore.selection?.id)??null)
-const currentCountyCode = computed(()=>{for(let index=store.path.length-1;index>=0;index-=1){if(store.path[index]?.level==='county')return store.path[index].code}return null})
-const nationalAlarmMapItems = computed(()=>alarmsForMap(nationalAlarmStore.snapshot?.items??[], { level:store.current.level, code:store.current.code, countyCode:currentCountyCode.value }))
-const nationalAlarmMapNotice = computed(()=>nationalAlarmsActive.value ? mapNotice(nationalAlarmStore.snapshot?.items??[], { level:store.current.level, code:store.current.code, countyCode:currentCountyCode.value }) : '')
+const currentCountyCode = computed(() => {
+  for (let index = store.path.length - 1; index >= 0; index -= 1) {
+    if (store.path[index]?.level === 'county') return store.path[index].code
+  }
+  return null
+})
+const nationalAlarmMapItems = computed(() => alarmsForMap(nationalAlarmStore.snapshot?.items ?? [], {
+  level: store.current.level,
+  code: store.current.code,
+  countyCode: currentCountyCode.value,
+}))
+const nationalAlarmMapNotice = computed(() => nationalAlarmsActive.value
+  ? mapNotice(nationalAlarmStore.snapshot?.items ?? [], {
+      level: store.current.level,
+      code: store.current.code,
+      countyCode: currentCountyCode.value,
+    })
+  : '')
 const disasterActive = ref(false)
 const weatherActive = computed(()=>weatherStore.isOpen)
 const anyWeatherActive = computed(()=>weatherActive.value||nationalAlarmsActive.value)
 const weatherCurrentActive = computed(()=>weatherActive.value&&weatherStore.module==='current')
-const activeWeatherModules = computed<WeatherModuleKind[]>(()=>{const list:WeatherModuleKind[]=[];if(weatherActive.value&&weatherStore.module)list.push(weatherStore.module);if(nationalAlarmsActive.value)list.push('alerts');if(precipitationStore.isOpen)list.push('precipitation');return list})
+const activeWeatherModules = computed<WeatherModuleKind[]>(() => {
+  const list: WeatherModuleKind[] = []
+  if (weatherActive.value && weatherStore.module) list.push(weatherStore.module)
+  if (nationalAlarmsActive.value) list.push('alerts')
+  if (precipitationStore.isOpen) list.push('precipitation')
+  return list
+})
 // 按点查询提示只在乡镇及以下显示（省/市/县有常驻标牌，无需提示）。
 const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.current.level==='township'||store.current.level==='village'))
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
@@ -495,7 +516,11 @@ function retryBusinessData() {
 const selectedParcel = ref<ParcelSummaryInput | null>(null)
 const selectedPolicyContext = ref<ParcelPolicyContext | null>(null)
 const selectedCultivationRecords = ref<CultivationRecord[]>([])
-const selectedInitialRecordKeys = computed(() => selectedParcel.value ? initialCultivationRecords.value.filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id).map(cultivationKey) : [])
+const selectedInitialRecordKeys = computed(() => selectedParcel.value
+  ? initialCultivationRecords.value
+      .filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id)
+      .map(cultivationKey)
+  : [])
 const cultivationEditing = ref(false)
 const rosterOpen = ref(false)
 const highlightedInsuredIds = ref<Set<string>>(new Set())
@@ -674,7 +699,9 @@ async function selectParcel(parcel: ParcelSummaryInput) {
   if (parcelMode.value !== 'idle' || !parcelOn.value) return
   if (cultivationEditing.value && !await openManualDialog('切换地块', '当前种植档案尚未保存，是否确认放弃并切换地块？', '确认切换')) return
   selectedParcel.value = parcel
-  selectedPolicyContext.value = policyFixture.value ? parcelPolicyContext(policyFixture.value, parcel.id) : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
+  selectedPolicyContext.value = policyFixture.value
+    ? parcelPolicyContext(policyFixture.value, parcel.id)
+    : { currentCoverage: null, currentPolicy: null, currentItem: null, currentInsured: null, applicant: null, history: [] }
   refreshSelectedCultivation()
   const context = selectedPolicyContext.value
   rosterOpen.value = false
@@ -713,9 +740,19 @@ async function requestRestoreCultivation() {
 
 function saveCultivationRecord(record: CultivationRecord, isExisting: boolean) {
   const initial = selectedInitialRecordKeys.value.includes(cultivationKey(record))
-  const result = isExisting ? (initial ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords.value) : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords.value)) : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords.value)
-  if (!result.ok) { showNotice(result.error ?? '种植档案保存失败', true); return }
-  refreshSelectedCultivation(); cultivationEditing.value = false; detailPanelRef.value?.markSaved(); showNotice('种植档案已保存到当前浏览器')
+  const result = isExisting
+    ? (initial
+        ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords.value)
+        : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords.value))
+    : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords.value)
+  if (!result.ok) {
+    showNotice(result.error ?? '种植档案保存失败', true)
+    return
+  }
+  refreshSelectedCultivation()
+  cultivationEditing.value = false
+  detailPanelRef.value?.markSaved()
+  showNotice('种植档案已保存到当前浏览器')
 }
 
 function removeCultivationRecord(record: CultivationRecord) {
@@ -1117,7 +1154,10 @@ function hasUnsavedParcelWork(): boolean {
 }
 
 function weatherMarkerPlaceName(){return weatherStore.query?.contextName||store.current.name}
-const seatContextPath=computed(()=>{const marker=weatherMarkersStore.list.find((entry)=>entry.code===weatherStore.selectedSeatCode);return marker?[...store.path.map((crumb)=>crumb.name),marker.name]:[]})
+const seatContextPath = computed(() => {
+  const marker = weatherMarkersStore.list.find((entry) => entry.code === weatherStore.selectedSeatCode)
+  return marker ? [...store.path.map((crumb) => crumb.name), marker.name] : []
+})
 async function enterWeatherMode(module:WeatherModuleKind){
  if(module==='alerts'){ void enterNationalAlarms(); return }
  if(module==='precipitation'){ void enterPrecipitationMode(); return }
@@ -1125,14 +1165,27 @@ async function enterWeatherMode(module:WeatherModuleKind){
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
  if(disasterActive.value)exitTyphoonMode(false)
  if(precipitationStore.isOpen)exitPrecipitationMode()
- weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();rosterOpen.value=false;weatherStore.open(module)
+ weatherRepository.exit()
+ weatherMarkerRepository?.exit()
+ weatherLayerController?.clear()
+ weatherMarkerLayerController?.clear()
+ rosterOpen.value = false
+ weatherStore.open(module)
  if(module==='current'){
    // 多级政府驻地标牌：打开实时天气即按当前层级拉取骨架与逐项摘要；乡镇/村/地块无预置标牌。
    weatherMarkerRepository?.open(store.current.level,store.current.code)
    weatherMarkerRepository?.startAutoRefresh()
  }
 }
-function exitWeatherMode(){weatherRepository.exit();weatherMarkerRepository?.exit();weatherLayerController?.clear();weatherMarkerLayerController?.clear();weatherStore.close();weatherMarkersStore.clear();void nextTick(()=>mapControlRef.value?.focusWeather())}
+function exitWeatherMode() {
+  weatherRepository.exit()
+  weatherMarkerRepository?.exit()
+  weatherLayerController?.clear()
+  weatherMarkerLayerController?.clear()
+  weatherStore.close()
+  weatherMarkersStore.clear()
+  void nextTick(() => mapControlRef.value?.focusWeather())
+}
 async function enterNationalAlarms(){
  if(nationalAlarmsActive.value)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
@@ -1140,8 +1193,20 @@ async function enterNationalAlarms(){
  if(precipitationStore.isOpen)exitPrecipitationMode()
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
-function exitNationalAlarms(){nationalAlarmRepository.exit();nationalAlarmLayerController?.clear();/* 保留 NMC 全省预警列表（snapshot）供风险判定复用：仅关闭模式 UI，不清数据（v3.11） */nationalAlarmStore.phase='closed';nationalAlarmStore.selection=null;nationalAlarmStore.detail=null;void nextTick(()=>mapControlRef.value?.focusWeather())}
-function closeWeatherFromToolbar(module:WeatherModuleKind){if(module==='alerts')exitNationalAlarms();else if(module==='precipitation')exitPrecipitationMode();else exitWeatherMode()}
+function exitNationalAlarms() {
+  nationalAlarmRepository.exit()
+  nationalAlarmLayerController?.clear()
+  // 保留 NMC 全省预警列表（snapshot）供风险判定复用：仅关闭模式 UI，不清数据（v3.11）
+  nationalAlarmStore.phase = 'closed'
+  nationalAlarmStore.selection = null
+  nationalAlarmStore.detail = null
+  void nextTick(() => mapControlRef.value?.focusWeather())
+}
+function closeWeatherFromToolbar(module: WeatherModuleKind) {
+  if (module === 'alerts') exitNationalAlarms()
+  else if (module === 'precipitation') exitPrecipitationMode()
+  else exitWeatherMode()
+}
 
 function precipitationRepositoryLoad() {
   precipitationRepository = precipitationRepository ?? createPrecipitationRepository({
@@ -1450,14 +1515,70 @@ async function selectNationalAlarmFromList(alarm:NationalWeatherAlarm){
  if(!county){showNotice('该预警暂无法定位到当前地图',true);return}
  await store.drill({level:'county',code:alarm.adminCode,name:String(county.properties?.name??''),geometry:county.geometry})
 }
-function selectNationalAlarmFromMap(alarm:NationalWeatherAlarm,point:{x:number;y:number}){const same=nationalAlarmStore.selection?.id===alarm.id&&nationalAlarmStore.selection.source==='map';if(same){nationalAlarmStore.select(null);return}nationalAlarmPopupPosition.value=point;nationalAlarmStore.select({id:alarm.id,source:'map'});void nationalAlarmRepository.detail(alarm.id)}
+function selectNationalAlarmFromMap(alarm: NationalWeatherAlarm, point: { x: number; y: number }) {
+  const same = nationalAlarmStore.selection?.id === alarm.id && nationalAlarmStore.selection.source === 'map'
+  if (same) {
+    nationalAlarmStore.select(null)
+    return
+  }
+  nationalAlarmPopupPosition.value = point
+  nationalAlarmStore.select({ id: alarm.id, source: 'map' })
+  void nationalAlarmRepository.detail(alarm.id)
+}
 function retryNationalAlarmDetail(){const id=nationalAlarmStore.selection?.id;if(id)void nationalAlarmRepository.detail(id,true)}
 function refreshWeather(){void weatherMarkerRepository?.retry();void weatherRepository.retry()}
-function closeWeatherLocation(){weatherStore.selectedSeatCode=null;const picked=weatherStore.closeLocation();if(picked){weatherRepository.restore(weatherStore.defaultQuery);weatherLayerController.clearPicked();if(weatherStore.defaultBundle)weatherLayerController.renderDefault(weatherStore.defaultBundle,weatherMarkerPlaceName())}}
-function loadPickedWeather(lat:number,lon:number){if(!weatherCurrentActive.value)return;weatherStore.selectedSeatCode=null;weatherStore.closeLocation();weatherLayerController.clearPicked();weatherLayerController.renderLoading({lat,lon},'picked','地图点选');const p=map.latLngToContainerPoint([lat,lon]);weatherPopupPosition.value={x:p.x,y:p.y};weatherStore.openLocation('picked');void weatherRepository.load(pickedWeatherQuery(store.current,lat,lon)).then(()=>{if(weatherStore.bundle?.target==='picked')weatherLayerController.renderPicked(weatherStore.bundle,'地图点选')})}
-function onSeatMarkerClick(code:string,point:{x:number;y:number}){if(!weatherCurrentActive.value)return;const item=weatherMarkersStore.list.find((entry)=>entry.code===code);if(!item)return;weatherPopupPosition.value=point;weatherStore.selectedSeatCode=code;weatherStore.openLocation('default');void weatherRepository.load({contextLevel:item.level,contextCode:item.code,contextName:item.name,target:'seat'})}
-function updateWeatherPopupPosition(){if(!weatherCurrentActive.value||weatherStore.locationPopup==='none')return;if(weatherStore.bundle?.target==='seat'&&weatherStore.selectedSeatCode){const display=weatherMarkerLayerController?.displayPoint(weatherStore.selectedSeatCode);if(display){weatherPopupPosition.value=display;return}}if(!weatherStore.bundle)return;const point=weatherStore.bundle.target==='picked'?weatherStore.bundle.originalLocation:weatherStore.bundle.location;const p=map.latLngToContainerPoint([point.lat,point.lon]);weatherPopupPosition.value={x:p.x,y:p.y}}
-function updateNationalAlarmPopupPosition(){const alarm=selectedNationalAlarm.value;if(!nationalAlarmsActive.value||nationalAlarmStore.selection?.source!=='map'||!alarm?.mapLocation.point)return;const [lon,lat]=alarm.mapLocation.point;const p=map.latLngToContainerPoint([lat,lon]);nationalAlarmPopupPosition.value={x:p.x,y:p.y}}
+function closeWeatherLocation() {
+  weatherStore.selectedSeatCode = null
+  const picked = weatherStore.closeLocation()
+  if (picked) {
+    weatherRepository.restore(weatherStore.defaultQuery)
+    weatherLayerController.clearPicked()
+    if (weatherStore.defaultBundle) weatherLayerController.renderDefault(weatherStore.defaultBundle, weatherMarkerPlaceName())
+  }
+}
+function loadPickedWeather(lat: number, lon: number) {
+  if (!weatherCurrentActive.value) return
+  weatherStore.selectedSeatCode = null
+  weatherStore.closeLocation()
+  weatherLayerController.clearPicked()
+  weatherLayerController.renderLoading({ lat, lon }, 'picked', '地图点选')
+  const p = map.latLngToContainerPoint([lat, lon])
+  weatherPopupPosition.value = { x: p.x, y: p.y }
+  weatherStore.openLocation('picked')
+  void weatherRepository.load(pickedWeatherQuery(store.current, lat, lon)).then(() => {
+    if (weatherStore.bundle?.target === 'picked') weatherLayerController.renderPicked(weatherStore.bundle, '地图点选')
+  })
+}
+function onSeatMarkerClick(code: string, point: { x: number; y: number }) {
+  if (!weatherCurrentActive.value) return
+  const item = weatherMarkersStore.list.find((entry) => entry.code === code)
+  if (!item) return
+  weatherPopupPosition.value = point
+  weatherStore.selectedSeatCode = code
+  weatherStore.openLocation('default')
+  void weatherRepository.load({ contextLevel: item.level, contextCode: item.code, contextName: item.name, target: 'seat' })
+}
+function updateWeatherPopupPosition() {
+  if (!weatherCurrentActive.value || weatherStore.locationPopup === 'none') return
+  if (weatherStore.bundle?.target === 'seat' && weatherStore.selectedSeatCode) {
+    const display = weatherMarkerLayerController?.displayPoint(weatherStore.selectedSeatCode)
+    if (display) {
+      weatherPopupPosition.value = display
+      return
+    }
+  }
+  if (!weatherStore.bundle) return
+  const point = weatherStore.bundle.target === 'picked' ? weatherStore.bundle.originalLocation : weatherStore.bundle.location
+  const p = map.latLngToContainerPoint([point.lat, point.lon])
+  weatherPopupPosition.value = { x: p.x, y: p.y }
+}
+function updateNationalAlarmPopupPosition() {
+  const alarm = selectedNationalAlarm.value
+  if (!nationalAlarmsActive.value || nationalAlarmStore.selection?.source !== 'map' || !alarm?.mapLocation.point) return
+  const [lon, lat] = alarm.mapLocation.point
+  const p = map.latLngToContainerPoint([lat, lon])
+  nationalAlarmPopupPosition.value = { x: p.x, y: p.y }
+}
 function updateMapPopupPositions(){updateWeatherPopupPosition();updateNationalAlarmPopupPosition()}
 function closeBusinessForDisaster() {
   clearSelection()
@@ -1826,16 +1947,50 @@ watch(() => store.path.length, () => {
   provinceRenderPromise = render(nf).finally(() => { provinceRenderPromise = null })
 })
 
-watch(() => weatherStore.bundle,(bundle)=>{if(!weatherCurrentActive.value||!bundle)return;if(bundle.target==='picked')weatherLayerController?.renderPicked(bundle,'地图点选')
-// 浮窗与标牌共用政府驻地坐标：bundle 刷新后同步对应标牌，避免上游天气变化后浮窗新、标牌旧导致图标不一致。
-if(bundle.target==='seat'&&weatherStore.selectedSeatCode){const current=bundle.current;if(current.status==='success')weatherMarkersStore.setReady(weatherMarkersStore.generation,weatherStore.selectedSeatCode,{condition:current.data.condition,temperature:current.data.temperature,high:current.data.high,low:current.data.low,fetchedAt:bundle.fetchedAt})}})
-watch(()=>weatherStore.phase,phase=>{if(!weatherCurrentActive.value||phase!=='error'||weatherStore.bundle)return;const query=weatherStore.query;if(query?.target!=='picked')return;if(query.lat!=null&&query.lon!=null)weatherLayerController?.renderError({lat:query.lat,lon:query.lon},'picked','地图点选')})
+watch(() => weatherStore.bundle, (bundle) => {
+  if (!weatherCurrentActive.value || !bundle) return
+  if (bundle.target === 'picked') weatherLayerController?.renderPicked(bundle, '地图点选')
+  // 浮窗与标牌共用政府驻地坐标：bundle 刷新后同步对应标牌，避免上游天气变化后浮窗新、标牌旧导致图标不一致。
+  if (bundle.target === 'seat' && weatherStore.selectedSeatCode) {
+    const current = bundle.current
+    if (current.status === 'success') {
+      weatherMarkersStore.setReady(weatherMarkersStore.generation, weatherStore.selectedSeatCode, {
+        condition: current.data.condition,
+        temperature: current.data.temperature,
+        high: current.data.high,
+        low: current.data.low,
+        fetchedAt: bundle.fetchedAt,
+      })
+    }
+  }
+})
+watch(() => weatherStore.phase, (phase) => {
+  if (!weatherCurrentActive.value || phase !== 'error' || weatherStore.bundle) return
+  const query = weatherStore.query
+  if (query?.target !== 'picked') return
+  if (query.lat != null && query.lon != null) weatherLayerController?.renderError({ lat: query.lat, lon: query.lon }, 'picked', '地图点选')
+})
 // 多级政府驻地标牌：骨架/逐项成功/失败/选中变化都重建集合；旧层级流事件不会进入新层级（store generation 守卫）。
-watch(()=>[weatherMarkersStore.phase,weatherMarkersStore.list,weatherStore.selectedSeatCode] as const,()=>{if(!weatherCurrentActive.value||weatherMarkersStore.phase==='closed'){weatherMarkerLayerController?.clear();return}weatherMarkerLayerController?.render(weatherMarkersStore.list,weatherStore.selectedSeatCode)},{deep:true})
+watch(() => [weatherMarkersStore.phase, weatherMarkersStore.list, weatherStore.selectedSeatCode] as const, () => {
+  if (!weatherCurrentActive.value || weatherMarkersStore.phase === 'closed') {
+    weatherMarkerLayerController?.clear()
+    return
+  }
+  weatherMarkerLayerController?.render(weatherMarkersStore.list, weatherStore.selectedSeatCode)
+}, { deep: true })
 // Do not rebuild markers when hover selection changes: replacing the button beneath
 // a stationary pointer emits a new mouseover and immediately reopens a just-closed popup.
-watch(()=>[nationalAlarmsActive.value,nationalAlarmStore.snapshot,store.current.code] as const,()=>{if(!nationalAlarmsActive.value){nationalAlarmLayerController?.clear();return}nationalAlarmLayerController?.render(nationalAlarmMapItems.value,nationalAlarmStore.selection?.id??null)},{deep:true})
-watch(()=>nationalAlarmStore.selection?.id,(id)=>{if(!id||nationalAlarmStore.selection?.source!=='map')return;if(!nationalAlarmMapItems.value.some((alarm)=>alarm.id===id))nationalAlarmStore.select(null)})
+watch(() => [nationalAlarmsActive.value, nationalAlarmStore.snapshot, store.current.code] as const, () => {
+  if (!nationalAlarmsActive.value) {
+    nationalAlarmLayerController?.clear()
+    return
+  }
+  nationalAlarmLayerController?.render(nationalAlarmMapItems.value, nationalAlarmStore.selection?.id ?? null)
+}, { deep: true })
+watch(() => nationalAlarmStore.selection?.id, (id) => {
+  if (!id || nationalAlarmStore.selection?.source !== 'map') return
+  if (!nationalAlarmMapItems.value.some((alarm) => alarm.id === id)) nationalAlarmStore.select(null)
+})
 
 watch(() => ({
   active: disasterActive.value,
@@ -2013,11 +2168,32 @@ onMounted(async () => {
     typhoonPopupState.value = pinPopup(typhoonPopupState.value, target)
     typhoonHoverPosition.value = point
   }
-  weatherLayerController=createWeatherLayerController(map,{onLocationClick:(kind,point)=>{weatherPopupPosition.value=point;weatherStore.openLocation(kind)},onAlertClick:(selection,point)=>{weatherPopupPosition.value=point;weatherStore.selectAlert(selection)}})
+  weatherLayerController = createWeatherLayerController(map, {
+    onLocationClick: (kind, point) => {
+      weatherPopupPosition.value = point
+      weatherStore.openLocation(kind)
+    },
+    onAlertClick: (selection, point) => {
+      weatherPopupPosition.value = point
+      weatherStore.selectAlert(selection)
+    },
+  })
   weatherMarkerLayerController=createWeatherMarkerLayerController(map,{onMarkerClick:(code,point)=>{onSeatMarkerClick(code,point)}})
-  weatherInteractionController=createWeatherInteractionController(map,{active:()=>weatherCurrentActive.value,editing:()=>parcelMode.value!=='idle',provinceGeometry:()=>provinceGeometry,onPicked:loadPickedWeather,onOutside:()=>showNotice('天气当前仅支持浙江省范围',true)})
+  weatherInteractionController = createWeatherInteractionController(map, {
+    active: () => weatherCurrentActive.value,
+    editing: () => parcelMode.value !== 'idle',
+    provinceGeometry: () => provinceGeometry,
+    onPicked: loadPickedWeather,
+    onOutside: () => showNotice('天气当前仅支持浙江省范围', true),
+  })
   weatherRepository=createWeatherRepository(weatherStore)
-  weatherMarkerRepository=createWeatherMarkerRepository({begin:(level,code)=>weatherMarkersStore.begin(level,code),targets:(g,l,c,t)=>weatherMarkersStore.setTargets(g,l,c,t),ready:(g,c,s)=>weatherMarkersStore.setReady(g,c,s),fail:(g,c,e)=>weatherMarkersStore.setFail(g,c,e),streamFail:(g,e)=>weatherMarkersStore.setStreamFail(g,e)})
+  weatherMarkerRepository = createWeatherMarkerRepository({
+    begin: (level, code) => weatherMarkersStore.begin(level, code),
+    targets: (g, l, c, t) => weatherMarkersStore.setTargets(g, l, c, t),
+    ready: (g, c, s) => weatherMarkersStore.setReady(g, c, s),
+    fail: (g, c, e) => weatherMarkersStore.setFail(g, c, e),
+    streamFail: (g, e) => weatherMarkersStore.setStreamFail(g, e),
+  })
   nationalAlarmRepository=createNationalAlarmRepository(nationalAlarmStore)
   nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap})
   typhoonLayerController = createTyphoonLayerController(map, {
