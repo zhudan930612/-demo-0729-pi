@@ -494,8 +494,8 @@ const {
   closeManualDialog,
   removeBatchManualParcel,
   startManualDrawing,
+  parcelVillageCode,
 } = parcelWorkbench
-const parcelVillageCode = parcelWorkbench.parcelVillageCode
 const {
   riskOverviewModel,
   riskSnapshotError,

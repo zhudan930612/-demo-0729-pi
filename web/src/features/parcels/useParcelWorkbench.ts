@@ -68,7 +68,7 @@ export interface ParcelWorkbench {
   init(map: L.Map): void
   destroy(): void
   /** 当前村代码（非响应式 let；由模板在 selectedParcel 变化重渲染时读取） */
-  readonly parcelVillageCode: string
+  parcelVillageCode: Ref<string>
   /** 当前编辑中的待保存人工地块 id（keydown Delete 用） */
   readonly editingPendingManualId: string | null
   /** 行政导航确认后：丢弃本轮草稿与待筛选状态（导航 watch 调用） */
@@ -214,7 +214,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   function retryBusinessData() {
-    if (parcelVillageCode) void loadBusinessData(parcelVillageCode)
+    if (parcelVillageCode.value) void loadBusinessData(parcelVillageCode.value)
     else clearBusinessData()
   }
 
@@ -223,7 +223,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   const selectedCultivationRecords = ref<CultivationRecord[]>([])
   const selectedInitialRecordKeys = computed(() => selectedParcel.value
     ? initialCultivationRecords.value
-        .filter((record) => record.villageCode === parcelVillageCode && record.parcelId === selectedParcel.value!.id)
+        .filter((record) => record.villageCode === parcelVillageCode.value && record.parcelId === selectedParcel.value!.id)
         .map(cultivationKey)
     : [])
   const cultivationEditing = ref(false)
@@ -249,7 +249,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   let editingManualOriginal: ManualParcelFeature | null = null
   let editingPendingManualId: string | null = null
   let editingBatchManualKind: 'new' | 'existing' | null = null
-  let parcelVillageCode = ''
+  const parcelVillageCode = ref('')
   const parcelFilterState = createParcelFilterState()
   const hiddenParcelIds = parcelFilterState.hiddenIds
   const pendingHideParcelIds = parcelFilterState.pendingHideIds
@@ -283,7 +283,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     resetManualBatch(manualBatchState)
     editingPendingManualId = null
     editingBatchManualKind = null
-    parcelVillageCode = ''
+    parcelVillageCode.value = ''
     hiddenParcelIds.clear()
     hiddenParcelCount.value = 0
     parcelDisplayCount.value = 0
@@ -314,7 +314,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
 
   function refreshSelectedCultivation() {
     if (!selectedParcel.value) return
-    selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode, selectedParcel.value.id, initialCultivationRecords.value)
+    selectedCultivationRecords.value = readEffectiveCultivation(parcelVillageCode.value, selectedParcel.value.id, initialCultivationRecords.value)
   }
 
   function requestSelectParcel(parcel: ParcelSummaryInput, event: L.LeafletMouseEvent) {
@@ -360,7 +360,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
 
   async function requestRestoreCultivation() {
     if (!selectedParcel.value || !await openManualDialog('恢复初始档案', '将清除当前地块的本机覆盖与新增记录，是否继续？', '确认恢复')) return
-    const result = restoreInitialCultivation(parcelVillageCode, selectedParcel.value.id)
+    const result = restoreInitialCultivation(parcelVillageCode.value, selectedParcel.value.id)
     if (!result.ok) { ctx.showNotice(result.error ?? '恢复失败', true); return }
     refreshSelectedCultivation()
     ctx.showNotice('已恢复当前地块初始档案')
@@ -370,9 +370,9 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     const initial = selectedInitialRecordKeys.value.includes(cultivationKey(record))
     const result = isExisting
       ? (initial
-          ? saveCultivationOverride(parcelVillageCode, record, initialCultivationRecords.value)
-          : updateAddedCultivation(parcelVillageCode, record, initialCultivationRecords.value))
-      : addCultivationRecord(parcelVillageCode, record, initialCultivationRecords.value)
+          ? saveCultivationOverride(parcelVillageCode.value, record, initialCultivationRecords.value)
+          : updateAddedCultivation(parcelVillageCode.value, record, initialCultivationRecords.value))
+      : addCultivationRecord(parcelVillageCode.value, record, initialCultivationRecords.value)
     if (!result.ok) {
       ctx.showNotice(result.error ?? '种植档案保存失败', true)
       return
@@ -384,7 +384,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   function removeCultivationRecord(record: CultivationRecord) {
-    const result = removeAddedCultivation(parcelVillageCode, record)
+    const result = removeAddedCultivation(parcelVillageCode.value, record)
     if (!result.ok) { ctx.showNotice(result.error ?? '删除失败', true); return }
     refreshSelectedCultivation()
     ctx.showNotice('新增种植档案已删除')
@@ -451,11 +451,11 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   function saveParcelEdits() {
-    if (!pendingChangeCount.value || !parcelVillageCode) return
+    if (!pendingChangeCount.value || !parcelVillageCode.value) return
     const hiddenCount = pendingHideParcelIds.size
     const restoredCount = pendingRestoreParcelIds.size
     const nextHidden = calculateNextHiddenIds(parcelFilterState)
-    if (!persistHiddenParcelIds(parcelVillageCode, nextHidden)) {
+    if (!persistHiddenParcelIds(parcelVillageCode.value, nextHidden)) {
       window.alert('保存失败，本次修改尚未生效。请检查浏览器是否允许本地存储。')
       return
     }
@@ -587,7 +587,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
       return
     }
     if (!await confirmManualWarnings(checked.prepared.geometry)) return
-    addPendingManualParcel(manualBatchState, makeManualParcel(parcelVillageCode, checked.prepared))
+    addPendingManualParcel(manualBatchState, makeManualParcel(parcelVillageCode.value, checked.prepared))
     manualDraftPoints.value = []
     manualDraftDirty.value = true
     manualDrawingController.clearDraft()
@@ -629,7 +629,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     const source = editingBatchManualKind === 'existing' ? effectiveBatchManualParcels() : pendingManualParcels.value
     const original = source.find((feature) => feature.properties.id === editingPendingManualId)
     if (!original) return false
-    const updated = makeManualParcel(parcelVillageCode, checked.prepared, original)
+    const updated = makeManualParcel(parcelVillageCode.value, checked.prepared, original)
     updateManualParcel(manualBatchState, updated, editingBatchManualKind === 'existing' ? 'existing' : 'new')
     editingPendingManualId = null
     editingBatchManualKind = null
@@ -653,7 +653,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   async function saveManualBatch() {
-    if (!parcelVillageCode || (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing')) return
+    if (!parcelVillageCode.value || (parcelMode.value !== 'batch' && parcelMode.value !== 'drawing')) return
     if (editingPendingManualId && !await finishPendingManualEditing()) return
     if (manualDraftPoints.value.length) {
       ctx.showNotice('当前地块尚未闭合，请点击第一个顶点或按 N 完成绘制。', true)
@@ -662,13 +662,13 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     if (!batchHasChanges.value) return
     const nextFeatures = commitManualBatch(manualParcels, manualBatchState)
     for (const id of pendingRemovedManualIds.value) {
-      const cleaned = removeCultivationForParcel(parcelVillageCode, id)
+      const cleaned = removeCultivationForParcel(parcelVillageCode.value, id)
       if (!cleaned.ok) { ctx.showNotice(cleaned.error ?? '删除地块关联档案失败，未保存本批次。', true); return }
     }
     const addedCount = pendingManualParcels.value.length
     const changedCount = pendingManualEdits.value.length
     const removedCount = pendingRemovedManualIds.value.length
-    const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
+    const persisted = writeManualParcels(parcelVillageCode.value, nextFeatures)
     if (!persisted.ok) {
       ctx.showNotice(persisted.error, true)
       return
@@ -680,7 +680,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
       pendingHideParcelIds.delete(id)
       pendingRestoreParcelIds.delete(id)
     }
-    persistHiddenParcelIds(parcelVillageCode, hiddenParcelIds)
+    persistHiddenParcelIds(parcelVillageCode.value, hiddenParcelIds)
     resetManualBatch(manualBatchState)
     manualDraftDirty.value = false
     leaveParcelWorkMode()
@@ -724,7 +724,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   async function saveManualDraft() {
-    if (!parcelVillageCode) return
+    if (!parcelVillageCode.value) return
     const checked = prepareManualGeometry(manualDraftPoints.value)
     if (!checked.prepared) {
       ctx.showNotice(checked.error ?? '地块几何无效。', true)
@@ -740,7 +740,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
         && !await openManualDialog('地块范围提醒', manualWarningMessage(warnings.overlapCount, warnings.outsideVillage, warnings.incompleteChecks), '仍要保存')) return
 
     const next = makeManualParcel(
-      parcelVillageCode,
+      parcelVillageCode.value,
       checked.prepared,
       editingManualOriginal ?? undefined,
       undefined,
@@ -748,7 +748,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     const nextFeatures = editingManualOriginal
       ? manualParcels.map((feature) => feature.properties.id === editingManualOriginal!.properties.id ? next : feature)
       : [...manualParcels, next]
-    const persisted = writeManualParcels(parcelVillageCode, nextFeatures)
+    const persisted = writeManualParcels(parcelVillageCode.value, nextFeatures)
     if (!persisted.ok) {
       ctx.showNotice(persisted.error, true)
       return
@@ -782,7 +782,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   }
 
   function enterVillageContext(code: string) {
-    parcelVillageCode = code
+    parcelVillageCode.value = code
     const manualResult = readManualParcels(code)
     manualParcels = manualResult.features
     hasManualParcels.value = manualParcels.length > 0
@@ -897,7 +897,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   return {
     init,
     destroy,
-    get parcelVillageCode() { return parcelVillageCode },
+    parcelVillageCode,
     get editingPendingManualId() { return editingPendingManualId },
     onNavigateReset,
     hasAiParcels,
