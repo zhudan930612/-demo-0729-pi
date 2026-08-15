@@ -241,17 +241,11 @@ import { createParcelLayerController, type ParcelLayerController } from '../map/
 import { createParcelDetailClickGuard } from '../map/parcelDetailClickGuard'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { createParcelWorkModeController, type ParcelWorkModeController } from '../map/parcelWorkModeController'
-import { createTyphoonLayerController, type TyphoonLayerController } from '../map/typhoonLayerController'
 import { createWeatherLayerController } from '../map/weatherLayerController'
 import { createWeatherInteractionController } from '../map/weatherInteractionController'
 import { createWeatherMarkerLayerController } from '../map/weatherMarkerLayerController'
-import { createTyphoonSessionRepository, type TyphoonSessionRepository } from '../features/typhoon/typhoonRepository'
-import { autoLevelAllowed, createDisasterModeCoordinator, mapTyphoonLayerSnapshot, shouldAutoFitTyphoon } from '../features/typhoon/disasterModeLifecycle'
-import { buildTyphoonPathPanelViewModel } from '../features/typhoon/typhoonPanelViewModel'
-import { buildTyphoonTimelineViewModel } from '../features/typhoon/typhoonTimelineViewModel'
-import { actualNodeSelection, buildTyphoonHoverViewModel, type TyphoonHoverTarget } from '../features/typhoon/typhoonHoverViewModel'
-import { clearPinnedPopup, clearPinnedWindPopupOnMove, clearPopupForTyphoon, hoverPopup, leavePopup, pinPopup, visiblePopupTarget, type TyphoonPopupState } from '../features/typhoon/typhoonInteractionState'
-import { createTyphoonPlaybackController, type TyphoonPlaybackController } from '../features/typhoon/typhoonPlaybackController'
+import { autoLevelAllowed } from '../features/typhoon/disasterModeLifecycle'
+import { useTyphoonMode } from '../features/typhoon/useTyphoonMode'
 import { useTyphoonStore } from '../stores/typhoon'
 import { useWeatherStore } from '../stores/weather'
 import { useWeatherMarkersStore } from '../stores/weatherMarkers'
@@ -331,7 +325,6 @@ const EXIT_ZOOM: Partial<Record<string, number>> = {
 const THEME = '#38bdf8' // 统一主题色(决策#14)
 const HOVER = '#facc15'
 const DEFAULT_MIN_ZOOM = 3.5
-const TYPHOON_INITIAL_ZOOM = 4.5
 const PARCEL_EDIT_MIN_ZOOM = 15.25 // 高于村级 z<=15.0 自动退出阈值
 
 const mapEl = ref<HTMLDivElement>()
@@ -418,31 +411,7 @@ const weatherPickHintVisible = computed(()=>weatherCurrentActive.value&&(store.c
 const disasterEntryDisabled = computed(() => hasUnsavedParcelWork())
 const weatherEntry = computed(()=>weatherEntryState({mode:disasterActive.value?'typhoon':anyWeatherActive.value?'weather':'none',crumb:store.current,hasUnsavedWork:hasUnsavedParcelWork()}))
 const weatherPopupPosition=ref({x:0,y:0})
-const visibleObservationCountByTyphoon = ref<Record<string, number>>({})
-const typhoonRevealToken = ref(0)
-const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
-const typhoonHoverPosition = ref({ x: 0, y: 0 })
 const mapViewport = ref({ width: 0, height: 0 })
-const typhoonHoverTarget = computed(() => visiblePopupTarget(typhoonPopupState.value))
-const typhoonHoverModel = computed(() => typhoonHoverTarget.value ? buildTyphoonHoverViewModel(typhoonStore.details, typhoonHoverTarget.value) : null)
-const typhoonPanelModel = computed(() => buildTyphoonPathPanelViewModel({
-  liveIds: typhoonStore.liveIds,
-  openedHistoricalIds: typhoonStore.openedHistoricalIds,
-  details: typhoonStore.details,
-  focusedTyphoonId: typhoonStore.focusedTyphoonId,
-  expandedIds: typhoonStore.expandedIds,
-  selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
-}))
-const typhoonTimelineModel = computed(() => buildTyphoonTimelineViewModel({
-  details: typhoonStore.historicalDetails,
-  nowMs: Date.now(),
-  realtimeCount: typhoonStore.liveIds.length,
-  openedHistoricalIds: typhoonStore.openedHistoricalIds,
-  focusedTyphoonId: typhoonStore.focusedTyphoonId,
-  selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
-  historyPending: typhoonStore.historyLoad.pending,
-  viewportWidth: mapViewport.value.width,
-}))
 const rsVisible = ref(false)
 const rsHint = ref('')
 const rsOn = ref(true)
@@ -549,7 +518,6 @@ let navigationController: MapNavigationController
 let parcelLayerController: ParcelLayerController
 let manualDrawingController: ManualDrawingController
 let workModeController: ParcelWorkModeController
-let typhoonLayerController: TyphoonLayerController
 let weatherLayerController: ReturnType<typeof createWeatherLayerController>
 let weatherMarkerLayerController: ReturnType<typeof createWeatherMarkerLayerController>
 let weatherInteractionController: ReturnType<typeof createWeatherInteractionController>
@@ -558,8 +526,6 @@ let weatherMarkerRepository: WeatherMarkerRepository
 let nationalAlarmRepository: ReturnType<typeof createNationalAlarmRepository>
 let nationalAlarmLayerController: ReturnType<typeof createNationalAlarmLayerController>
 let provinceGeometry: Geometry | null = null
-let typhoonRepository: TyphoonSessionRepository
-let typhoonPlaybackController: TyphoonPlaybackController
 let zoomLevelOutput: HTMLOutputElement | null = null
 let parcelSource: FeatureCollection | null = null
 let manualParcels: ManualParcelFeature[] = []
@@ -577,17 +543,42 @@ let rsInfo: RsInfo | null = null
 let flySeq = 0
 let disposed = false
 let firstRender = true
-let pendingNoFly = false // 自动切换层级时不重排视野(决策: 不动视野)
+const pendingNoFly = ref(false) // 自动切换层级时不重排视野(决策: 不动视野)
 let suppressAutoZoom = false // 点击下钻/返回的程序化缩放不得触发自动进退层级
 let lastZoom = DEFAULT_MIN_ZOOM // 上一次 zoomend 的缩放级, 用于区分放大/缩小方向
 let basemaps: Basemaps
 let beforeUnloadHandler: ((event: BeforeUnloadEvent) => void) | null = null
 let manualDialogResolve: ((confirmed: boolean) => void) | null = null
 let provinceRenderPromise: Promise<void> | null = null
-let fittedTyphoonSessionId: number | null = null
-const disasterModeCoordinator = createDisasterModeCoordinator()
 // Leaflet Canvas 在部分浏览器中会让地块点击继续触发 map click；显式守卫是详情入口的回归保护。
 const parcelDetailClickGuard = createParcelDetailClickGuard()
+
+const typhoonMode = useTyphoonMode({
+  store,
+  disasterActive,
+  workbenchTab,
+  pendingNoFly,
+  viewportWidth: () => mapViewport.value.width,
+  anyWeatherActive: () => anyWeatherActive.value,
+  hasUnsavedParcelWork,
+  closeBusinessForDisaster,
+  prepareProvinceLayers: prepareProvinceLayersWithoutMovingCamera,
+  renderProvinceView,
+  invalidateNavigation,
+  showNotice,
+})
+const {
+  typhoonRevealToken,
+  typhoonHoverModel,
+  typhoonPanelModel,
+  typhoonTimelineModel,
+  typhoonHoverPosition,
+  toggleTyphoonCard,
+  closeHistoricalTyphoon,
+  selectTyphoonPanelNode,
+  toggleHistoricalFromTimeline,
+  enterTyphoonMode,
+} = typhoonMode
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: 'img' | 'vec') {
@@ -1163,7 +1154,7 @@ async function enterWeatherMode(module:WeatherModuleKind){
  if(module==='precipitation'){ void enterPrecipitationMode(); return }
  if(weatherActive.value&&weatherStore.module===module)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
- if(disasterActive.value)exitTyphoonMode(false)
+ if(disasterActive.value)typhoonMode.exitTyphoonMode(false)
  if(precipitationStore.isOpen)exitPrecipitationMode()
  weatherRepository.exit()
  weatherMarkerRepository?.exit()
@@ -1189,7 +1180,7 @@ function exitWeatherMode() {
 async function enterNationalAlarms(){
  if(nationalAlarmsActive.value)return
  if(!weatherActive.value&&!weatherEntry.value.enabled)return
- if(disasterActive.value)exitTyphoonMode(false)
+ if(disasterActive.value)typhoonMode.exitTyphoonMode(false)
  if(precipitationStore.isOpen)exitPrecipitationMode()
  closeBusinessForDisaster(); await store.resetToProvince(); void nationalAlarmRepository.load(false,true)
 }
@@ -1349,7 +1340,7 @@ async function drillToVillageWithFullPath(village: VillageBoundary) {
     name: village.name,
     geometry: { type: 'MultiPolygon', coordinates: village.polygons },
   })
-  pendingNoFly = false
+  pendingNoFly.value = false
   // 先打开详情（同步设置 villageCard），再导航——避免 navigateTo 的村级 watch 先自动打开、随后 openVillageCard 同码 toggle 误关
   openVillageCard(village.code)
   await store.navigateTo(crumbs)
@@ -1364,7 +1355,7 @@ function selectVillageFromOverview(code: string) {
 
 /** 共用面板关闭：关闭当前激活 tab 对应模式。 */
 function closeWorkbench() {
-  if (workbenchTab.value === 'typhoon') void exitTyphoonMode()
+  if (workbenchTab.value === 'typhoon') void typhoonMode.exitTyphoonMode()
   else exitPrecipitationMode()
 }
 
@@ -1372,7 +1363,7 @@ function closeWorkbench() {
 function selectWorkbenchTab(tab: WorkbenchTab) {
   workbenchTab.value = tab
   if (tab === 'typhoon') {
-    if (!disasterActive.value) void enterTyphoonMode()
+    if (!disasterActive.value) void typhoonMode.enterTyphoonMode()
     else if (store.current.level !== 'province') void store.resetToProvince() // 台风激活时切回：下钻残留回省
   } else if (tab === 'risk' && !precipitationStore.isOpen) {
     void enterPrecipitationMode()
@@ -1392,7 +1383,7 @@ async function enterPrecipitationMode() {
   // 天气与降水互斥；台风保留（可叠加）
   if (anyWeatherActive.value) { exitWeatherMode(); exitNationalAlarms() }
   // 三源齐全（v3.11）：台风/预警数据未加载时静默补拉（不进入对应模式，只填充数据源供风险判定）
-  if (typhoonStore.phase !== 'ready') void typhoonRepository.enter()
+  if (typhoonStore.phase !== 'ready') void typhoonMode.typhoonRepository.enter()
   if (nationalAlarmStore.snapshot === null) {
     // 静默补拉：silentLoading 期间 isOpen=false（面板不出现），结束后恢复 closed（保留 snapshot 供风险判定）
     nationalAlarmStore.beginSilent()
@@ -1591,146 +1582,8 @@ async function prepareProvinceLayersWithoutMovingCamera() {
   else await render(true)
 }
 
-function rollbackTyphoonMode(error?: unknown) {
-  typhoonRepository?.exit()
-  typhoonLayerController?.clear()
-  typhoonPlaybackController?.cancel()
-  visibleObservationCountByTyphoon.value = {}
-  typhoonPopupState.value = { hover: null, pinned: null }
-  disasterActive.value = false
-  fittedTyphoonSessionId = null
-  flySeq += 1
-  provinceRenderPromise = null
-  if (error) showNotice('台风模式加载异常，请稍后重新进入。', true)
-}
-
-async function enterTyphoonMode() {
-  if(anyWeatherActive.value)return
-  // 立即切台风 tab（与点击台风 tab 一致的视图路径；用户 2026-08-11 反馈：按钮进入后面板未显示台风）
-  workbenchTab.value = 'typhoon'
-  // 省级状态 watch 只换行政图层；保持当前相机，等待实时台风直接接管首次视角。
-  pendingNoFly = true
-  const entered = await disasterModeCoordinator.enter({
-    hasUnsavedWork: hasUnsavedParcelWork,
-    isActive: () => disasterActive.value,
-    setActive: (active) => { disasterActive.value = active },
-    closeBusinessPanels: closeBusinessForDisaster,
-    resetToProvince: () => store.resetToProvince(),
-    prepareProvinceLayers: prepareProvinceLayersWithoutMovingCamera,
-    enterRepository: () => {
-      pendingNoFly = false
-      fittedTyphoonSessionId = null
-      // 台风视角优先：降水叠加时进入台风也切台风初始视野（用户 2026-08-11 确认）
-      map.setZoom(TYPHOON_INITIAL_ZOOM, { animate: false })
-      void typhoonRepository.enter()
-    },
-    rollback: rollbackTyphoonMode,
-  })
-  if (!entered) { pendingNoFly = false; provinceRenderPromise = null }
-}
-
-function focusTyphoonFromUser(typhoonId: string, nodeId?: string) {
-  typhoonStore.focusTyphoon(typhoonId)
-  if (nodeId) typhoonStore.selectNode(typhoonId, nodeId)
-}
-
-function revealTyphoon(typhoonId: string, nodeId?: string) {
-  focusTyphoonFromUser(typhoonId, nodeId)
-  if (!typhoonStore.expandedIds.includes(typhoonId)) typhoonStore.toggleExpanded(typhoonId)
-  typhoonRevealToken.value += 1
-}
-
-function toggleTyphoonCard(typhoonId: string) {
-  focusTyphoonFromUser(typhoonId)
-  typhoonStore.toggleExpanded(typhoonId)
-  typhoonRevealToken.value += 1
-}
-
-function closeHistoricalTyphoon(typhoonId: string) {
-  typhoonPlaybackController?.cancel(typhoonId)
-  typhoonPopupState.value = clearPopupForTyphoon(typhoonPopupState.value, typhoonId)
-  const nextVisible = { ...visibleObservationCountByTyphoon.value }
-  delete nextVisible[typhoonId]
-  visibleObservationCountByTyphoon.value = nextVisible
-  typhoonStore.closeHistorical(typhoonId)
-}
-
-function playHistoricalTyphoon(typhoonId: string) {
-  const detail = typhoonStore.details[typhoonId]
-  if (!detail || detail.status !== 'stop') return
-  typhoonPlaybackController.play(detail, {
-    onStep: (node, visibleCount) => {
-      visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: visibleCount }
-      typhoonStore.advancePlaybackNode(typhoonId, node.id)
-    },
-    onComplete: (node, visibleCount) => {
-      visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: visibleCount }
-      typhoonStore.advancePlaybackNode(typhoonId, node.id)
-    },
-  })
-}
-
-function toggleHistoricalFromTimeline(typhoonId: string) {
-  if (typhoonStore.openedHistoricalIds.includes(typhoonId)) {
-    closeHistoricalTyphoon(typhoonId)
-    return
-  }
-  // 每条历史台风独立播放；打开新台风不停止其他台风的计时器。
-  if (!typhoonStore.openHistorical(typhoonId)) return
-  const detail = typhoonStore.details[typhoonId]!
-  visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: Math.min(1, detail.observationsAsc.length) }
-  const fullSnapshot = mapTyphoonLayerSnapshot({
-    realtimeDetails: typhoonStore.realtimeDetails,
-    openedHistoricalIds: typhoonStore.openedHistoricalIds,
-    details: typhoonStore.details,
-    focusedTyphoonId: typhoonId,
-    selectedNodeByTyphoon: typhoonStore.selectedNodeByTyphoon,
-  })
-  typhoonLayerController.render(fullSnapshot)
-  const firstNode = detail.observationsAsc[0]
-  if (firstNode && !precipitationStore.isOpen) typhoonLayerController.setViewForTyphoonNode(typhoonId, firstNode.id, TYPHOON_INITIAL_ZOOM)
-  playHistoricalTyphoon(typhoonId)
-}
-
-function selectActualTyphoonNode(typhoonId: string, nodeId: string) {
-  typhoonPlaybackController?.cancel(typhoonId)
-  const detail = typhoonStore.details[typhoonId]
-  const selection = actualNodeSelection(detail, 'actual', nodeId)
-  if (!selection) return false
-  if (selection.visibleObservationCount !== undefined) {
-    visibleObservationCountByTyphoon.value = { ...visibleObservationCountByTyphoon.value, [typhoonId]: selection.visibleObservationCount }
-  }
-  revealTyphoon(typhoonId, nodeId)
-  void nextTick(() => typhoonLayerController.panNodeIntoView(typhoonId, nodeId, { padding: [40, 40] }))
-  return true
-}
-
-function selectTyphoonPanelNode(typhoonId: string, nodeId: string) {
-  selectActualTyphoonNode(typhoonId, nodeId)
-}
-
-function exitTyphoonMode(restoreView = true) {
-  disasterModeCoordinator.exit({
-    isActive: () => disasterActive.value,
-    exitRepository: () => typhoonRepository?.exit(),
-    clearTyphoonLayers: () => typhoonLayerController?.clear(),
-    setActive: (active) => { disasterActive.value = active },
-    invalidateNavigation: () => { flySeq += 1; provinceRenderPromise = null },
-    restoreProvinceView: () => {
-      if (!restoreView || precipitationStore.isOpen) return
-      const alreadyProvince = store.path.length === 1 && store.current.level === 'province'
-      void store.resetToProvince().then((reset) => {
-        if (!reset || !alreadyProvince) return
-        provinceRenderPromise = render().finally(() => { provinceRenderPromise = null })
-      })
-    },
-  })
-  fittedTyphoonSessionId = null
-  typhoonPlaybackController?.cancel()
-  visibleObservationCountByTyphoon.value = {}
-  typhoonPopupState.value = { hover: null, pinned: null }
-  // 业务抽屉保持关闭；行政状态和相机恢复浙江省默认视角。
-}
+function invalidateNavigation() { flySeq += 1; provinceRenderPromise = null }
+function renderProvinceView() { provinceRenderPromise = render().finally(() => { provinceRenderPromise = null }) }
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
@@ -1741,9 +1594,9 @@ function onManualKeydown(event: KeyboardEvent) {
   if(event.key==='Escape'&&nationalAlarmsActive.value&&nationalAlarmStore.selection){event.preventDefault();nationalAlarmStore.select(null);return}
   if(event.key==='Escape'&&villageCard.value){event.preventDefault();closeVillageCard();return}
   if(event.key==='Escape'&&weatherCurrentActive.value&&weatherStore.locationPopup!=='none'){event.preventDefault();closeWeatherLocation();return}
-  if (event.key === 'Escape' && typhoonPopupState.value.pinned) {
+  if (event.key === 'Escape' && typhoonMode.typhoonPopupState.value.pinned) {
     event.preventDefault()
-    typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
+    typhoonMode.clearPinnedPopup()
     return
   }
   if (event.key === 'Escape' && manualDialog.value.open) {
@@ -1933,8 +1786,8 @@ async function render(noFly = false) {
 watch(() => store.path.length, () => {
   if(nationalAlarmsActive.value){if(nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null);nationalAlarmLayerController?.clear()}
   if(weatherActive.value){weatherStore.selection=null;weatherStore.locationPopup='none';weatherStore.selectedSeatCode=null;if(weatherCurrentActive.value){weatherLayerController?.clearPicked();weatherMarkerLayerController?.clear();weatherMarkerRepository?.open(store.current.level,store.current.code)}}
-  const nf = pendingNoFly
-  pendingNoFly = false
+  const nf = pendingNoFly.value
+  pendingNoFly.value = false
   // 所有导航都经过 store 守卫；确认离开后在重渲染前丢弃本轮草稿与待筛选状态。
   if (parcelMode.value === 'filter') {
     clearPendingParcelFilterState(parcelFilterState)
@@ -1992,34 +1845,6 @@ watch(() => nationalAlarmStore.selection?.id, (id) => {
   if (!nationalAlarmMapItems.value.some((alarm) => alarm.id === id)) nationalAlarmStore.select(null)
 })
 
-watch(() => ({
-  active: disasterActive.value,
-  sessionId: typhoonStore.sessionId,
-  realtime: typhoonStore.realtimeDetails,
-  opened: typhoonStore.openedHistoricalIds,
-  focused: typhoonStore.focusedTyphoonId,
-  selected: { ...typhoonStore.selectedNodeByTyphoon },
-  visibleCounts: { ...visibleObservationCountByTyphoon.value },
-  phase: typhoonStore.phase,
-}), (state) => {
-  if (!state.active || !typhoonLayerController) return
-  typhoonLayerController.render(mapTyphoonLayerSnapshot({
-    realtimeDetails: state.realtime,
-    openedHistoricalIds: state.opened,
-    details: typhoonStore.details,
-    focusedTyphoonId: state.focused,
-    selectedNodeByTyphoon: state.selected,
-    visibleObservationCountByTyphoon: state.visibleCounts,
-  }))
-  if (shouldAutoFitTyphoon({ active: state.active, phase: state.phase, focusedId: state.focused, realtimeIds: state.realtime.map((detail) => detail.id), sessionId: state.sessionId, fittedSessionId: fittedTyphoonSessionId })) {
-    // 台风视角优先：降水叠加时进入台风也切台风路径视野（用户 2026-08-11 确认）
-    if (typhoonLayerController.setInitialViewForTyphoon(state.focused!, TYPHOON_INITIAL_ZOOM)) {
-      fittedTyphoonSessionId = state.sessionId
-    }
-  }
-}, { deep: true })
-
-
 /** 缩放下钻: zoomend 时按中心点判定自动进出层级(平移不触发) */
 function onAutoLevel() {
   if (!autoLevelAllowed(parcelMode.value, suppressAutoZoom)) return
@@ -2032,7 +1857,7 @@ function onAutoLevel() {
     const c = map.getCenter()
     const feature = navigationController.findChildAt([c.lng, c.lat], pointInGeometry)
     if (feature) {
-      pendingNoFly = true
+      pendingNoFly.value = true
       store.drill({
         level: NEXT_LEVEL[crumb.level]!,
         code: feature.properties?.code ?? '',
@@ -2049,7 +1874,7 @@ function onAutoLevel() {
   if (z < lastZoom) {
     const exitZ = EXIT_ZOOM[crumb.level]
     if (exitZ !== undefined && z <= exitZ && store.path.length > 1) {
-      pendingNoFly = true
+      pendingNoFly.value = true
       store.back()
     }
   }
@@ -2120,7 +1945,7 @@ onMounted(async () => {
   )
   map.on('click', (event) => {
     // 点地图空白不自动关闭风险详情/不切列表（用户确认）；详情用返回/Esc 关闭
-    if (typhoonPopupState.value.pinned) typhoonPopupState.value = clearPinnedPopup(typhoonPopupState.value)
+    if (typhoonMode.typhoonPopupState.value.pinned) typhoonMode.clearPinnedPopup()
     if(weatherCurrentActive.value&&weatherStore.locationPopup!=='none')closeWeatherLocation()
     if(nationalAlarmsActive.value&&nationalAlarmStore.selection?.source==='map')nationalAlarmStore.select(null)
     if (parcelDetailClickGuard.consumeMapClick(event.originalEvent)) return
@@ -2159,15 +1984,6 @@ onMounted(async () => {
     onMinZoomChange: (minZoom) => { mapMinZoom.value = minZoom },
     stopDrawingInteraction: () => manualDrawingController.setInteraction('none'),
   })
-  const setHover = (target: TyphoonHoverTarget, point: { x: number; y: number }) => {
-    typhoonPopupState.value = hoverPopup(typhoonPopupState.value, target)
-    typhoonHoverPosition.value = point
-  }
-  const clearHover = (target: TyphoonHoverTarget) => { typhoonPopupState.value = leavePopup(typhoonPopupState.value, target) }
-  const pinTyphoonPopup = (target: TyphoonHoverTarget, point: { x: number; y: number }) => {
-    typhoonPopupState.value = pinPopup(typhoonPopupState.value, target)
-    typhoonHoverPosition.value = point
-  }
   weatherLayerController = createWeatherLayerController(map, {
     onLocationClick: (kind, point) => {
       weatherPopupPosition.value = point
@@ -2196,28 +2012,7 @@ onMounted(async () => {
   })
   nationalAlarmRepository=createNationalAlarmRepository(nationalAlarmStore)
   nationalAlarmLayerController=createNationalAlarmLayerController(map,{onOpen:selectNationalAlarmFromMap})
-  typhoonLayerController = createTyphoonLayerController(map, {
-    onTyphoonClick: ({ typhoonId }) => revealTyphoon(typhoonId),
-    onNodeClick: ({ typhoonId, nodeId, kind, containerPoint }) => {
-      if (kind === 'actual') selectActualTyphoonNode(typhoonId, nodeId)
-      else revealTyphoon(typhoonId)
-      if (kind === 'actual') pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint)
-    },
-    onNodeEnter: ({ typhoonId, nodeId, kind, containerPoint }) => {
-      setHover({ kind: kind === 'actual' ? 'center' : 'forecast', typhoonId, nodeId }, containerPoint)
-    },
-    onNodeLeave: ({ typhoonId, nodeId, kind }) => {
-      clearHover({ kind: kind === 'actual' ? 'center' : 'forecast', typhoonId, nodeId })
-    },
-    onCenterClick: ({ typhoonId, nodeId, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'center', typhoonId, nodeId }, containerPoint) },
-    onWindCircleClick: ({ typhoonId, nodeId, grade, containerPoint }) => { selectActualTyphoonNode(typhoonId, nodeId); pinTyphoonPopup({ kind: 'wind', typhoonId, nodeId, grade }, containerPoint) },
-    onCenterEnter: ({ typhoonId, nodeId, containerPoint }) => setHover({ kind: 'center', typhoonId, nodeId }, containerPoint),
-    onCenterLeave: ({ typhoonId, nodeId }) => clearHover({ kind: 'center', typhoonId, nodeId }),
-  })
-  typhoonRepository = createTyphoonSessionRepository(typhoonStore)
-  typhoonPlaybackController = createTyphoonPlaybackController({
-    reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  })
+  typhoonMode.init(map)
   // 业务数据按村加载：初始无村级上下文，不预加载；进入村级时在 render 分支内触发。
   clearBusinessData()
   basemaps = createBasemaps()
@@ -2228,9 +2023,6 @@ onMounted(async () => {
   }
   syncMapViewport()
   map.on('resize', syncMapViewport)
-  map.getContainer().addEventListener('pointermove', () => {
-    typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)
-  })
   map.on('move zoom',updateMapPopupPositions)
   map.on('zoomend', () => {
     currentZoom.value = map.getZoom()
@@ -2255,15 +2047,14 @@ onBeforeUnmount(() => {
   exitWeatherMode()
   exitNationalAlarms()
   exitPrecipitationMode()
-  exitTyphoonMode(false)
+  typhoonMode.exitTyphoonMode(false)
   disposed = true
   flySeq += 1
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
   if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
   window.removeEventListener('keydown', onManualKeydown)
   store.setNavigationGuard(null)
-  typhoonPlaybackController?.destroy()
-  typhoonLayerController?.destroy()
+  typhoonMode.destroy()
   precipitationLayerController?.destroy()
   weatherInteractionController?.destroy()
   weatherLayerController?.destroy()
