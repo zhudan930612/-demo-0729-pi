@@ -1,24 +1,33 @@
-"""Create the fixed 4+1 parcel insurance confirmation artifact.
+"""Create the chained spatial clustering parcel insurance confirmation artifact.
 
-龙江村（默认村）保留既有手工确认产物：检测到现有 confirmation 文件时直接跳过生成，
-确保现役数据绝对不变（--force 才重新生成，且从现有文件读取并保留未参保集合）。
+地块成片划分 V1（替换 4+1 模型，需求《地块成片划分-V1需求.md》）：
 
-其他村按龙江村同一套规则确定性生成：
-- 未参保地块：按地块 ID 取模的确定性规则（int(id) % 17 == 0，约 5.9%，满足 ≤10% 上限）。
-- 四个经营区：复用龙江村的归一化坐标条带规则 region_index（u 西→东、v 北→南，村 bbox 内 0~1），
-  参考龙江村四个大致空间经营区的划分思想，不依赖龙江村具体截图。
-- 四区外参保地块一块一户进入唯一分户清单。
+- 参保地块按质心距离 ≤200m 建邻接图，连通分量 = 链式成片组（组内任意地块到同组最近邻 ≤200m 自动满足）。
+- 分类面积（内部 4 位小数求和、四舍五入 2 位）>500 亩的连通分量按贪心 BFS 切分为多个 ≤500 亩相邻子组；
+  切分后若某块在子组内失去 200m 内邻居（孤岛），该块退出大户，按团单一块一户处理。
+- 每组分类面积 >50.00 亩立大户（单一型保单，一个 party）；≤50.00 亩组内逐块各立独立 party（一块一户进团单）。
+- 单块参保地块 >50.00 亩（孤立无邻居）同样立大户（trivially 成片）；恰好 50.00 亩不立大户。
+- 未参保地块不参与聚类、不归属任何保单。
+
+龙江村（默认村）与全部参保村使用同一套规则；龙江村重新生成时从现有确认文件读取并保留
+未参保集合（现 83 块），未参保集合为空时拒绝覆盖；其他村确认文件已存在且非 --force 时
+受保护跳过，--force 时同样保留现有未参保集合，无现有文件时用确定性规则 int(id) % 17 == 0。
+
+确定性：遍历一律 sorted，固定输入两次运行产物一致；单村秒级。
 """
 from __future__ import annotations
 import argparse
-import json, math
+import json
+import math
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
-VILLAGES_DIR = ROOT / 'web/public/data/villages'
-REGION_PARTIES = [f'party-{index:04d}' for index in range(1, 5)]
+ADJACENCY_DISTANCE_M = 200.0
+MAX_GROUP_AREA_MU = Decimal("500.00")
+BIG_FARM_MIN_AREA_MU = Decimal("50.00")
+ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
 
 
 def source_path(code: str) -> Path:
@@ -32,83 +41,22 @@ def output_path(code: str) -> Path:
     return ROOT / 'web/src/data' / f'parcel-confirmation-{code}.json'
 
 
-def distance(a, b):
+def distance(a, b) -> float:
+    """两质心的平面近似距离（米）。"""
     lat = (a[1] + b[1]) / 2 * math.pi / 180
     dx = (a[0] - b[0]) * 111320 * math.cos(lat)
     dy = (a[1] - b[1]) * 110540
     return math.hypot(dx, dy)
 
 
-def max_span(group, points):
+def max_span(group, points) -> float:
+    """组内最远两地块质心距离（米）；单块为 0。"""
     return max((distance(points[a], points[b]) for i, a in enumerate(group) for b in group[i + 1:]), default=0)
 
 
-def region_index(u: float, v: float) -> int | None:
-    """Return the region index using normalized village parcel coordinates.
-
-    u grows west-to-east; v grows north-to-south. Same four approximate spatial belts as
-    the longjiang pilot (west-central, northern, south-west, east-central), applied to the
-    current village's own normalized bounding box. Order resolves approximate overlaps.
-
-    Note: fixed-threshold belts are only used as a fallback ordering hint; the primary
-    region assignment below uses equal-area strips along longitude (assign_regions).
-    """
-    if u < .60 and .25 <= v < .55:
-        return 0  # 1: west-central belt
-    if u < .60 and v < .25:
-        return 1  # 2: northern belt
-    if u < .44 and .55 <= v < .86:
-        return 2  # 3: south-west belt
-    if .44 <= u < .82 and .25 <= v < .64:
-        return 3  # 4: east-central belt
-    return None
-
-
-def assign_regions(parcel_ids: list[str], points: dict, areas: dict) -> tuple[list[list[str]], list[str]]:
-    """按经度排序等面积划分：前 80% 参保面积切成 4 个连续条带，剩余 20% 一块一户。
-
-    设计说明：龙江村截图四区规则（region_index 固定阈值条带）对部分村不成立——
-    某些村落在条带上的面积不足 50 亩（如新三联村 330604102018 仅 16.61 亩），
-    无法形成单一型保单。改为沿经度累积面积切 4 段（每段约总参保 20%），
-    空间连续；四区合计覆盖约 80% 参保面积（与龙江村口径一致）。
-    切段后若某区分类面积仍 <=50 亩（小村），该区地块逐块回收到 roster（一块一户），
-    保证进入单一型保单的每个区都超过 50 亩，roster 严格一块一户。
-    确定性、可复现，不依赖具体村截图。
-    """
-    ordered = sorted(parcel_ids, key=lambda pid: points[pid][0])  # 经度西→东
-    total = sum((areas[pid] for pid in ordered), Decimal(0))
-    if total <= Decimal("0"):
-        raise SystemExit("参保面积为空，无法生成确认")
-    four_area = total * Decimal("0.8")  # 四区合计覆盖 80%
-    seg = four_area / 4  # 每区目标 20%
-    # 沿经度累积面积分配：前 4 段各 ~20%，剩余进入 roster
-    regions: list[list[str]] = [[] for _ in range(4)]
-    cursor = 0
-    acc = Decimal("0")
-    split_points = [seg, seg * 2, seg * 3, four_area]
-    for pid in ordered:
-        area = areas[pid]
-        while cursor < 4 and acc + area >= split_points[cursor] and acc > Decimal("0"):
-            cursor += 1
-        if cursor < 4:
-            regions[cursor].append(pid)
-        acc += area
-    # 尾部（累积超过 four_area 的部分）一块一户
-    roster = []
-    for pid in ordered:
-        if pid not in set().union(*regions):
-            roster.append(pid)
-    # 分类面积 <=50 亩的区：逐块回收到 roster（保持一块一户、单一型均 >50 亩）。
-    # 小村（如白沙 232 亩）四区可能全部 <50 亩，最终 0 张单一型、全部进清单，
-    # 这是数据现实（所有被保险人 ≤50 亩），实际保单数由生成报告记录。
-    kept: list[list[str]] = [[] for _ in range(4)]
-    for index, region in enumerate(regions):
-        region_area = sum((areas[pid] for pid in region), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
-        if region_area > Decimal("50.00"):
-            kept[index] = region
-        else:
-            roster.extend(region)
-    return kept, roster
+def classified_area(group, areas) -> Decimal:
+    """分类面积：组内 4 位小数求和后四舍五入到 2 位亩数。"""
+    return sum((areas[pid] for pid in group), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
 
 
 def deterministic_uninsured(ids: list[str]) -> set[str]:
@@ -116,76 +64,183 @@ def deterministic_uninsured(ids: list[str]) -> set[str]:
     return {parcel_id for parcel_id in ids if int(parcel_id) % 17 == 0}
 
 
+def build_adjacency(parcel_ids: list[str], points: dict) -> dict[str, set[str]]:
+    """参保地块按质心距离 ≤200m 建无向邻接图（O(n²)，单村秒级）。"""
+    adj = {pid: set() for pid in parcel_ids}
+    for i in range(len(parcel_ids)):
+        a = parcel_ids[i]
+        for b in parcel_ids[i + 1:]:
+            if distance(points[a], points[b]) <= ADJACENCY_DISTANCE_M:
+                adj[a].add(b)
+                adj[b].add(a)
+    return adj
+
+
+def connected_components(parcel_ids: list[str], adj: dict) -> list[list[str]]:
+    """连通分量 = 链式成片组；结果按最小地块 id 排序，保证确定性。"""
+    remaining = set(parcel_ids)
+    components = []
+    while remaining:
+        seed = min(remaining)
+        component = []
+        stack = [seed]
+        while stack:
+            cur = stack.pop()
+            if cur not in remaining:
+                continue
+            remaining.discard(cur)
+            component.append(cur)
+            stack.extend(adj[cur])
+        components.append(sorted(component, key=int))
+    return sorted(components, key=lambda c: int(c[0]))
+
+
+def split_large_component(component: list[str], adj: dict, areas: dict) -> list[list[str]]:
+    """将分类面积 >500 亩的连通分量切分为多个 ≤500 亩的相邻子组。
+
+    贪心 BFS：从确定性种子（最小地块 id）出发逐层扩展，仅把"加入后分类面积仍 ≤500 亩"
+    的地块并入当前组；放不下的地块留在剩余集合，按连通子分量继续切分。
+    切分保证每个非种子地块在加入时都与组内某地块有 ≤200m 边（链式连通）。
+    """
+    if classified_area(component, areas) <= MAX_GROUP_AREA_MU:
+        return [component]
+    remaining = set(component)
+    groups = []
+    while remaining:
+        seed = min(remaining)
+        group = []
+        frontier = [seed]
+        while frontier:
+            nxt = []
+            for cur in frontier:
+                if cur not in remaining:
+                    continue
+                if classified_area(group + [cur], areas) <= MAX_GROUP_AREA_MU:
+                    group.append(cur)
+                    remaining.discard(cur)
+                    nxt.extend(adj[cur])
+            frontier = sorted(nxt, key=int)
+        groups.append(sorted(group, key=int))
+    return groups
+
+
+def enforce_in_group_neighbors(group: list[str], adj: dict) -> tuple[list[str], list[str]]:
+    """保证子组内每块仍有组内 200m 内邻居；剔除组内孤岛地块（按团单一块一户处理）。
+
+    单块组直接保留（trivially 成片）。返回 (保留组, 剔除的孤岛地块列表)。
+    """
+    kept = sorted(group, key=int)
+    demoted = []
+    while True:
+        isolated = [pid for pid in kept if len(kept) > 1 and not any(nb in kept for nb in adj[pid])]
+        if not isolated:
+            break
+        pid = isolated[0]
+        kept.remove(pid)
+        demoted.append(pid)
+    return kept, demoted
+
+
 def generate(code: str, force: bool = False) -> None:
-    if code == DEFAULT_VILLAGE:
-        # 龙江村现有确认是人工逐块确认产物（含 83 块未参保手工清单），重跑无法复现原分配；
-        # 任何情况下都不重新生成或覆盖，确保现役数据绝对不变。
-        out = output_path(code)
-        if out.exists():
-            print(f'龙江村确认文件受保护，跳过生成: {out}')
-            return
-        raise SystemExit('龙江村确认文件不存在，现役数据缺失；请先恢复后再操作')
     src = source_path(code)
     if not src.exists():
         raise SystemExit(f'missing local parcel source: {src}')
     data = json.loads(src.read_text(encoding='utf8'))
     features = sorted(data['features'], key=lambda f: int(f['properties']['id']))
-    areas = {str(f['properties']['id']): Decimal(str(f['properties']['area_mu'])) for f in features}
-    points = {str(f['properties']['id']): (float(f['properties']['label_lng']), float(f['properties']['label_lat'])) for f in features}
+    areas = {str(f['properties']['id']): Decimal(str(f['properties']['area_mu'])).quantize(Decimal('.0001'))
+             for f in features}
+    points = {str(f['properties']['id']): (float(f['properties']['label_lng']), float(f['properties']['label_lat']))
+              for f in features}
     ids = sorted(areas, key=int)
 
     out = output_path(code)
     if out.exists() and not force:
-        print(f'确认文件已存在且受保护: {out}（--force 才重新生成）')
+        print(f'确认文件已存在且受保护: {out}（--force 才重新生成，重新生成保留现有未参保集合）')
         return
     existing_uninsured: set[str] = set()
-    if out.exists() and force:
+    if out.exists():
         existing = json.loads(out.read_text(encoding='utf8'))
         existing_uninsured = {record['parcelId'] for record in existing['records'] if not record['insured']}
         if not existing_uninsured:
             raise SystemExit('现有确认文件未参保集合为空，拒绝覆盖')
-        print(f'{code}: --force 保留现有 {len(existing_uninsured)} 块未参保地块并重新生成')
+        print(f'{code}: 重新生成并保留现有未参保集合 {len(existing_uninsured)} 块')
     else:
         existing_uninsured = deterministic_uninsured(ids)
         print(f'{code}: 按确定性规则生成未参保集合 {len(existing_uninsured)} 块（{len(existing_uninsured) / len(ids):.1%}）')
 
-    uninsured = existing_uninsured
+    uninsured = {pid for pid in existing_uninsured if pid in areas}
     insured_ids = [i for i in ids if i not in uninsured]
 
-    xs = [point[0] for point in points.values()]
-    ys = [point[1] for point in points.values()]
-    min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
-    regions, roster = assign_regions(insured_ids, points, areas)
+    adj = build_adjacency(insured_ids, points)
+    components = connected_components(insured_ids, adj)
+    groups: list[list[str]] = []
+    for component in components:
+        if classified_area(component, areas) <= MAX_GROUP_AREA_MU:
+            sub_groups = [component]
+        else:
+            sub_groups = split_large_component(component, adj, areas)
+        for sub in sub_groups:
+            kept, demoted = enforce_in_group_neighbors(sub, adj)
+            if kept:
+                groups.append(kept)
+            for pid in demoted:
+                groups.append([pid])
 
-    assignments = {}
-    for party_id, group in zip(REGION_PARTIES, regions):
-        assignments.update({parcel_id: party_id for parcel_id in group})
-    next_party = len(REGION_PARTIES) + 1
-    for parcel_id in roster:
-        assignments[parcel_id] = f'party-{next_party:04d}'
-        next_party += 1
+    big_farm_groups: list[list[str]] = []
+    roster_parcels: list[str] = []
+    for group in groups:
+        if classified_area(group, areas) > BIG_FARM_MIN_AREA_MU:
+            big_farm_groups.append(group)
+        else:
+            roster_parcels.extend(group)
+    big_farm_groups.sort(key=lambda g: min(int(pid) for pid in g))
+    roster_parcels.sort(key=int)
 
-    metrics = []
-    for party_id, group in zip(REGION_PARTIES, regions):
-        total = sum((areas[x] for x in group), Decimal(0))
+    assignments: dict[str, str] = {}
+    party_number = 1
+    for group in big_farm_groups:
+        party_id = f'party-{party_number:04d}'
+        for pid in group:
+            assignments[pid] = party_id
+        party_number += 1
+    for pid in roster_parcels:
+        assignments[pid] = f'party-{party_number:04d}'
+        party_number += 1
+
+    metrics: list[dict] = []
+    for group in big_farm_groups:
+        party_id = assignments[group[0]]
+        total = sum((areas[pid] for pid in group), Decimal(0))
         metrics.append({
             'insuredPartyId': party_id,
             'parcelCount': len(group),
             'geometryAreaMu': str(total.quantize(Decimal('.0001'))),
+            'classifiedAreaMu': str(total.quantize(Decimal('.01'), rounding=ROUND_HALF_UP)),
             'insuredModePreview': 'single_insured',
             'spatialGroupCount': 1,
             'primaryGroupAreaRatio': 1.0,
             'maxDistanceM': round(max_span(group, points), 1),
             'isolatedParcelIds': [],
-            'manualReview': '通过：复用龙江村四大致空间条带规则（归一化坐标）',
-            'regionIndex': int(party_id[-4:]),
+            'manualReview': '通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩',
         })
     metrics.append({
         'insuredPartyId': 'roster-one-parcel-per-party',
-        'parcelCount': len(roster),
+        'parcelCount': len(roster_parcels),
         'insuredModePreview': 'insured_roster',
-        'rosterItemCount': len(roster),
-        'manualReview': '通过：四区外参保地块一块一户',
+        'rosterItemCount': len(roster_parcels),
+        'manualReview': '通过：参保地块一块一户进团单（≤50.00 亩或切分孤岛回收地块）',
+    })
+    insured_area = sum((areas[pid] for pid in insured_ids), Decimal(0))
+    big_area = sum((sum((areas[pid] for pid in group), Decimal(0)) for group in big_farm_groups), Decimal(0))
+    share = round(float(big_area / insured_area), 4) if insured_area else 0
+    metrics.append({
+        'insuredPartyId': 'coverage-summary',
+        'bigFarmCount': len(big_farm_groups),
+        'bigFarmParcelCount': sum(len(g) for g in big_farm_groups),
+        'bigFarmInsuredAreaMu': str(big_area.quantize(Decimal('.0001'))),
+        'insuredAreaMu': str(insured_area.quantize(Decimal('.0001'))),
+        'bigFarmCoverageShareOfInsuredArea': share,
+        'manualReview': '大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）',
     })
 
     records = [{
@@ -200,32 +255,31 @@ def generate(code: str, force: bool = False) -> None:
         'villageCode': code,
         'confirmedAt': '2025-04-01',
         'confirmedBy': 'operator-01',
-        'assignmentModel': 'four-approximate-regions-plus-one-parcel-roster',
+        'assignmentModel': ASSIGNMENT_MODEL,
         'records': records,
         'spatialReview': metrics,
     }
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding='utf8')
-    red_count = sum(map(len, regions))
     print(json.dumps({
         'villageCode': code,
         'records': len(records),
         'insured': len(assignments),
         'uninsured': len(uninsured),
         'uninsuredShare': round(len(uninsured) / len(ids), 4),
-        'regionParcelCounts': [len(group) for group in regions],
-        'regionAreaMu': [str(sum((areas[x] for x in group), Decimal(0)).quantize(Decimal('.01'))) for group in regions],
-        'redRegionParcelCount': red_count,
-        'redRegionShareOfInsured': round(red_count / len(assignments), 4),
-        'rosterItemCount': len(roster),
+        'bigFarmCount': len(big_farm_groups),
+        'bigFarmParcelCount': sum(len(g) for g in big_farm_groups),
+        'bigFarmAreaMu': str(big_area.quantize(Decimal('.01'))),
+        'bigFarmCoverageShareOfInsuredArea': share,
+        'rosterItemCount': len(roster_parcels),
         'output': str(out),
     }, ensure_ascii=False, indent=2))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='生成 4+1 地块参保确认产物')
+    parser = argparse.ArgumentParser(description='生成成片聚类地块参保确认产物（地块成片划分 V1）')
     parser.add_argument('--village', default=DEFAULT_VILLAGE, help=f'村代码（默认 {DEFAULT_VILLAGE}）')
-    parser.add_argument('--force', action='store_true', help='非龙江村确认文件已存在时强制重新生成')
+    parser.add_argument('--force', action='store_true', help='确认文件已存在时强制重新生成（保留现有未参保集合）')
     args = parser.parse_args()
     generate(args.village, force=args.force)
 
