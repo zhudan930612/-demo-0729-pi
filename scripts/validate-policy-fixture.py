@@ -184,7 +184,9 @@ def validate_village(code: str) -> None:
     current_party_names = [party["name"] for party in roster_parties if party["id"] != "party-roster"]
     check(all(re.fullmatch(r"[\u4e00-\u9fff]{2,3}", name) for name in current_party_names), f"{code}: 清单主体姓名仅含 2 至 3 个汉字")
     check(len(current_party_names) == len(set(current_party_names)), f"{code}: 清单主体姓名不重复")
-    check(any(len(name) == 2 for name in current_party_names) and any(len(name) == 3 for name in current_party_names), f"{code}: 清单主体姓名包含两字名和三字名")
+    # 两字名/三字名覆盖检查仅在主体数 ≥2 时有效（小村全进大户时可能仅 1 户）
+    if len(current_party_names) >= 2:
+        check(any(len(name) == 2 for name in current_party_names) and any(len(name) == 3 for name in current_party_names), f"{code}: 清单主体姓名包含两字名和三字名")
     identities = [party.get("identityOrOrgCode", "") for party in roster_parties if party["id"] != "party-roster"]
     check(all(valid_identity(value) for value in identities), f"{code}: 清单主体身份证日期和校验码正确")
     check(all(35 <= age_on(value, date.fromisoformat(p["businessDate"])) <= 60 for value in identities), f"{code}: 清单主体年龄均为 35 至 60 岁")
@@ -193,7 +195,9 @@ def validate_village(code: str) -> None:
     accounts = [party.get("bankAccount", "") for party in roster_parties if party["id"] != "party-roster"]
     check(all(value.startswith("621799") and len(value) == 19 and valid_luhn(value) for value in accounts), f"{code}: 清单主体邮储银行卡号格式和 Luhn 校验正确")
     check(len(accounts) == len(set(accounts)), f"{code}: 清单主体银行卡号唯一")
-    check(not all(int(accounts[index]) - int(accounts[index - 1]) == 1 for index in range(1, len(accounts))), f"{code}: 清单主体银行卡号不使用顺序递增")
+    # 顺序递增检查仅在 ≥2 个账户时有效（单账户时 all(空序列)=True）
+    if len(accounts) >= 2:
+        check(not all(int(accounts[index]) - int(accounts[index - 1]) == 1 for index in range(1, len(accounts))), f"{code}: 清单主体银行卡号不使用顺序递增")
     check(all(party.get("bankName") == "中国邮政储蓄银行" for party in roster_parties if party["id"] != "party-roster"), f"{code}: 清单主体开户行统一为中国邮政储蓄银行")
     # 验收 3.4：报告字段完整——每户地块数/面积/最大跨度/孤岛列表 + 大户覆盖占比
     rpt = p.get("report", {})
