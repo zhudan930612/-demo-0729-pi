@@ -1,14 +1,15 @@
 """Generate the versioned, non-identifying V1 business fixtures from the local parcel pilot.
 
-龙江村（默认村）数据受保护：任何情况下都跳过生成，确保现役 fixture 不被重写。
-其他村按龙江村同一套业务规则确定性生成 4+1 保单、种植档案与历史快照：
-
-- 保单结构：2025 当前 4 张单一型（四区大户）+ 1 张分户清单型（四区外一块一户）；
-  2024 历史快照一张；理赔摘要与既有兼容字段。
+地块成片划分 V1（替换 4+1 模型）：
+- 龙江村与全部参保村同一套规则，全部授权重新生成（龙江村产物保持 legacy v1 文件名）。
+- 大户数量自适应：按确认文件 insuredPartyId 分组，分类面积 >50.00 亩单独出单一型保单，
+  ≤50.00 亩逐块一块一户进团单（团单严格一块一户，回收地块也一块一户）；
+  同村同年度同产品恰好 1 张分户清单型保单。
 - 姓名/证件/银行卡：确定性生成器（村代码参与 salt 与地区码），不取自真实资料；
   地区码取村代码前 6 位（县区码，章镇 330604、三界 330683）。
 - 保单号：22 位数字，`{村代码}{年}{序号}`，保证跨村项目内唯一。
-- 清单项编号：`{村代码后4位}-{序号}`；龙江村保留历史 `LJ-` 前缀（数据不动）。
+- 清单项编号：`{村代码后4位}-{序号}`；龙江村保持历史 `LJ-` 前缀规则一致。
+- 报告记录大户覆盖占比与每户指标（地块数/面积/最大跨度/孤岛列表）。
 """
 from __future__ import annotations
 import argparse
@@ -25,14 +26,14 @@ PRODUCT = "政策性水稻完全成本保险"
 PER_MU_CENTS = 125000
 RATE = Decimal("0.032")
 SUBSIDY = Decimal("0.80")
-# 龙江村历史固定大户名单（现役数据不动；其他村走生成器）
+# 龙江村历史固定大户名单（party 1~4 沿用，其余走生成器；均为演示合成姓名）
 PARTY_NAMES = {
     1: "陈立新",
     2: "周建华",
     3: "沈伟良",
     4: "王海峰",
 }
-SURNAMES = "陈林黄王吴周徐孙胡朱高何沈郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅曾彭吕苏卢蒋蔡贾丁魏薛叶阮潘杜戴夏钟汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段雷钱汤尹黎易常武乔贺赖龚文"
+SURNAMES = "陈林黄王吴周徐孙胡朱高何沈郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅曾彭吕苏卢蒋蔡贾丁魏薛叶阮潘杜戴夏钟汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段雷汤尹黎易常武乔贺赖龚文"
 GIVEN_NAMES = (
     "伟", "建华", "秀英", "志强", "芳", "桂芳", "国平", "丽娟",
     "娜", "海燕", "文杰", "晓明", "敏", "春梅", "德华", "美玲",
@@ -68,6 +69,13 @@ def confirmation_path(code: str) -> Path:
     if code == DEFAULT_VILLAGE:
         return ROOT / "web/src/data/parcel-confirmation-v1.json"
     return ROOT / "web/src/data" / f"parcel-confirmation-{code}.json"
+
+
+def output_names(code: str) -> tuple[str, str, str]:
+    """返回 (policy, cultivation, report) 文件名；龙江村保持历史 v1 文件名。"""
+    if code == DEFAULT_VILLAGE:
+        return "policy-v1.json", "cultivation-v1.json", "policy-v1.report.json"
+    return f"policy-{code}.json", f"cultivation-{code}.json", f"policy-{code}.report.json"
 
 
 def party_name(number: int, code: str) -> str:
@@ -134,13 +142,6 @@ def money(area: Decimal) -> dict[str, int]:
 
 
 def generate(code: str) -> None:
-    if code == DEFAULT_VILLAGE:
-        out = ROOT / "web/src/data/policy-v1.json"
-        if out.exists():
-            print(f"龙江村保单 fixture 受保护，跳过生成: {out}")
-            return
-        raise SystemExit("龙江村保单 fixture 不存在，现役数据缺失；请先恢复后再操作")
-
     name = village_name(code)
     parcel = parcel_path(code)
     if not parcel.exists():
@@ -187,23 +188,24 @@ def generate(code: str) -> None:
     confirmed_groups: dict[str, list[str]] = {}
     for parcel_id in insured_ids:
         confirmed_groups.setdefault(confirmed[parcel_id]["insuredPartyId"], []).append(parcel_id)
-    multi_parcel_groups = [group for group in confirmed_groups.values() if len(group) > 1]
-    if len(multi_parcel_groups) > 4:
-        raise SystemExit(f"confirmation must contain at most four multi-parcel operating regions for {code}")
+    big_farm_policy_ids: list[str] = []
     for confirmed_party_id, group in sorted(confirmed_groups.items(), key=lambda item: item[0]):
+        group = sorted(group, key=int)
         party_number = int(confirmed_party_id.rsplit("-", 1)[-1])
-        party_type = "家庭农场" if party_number <= 4 else "自然人"
-        # 直接使用确认文件的 party id，避免 add_party 递增序列与确认编号错位
-        # （小村回收区会在确认编号中留空洞）
-        party = confirmed_party_id
-        parties.append({"id": party, "name": party_name(party_number, code), "partyType": party_type, **party_profile(party_number, party_name(party_number, code), code)})
         area = sum((areas[i] for i in group), Decimal("0"))
         classified = area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        # 50 亩分类规则按被保险人汇总面积（非地块数）：>50.00 亩单独出单一型保单，
-        # <=50.00 亩进入分户清单。单块大田（如 63 亩）也必须单独出单。
+        # 50 亩分类规则按被保险人汇总面积（非地块数）：>50.00 亩单独出单一型保单（大户），
+        # <=50.00 亩进分户清单。单块大田（如 63 亩）也必须单独出单。
         mode = "single_insured" if classified > Decimal("50.00") else "insured_roster"
-        if mode == "single_insured" and area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) <= Decimal("50.00"):
-            raise SystemExit(f"four-region single policy must exceed 50 mu: {party} = {area}")
+        if mode == "single_insured":
+            party_type = "家庭农场"  # 大户（单一型）
+        else:
+            party_type = "自然人"
+            # 团单严格一块一户（确认脚本已保证；此处防御性校验）
+            if len(group) != 1:
+                raise SystemExit(f"roster party 必须一块一户: {confirmed_party_id} 有 {len(group)} 块")
+        party = confirmed_party_id
+        parties.append({"id": party, "name": party_name(party_number, code), "partyType": party_type, **party_profile(party_number, party_name(party_number, code), code)})
         if mode == "single_insured":
             cov_ids = []
             for parcel_id in group:
@@ -211,11 +213,8 @@ def generate(code: str) -> None:
                 cov_ids.append(cid)
                 coverages.append({"id": cid, "policyId": f"policy-2025-{party}", "parcelId": parcel_id, "insuredPartyId": party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": None})
             add_policy(party, mode, party, [], cov_ids, 2025)
+            big_farm_policy_ids.append(f"policy-2025-{party}")
         else:
-            # 分类面积 <=50 亩：进入分户清单。确认脚本已保证 roster 严格一块一户
-            # （每块一个独立 party；小村 <50 亩的区也逐块回收），此处直接用确认 party。
-            if len(group) != 1:
-                raise SystemExit(f"roster party 必须一块一户: {party} 有 {len(group)} 块")
             parcel_id = group[0]
             item_id = f"item-2025-{item_no:04d}"
             cid = f"coverage-2025-{parcel_id}"
@@ -241,13 +240,18 @@ def generate(code: str) -> None:
         hist_cov.append(cid)
         coverages.append({"id": cid, "policyId": "policy-2024-history", "parcelId": parcel_id, "insuredPartyId": history_party, "insuredAreaMu": str(areas[parcel_id]), "enrollmentItemId": None})
     add_policy("history", "single_insured", history_party, [], hist_cov, 2024, "已到期")
-    claims.extend([
-        {"id": "claim-2025-001", "policyId": "policy-2025-roster", "insuredPartyId": items[0]["insuredPartyId"], "enrollmentItemId": items[0]["id"], "reportCount": 2, "estimatedLossCents": 180000, "paidCents": 0, "latestReportDate": "2025-06-18", "latestStatus": "核赔中"},
-        {"id": "claim-2025-002", "policyId": "policy-2025-roster", "insuredPartyId": items[1]["insuredPartyId"], "enrollmentItemId": items[1]["id"], "reportCount": 1, "estimatedLossCents": 92000, "paidCents": 92000, "latestReportDate": "2025-05-28", "latestStatus": "已结案"},
-        {"id": "claim-2024-001", "policyId": "policy-2024-history", "insuredPartyId": history_party, "reportCount": 1, "estimatedLossCents": 60000, "paidCents": 60000, "latestReportDate": "2024-08-01", "latestStatus": "已结案"},
-    ])
+    # 理赔摘要引用团单清单项；团单为空（全大户村）时只保留历史理赔，不报错
+    if items:
+        claims.append({"id": "claim-2025-001", "policyId": "policy-2025-roster", "insuredPartyId": items[0]["insuredPartyId"], "enrollmentItemId": items[0]["id"], "reportCount": 2, "estimatedLossCents": 180000, "paidCents": 0, "latestReportDate": "2025-06-18", "latestStatus": "核赔中"})
+        if len(items) >= 2:
+            claims.append({"id": "claim-2025-002", "policyId": "policy-2025-roster", "insuredPartyId": items[1]["insuredPartyId"], "enrollmentItemId": items[1]["id"], "reportCount": 1, "estimatedLossCents": 92000, "paidCents": 92000, "latestReportDate": "2025-05-28", "latestStatus": "已结案"})
+    claims.append({"id": "claim-2024-001", "policyId": "policy-2024-history", "insuredPartyId": history_party, "reportCount": 1, "estimatedLossCents": 60000, "paidCents": 60000, "latestReportDate": "2024-08-01", "latestStatus": "已结案"})
     current_policies = [policy for policy in policies if policy["status"] != "已到期"]
-    report = {"fixtureVersion": "policy-v1.1.0", "businessDate": BUSINESS_DATE, "villageCode": code, "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "currentPolicyCount": len(current_policies), "currentSinglePolicyCount": sum(p["insuredMode"] == "single_insured" for p in current_policies), "currentRosterPolicyCount": sum(p["insuredMode"] == "insured_roster" for p in current_policies), "rosterItemCount": len(items), "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": confirmation["confirmedAt"], "confirmedBy": confirmation["confirmedBy"], "grouping": confirmation.get("assignmentModel", "fixed confirmation"), "insuredPartyMetrics": confirmation.get("spatialReview", [])}}
+    big_farm_coverages = [c for c in coverages if c["policyId"] in big_farm_policy_ids]
+    big_farm_area = sum((Decimal(c["insuredAreaMu"]) for c in big_farm_coverages), Decimal("0"))
+    insured_area_total = sum((areas[i] for i in insured_ids), Decimal("0"))
+    big_farm_share = round(float(big_farm_area / insured_area_total), 4) if insured_area_total else 0
+    report = {"fixtureVersion": "policy-v1.2.0", "businessDate": BUSINESS_DATE, "villageCode": code, "baseParcelCount": len(ids), "insuredParcelCount": len(insured_ids), "uninsuredParcelCount": len(uninsured), "uninsuredAreaMu": str(sum((areas[i] for i in uninsured), Decimal("0"))), "partyCount": len(parties), "policyCount": len(policies), "currentPolicyCount": len(current_policies), "currentSinglePolicyCount": sum(p["insuredMode"] == "single_insured" for p in current_policies), "currentRosterPolicyCount": sum(p["insuredMode"] == "insured_roster" for p in current_policies), "rosterItemCount": len(items), "bigFarmCount": len(big_farm_policy_ids), "bigFarmParcelCount": len(big_farm_coverages), "bigFarmInsuredAreaMu": str(big_farm_area.quantize(Decimal("0.0001"))), "insuredAreaMu": str(insured_area_total.quantize(Decimal("0.0001"))), "bigFarmCoverageShareOfInsuredArea": big_farm_share, "spatialReview": {"confirmationVersion": "parcel-confirmation-v1", "confirmedAt": confirmation["confirmedAt"], "confirmedBy": confirmation["confirmedBy"], "grouping": confirmation.get("assignmentModel", "fixed confirmation"), "insuredPartyMetrics": confirmation.get("spatialReview", [])}}
     fixture = {"schemaVersion": "policy-v1", "businessDate": BUSINESS_DATE, "villageCode": code, "parties": parties, "policies": policies, "enrollmentLists": [{"id": "list-policy-2025-roster", "policyId": "policy-2025-roster", "applicantPartyId": "party-roster", "itemIds": [i["id"] for i in items]}], "enrollmentItems": items, "parcelCoverages": coverages, "claims": claims, "report": report}
 
     records = []
@@ -261,20 +265,21 @@ def generate(code: str) -> None:
         records.append({"villageCode": code, "parcelId": parcel_id, "year": 2025, "season": "单季稻" if int(parcel_id) % 3 == 0 else ("早稻" if int(parcel_id) % 3 == 1 else "连作晚稻"), "crop": "水稻", "variety": "甬优1540" if int(parcel_id) % 2 else "嘉优中科1号", "startDate": "2025-05-01", "endDate": "2025-11-30", "status": "已核查" if int(parcel_id) % 11 else "需复核", "checkedAt": "2025-06-20" if int(parcel_id) % 11 else "2025-06-22", "note": ""})
     cultivation_output = json.dumps({"schemaVersion": "cultivation-v1", "businessDate": BUSINESS_DATE, "records": records}, ensure_ascii=False, indent=2)
 
+    policy_name, cultivation_name, report_name = output_names(code)
     src_out = ROOT / "web/src/data"
     src_out.mkdir(parents=True, exist_ok=True)
     public_business = ROOT / "web/public/business"
     public_business.mkdir(parents=True, exist_ok=True)
-    (src_out / f"policy-{code}.json").write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")
-    (src_out / f"cultivation-{code}.json").write_text(cultivation_output, encoding="utf-8")
-    (public_business / f"policy-{code}.json").write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")
-    (public_business / f"cultivation-{code}.json").write_text(cultivation_output, encoding="utf-8")
-    (src_out / f"policy-{code}.report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (src_out / policy_name).write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")
+    (src_out / cultivation_name).write_text(cultivation_output, encoding="utf-8")
+    (public_business / policy_name).write_text(json.dumps(fixture, ensure_ascii=False, indent=2), encoding="utf-8")
+    (public_business / cultivation_name).write_text(cultivation_output, encoding="utf-8")
+    (src_out / report_name).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成 4+1 保单与种植档案 fixture")
+    parser = argparse.ArgumentParser(description="生成成片聚类保单与种植档案 fixture（地块成片划分 V1）")
     parser.add_argument("--village", default=DEFAULT_VILLAGE, help=f"村代码（默认 {DEFAULT_VILLAGE}）")
     args = parser.parse_args()
     generate(args.village)
