@@ -20,7 +20,7 @@ import zipfile
 from pathlib import Path
 
 import shapefile  # pyshp
-from shapely.geometry import GeometryCollection, mapping, shape
+from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 from shapely.prepared import prep
 from shapely import make_valid, simplify as shp_simplify
@@ -73,6 +73,84 @@ def normalize_polygonal_geometry(geom, reference):
     if geom.geom_type not in {'Polygon', 'MultiPolygon'} or geom.is_empty or not geom.is_valid:
         raise ValueError(f'坐标圆整后无法得到有效面几何: {reference}')
     return geom
+
+
+def pyshp_shape_to_geometry(shp):
+    """从 pyshp 的 points/parts 构建 Shapely 面几何，跳过退化环。
+
+    pyshp 的 Shape.__geo_interface__ 会对退化环做严格采样并抛错；本函数改为
+    按面积/包含关系分类外环与洞，退化环交由 make_valid 收敛，避免整体失败。
+    """
+    def as_polygonal(g):
+        if g.is_empty:
+            return None
+        if not g.is_valid:
+            g = make_valid(g)
+        if isinstance(g, GeometryCollection):
+            gs = [x for x in g.geoms if x.geom_type in ('Polygon', 'MultiPolygon')]
+            if not gs:
+                return None
+            g = unary_union(gs)
+        if g.geom_type not in ('Polygon', 'MultiPolygon'):
+            return None
+        return g
+
+    points = shp.points
+    parts = list(shp.parts) if shp.parts else [0]
+    n = len(points)
+    rings = []
+    for i, s in enumerate(parts):
+        e = parts[i + 1] if i + 1 < len(parts) else n
+        coords = [tuple(pt[:2]) for pt in points[s:e]]
+        cleaned = []
+        for c in coords:
+            if not cleaned or cleaned[-1] != c:
+                cleaned.append(c)
+        if cleaned and cleaned[0] != cleaned[-1]:
+            cleaned.append(cleaned[0])
+        if len(cleaned) >= 4:
+            rings.append(cleaned)
+    if not rings:
+        return Polygon()
+
+    polys = []
+    for r in rings:
+        try:
+            p = Polygon(r)
+        except Exception:
+            continue
+        p = as_polygonal(p)
+        if p is not None and p.area > 0:
+            polys.append(p)
+    if not polys:
+        return Polygon()
+
+    polys.sort(key=lambda p: p.area, reverse=True)
+    outers = []
+    holes = []
+    for p in polys:
+        if any(o is not p and o.covers(p) for o in outers):
+            holes.append(p)
+        else:
+            outers.append(p)
+
+    built = []
+    for o in outers:
+        o_holes = []
+        for h in holes:
+            if o.covers(h) and h.area < o.area:
+                hs = h.geoms if isinstance(h, MultiPolygon) else [h]
+                for sub in hs:
+                    o_holes.append(list(sub.exterior.coords))
+        try:
+            built.append(as_polygonal(Polygon(o.exterior.coords, o_holes)))
+        except Exception:
+            built.append(o)
+
+    built = [g for g in built if g is not None and not g.is_empty]
+    if not built:
+        return Polygon()
+    return built[0] if len(built) == 1 else unary_union(built)
 
 
 def clean_feature(feature, code_key, name_key, tol):
@@ -223,7 +301,7 @@ def process_villages():
         if not is_village_level_code(corrected['villageCode']):
             excluded_non_village += 1
             continue
-        geom = shape(sr.shape.__geo_interface__)
+        geom = pyshp_shape_to_geometry(sr.shape)
         geom = shp_simplify(geom, TOL_VILLAGE, preserve_topology=True)
         geom = normalize_polygonal_geometry(geom, corrected['villageCode'])
         g = mapping(geom)
