@@ -33,7 +33,7 @@ PARTY_NAMES = {
     3: "沈伟良",
     4: "王海峰",
 }
-SURNAMES = "陈林黄王吴周徐孙胡朱高何沈郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅曾彭吕苏卢蒋蔡贾丁魏薛叶阮潘杜戴夏钟汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段雷汤尹黎易常武乔贺赖龚文"
+SURNAMES = "陈林黄王吴周徐孙胡朱高何沈郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅曾彭吕苏卢蒋蔡贾丁魏薛叶阮潘杜戴夏钟汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段雷钱汤尹黎易常武乔贺赖龚文"
 GIVEN_NAMES = (
     "伟", "建华", "秀英", "志强", "芳", "桂芳", "国平", "丽娟",
     "娜", "海燕", "文杰", "晓明", "敏", "春梅", "德华", "美玲",
@@ -82,7 +82,7 @@ def party_name(number: int, code: str) -> str:
     """2~3 汉字姓名生成器；每村以村代码偏移避免跨村重名，村内 lcm(姓氏,名) 周期内唯一。"""
     if code == DEFAULT_VILLAGE and number in PARTY_NAMES:
         return PARTY_NAMES[number]
-    offset = int(code[-6:]) % 79  # SURNAMES 长度
+    offset = int(code[-6:]) % len(SURNAMES)  # 姓氏表长度 94（与既有生成器口径一致，确定性偏移）
     index = number - 1 + offset
     return f"{SURNAMES[index % len(SURNAMES)]}{GIVEN_NAMES[index % len(GIVEN_NAMES)]}"
 
@@ -233,6 +233,9 @@ def generate(code: str) -> None:
         if p["id"] == "policy-2025-roster":
             p["enrollmentListId"] = "list-policy-2025-roster"
     # Historical snapshot intentionally overlaps current parcels and is never re-derived by the UI.
+    # 历史 party 编号推进到确认 party 最大编号之后，保证 parties 内 id 全局唯一（审查 B1）
+    if confirmed_groups:
+        party_no = max(int(pid.rsplit("-", 1)[-1]) for pid in confirmed_groups) + 1
     history_party = add_party("合作社")
     hist_cov = []
     for parcel_id in insured_ids[:40]:

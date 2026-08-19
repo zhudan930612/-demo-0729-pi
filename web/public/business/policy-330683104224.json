@@ -10,25 +10,25 @@
     },
     {
       "id": "party-0001",
-      "name": "于淑芬",
+      "name": "江冬梅",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330683198906080382",
       "contactPhone": "15570007919",
       "bankAccount": "6217997652532779789",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "于淑芬"
+      "signature": "江冬梅"
     },
     {
-      "id": "party-0001",
-      "name": "于淑芬",
+      "id": "party-0002",
+      "name": "史勇",
       "partyType": "合作社",
-      "identityOrOrgCode": "330683198906080382",
-      "contactPhone": "15570007919",
-      "bankAccount": "6217997652532779789",
+      "identityOrOrgCode": "330683198805150759",
+      "contactPhone": "18570015838",
+      "bankAccount": "6217992662463815481",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "于淑芬"
+      "signature": "史勇"
     }
   ],
   "policies": [
@@ -88,7 +88,7 @@
       "id": "policy-2024-history",
       "policyNo": "3306831042242024000003",
       "insuredMode": "single_insured",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "enrollmentListId": null,
       "villageCode": "330683104224",
       "product": "政策性水稻完全成本保险",
@@ -597,7 +597,7 @@
       "id": "coverage-2024-1",
       "policyId": "policy-2024-history",
       "parcelId": "1",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.6400",
       "enrollmentItemId": null
     },
@@ -605,7 +605,7 @@
       "id": "coverage-2024-2",
       "policyId": "policy-2024-history",
       "parcelId": "2",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.2400",
       "enrollmentItemId": null
     },
@@ -613,7 +613,7 @@
       "id": "coverage-2024-3",
       "policyId": "policy-2024-history",
       "parcelId": "3",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.1000",
       "enrollmentItemId": null
     },
@@ -621,7 +621,7 @@
       "id": "coverage-2024-4",
       "policyId": "policy-2024-history",
       "parcelId": "4",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "10.9300",
       "enrollmentItemId": null
     },
@@ -629,7 +629,7 @@
       "id": "coverage-2024-5",
       "policyId": "policy-2024-history",
       "parcelId": "5",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "4.2300",
       "enrollmentItemId": null
     },
@@ -637,7 +637,7 @@
       "id": "coverage-2024-6",
       "policyId": "policy-2024-history",
       "parcelId": "6",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.7500",
       "enrollmentItemId": null
     },
@@ -645,7 +645,7 @@
       "id": "coverage-2024-7",
       "policyId": "policy-2024-history",
       "parcelId": "7",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.8500",
       "enrollmentItemId": null
     },
@@ -653,7 +653,7 @@
       "id": "coverage-2024-8",
       "policyId": "policy-2024-history",
       "parcelId": "8",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.3400",
       "enrollmentItemId": null
     },
@@ -661,7 +661,7 @@
       "id": "coverage-2024-9",
       "policyId": "policy-2024-history",
       "parcelId": "9",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.8900",
       "enrollmentItemId": null
     },
@@ -669,7 +669,7 @@
       "id": "coverage-2024-10",
       "policyId": "policy-2024-history",
       "parcelId": "10",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.8900",
       "enrollmentItemId": null
     },
@@ -677,7 +677,7 @@
       "id": "coverage-2024-11",
       "policyId": "policy-2024-history",
       "parcelId": "11",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "11.9400",
       "enrollmentItemId": null
     },
@@ -685,7 +685,7 @@
       "id": "coverage-2024-12",
       "policyId": "policy-2024-history",
       "parcelId": "12",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.0600",
       "enrollmentItemId": null
     },
@@ -693,7 +693,7 @@
       "id": "coverage-2024-13",
       "policyId": "policy-2024-history",
       "parcelId": "13",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.9000",
       "enrollmentItemId": null
     },
@@ -701,7 +701,7 @@
       "id": "coverage-2024-14",
       "policyId": "policy-2024-history",
       "parcelId": "14",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.6100",
       "enrollmentItemId": null
     },
@@ -709,7 +709,7 @@
       "id": "coverage-2024-15",
       "policyId": "policy-2024-history",
       "parcelId": "15",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.9500",
       "enrollmentItemId": null
     },
@@ -717,7 +717,7 @@
       "id": "coverage-2024-16",
       "policyId": "policy-2024-history",
       "parcelId": "16",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "7.9600",
       "enrollmentItemId": null
     },
@@ -725,7 +725,7 @@
       "id": "coverage-2024-18",
       "policyId": "policy-2024-history",
       "parcelId": "18",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.9300",
       "enrollmentItemId": null
     },
@@ -733,7 +733,7 @@
       "id": "coverage-2024-19",
       "policyId": "policy-2024-history",
       "parcelId": "19",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.9600",
       "enrollmentItemId": null
     },
@@ -741,7 +741,7 @@
       "id": "coverage-2024-20",
       "policyId": "policy-2024-history",
       "parcelId": "20",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.7000",
       "enrollmentItemId": null
     },
@@ -749,7 +749,7 @@
       "id": "coverage-2024-21",
       "policyId": "policy-2024-history",
       "parcelId": "21",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.8700",
       "enrollmentItemId": null
     },
@@ -757,7 +757,7 @@
       "id": "coverage-2024-22",
       "policyId": "policy-2024-history",
       "parcelId": "22",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.7100",
       "enrollmentItemId": null
     },
@@ -765,7 +765,7 @@
       "id": "coverage-2024-23",
       "policyId": "policy-2024-history",
       "parcelId": "23",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.7600",
       "enrollmentItemId": null
     },
@@ -773,7 +773,7 @@
       "id": "coverage-2024-24",
       "policyId": "policy-2024-history",
       "parcelId": "24",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.1400",
       "enrollmentItemId": null
     },
@@ -781,7 +781,7 @@
       "id": "coverage-2024-25",
       "policyId": "policy-2024-history",
       "parcelId": "25",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "6.0400",
       "enrollmentItemId": null
     },
@@ -789,7 +789,7 @@
       "id": "coverage-2024-26",
       "policyId": "policy-2024-history",
       "parcelId": "26",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "3.4500",
       "enrollmentItemId": null
     },
@@ -797,7 +797,7 @@
       "id": "coverage-2024-27",
       "policyId": "policy-2024-history",
       "parcelId": "27",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.4600",
       "enrollmentItemId": null
     },
@@ -805,7 +805,7 @@
       "id": "coverage-2024-28",
       "policyId": "policy-2024-history",
       "parcelId": "28",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.9200",
       "enrollmentItemId": null
     },
@@ -813,7 +813,7 @@
       "id": "coverage-2024-29",
       "policyId": "policy-2024-history",
       "parcelId": "29",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "5.2000",
       "enrollmentItemId": null
     },
@@ -821,7 +821,7 @@
       "id": "coverage-2024-30",
       "policyId": "policy-2024-history",
       "parcelId": "30",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "2.1300",
       "enrollmentItemId": null
     },
@@ -829,7 +829,7 @@
       "id": "coverage-2024-31",
       "policyId": "policy-2024-history",
       "parcelId": "31",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.2900",
       "enrollmentItemId": null
     },
@@ -837,7 +837,7 @@
       "id": "coverage-2024-32",
       "policyId": "policy-2024-history",
       "parcelId": "32",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "4.4000",
       "enrollmentItemId": null
     },
@@ -845,7 +845,7 @@
       "id": "coverage-2024-33",
       "policyId": "policy-2024-history",
       "parcelId": "33",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "4.7500",
       "enrollmentItemId": null
     },
@@ -853,7 +853,7 @@
       "id": "coverage-2024-35",
       "policyId": "policy-2024-history",
       "parcelId": "35",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "7.7300",
       "enrollmentItemId": null
     },
@@ -861,7 +861,7 @@
       "id": "coverage-2024-36",
       "policyId": "policy-2024-history",
       "parcelId": "36",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "7.6700",
       "enrollmentItemId": null
     },
@@ -869,7 +869,7 @@
       "id": "coverage-2024-37",
       "policyId": "policy-2024-history",
       "parcelId": "37",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.7700",
       "enrollmentItemId": null
     },
@@ -877,7 +877,7 @@
       "id": "coverage-2024-38",
       "policyId": "policy-2024-history",
       "parcelId": "38",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "22.6400",
       "enrollmentItemId": null
     },
@@ -885,7 +885,7 @@
       "id": "coverage-2024-39",
       "policyId": "policy-2024-history",
       "parcelId": "39",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.4900",
       "enrollmentItemId": null
     },
@@ -893,7 +893,7 @@
       "id": "coverage-2024-40",
       "policyId": "policy-2024-history",
       "parcelId": "40",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.3200",
       "enrollmentItemId": null
     },
@@ -901,7 +901,7 @@
       "id": "coverage-2024-41",
       "policyId": "policy-2024-history",
       "parcelId": "41",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.1900",
       "enrollmentItemId": null
     },
@@ -909,7 +909,7 @@
       "id": "coverage-2024-42",
       "policyId": "policy-2024-history",
       "parcelId": "42",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "insuredAreaMu": "0.8400",
       "enrollmentItemId": null
     }
@@ -918,7 +918,7 @@
     {
       "id": "claim-2024-001",
       "policyId": "policy-2024-history",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0002",
       "reportCount": 1,
       "estimatedLossCents": 60000,
       "paidCents": 60000,

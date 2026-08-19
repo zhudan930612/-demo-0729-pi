@@ -111,7 +111,10 @@ def validate_village(code: str) -> None:
     areas = {str(f["properties"]["id"]): Decimal(str(f["properties"]["area_mu"])) for f in g["features"]}
     points = {str(f["properties"]["id"]): (float(f["properties"]["label_lng"]), float(f["properties"]["label_lat"])) for f in g["features"]}
     policies = {x["id"]: x for x in p["policies"]}
-    parties = {x["id"] for x in p["parties"]}
+    party_ids = [x["id"] for x in p["parties"]]
+    # 审查 S5：set 收纳会折叠重复 id，需先显式断言 parties 内 id 全局唯一
+    check(len(party_ids) == len(set(party_ids)), f"{code}: 主体 id 全局唯一（无重复）")
+    parties = set(party_ids)
     items = {x["id"]: x for x in p["enrollmentItems"]}
     check(p["schemaVersion"] == "policy-v1" and c["schemaVersion"] == "cultivation-v1", f"{code}: schema 版本正确")
     check(p.get("villageCode") == code, f"{code}: fixture villageCode 一致")

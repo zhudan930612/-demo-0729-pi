@@ -81,7 +81,7 @@ def connected_components(parcel_ids: list[str], adj: dict) -> list[list[str]]:
     remaining = set(parcel_ids)
     components = []
     while remaining:
-        seed = min(remaining)
+        seed = min(remaining, key=int)
         component = []
         stack = [seed]
         while stack:
@@ -107,7 +107,7 @@ def split_large_component(component: list[str], adj: dict, areas: dict) -> list[
     remaining = set(component)
     groups = []
     while remaining:
-        seed = min(remaining)
+        seed = min(remaining, key=int)
         group = []
         frontier = [seed]
         while frontier:
@@ -120,12 +120,20 @@ def split_large_component(component: list[str], adj: dict, areas: dict) -> list[
                     remaining.discard(cur)
                     nxt.extend(adj[cur])
             frontier = sorted(nxt, key=int)
+        if not group:
+            # 种子单块面积已超过 500 亩上限（数据异常）：显式报错，避免死循环（审查 S4）
+            raise SystemExit(f"地块 {seed} 单块面积 {classified_area([seed], areas)} 亩超过 500 亩上限，无法成片划分")
         groups.append(sorted(group, key=int))
     return groups
 
 
 def enforce_in_group_neighbors(group: list[str], adj: dict) -> tuple[list[str], list[str]]:
     """保证子组内每块仍有组内 200m 内邻居；剔除组内孤岛地块（按团单一块一户处理）。
+
+    注：在当前算法下该分支不触发——连通分量的任意地块必然有组内邻居；贪心 BFS 切分
+    只把与当前组有 ≤200m 边的地块并入（邻域边在组内持续存在），因此切分子组内也不会
+    产生组内孤岛。保留本函数作为防御性不变量校验（需求 B1.5：无孤岛），若未来算法
+    变更产生孤岛，剔除逻辑仍可用。
 
     单块组直接保留（trivially 成片）。返回 (保留组, 剔除的孤岛地块列表)。
     """

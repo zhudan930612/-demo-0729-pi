@@ -163,6 +163,21 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         finally:
             VF.DATA, VF.ROOT = vf_orig
 
+    def test_validation_fails_on_duplicate_party_id(self):
+        # 审查 S5：parties 内重复 id（如历史 party 与确认 party 撞车）必须判定失败
+        tmp, code = build_fixture()
+        fx = json.loads(policy_file(tmp, code).read_text(encoding="utf-8"))
+        fx["parties"][1]["id"] = fx["parties"][0]["id"]
+        policy_file(tmp, code).write_text(json.dumps(fx, ensure_ascii=False), encoding="utf-8")
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            with self.assertRaises(AssertionError):
+                VF.validate_village(code)
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+
     def test_discover_village_codes_excludes_v1(self):
         tmp = Path(tempfile.mkdtemp())
         (tmp / "web/src/data").mkdir(parents=True)

@@ -10,179 +10,146 @@
     },
     {
       "id": "party-0001",
-      "name": "程小红",
+      "name": "萧海峰",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330604198906080387",
       "contactPhone": "15570007919",
       "bankAccount": "6217991074590190633",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "程小红"
+      "signature": "萧海峰"
     },
     {
       "id": "party-0002",
-      "name": "曹庆华",
+      "name": "程小红",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330604198805150753",
       "contactPhone": "18570015838",
       "bankAccount": "6217995414578953337",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "曹庆华"
+      "signature": "程小红"
     },
     {
       "id": "party-0003",
-      "name": "袁军",
+      "name": "曹庆华",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330604198704221129",
       "contactPhone": "13570023757",
       "bankAccount": "6217999958931742817",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "袁军"
+      "signature": "曹庆华"
     },
     {
       "id": "party-0004",
-      "name": "邓金凤",
+      "name": "袁军",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330604198603021494",
       "contactPhone": "15570031676",
       "bankAccount": "6217994382750661351",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "邓金凤"
+      "signature": "袁军"
     },
     {
       "id": "party-0005",
-      "name": "许瑞芳",
+      "name": "邓金凤",
       "partyType": "家庭农场",
       "identityOrOrgCode": "330604198502091864",
       "contactPhone": "18570039595",
       "bankAccount": "6217991748994758042",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "许瑞芳"
+      "signature": "邓金凤"
     },
     {
       "id": "party-0006",
-      "name": "傅明辉",
-      "partyType": "自然人",
+      "name": "许瑞芳",
+      "partyType": "家庭农场",
       "identityOrOrgCode": "33060419840116223X",
       "contactPhone": "13570047514",
       "bankAccount": "6217996096623364559",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "傅明辉"
+      "signature": "许瑞芳"
     },
     {
       "id": "party-0007",
-      "name": "曾洋",
+      "name": "傅明辉",
       "partyType": "自然人",
       "identityOrOrgCode": "330604198306232607",
       "contactPhone": "15570055433",
       "bankAccount": "6217997824497370306",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "曾洋"
+      "signature": "傅明辉"
     },
     {
       "id": "party-0008",
-      "name": "彭雅琴",
+      "name": "曾洋",
       "partyType": "自然人",
       "identityOrOrgCode": "330604198205032972",
       "contactPhone": "18570063352",
       "bankAccount": "6217996719431519763",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "彭雅琴"
+      "signature": "曾洋"
     },
     {
       "id": "party-0009",
-      "name": "吕国良",
+      "name": "彭雅琴",
       "partyType": "自然人",
       "identityOrOrgCode": "330604198104103348",
       "contactPhone": "13570071271",
       "bankAccount": "6217996031621500003",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "吕国良"
+      "signature": "彭雅琴"
     },
     {
       "id": "party-0010",
-      "name": "苏冬梅",
+      "name": "吕国良",
       "partyType": "自然人",
       "identityOrOrgCode": "330604198003173718",
       "contactPhone": "15570079190",
       "bankAccount": "6217996936292765414",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "苏冬梅"
+      "signature": "吕国良"
     },
     {
       "id": "party-0011",
-      "name": "卢勇",
+      "name": "苏冬梅",
       "partyType": "自然人",
       "identityOrOrgCode": "330604197902244087",
       "contactPhone": "18570087109",
       "bankAccount": "6217990802544808327",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "卢勇"
+      "signature": "苏冬梅"
     },
     {
       "id": "party-0012",
-      "name": "蒋伟",
+      "name": "卢勇",
       "partyType": "自然人",
       "identityOrOrgCode": "330604197801044457",
       "contactPhone": "13570095028",
       "bankAccount": "6217996695031552216",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "蒋伟"
+      "signature": "卢勇"
     },
     {
       "id": "party-0013",
-      "name": "蔡建华",
-      "partyType": "自然人",
+      "name": "蒋伟",
+      "partyType": "合作社",
       "identityOrOrgCode": "330604197706114824",
       "contactPhone": "15570102947",
       "bankAccount": "6217993193306762101",
       "bankName": "中国邮政储蓄银行",
       "remark": "",
-      "signature": "蔡建华"
-    },
-    {
-      "id": "party-0014",
-      "name": "贾秀英",
-      "partyType": "自然人",
-      "identityOrOrgCode": "330604197605185199",
-      "contactPhone": "18570110866",
-      "bankAccount": "6217999202440698305",
-      "bankName": "中国邮政储蓄银行",
-      "remark": "",
-      "signature": "贾秀英"
-    },
-    {
-      "id": "party-0015",
-      "name": "丁志强",
-      "partyType": "自然人",
-      "identityOrOrgCode": "330604197504255565",
-      "contactPhone": "13570118785",
-      "bankAccount": "6217993941586393736",
-      "bankName": "中国邮政储蓄银行",
-      "remark": "",
-      "signature": "丁志强"
-    },
-    {
-      "id": "party-0001",
-      "name": "程小红",
-      "partyType": "合作社",
-      "identityOrOrgCode": "330604198906080387",
-      "contactPhone": "15570007919",
-      "bankAccount": "6217991074590190633",
-      "bankName": "中国邮政储蓄银行",
-      "remark": "",
-      "signature": "程小红"
+      "signature": "蒋伟"
     }
   ],
   "policies": [
@@ -230,12 +197,12 @@
       "status": "保障中",
       "summary": {
         "insuredPartyCount": 1,
-        "parcelCount": 126,
-        "insuredAreaMu": "499.7800",
-        "sum_insured_cents": 62472500,
-        "premium_cents": 1999120,
-        "subsidy_cents": 1599296,
-        "self_paid_cents": 399824
+        "parcelCount": 108,
+        "insuredAreaMu": "499.7400",
+        "sum_insured_cents": 62467500,
+        "premium_cents": 1998960,
+        "subsidy_cents": 1599168,
+        "self_paid_cents": 399792
       }
     },
     {
@@ -256,12 +223,12 @@
       "status": "保障中",
       "summary": {
         "insuredPartyCount": 1,
-        "parcelCount": 172,
-        "insuredAreaMu": "499.8900",
-        "sum_insured_cents": 62486250,
-        "premium_cents": 1999560,
-        "subsidy_cents": 1599648,
-        "self_paid_cents": 399912
+        "parcelCount": 193,
+        "insuredAreaMu": "499.6700",
+        "sum_insured_cents": 62458750,
+        "premium_cents": 1998680,
+        "subsidy_cents": 1598944,
+        "self_paid_cents": 399736
       }
     },
     {
@@ -282,12 +249,12 @@
       "status": "保障中",
       "summary": {
         "insuredPartyCount": 1,
-        "parcelCount": 181,
-        "insuredAreaMu": "499.9000",
-        "sum_insured_cents": 62487500,
-        "premium_cents": 1999600,
-        "subsidy_cents": 1599680,
-        "self_paid_cents": 399920
+        "parcelCount": 175,
+        "insuredAreaMu": "499.8800",
+        "sum_insured_cents": 62485000,
+        "premium_cents": 1999520,
+        "subsidy_cents": 1599616,
+        "self_paid_cents": 399904
       }
     },
     {
@@ -308,17 +275,43 @@
       "status": "保障中",
       "summary": {
         "insuredPartyCount": 1,
-        "parcelCount": 232,
-        "insuredAreaMu": "499.2500",
-        "sum_insured_cents": 62406250,
-        "premium_cents": 1997000,
-        "subsidy_cents": 1597600,
-        "self_paid_cents": 399400
+        "parcelCount": 171,
+        "insuredAreaMu": "380.0400",
+        "sum_insured_cents": 47505000,
+        "premium_cents": 1520160,
+        "subsidy_cents": 1216128,
+        "self_paid_cents": 304032
+      }
+    },
+    {
+      "id": "policy-2025-party-0006",
+      "policyNo": "3306041020152025000006",
+      "insuredMode": "single_insured",
+      "insuredPartyId": "party-0006",
+      "enrollmentListId": null,
+      "villageCode": "330604102015",
+      "product": "政策性水稻完全成本保险",
+      "insuredObject": "水稻",
+      "unitSumInsuredCentsPerMu": 125000,
+      "premiumRate": "0.032",
+      "subsidyRate": "0.80",
+      "signDate": "2025-04-15",
+      "periodStart": "2025-05-01",
+      "periodEnd": "2025-11-30",
+      "status": "保障中",
+      "summary": {
+        "insuredPartyCount": 1,
+        "parcelCount": 68,
+        "insuredAreaMu": "132.0400",
+        "sum_insured_cents": 16505000,
+        "premium_cents": 528160,
+        "subsidy_cents": 422528,
+        "self_paid_cents": 105632
       }
     },
     {
       "id": "policy-2025-roster",
-      "policyNo": "3306041020152025000006",
+      "policyNo": "3306041020152025000007",
       "insuredMode": "insured_roster",
       "insuredPartyId": null,
       "enrollmentListId": "list-policy-2025-roster",
@@ -333,20 +326,20 @@
       "periodEnd": "2025-11-30",
       "status": "保障中",
       "summary": {
-        "insuredPartyCount": 10,
-        "parcelCount": 10,
-        "insuredAreaMu": "41.1500",
-        "sum_insured_cents": 5143750,
-        "premium_cents": 164600,
-        "subsidy_cents": 131680,
-        "self_paid_cents": 32920
+        "insuredPartyCount": 6,
+        "parcelCount": 6,
+        "insuredAreaMu": "28.6000",
+        "sum_insured_cents": 3575000,
+        "premium_cents": 114400,
+        "subsidy_cents": 91520,
+        "self_paid_cents": 22880
       }
     },
     {
       "id": "policy-2024-history",
-      "policyNo": "3306041020152024000007",
+      "policyNo": "3306041020152024000008",
       "insuredMode": "single_insured",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "enrollmentListId": null,
       "villageCode": "330604102015",
       "product": "政策性水稻完全成本保险",
@@ -380,11 +373,7 @@
         "item-2025-0003",
         "item-2025-0004",
         "item-2025-0005",
-        "item-2025-0006",
-        "item-2025-0007",
-        "item-2025-0008",
-        "item-2025-0009",
-        "item-2025-0010"
+        "item-2025-0006"
       ]
     }
   ],
@@ -393,7 +382,7 @@
       "id": "item-2025-0001",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2015-0001",
-      "insuredPartyId": "party-0006",
+      "insuredPartyId": "party-0007",
       "parcelCoverageIds": [
         "coverage-2025-33"
       ],
@@ -407,7 +396,7 @@
       "id": "item-2025-0002",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2015-0002",
-      "insuredPartyId": "party-0007",
+      "insuredPartyId": "party-0008",
       "parcelCoverageIds": [
         "coverage-2025-35"
       ],
@@ -421,7 +410,7 @@
       "id": "item-2025-0003",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2015-0003",
-      "insuredPartyId": "party-0008",
+      "insuredPartyId": "party-0009",
       "parcelCoverageIds": [
         "coverage-2025-36"
       ],
@@ -435,7 +424,7 @@
       "id": "item-2025-0004",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2015-0004",
-      "insuredPartyId": "party-0009",
+      "insuredPartyId": "party-0010",
       "parcelCoverageIds": [
         "coverage-2025-37"
       ],
@@ -449,7 +438,21 @@
       "id": "item-2025-0005",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2015-0005",
-      "insuredPartyId": "party-0010",
+      "insuredPartyId": "party-0011",
+      "parcelCoverageIds": [
+        "coverage-2025-581"
+      ],
+      "insuredAreaMu": "4.3800",
+      "sum_insured_cents": 547500,
+      "premium_cents": 17520,
+      "subsidy_cents": 14016,
+      "self_paid_cents": 3504
+    },
+    {
+      "id": "item-2025-0006",
+      "enrollmentListId": "list-policy-2025-roster",
+      "itemNo": "2015-0006",
+      "insuredPartyId": "party-0012",
       "parcelCoverageIds": [
         "coverage-2025-620"
       ],
@@ -458,76 +461,6 @@
       "premium_cents": 7640,
       "subsidy_cents": 6112,
       "self_paid_cents": 1528
-    },
-    {
-      "id": "item-2025-0006",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2015-0006",
-      "insuredPartyId": "party-0011",
-      "parcelCoverageIds": [
-        "coverage-2025-742"
-      ],
-      "insuredAreaMu": "2.9900",
-      "sum_insured_cents": 373750,
-      "premium_cents": 11960,
-      "subsidy_cents": 9568,
-      "self_paid_cents": 2392
-    },
-    {
-      "id": "item-2025-0007",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2015-0007",
-      "insuredPartyId": "party-0012",
-      "parcelCoverageIds": [
-        "coverage-2025-753"
-      ],
-      "insuredAreaMu": "3.6700",
-      "sum_insured_cents": 458750,
-      "premium_cents": 14680,
-      "subsidy_cents": 11744,
-      "self_paid_cents": 2936
-    },
-    {
-      "id": "item-2025-0008",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2015-0008",
-      "insuredPartyId": "party-0013",
-      "parcelCoverageIds": [
-        "coverage-2025-757"
-      ],
-      "insuredAreaMu": "5.0200",
-      "sum_insured_cents": 627500,
-      "premium_cents": 20080,
-      "subsidy_cents": 16064,
-      "self_paid_cents": 4016
-    },
-    {
-      "id": "item-2025-0009",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2015-0009",
-      "insuredPartyId": "party-0014",
-      "parcelCoverageIds": [
-        "coverage-2025-768"
-      ],
-      "insuredAreaMu": "1.5600",
-      "sum_insured_cents": 195000,
-      "premium_cents": 6240,
-      "subsidy_cents": 4992,
-      "self_paid_cents": 1248
-    },
-    {
-      "id": "item-2025-0010",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2015-0010",
-      "insuredPartyId": "party-0015",
-      "parcelCoverageIds": [
-        "coverage-2025-771"
-      ],
-      "insuredAreaMu": "3.6900",
-      "sum_insured_cents": 461250,
-      "premium_cents": 14760,
-      "subsidy_cents": 11808,
-      "self_paid_cents": 2952
     }
   ],
   "parcelCoverages": [
@@ -852,6 +785,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-46",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "46",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "1.7000",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-47",
       "policyId": "policy-2025-party-0002",
       "parcelId": "47",
@@ -868,11 +809,27 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-49",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "49",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "3.6700",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-50",
       "policyId": "policy-2025-party-0002",
       "parcelId": "50",
       "insuredPartyId": "party-0002",
       "insuredAreaMu": "11.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-52",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "52",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "6.8000",
       "enrollmentItemId": null
     },
     {
@@ -889,6 +846,22 @@
       "parcelId": "54",
       "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.8600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-55",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "55",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "1.5300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-56",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "56",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "9.6000",
       "enrollmentItemId": null
     },
     {
@@ -1100,6 +1073,22 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-84",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "84",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "24.6600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-87",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "87",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "5.0100",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-89",
       "policyId": "policy-2025-party-0002",
       "parcelId": "89",
@@ -1180,30 +1169,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-107",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "107",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "2.3800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-108",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "108",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "27.8200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-109",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "109",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5800",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-110",
       "policyId": "policy-2025-party-0002",
       "parcelId": "110",
@@ -1268,6 +1233,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-124",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "124",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "56.9800",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-125",
       "policyId": "policy-2025-party-0002",
       "parcelId": "125",
@@ -1297,6 +1270,22 @@
       "parcelId": "143",
       "insuredPartyId": "party-0002",
       "insuredAreaMu": "1.4600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-144",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "144",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "1.7900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-151",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "151",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "14.1500",
       "enrollmentItemId": null
     },
     {
@@ -1332,11 +1321,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-175",
+      "id": "coverage-2025-174",
       "policyId": "policy-2025-party-0002",
-      "parcelId": "175",
+      "parcelId": "174",
       "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.2200",
+      "insuredAreaMu": "4.1300",
       "enrollmentItemId": null
     },
     {
@@ -1345,46 +1334,6 @@
       "parcelId": "176",
       "insuredPartyId": "party-0002",
       "insuredAreaMu": "3.1100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-184",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "184",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.8000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-185",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "185",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.9300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-186",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "186",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.9000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-194",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "194",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.7400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-195",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "195",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "3.8300",
       "enrollmentItemId": null
     },
     {
@@ -1412,6 +1361,38 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-214",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "214",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "1.3000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-216",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "216",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "1.5000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-220",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "220",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "3.3300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-223",
+      "policyId": "policy-2025-party-0002",
+      "parcelId": "223",
+      "insuredPartyId": "party-0002",
+      "insuredAreaMu": "9.7700",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-225",
       "policyId": "policy-2025-party-0002",
       "parcelId": "225",
@@ -1420,51 +1401,19 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-232",
+      "id": "coverage-2025-241",
       "policyId": "policy-2025-party-0002",
-      "parcelId": "232",
+      "parcelId": "241",
       "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.4900",
+      "insuredAreaMu": "0.3800",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-239",
+      "id": "coverage-2025-244",
       "policyId": "policy-2025-party-0002",
-      "parcelId": "239",
+      "parcelId": "244",
       "insuredPartyId": "party-0002",
-      "insuredAreaMu": "5.8000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-269",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "269",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-296",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "296",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.7800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-297",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "297",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.9900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-300",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "300",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "4.1300",
+      "insuredAreaMu": "0.5300",
       "enrollmentItemId": null
     },
     {
@@ -1508,11 +1457,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-334",
+      "id": "coverage-2025-328",
       "policyId": "policy-2025-party-0002",
-      "parcelId": "334",
+      "parcelId": "328",
       "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.1500",
+      "insuredAreaMu": "4.5100",
       "enrollmentItemId": null
     },
     {
@@ -1572,46 +1521,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-426",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "426",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "4.3800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-431",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "431",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.9900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-443",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "443",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.9200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-500",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "500",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "31.3600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-504",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "504",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "3.4200",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-774",
       "policyId": "policy-2025-party-0002",
       "parcelId": "774",
@@ -1633,14 +1542,6 @@
       "parcelId": "776",
       "insuredPartyId": "party-0002",
       "insuredAreaMu": "3.1900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-777",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "777",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "35.5400",
       "enrollmentItemId": null
     },
     {
@@ -1676,14 +1577,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-783",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "783",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.1000",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-784",
       "policyId": "policy-2025-party-0002",
       "parcelId": "784",
@@ -1692,171 +1585,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-785",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "785",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.2400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-786",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "786",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.7800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-787",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "787",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-788",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "788",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-789",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "789",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-790",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "790",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.4400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-791",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "791",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.3100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-792",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "792",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.3000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-793",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "793",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-794",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "794",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "1.7100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-795",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "795",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "5.7200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-796",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "796",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-797",
-      "policyId": "policy-2025-party-0002",
-      "parcelId": "797",
-      "insuredPartyId": "party-0002",
-      "insuredAreaMu": "0.4500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-46",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "46",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "1.7000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-49",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "49",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "3.6700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-52",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "52",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "6.8000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-55",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "55",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "1.5300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-56",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "56",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "9.6000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-84",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "84",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "24.6600",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-86",
       "policyId": "policy-2025-party-0003",
       "parcelId": "86",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "12.2000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-87",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "87",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "5.0100",
       "enrollmentItemId": null
     },
     {
@@ -1948,14 +1681,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-124",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "124",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "56.9800",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-126",
       "policyId": "policy-2025-party-0003",
       "parcelId": "126",
@@ -2028,14 +1753,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-144",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "144",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "1.7900",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-145",
       "policyId": "policy-2025-party-0003",
       "parcelId": "145",
@@ -2073,14 +1790,6 @@
       "parcelId": "150",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "2.2800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-151",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "151",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "14.1500",
       "enrollmentItemId": null
     },
     {
@@ -2137,14 +1846,6 @@
       "parcelId": "164",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "0.3400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-174",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "174",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "4.1300",
       "enrollmentItemId": null
     },
     {
@@ -2252,43 +1953,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-214",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "214",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "1.3000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-216",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "216",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "1.5000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-220",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "220",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "3.3300",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-222",
       "policyId": "policy-2025-party-0003",
       "parcelId": "222",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "1.1400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-223",
-      "policyId": "policy-2025-party-0003",
-      "parcelId": "223",
-      "insuredPartyId": "party-0003",
-      "insuredAreaMu": "9.7700",
       "enrollmentItemId": null
     },
     {
@@ -2764,6 +2433,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-356",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "356",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "2.1800",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-358",
       "policyId": "policy-2025-party-0003",
       "parcelId": "358",
@@ -2825,6 +2502,14 @@
       "parcelId": "367",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "1.7900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-368",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "368",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.9200",
       "enrollmentItemId": null
     },
     {
@@ -2980,6 +2665,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-409",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "409",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "8.2500",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-411",
       "policyId": "policy-2025-party-0003",
       "parcelId": "411",
@@ -3036,6 +2729,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-427",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "427",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.3300",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-429",
       "policyId": "policy-2025-party-0003",
       "parcelId": "429",
@@ -3084,6 +2785,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-453",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "453",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "6.7400",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-454",
       "policyId": "policy-2025-party-0003",
       "parcelId": "454",
@@ -3121,6 +2830,22 @@
       "parcelId": "463",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "4.0500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-464",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "464",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "11.1700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-473",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "473",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.3400",
       "enrollmentItemId": null
     },
     {
@@ -3164,11 +2889,243 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-481",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "481",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.9400",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-483",
       "policyId": "policy-2025-party-0003",
       "parcelId": "483",
       "insuredPartyId": "party-0003",
       "insuredAreaMu": "0.9800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-486",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "486",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.4600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-487",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "487",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "77.6400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-489",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "489",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-490",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "490",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.8000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-514",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "514",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "5.8600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-525",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "525",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.5700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-526",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "526",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.7300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-531",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "531",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.7600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-532",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "532",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.7300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-535",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "535",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.5600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-542",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "542",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-543",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "543",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.5600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-546",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "546",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.6100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-547",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "547",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.7600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-548",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "548",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "4.0600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-549",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "549",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.4300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-555",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "555",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.2700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-557",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "557",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.4700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-560",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "560",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.6800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-567",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "567",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.6100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-568",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "568",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.8300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-570",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "570",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.0900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-571",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "571",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.3600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-572",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "572",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.5000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-575",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "575",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.6000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-576",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "576",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.8800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-580",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "580",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "1.5300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-583",
+      "policyId": "policy-2025-party-0003",
+      "parcelId": "583",
+      "insuredPartyId": "party-0003",
+      "insuredAreaMu": "0.4600",
       "enrollmentItemId": null
     },
     {
@@ -3185,6 +3142,30 @@
       "parcelId": "106",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "1.4000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-107",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "107",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "2.3800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-108",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "108",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "27.8200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-109",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "109",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "0.5800",
       "enrollmentItemId": null
     },
     {
@@ -3308,6 +3289,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-175",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "175",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.2200",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-177",
       "policyId": "policy-2025-party-0004",
       "parcelId": "177",
@@ -3348,6 +3337,30 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-184",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "184",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.8000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-185",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "185",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.9300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-186",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "186",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.9000",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-189",
       "policyId": "policy-2025-party-0004",
       "parcelId": "189",
@@ -3385,6 +3398,22 @@
       "parcelId": "193",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "2.0100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-194",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "194",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.7400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-195",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "195",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "3.8300",
       "enrollmentItemId": null
     },
     {
@@ -3492,6 +3521,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-232",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "232",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "0.4900",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-234",
       "policyId": "policy-2025-party-0004",
       "parcelId": "234",
@@ -3513,6 +3550,14 @@
       "parcelId": "236",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "1.0300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-239",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "239",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "5.8000",
       "enrollmentItemId": null
     },
     {
@@ -3553,6 +3598,14 @@
       "parcelId": "267",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "1.8000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-269",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "269",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "0.5100",
       "enrollmentItemId": null
     },
     {
@@ -3705,6 +3758,30 @@
       "parcelId": "295",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "1.9700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-296",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "296",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.7800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-297",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "297",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "0.9900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-300",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "300",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "4.1300",
       "enrollmentItemId": null
     },
     {
@@ -3964,6 +4041,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-426",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "426",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "4.3800",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-428",
       "policyId": "policy-2025-party-0004",
       "parcelId": "428",
@@ -3977,6 +4062,14 @@
       "parcelId": "430",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "2.4000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-431",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "431",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.9900",
       "enrollmentItemId": null
     },
     {
@@ -4033,6 +4126,14 @@
       "parcelId": "441",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "0.9700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-443",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "443",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "1.9200",
       "enrollmentItemId": null
     },
     {
@@ -4276,6 +4377,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-504",
+      "policyId": "policy-2025-party-0004",
+      "parcelId": "504",
+      "insuredPartyId": "party-0004",
+      "insuredAreaMu": "3.4200",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-508",
       "policyId": "policy-2025-party-0004",
       "parcelId": "508",
@@ -4324,14 +4433,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-516",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "516",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.6500",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-517",
       "policyId": "policy-2025-party-0004",
       "parcelId": "517",
@@ -4356,35 +4457,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-522",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "522",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.3300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-523",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "523",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "4.3600",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-524",
       "policyId": "policy-2025-party-0004",
       "parcelId": "524",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "1.3400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-528",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "528",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "4.2400",
       "enrollmentItemId": null
     },
     {
@@ -4396,43 +4473,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-534",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "534",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "11.7200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-538",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "538",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "1.4200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-539",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "539",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "2.0200",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-540",
       "policyId": "policy-2025-party-0004",
       "parcelId": "540",
       "insuredPartyId": "party-0004",
       "insuredAreaMu": "0.3300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-541",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "541",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.4900",
       "enrollmentItemId": null
     },
     {
@@ -4460,195 +4505,35 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-599",
+      "id": "coverage-2025-777",
       "policyId": "policy-2025-party-0004",
-      "parcelId": "599",
+      "parcelId": "777",
       "insuredPartyId": "party-0004",
-      "insuredAreaMu": "8.0700",
+      "insuredAreaMu": "35.5400",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-607",
+      "id": "coverage-2025-783",
       "policyId": "policy-2025-party-0004",
-      "parcelId": "607",
+      "parcelId": "783",
       "insuredPartyId": "party-0004",
-      "insuredAreaMu": "19.2300",
+      "insuredAreaMu": "1.1000",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-610",
+      "id": "coverage-2025-787",
       "policyId": "policy-2025-party-0004",
-      "parcelId": "610",
+      "parcelId": "787",
       "insuredPartyId": "party-0004",
-      "insuredAreaMu": "2.4600",
+      "insuredAreaMu": "0.5400",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-628",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "628",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.8700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-630",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "630",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "1.3100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-631",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "631",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.3300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-633",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "633",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-634",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "634",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "3.7100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-642",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "642",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.3100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-644",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "644",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "1.4400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-650",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "650",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "3.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-653",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "653",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.6500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-656",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "656",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.3600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-664",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "664",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "3.1000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-665",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "665",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.5200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-668",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "668",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "28.2800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-669",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "669",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "1.9700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-670",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "670",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.6500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-671",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "671",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "2.4400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-685",
-      "policyId": "policy-2025-party-0004",
-      "parcelId": "685",
-      "insuredPartyId": "party-0004",
-      "insuredAreaMu": "0.6100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-241",
+      "id": "coverage-2025-334",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "241",
+      "parcelId": "334",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-244",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "244",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-328",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "328",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "4.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-356",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "356",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.1800",
+      "insuredAreaMu": "1.1500",
       "enrollmentItemId": null
     },
     {
@@ -4657,14 +4542,6 @@
       "parcelId": "363",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "2.8600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-368",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "368",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9200",
       "enrollmentItemId": null
     },
     {
@@ -4692,14 +4569,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-409",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "409",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "8.2500",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-414",
       "policyId": "policy-2025-party-0005",
       "parcelId": "414",
@@ -4724,62 +4593,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-427",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "427",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-436",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "436",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-453",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "453",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "6.7400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-464",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "464",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "11.1700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-471",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "471",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-473",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "473",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-481",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "481",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9400",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-482",
       "policyId": "policy-2025-party-0005",
       "parcelId": "482",
@@ -4788,43 +4601,19 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-486",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "486",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.4600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-487",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "487",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "77.6400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-489",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "489",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-490",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "490",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8000",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-494",
       "policyId": "policy-2025-party-0005",
       "parcelId": "494",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "2.1100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-500",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "500",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "31.3600",
       "enrollmentItemId": null
     },
     {
@@ -4844,14 +4633,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-506",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "506",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.1900",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-507",
       "policyId": "policy-2025-party-0005",
       "parcelId": "507",
@@ -4860,19 +4641,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-514",
+      "id": "coverage-2025-516",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "514",
+      "parcelId": "516",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "5.8600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-519",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "519",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5400",
+      "insuredAreaMu": "0.6500",
       "enrollmentItemId": null
     },
     {
@@ -4884,19 +4657,27 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-525",
+      "id": "coverage-2025-522",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "525",
+      "parcelId": "522",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5700",
+      "insuredAreaMu": "0.3300",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-526",
+      "id": "coverage-2025-523",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "526",
+      "parcelId": "523",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.7300",
+      "insuredAreaMu": "4.3600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-528",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "528",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "4.2400",
       "enrollmentItemId": null
     },
     {
@@ -4908,35 +4689,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-531",
+      "id": "coverage-2025-534",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "531",
+      "parcelId": "534",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-532",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "532",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.7300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-533",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "533",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-535",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "535",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5600",
+      "insuredAreaMu": "11.7200",
       "enrollmentItemId": null
     },
     {
@@ -4956,19 +4713,27 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-542",
+      "id": "coverage-2025-538",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "542",
+      "parcelId": "538",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5100",
+      "insuredAreaMu": "1.4200",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-543",
+      "id": "coverage-2025-539",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "543",
+      "parcelId": "539",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5600",
+      "insuredAreaMu": "2.0200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-541",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "541",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.4900",
       "enrollmentItemId": null
     },
     {
@@ -4977,38 +4742,6 @@
       "parcelId": "545",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.5900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-546",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "546",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-547",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "547",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-548",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "548",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "4.0600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-549",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "549",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.4300",
       "enrollmentItemId": null
     },
     {
@@ -5036,38 +4769,6 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-553",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "553",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-555",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "555",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.2700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-556",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "556",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-557",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "557",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4700",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-558",
       "policyId": "policy-2025-party-0005",
       "parcelId": "558",
@@ -5076,35 +4777,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-559",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "559",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "3.7300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-560",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "560",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6800",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-562",
       "policyId": "policy-2025-party-0005",
       "parcelId": "562",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.5500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-563",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "563",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9200",
       "enrollmentItemId": null
     },
     {
@@ -5132,83 +4809,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-567",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "567",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.6100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-568",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "568",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8300",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-569",
       "policyId": "policy-2025-party-0005",
       "parcelId": "569",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.6300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-570",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "570",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.0900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-571",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "571",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-572",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "572",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-573",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "573",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-574",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "574",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "3.3700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-575",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "575",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-576",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "576",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.8800",
       "enrollmentItemId": null
     },
     {
@@ -5220,59 +4825,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-579",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "579",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "4.1900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-580",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "580",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-581",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "581",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "4.3800",
-      "enrollmentItemId": null
-    },
-    {
       "id": "coverage-2025-582",
       "policyId": "policy-2025-party-0005",
       "parcelId": "582",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "2.5900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-583",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "583",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-584",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "584",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-585",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "585",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.5100",
       "enrollmentItemId": null
     },
     {
@@ -5284,259 +4841,27 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-587",
+      "id": "coverage-2025-599",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "587",
+      "parcelId": "599",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "5.2500",
+      "insuredAreaMu": "8.0700",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-588",
+      "id": "coverage-2025-607",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "588",
+      "parcelId": "607",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.1200",
+      "insuredAreaMu": "19.2300",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-589",
+      "id": "coverage-2025-610",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "589",
+      "parcelId": "610",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-590",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "590",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.3000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-592",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "592",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "22.5000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-594",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "594",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-596",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "596",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-597",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "597",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-598",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "598",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-600",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "600",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-601",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "601",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-602",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "602",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.0700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-603",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "603",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.0900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-604",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "604",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-605",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "605",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "3.0300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-606",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "606",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.5900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-608",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "608",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.2000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-609",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "609",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.7600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-611",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "611",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.7000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-613",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "613",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.2600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-614",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "614",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6500",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-615",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "615",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-616",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "616",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-617",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "617",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "6.1000",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-618",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "618",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-619",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "619",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.0300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-621",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "621",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9700",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-622",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "622",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-623",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "623",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "13.0600",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-624",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "624",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-625",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "625",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.0200",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-626",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "626",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4300",
+      "insuredAreaMu": "2.4600",
       "enrollmentItemId": null
     },
     {
@@ -5548,65 +4873,57 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-632",
+      "id": "coverage-2025-628",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "632",
+      "parcelId": "628",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3200",
+      "insuredAreaMu": "0.8700",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-635",
+      "id": "coverage-2025-630",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "635",
+      "parcelId": "630",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.1500",
+      "insuredAreaMu": "1.3100",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-636",
+      "id": "coverage-2025-631",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "636",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.6300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-637",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "637",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-638",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "638",
+      "parcelId": "631",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.3300",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-639",
+      "id": "coverage-2025-633",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "639",
+      "parcelId": "633",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "6.2200",
+      "insuredAreaMu": "0.5100",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-640",
+      "id": "coverage-2025-634",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "640",
+      "parcelId": "634",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.7400",
+      "insuredAreaMu": "3.7100",
       "enrollmentItemId": null
     },
     {
       "id": "coverage-2025-641",
       "policyId": "policy-2025-party-0005",
       "parcelId": "641",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.3100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-642",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "642",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.3100",
       "enrollmentItemId": null
@@ -5620,27 +4937,11 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-645",
+      "id": "coverage-2025-644",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "645",
+      "parcelId": "644",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "6.2100",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-647",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "647",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.2900",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-648",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "648",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5800",
+      "insuredAreaMu": "1.4400",
       "enrollmentItemId": null
     },
     {
@@ -5652,99 +4953,75 @@
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-651",
+      "id": "coverage-2025-650",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "651",
+      "parcelId": "650",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.5100",
+      "insuredAreaMu": "3.7600",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-652",
+      "id": "coverage-2025-653",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "652",
+      "parcelId": "653",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.3200",
+      "insuredAreaMu": "0.6500",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-654",
+      "id": "coverage-2025-656",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "654",
+      "parcelId": "656",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.7200",
+      "insuredAreaMu": "0.3600",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-655",
+      "id": "coverage-2025-664",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "655",
+      "parcelId": "664",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.7900",
+      "insuredAreaMu": "3.1000",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-657",
+      "id": "coverage-2025-665",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "657",
+      "parcelId": "665",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9300",
+      "insuredAreaMu": "0.5200",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-658",
+      "id": "coverage-2025-668",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "658",
+      "parcelId": "668",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "1.0200",
+      "insuredAreaMu": "28.2800",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-659",
+      "id": "coverage-2025-669",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "659",
+      "parcelId": "669",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8400",
+      "insuredAreaMu": "1.9700",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-660",
+      "id": "coverage-2025-670",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "660",
+      "parcelId": "670",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4500",
+      "insuredAreaMu": "0.6500",
       "enrollmentItemId": null
     },
     {
-      "id": "coverage-2025-661",
+      "id": "coverage-2025-671",
       "policyId": "policy-2025-party-0005",
-      "parcelId": "661",
+      "parcelId": "671",
       "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.9300",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-662",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "662",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.4800",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-666",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "666",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "0.8400",
-      "enrollmentItemId": null
-    },
-    {
-      "id": "coverage-2025-667",
-      "policyId": "policy-2025-party-0005",
-      "parcelId": "667",
-      "insuredPartyId": "party-0005",
-      "insuredAreaMu": "2.2400",
+      "insuredAreaMu": "2.4400",
       "enrollmentItemId": null
     },
     {
@@ -5841,6 +5118,14 @@
       "parcelId": "684",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.8600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-685",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "685",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.6100",
       "enrollmentItemId": null
     },
     {
@@ -6268,6 +5553,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-742",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "742",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "2.9900",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-743",
       "policyId": "policy-2025-party-0005",
       "parcelId": "743",
@@ -6340,6 +5633,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-753",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "753",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "3.6700",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-754",
       "policyId": "policy-2025-party-0005",
       "parcelId": "754",
@@ -6361,6 +5662,14 @@
       "parcelId": "756",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "0.9200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-757",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "757",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "5.0200",
       "enrollmentItemId": null
     },
     {
@@ -6436,6 +5745,14 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-768",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "768",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "1.5600",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-769",
       "policyId": "policy-2025-party-0005",
       "parcelId": "769",
@@ -6452,11 +5769,115 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-771",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "771",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "3.6900",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-772",
       "policyId": "policy-2025-party-0005",
       "parcelId": "772",
       "insuredPartyId": "party-0005",
       "insuredAreaMu": "2.7900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-785",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "785",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "1.2400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-786",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "786",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.7800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-788",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "788",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-789",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "789",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.5300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-790",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "790",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.4400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-791",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "791",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.3100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-792",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "792",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.3000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-793",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "793",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.5800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-794",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "794",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "1.7100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-795",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "795",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "5.7200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-796",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "796",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-797",
+      "policyId": "policy-2025-party-0005",
+      "parcelId": "797",
+      "insuredPartyId": "party-0005",
+      "insuredAreaMu": "0.4500",
       "enrollmentItemId": null
     },
     {
@@ -6476,10 +5897,554 @@
       "enrollmentItemId": null
     },
     {
+      "id": "coverage-2025-436",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "436",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-471",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "471",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.8100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-506",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "506",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.1900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-519",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "519",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-533",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "533",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-553",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "553",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-556",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "556",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.4700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-559",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "559",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "3.7300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-563",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "563",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-573",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "573",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-574",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "574",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "3.3700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-579",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "579",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "4.1900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-584",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "584",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.7600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-585",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "585",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-587",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "587",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "5.2500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-588",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "588",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.1200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-589",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "589",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-590",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "590",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.3000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-592",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "592",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "22.5000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-594",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "594",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-596",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "596",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-597",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "597",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-598",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "598",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-600",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "600",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.7600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-601",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "601",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.8300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-602",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "602",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.0700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-603",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "603",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.0900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-604",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "604",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-605",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "605",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "3.0300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-606",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "606",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.5900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-608",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "608",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.2000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-609",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "609",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.7600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-611",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "611",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.7000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-613",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "613",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.2600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-614",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "614",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-615",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "615",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.3900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-616",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "616",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-617",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "617",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "6.1000",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-618",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "618",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.8100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-619",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "619",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.0300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-621",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "621",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9700",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-622",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "622",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-623",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "623",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "13.0600",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-624",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "624",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.4300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-625",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "625",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.0200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-626",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "626",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.4300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-632",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "632",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.3200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-635",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "635",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.1500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-636",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "636",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.6300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-637",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "637",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.3100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-638",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "638",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.3300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-639",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "639",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "6.2200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-640",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "640",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.7400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-645",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "645",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "6.2100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-647",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "647",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.2900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-648",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "648",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-651",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "651",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.5100",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-652",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "652",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.3200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-654",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "654",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.7200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-655",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "655",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.7900",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-657",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "657",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-658",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "658",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "1.0200",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-659",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "659",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.8400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-660",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "660",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.4500",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-661",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "661",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.9300",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-662",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "662",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.4800",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-666",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "666",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "0.8400",
+      "enrollmentItemId": null
+    },
+    {
+      "id": "coverage-2025-667",
+      "policyId": "policy-2025-party-0006",
+      "parcelId": "667",
+      "insuredPartyId": "party-0006",
+      "insuredAreaMu": "2.2400",
+      "enrollmentItemId": null
+    },
+    {
       "id": "coverage-2025-33",
       "policyId": "policy-2025-roster",
       "parcelId": "33",
-      "insuredPartyId": "party-0006",
+      "insuredPartyId": "party-0007",
       "insuredAreaMu": "10.0100",
       "enrollmentItemId": "item-2025-0001"
     },
@@ -6487,7 +6452,7 @@
       "id": "coverage-2025-35",
       "policyId": "policy-2025-roster",
       "parcelId": "35",
-      "insuredPartyId": "party-0007",
+      "insuredPartyId": "party-0008",
       "insuredAreaMu": "1.5800",
       "enrollmentItemId": "item-2025-0002"
     },
@@ -6495,7 +6460,7 @@
       "id": "coverage-2025-36",
       "policyId": "policy-2025-roster",
       "parcelId": "36",
-      "insuredPartyId": "party-0008",
+      "insuredPartyId": "party-0009",
       "insuredAreaMu": "4.0900",
       "enrollmentItemId": "item-2025-0003"
     },
@@ -6503,63 +6468,31 @@
       "id": "coverage-2025-37",
       "policyId": "policy-2025-roster",
       "parcelId": "37",
-      "insuredPartyId": "party-0009",
+      "insuredPartyId": "party-0010",
       "insuredAreaMu": "6.6300",
       "enrollmentItemId": "item-2025-0004"
+    },
+    {
+      "id": "coverage-2025-581",
+      "policyId": "policy-2025-roster",
+      "parcelId": "581",
+      "insuredPartyId": "party-0011",
+      "insuredAreaMu": "4.3800",
+      "enrollmentItemId": "item-2025-0005"
     },
     {
       "id": "coverage-2025-620",
       "policyId": "policy-2025-roster",
       "parcelId": "620",
-      "insuredPartyId": "party-0010",
-      "insuredAreaMu": "1.9100",
-      "enrollmentItemId": "item-2025-0005"
-    },
-    {
-      "id": "coverage-2025-742",
-      "policyId": "policy-2025-roster",
-      "parcelId": "742",
-      "insuredPartyId": "party-0011",
-      "insuredAreaMu": "2.9900",
-      "enrollmentItemId": "item-2025-0006"
-    },
-    {
-      "id": "coverage-2025-753",
-      "policyId": "policy-2025-roster",
-      "parcelId": "753",
       "insuredPartyId": "party-0012",
-      "insuredAreaMu": "3.6700",
-      "enrollmentItemId": "item-2025-0007"
-    },
-    {
-      "id": "coverage-2025-757",
-      "policyId": "policy-2025-roster",
-      "parcelId": "757",
-      "insuredPartyId": "party-0013",
-      "insuredAreaMu": "5.0200",
-      "enrollmentItemId": "item-2025-0008"
-    },
-    {
-      "id": "coverage-2025-768",
-      "policyId": "policy-2025-roster",
-      "parcelId": "768",
-      "insuredPartyId": "party-0014",
-      "insuredAreaMu": "1.5600",
-      "enrollmentItemId": "item-2025-0009"
-    },
-    {
-      "id": "coverage-2025-771",
-      "policyId": "policy-2025-roster",
-      "parcelId": "771",
-      "insuredPartyId": "party-0015",
-      "insuredAreaMu": "3.6900",
-      "enrollmentItemId": "item-2025-0010"
+      "insuredAreaMu": "1.9100",
+      "enrollmentItemId": "item-2025-0006"
     },
     {
       "id": "coverage-2024-1",
       "policyId": "policy-2024-history",
       "parcelId": "1",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.7900",
       "enrollmentItemId": null
     },
@@ -6567,7 +6500,7 @@
       "id": "coverage-2024-2",
       "policyId": "policy-2024-history",
       "parcelId": "2",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.6700",
       "enrollmentItemId": null
     },
@@ -6575,7 +6508,7 @@
       "id": "coverage-2024-3",
       "policyId": "policy-2024-history",
       "parcelId": "3",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "2.7600",
       "enrollmentItemId": null
     },
@@ -6583,7 +6516,7 @@
       "id": "coverage-2024-4",
       "policyId": "policy-2024-history",
       "parcelId": "4",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "2.5000",
       "enrollmentItemId": null
     },
@@ -6591,7 +6524,7 @@
       "id": "coverage-2024-5",
       "policyId": "policy-2024-history",
       "parcelId": "5",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.8100",
       "enrollmentItemId": null
     },
@@ -6599,7 +6532,7 @@
       "id": "coverage-2024-6",
       "policyId": "policy-2024-history",
       "parcelId": "6",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.4900",
       "enrollmentItemId": null
     },
@@ -6607,7 +6540,7 @@
       "id": "coverage-2024-7",
       "policyId": "policy-2024-history",
       "parcelId": "7",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.8300",
       "enrollmentItemId": null
     },
@@ -6615,7 +6548,7 @@
       "id": "coverage-2024-8",
       "policyId": "policy-2024-history",
       "parcelId": "8",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.5100",
       "enrollmentItemId": null
     },
@@ -6623,7 +6556,7 @@
       "id": "coverage-2024-9",
       "policyId": "policy-2024-history",
       "parcelId": "9",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.6200",
       "enrollmentItemId": null
     },
@@ -6631,7 +6564,7 @@
       "id": "coverage-2024-10",
       "policyId": "policy-2024-history",
       "parcelId": "10",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.2300",
       "enrollmentItemId": null
     },
@@ -6639,7 +6572,7 @@
       "id": "coverage-2024-11",
       "policyId": "policy-2024-history",
       "parcelId": "11",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "2.6000",
       "enrollmentItemId": null
     },
@@ -6647,7 +6580,7 @@
       "id": "coverage-2024-12",
       "policyId": "policy-2024-history",
       "parcelId": "12",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "2.1800",
       "enrollmentItemId": null
     },
@@ -6655,7 +6588,7 @@
       "id": "coverage-2024-13",
       "policyId": "policy-2024-history",
       "parcelId": "13",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.9200",
       "enrollmentItemId": null
     },
@@ -6663,7 +6596,7 @@
       "id": "coverage-2024-14",
       "policyId": "policy-2024-history",
       "parcelId": "14",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.9200",
       "enrollmentItemId": null
     },
@@ -6671,7 +6604,7 @@
       "id": "coverage-2024-15",
       "policyId": "policy-2024-history",
       "parcelId": "15",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.9200",
       "enrollmentItemId": null
     },
@@ -6679,7 +6612,7 @@
       "id": "coverage-2024-16",
       "policyId": "policy-2024-history",
       "parcelId": "16",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "3.5800",
       "enrollmentItemId": null
     },
@@ -6687,7 +6620,7 @@
       "id": "coverage-2024-18",
       "policyId": "policy-2024-history",
       "parcelId": "18",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.5000",
       "enrollmentItemId": null
     },
@@ -6695,7 +6628,7 @@
       "id": "coverage-2024-19",
       "policyId": "policy-2024-history",
       "parcelId": "19",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.3900",
       "enrollmentItemId": null
     },
@@ -6703,7 +6636,7 @@
       "id": "coverage-2024-20",
       "policyId": "policy-2024-history",
       "parcelId": "20",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "2.4200",
       "enrollmentItemId": null
     },
@@ -6711,7 +6644,7 @@
       "id": "coverage-2024-21",
       "policyId": "policy-2024-history",
       "parcelId": "21",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.5500",
       "enrollmentItemId": null
     },
@@ -6719,7 +6652,7 @@
       "id": "coverage-2024-22",
       "policyId": "policy-2024-history",
       "parcelId": "22",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.4600",
       "enrollmentItemId": null
     },
@@ -6727,7 +6660,7 @@
       "id": "coverage-2024-23",
       "policyId": "policy-2024-history",
       "parcelId": "23",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.4800",
       "enrollmentItemId": null
     },
@@ -6735,7 +6668,7 @@
       "id": "coverage-2024-24",
       "policyId": "policy-2024-history",
       "parcelId": "24",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.0400",
       "enrollmentItemId": null
     },
@@ -6743,7 +6676,7 @@
       "id": "coverage-2024-25",
       "policyId": "policy-2024-history",
       "parcelId": "25",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.8700",
       "enrollmentItemId": null
     },
@@ -6751,7 +6684,7 @@
       "id": "coverage-2024-26",
       "policyId": "policy-2024-history",
       "parcelId": "26",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.4200",
       "enrollmentItemId": null
     },
@@ -6759,7 +6692,7 @@
       "id": "coverage-2024-27",
       "policyId": "policy-2024-history",
       "parcelId": "27",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.4600",
       "enrollmentItemId": null
     },
@@ -6767,7 +6700,7 @@
       "id": "coverage-2024-28",
       "policyId": "policy-2024-history",
       "parcelId": "28",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.6800",
       "enrollmentItemId": null
     },
@@ -6775,7 +6708,7 @@
       "id": "coverage-2024-29",
       "policyId": "policy-2024-history",
       "parcelId": "29",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "4.5500",
       "enrollmentItemId": null
     },
@@ -6783,7 +6716,7 @@
       "id": "coverage-2024-30",
       "policyId": "policy-2024-history",
       "parcelId": "30",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.8900",
       "enrollmentItemId": null
     },
@@ -6791,7 +6724,7 @@
       "id": "coverage-2024-31",
       "policyId": "policy-2024-history",
       "parcelId": "31",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.5100",
       "enrollmentItemId": null
     },
@@ -6799,7 +6732,7 @@
       "id": "coverage-2024-32",
       "policyId": "policy-2024-history",
       "parcelId": "32",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.9200",
       "enrollmentItemId": null
     },
@@ -6807,7 +6740,7 @@
       "id": "coverage-2024-33",
       "policyId": "policy-2024-history",
       "parcelId": "33",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "10.0100",
       "enrollmentItemId": null
     },
@@ -6815,7 +6748,7 @@
       "id": "coverage-2024-35",
       "policyId": "policy-2024-history",
       "parcelId": "35",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.5800",
       "enrollmentItemId": null
     },
@@ -6823,7 +6756,7 @@
       "id": "coverage-2024-36",
       "policyId": "policy-2024-history",
       "parcelId": "36",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "4.0900",
       "enrollmentItemId": null
     },
@@ -6831,7 +6764,7 @@
       "id": "coverage-2024-37",
       "policyId": "policy-2024-history",
       "parcelId": "37",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "6.6300",
       "enrollmentItemId": null
     },
@@ -6839,7 +6772,7 @@
       "id": "coverage-2024-38",
       "policyId": "policy-2024-history",
       "parcelId": "38",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.3300",
       "enrollmentItemId": null
     },
@@ -6847,7 +6780,7 @@
       "id": "coverage-2024-39",
       "policyId": "policy-2024-history",
       "parcelId": "39",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "0.6100",
       "enrollmentItemId": null
     },
@@ -6855,7 +6788,7 @@
       "id": "coverage-2024-40",
       "policyId": "policy-2024-history",
       "parcelId": "40",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.5300",
       "enrollmentItemId": null
     },
@@ -6863,7 +6796,7 @@
       "id": "coverage-2024-41",
       "policyId": "policy-2024-history",
       "parcelId": "41",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.6900",
       "enrollmentItemId": null
     },
@@ -6871,7 +6804,7 @@
       "id": "coverage-2024-42",
       "policyId": "policy-2024-history",
       "parcelId": "42",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "insuredAreaMu": "1.9200",
       "enrollmentItemId": null
     }
@@ -6880,7 +6813,7 @@
     {
       "id": "claim-2025-001",
       "policyId": "policy-2025-roster",
-      "insuredPartyId": "party-0006",
+      "insuredPartyId": "party-0007",
       "enrollmentItemId": "item-2025-0001",
       "reportCount": 2,
       "estimatedLossCents": 180000,
@@ -6891,7 +6824,7 @@
     {
       "id": "claim-2025-002",
       "policyId": "policy-2025-roster",
-      "insuredPartyId": "party-0007",
+      "insuredPartyId": "party-0008",
       "enrollmentItemId": "item-2025-0002",
       "reportCount": 1,
       "estimatedLossCents": 92000,
@@ -6902,7 +6835,7 @@
     {
       "id": "claim-2024-001",
       "policyId": "policy-2024-history",
-      "insuredPartyId": "party-0001",
+      "insuredPartyId": "party-0013",
       "reportCount": 1,
       "estimatedLossCents": 60000,
       "paidCents": 60000,
@@ -6918,17 +6851,17 @@
     "insuredParcelCount": 753,
     "uninsuredParcelCount": 47,
     "uninsuredAreaMu": "187.5800",
-    "partyCount": 17,
-    "policyCount": 7,
-    "currentPolicyCount": 6,
-    "currentSinglePolicyCount": 5,
+    "partyCount": 14,
+    "policyCount": 8,
+    "currentPolicyCount": 7,
+    "currentSinglePolicyCount": 6,
     "currentRosterPolicyCount": 1,
-    "rosterItemCount": 10,
-    "bigFarmCount": 5,
-    "bigFarmParcelCount": 743,
-    "bigFarmInsuredAreaMu": "2049.2700",
+    "rosterItemCount": 6,
+    "bigFarmCount": 6,
+    "bigFarmParcelCount": 747,
+    "bigFarmInsuredAreaMu": "2061.8200",
     "insuredAreaMu": "2090.4200",
-    "bigFarmCoverageShareOfInsuredArea": 0.9803,
+    "bigFarmCoverageShareOfInsuredArea": 0.9863,
     "spatialReview": {
       "confirmationVersion": "parcel-confirmation-v1",
       "confirmedAt": "2025-04-01",
@@ -6949,66 +6882,78 @@
         },
         {
           "insuredPartyId": "party-0002",
-          "parcelCount": 126,
-          "geometryAreaMu": "499.7800",
-          "classifiedAreaMu": "499.78",
+          "parcelCount": 108,
+          "geometryAreaMu": "499.7400",
+          "classifiedAreaMu": "499.74",
           "insuredModePreview": "single_insured",
           "spatialGroupCount": 1,
           "primaryGroupAreaRatio": 1.0,
-          "maxDistanceM": 1073.7,
+          "maxDistanceM": 1012.6,
           "isolatedParcelIds": [],
           "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
         },
         {
           "insuredPartyId": "party-0003",
-          "parcelCount": 172,
-          "geometryAreaMu": "499.8900",
-          "classifiedAreaMu": "499.89",
+          "parcelCount": 193,
+          "geometryAreaMu": "499.6700",
+          "classifiedAreaMu": "499.67",
           "insuredModePreview": "single_insured",
           "spatialGroupCount": 1,
           "primaryGroupAreaRatio": 1.0,
-          "maxDistanceM": 959.3,
+          "maxDistanceM": 949.6,
           "isolatedParcelIds": [],
           "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
         },
         {
           "insuredPartyId": "party-0004",
-          "parcelCount": 181,
-          "geometryAreaMu": "499.9000",
-          "classifiedAreaMu": "499.90",
+          "parcelCount": 175,
+          "geometryAreaMu": "499.8800",
+          "classifiedAreaMu": "499.88",
           "insuredModePreview": "single_insured",
           "spatialGroupCount": 1,
           "primaryGroupAreaRatio": 1.0,
-          "maxDistanceM": 954.3,
+          "maxDistanceM": 913.8,
           "isolatedParcelIds": [],
           "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
         },
         {
           "insuredPartyId": "party-0005",
-          "parcelCount": 232,
-          "geometryAreaMu": "499.2500",
-          "classifiedAreaMu": "499.25",
+          "parcelCount": 171,
+          "geometryAreaMu": "380.0400",
+          "classifiedAreaMu": "380.04",
           "insuredModePreview": "single_insured",
           "spatialGroupCount": 1,
           "primaryGroupAreaRatio": 1.0,
-          "maxDistanceM": 2700.5,
+          "maxDistanceM": 1559.3,
+          "isolatedParcelIds": [],
+          "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
+        },
+        {
+          "insuredPartyId": "party-0006",
+          "parcelCount": 68,
+          "geometryAreaMu": "132.0400",
+          "classifiedAreaMu": "132.04",
+          "insuredModePreview": "single_insured",
+          "spatialGroupCount": 1,
+          "primaryGroupAreaRatio": 1.0,
+          "maxDistanceM": 621.9,
           "isolatedParcelIds": [],
           "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
         },
         {
           "insuredPartyId": "roster-one-parcel-per-party",
-          "parcelCount": 10,
+          "parcelCount": 6,
           "insuredModePreview": "insured_roster",
-          "rosterItemCount": 10,
+          "rosterItemCount": 6,
           "manualReview": "通过：参保地块一块一户进团单（≤50.00 亩或切分孤岛回收地块）"
         },
         {
           "insuredPartyId": "coverage-summary",
-          "bigFarmCount": 5,
-          "bigFarmParcelCount": 743,
-          "bigFarmInsuredAreaMu": "2049.2700",
+          "bigFarmCount": 6,
+          "bigFarmParcelCount": 747,
+          "bigFarmInsuredAreaMu": "2061.8200",
           "insuredAreaMu": "2090.4200",
-          "bigFarmCoverageShareOfInsuredArea": 0.9803,
+          "bigFarmCoverageShareOfInsuredArea": 0.9863,
           "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）"
         }
       ]
