@@ -3,117 +3,117 @@
   "villageCode": "330683104309",
   "confirmedAt": "2025-04-01",
   "confirmedBy": "operator-01",
-  "assignmentModel": "four-approximate-regions-plus-one-parcel-roster",
+  "assignmentModel": "spatial-chained-clustering-500mu-cap",
   "records": [
     {
       "parcelId": "1",
       "insured": true,
-      "insuredPartyId": "party-0009",
+      "insuredPartyId": "party-0002",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "2",
       "insured": true,
-      "insuredPartyId": "party-0015",
+      "insuredPartyId": "party-0003",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "3",
       "insured": true,
-      "insuredPartyId": "party-0012",
+      "insuredPartyId": "party-0004",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "4",
       "insured": true,
-      "insuredPartyId": "party-0011",
+      "insuredPartyId": "party-0005",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "5",
       "insured": true,
-      "insuredPartyId": "party-0016",
+      "insuredPartyId": "party-0006",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "6",
       "insured": true,
-      "insuredPartyId": "party-0010",
+      "insuredPartyId": "party-0007",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "7",
       "insured": true,
-      "insuredPartyId": "party-0022",
+      "insuredPartyId": "party-0008",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "8",
       "insured": true,
-      "insuredPartyId": "party-0019",
+      "insuredPartyId": "party-0009",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "9",
       "insured": true,
-      "insuredPartyId": "party-0024",
+      "insuredPartyId": "party-0010",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "10",
       "insured": true,
-      "insuredPartyId": "party-0013",
+      "insuredPartyId": "party-0011",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "11",
       "insured": true,
-      "insuredPartyId": "party-0017",
+      "insuredPartyId": "party-0012",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "12",
       "insured": true,
-      "insuredPartyId": "party-0014",
+      "insuredPartyId": "party-0013",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "13",
       "insured": true,
-      "insuredPartyId": "party-0018",
+      "insuredPartyId": "party-0014",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "14",
       "insured": true,
-      "insuredPartyId": "party-0020",
+      "insuredPartyId": "party-0015",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "15",
       "insured": true,
-      "insuredPartyId": "party-0021",
+      "insuredPartyId": "party-0016",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "16",
       "insured": true,
-      "insuredPartyId": "party-0023",
+      "insuredPartyId": "party-0017",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
@@ -127,112 +127,112 @@
     {
       "parcelId": "18",
       "insured": true,
-      "insuredPartyId": "party-0063",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "19",
       "insured": true,
-      "insuredPartyId": "party-0031",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "20",
       "insured": true,
-      "insuredPartyId": "party-0048",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "21",
       "insured": true,
-      "insuredPartyId": "party-0030",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "22",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "23",
       "insured": true,
-      "insuredPartyId": "party-0049",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "24",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "25",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "26",
       "insured": true,
-      "insuredPartyId": "party-0059",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "27",
       "insured": true,
-      "insuredPartyId": "party-0038",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "28",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "29",
       "insured": true,
-      "insuredPartyId": "party-0058",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "30",
       "insured": true,
-      "insuredPartyId": "party-0026",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "31",
       "insured": true,
-      "insuredPartyId": "party-0051",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "32",
       "insured": true,
-      "insuredPartyId": "party-0061",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "33",
       "insured": true,
-      "insuredPartyId": "party-0039",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
@@ -246,112 +246,112 @@
     {
       "parcelId": "35",
       "insured": true,
-      "insuredPartyId": "party-0029",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "36",
       "insured": true,
-      "insuredPartyId": "party-0033",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "37",
       "insured": true,
-      "insuredPartyId": "party-0041",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "38",
       "insured": true,
-      "insuredPartyId": "party-0007",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "39",
       "insured": true,
-      "insuredPartyId": "party-0064",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "40",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "41",
       "insured": true,
-      "insuredPartyId": "party-0060",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "42",
       "insured": true,
-      "insuredPartyId": "party-0052",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "43",
       "insured": true,
-      "insuredPartyId": "party-0034",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "44",
       "insured": true,
-      "insuredPartyId": "party-0054",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "45",
       "insured": true,
-      "insuredPartyId": "party-0057",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "46",
       "insured": true,
-      "insuredPartyId": "party-0045",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "47",
       "insured": true,
-      "insuredPartyId": "party-0056",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "48",
       "insured": true,
-      "insuredPartyId": "party-0043",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "49",
       "insured": true,
-      "insuredPartyId": "party-0037",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "50",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
@@ -365,112 +365,112 @@
     {
       "parcelId": "52",
       "insured": true,
-      "insuredPartyId": "party-0050",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "53",
       "insured": true,
-      "insuredPartyId": "party-0027",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "54",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "55",
       "insured": true,
-      "insuredPartyId": "party-0028",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "56",
       "insured": true,
-      "insuredPartyId": "party-0032",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "57",
       "insured": true,
-      "insuredPartyId": "party-0035",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "58",
       "insured": true,
-      "insuredPartyId": "party-0036",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "59",
       "insured": true,
-      "insuredPartyId": "party-0040",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "60",
       "insured": true,
-      "insuredPartyId": "party-0042",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "61",
       "insured": true,
-      "insuredPartyId": "party-0046",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "62",
       "insured": true,
-      "insuredPartyId": "party-0044",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "63",
       "insured": true,
-      "insuredPartyId": "party-0047",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "64",
       "insured": true,
-      "insuredPartyId": "party-0055",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "65",
       "insured": true,
-      "insuredPartyId": "party-0053",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "66",
       "insured": true,
-      "insuredPartyId": "party-0008",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "67",
       "insured": true,
-      "insuredPartyId": "party-0062",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
@@ -484,28 +484,28 @@
     {
       "parcelId": "69",
       "insured": true,
-      "insuredPartyId": "party-0005",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "70",
       "insured": true,
-      "insuredPartyId": "party-0006",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "71",
       "insured": true,
-      "insuredPartyId": "party-0003",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     },
     {
       "parcelId": "72",
       "insured": true,
-      "insuredPartyId": "party-0025",
+      "insuredPartyId": "party-0001",
       "confirmedAt": "2025-04-01",
       "confirmedBy": "operator-01"
     }
@@ -513,58 +513,31 @@
   "spatialReview": [
     {
       "insuredPartyId": "party-0001",
-      "parcelCount": 0,
-      "geometryAreaMu": "0.0000",
+      "parcelCount": 52,
+      "geometryAreaMu": "140.2300",
+      "classifiedAreaMu": "140.23",
       "insuredModePreview": "single_insured",
       "spatialGroupCount": 1,
       "primaryGroupAreaRatio": 1.0,
-      "maxDistanceM": 0,
+      "maxDistanceM": 962.0,
       "isolatedParcelIds": [],
-      "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-      "regionIndex": 1
-    },
-    {
-      "insuredPartyId": "party-0002",
-      "parcelCount": 0,
-      "geometryAreaMu": "0.0000",
-      "insuredModePreview": "single_insured",
-      "spatialGroupCount": 1,
-      "primaryGroupAreaRatio": 1.0,
-      "maxDistanceM": 0,
-      "isolatedParcelIds": [],
-      "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-      "regionIndex": 2
-    },
-    {
-      "insuredPartyId": "party-0003",
-      "parcelCount": 8,
-      "geometryAreaMu": "67.7100",
-      "insuredModePreview": "single_insured",
-      "spatialGroupCount": 1,
-      "primaryGroupAreaRatio": 1.0,
-      "maxDistanceM": 223.3,
-      "isolatedParcelIds": [],
-      "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-      "regionIndex": 3
-    },
-    {
-      "insuredPartyId": "party-0004",
-      "parcelCount": 0,
-      "geometryAreaMu": "0.0000",
-      "insuredModePreview": "single_insured",
-      "spatialGroupCount": 1,
-      "primaryGroupAreaRatio": 1.0,
-      "maxDistanceM": 0,
-      "isolatedParcelIds": [],
-      "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-      "regionIndex": 4
+      "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
     },
     {
       "insuredPartyId": "roster-one-parcel-per-party",
-      "parcelCount": 60,
+      "parcelCount": 16,
       "insuredModePreview": "insured_roster",
-      "rosterItemCount": 60,
-      "manualReview": "通过：四区外参保地块一块一户"
+      "rosterItemCount": 16,
+      "manualReview": "通过：参保地块一块一户进团单（≤50.00 亩或切分孤岛回收地块）"
+    },
+    {
+      "insuredPartyId": "coverage-summary",
+      "bigFarmCount": 1,
+      "bigFarmParcelCount": 52,
+      "bigFarmInsuredAreaMu": "140.2300",
+      "insuredAreaMu": "167.0400",
+      "bigFarmCoverageShareOfInsuredArea": 0.8395,
+      "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）"
     }
   ]
 }

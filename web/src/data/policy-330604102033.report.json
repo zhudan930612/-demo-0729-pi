@@ -1,77 +1,55 @@
 {
-  "fixtureVersion": "policy-v1.1.0",
+  "fixtureVersion": "policy-v1.2.0",
   "businessDate": "2025-07-15",
   "villageCode": "330604102033",
   "baseParcelCount": 112,
   "insuredParcelCount": 106,
   "uninsuredParcelCount": 6,
   "uninsuredAreaMu": "9.9400",
-  "partyCount": 72,
-  "policyCount": 4,
-  "currentPolicyCount": 3,
-  "currentSinglePolicyCount": 2,
+  "partyCount": 3,
+  "policyCount": 3,
+  "currentPolicyCount": 2,
+  "currentSinglePolicyCount": 1,
   "currentRosterPolicyCount": 1,
-  "rosterItemCount": 68,
+  "rosterItemCount": 0,
+  "bigFarmCount": 1,
+  "bigFarmParcelCount": 106,
+  "bigFarmInsuredAreaMu": "259.6800",
+  "insuredAreaMu": "259.6800",
+  "bigFarmCoverageShareOfInsuredArea": 1.0,
   "spatialReview": {
     "confirmationVersion": "parcel-confirmation-v1",
     "confirmedAt": "2025-04-01",
     "confirmedBy": "operator-01",
-    "grouping": "four-approximate-regions-plus-one-parcel-roster",
+    "grouping": "spatial-chained-clustering-500mu-cap",
     "insuredPartyMetrics": [
       {
         "insuredPartyId": "party-0001",
-        "parcelCount": 0,
-        "geometryAreaMu": "0.0000",
+        "parcelCount": 106,
+        "geometryAreaMu": "259.6800",
+        "classifiedAreaMu": "259.68",
         "insuredModePreview": "single_insured",
         "spatialGroupCount": 1,
         "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 0,
+        "maxDistanceM": 989.8,
         "isolatedParcelIds": [],
-        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-        "regionIndex": 1
-      },
-      {
-        "insuredPartyId": "party-0002",
-        "parcelCount": 27,
-        "geometryAreaMu": "55.8500",
-        "insuredModePreview": "single_insured",
-        "spatialGroupCount": 1,
-        "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 257.4,
-        "isolatedParcelIds": [],
-        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-        "regionIndex": 2
-      },
-      {
-        "insuredPartyId": "party-0003",
-        "parcelCount": 0,
-        "geometryAreaMu": "0.0000",
-        "insuredModePreview": "single_insured",
-        "spatialGroupCount": 1,
-        "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 0,
-        "isolatedParcelIds": [],
-        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-        "regionIndex": 3
-      },
-      {
-        "insuredPartyId": "party-0004",
-        "parcelCount": 11,
-        "geometryAreaMu": "63.4000",
-        "insuredModePreview": "single_insured",
-        "spatialGroupCount": 1,
-        "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 191.3,
-        "isolatedParcelIds": [],
-        "manualReview": "通过：复用龙江村四大致空间条带规则（归一化坐标）",
-        "regionIndex": 4
+        "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
       },
       {
         "insuredPartyId": "roster-one-parcel-per-party",
-        "parcelCount": 68,
+        "parcelCount": 0,
         "insuredModePreview": "insured_roster",
-        "rosterItemCount": 68,
-        "manualReview": "通过：四区外参保地块一块一户"
+        "rosterItemCount": 0,
+        "manualReview": "通过：参保地块一块一户进团单（≤50.00 亩或切分孤岛回收地块）"
+      },
+      {
+        "insuredPartyId": "coverage-summary",
+        "bigFarmCount": 1,
+        "bigFarmParcelCount": 106,
+        "bigFarmInsuredAreaMu": "259.6800",
+        "insuredAreaMu": "259.6800",
+        "bigFarmCoverageShareOfInsuredArea": 1.0,
+        "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）"
       }
     ]
   }

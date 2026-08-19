@@ -212,6 +212,19 @@
     },
     {
       "villageCode": "330683104306",
+      "parcelId": "17",
+      "year": 2025,
+      "season": "连作晚稻",
+      "crop": "水稻",
+      "variety": "甬优1540",
+      "startDate": "2025-05-01",
+      "endDate": "2025-11-30",
+      "status": "已核查",
+      "checkedAt": "2025-06-20",
+      "note": ""
+    },
+    {
+      "villageCode": "330683104306",
       "parcelId": "18",
       "year": 2025,
       "season": "单季稻",
