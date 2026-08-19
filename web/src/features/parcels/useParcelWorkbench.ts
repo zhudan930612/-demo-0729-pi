@@ -10,6 +10,13 @@ import { loadCultivationFixture, loadPolicyFixture } from '../policy/policyRepos
 import { fromBaseParcel, fromManualParcel, insuredCoverages, parcelPolicyContext, policyCoverages, type ParcelPolicyContext, type ParcelSummaryInput } from '../policy/policySelectors'
 import type { EnrollmentItem, PolicyFixture } from '../policy/policyTypes'
 import { linkedParcelStyle } from '../policy/policyVisual'
+import {
+  buildCultivationLookup, buildInsuranceLookup,
+  INSURANCE_CATEGORIES, insuranceParcelStyle,
+  isCultivationEmpty, isInsuranceEmpty,
+  PLANTING_CATEGORIES, plantingParcelStyle,
+  type ParcelVisualMode,
+} from './parcelVisualMode'
 import { createManualDrawingController, type ManualDrawingController } from '../../map/manualDrawingController'
 import { createParcelLayerController, type ParcelLayerController } from '../../map/parcelLayerController'
 import { createParcelDetailClickGuard } from '../../map/parcelDetailClickGuard'
@@ -115,6 +122,14 @@ export interface ParcelWorkbench {
   applyAiParcels(parcels: FeatureCollection): void
   retryBusinessData(): void
   toggleParcels(): Promise<void>
+  setVisualMode(mode: ParcelVisualMode): void
+  parcelVisualMode: Ref<ParcelVisualMode>
+  plantingEnabledCategories: Ref<Set<string>>
+  insuranceEnabledCategories: Ref<Set<string>>
+  togglePlantingCategory(category: string): void
+  toggleInsuranceCategory(category: string): void
+  plantingDataEmpty: Ref<boolean>
+  insuranceDataEmpty: Ref<boolean>
   parcelId(feature: Feature): ParcelId | null
   requestCloseDetail(): Promise<void>
   requestRestoreCultivation(): Promise<void>
@@ -250,6 +265,21 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
   let editingPendingManualId: string | null = null
   let editingBatchManualKind: 'new' | 'existing' | null = null
   const parcelVillageCode = ref('')
+  const parcelVisualMode = ref<ParcelVisualMode>('parcel')
+  /** 种植图层当前启用的子分类（默认全部启用） */
+  const plantingEnabledCategories = ref<Set<string>>(new Set(PLANTING_CATEGORIES))
+  /** 保险图层当前启用的子分类（默认全部启用） */
+  const insuranceEnabledCategories = ref<Set<string>>(new Set(INSURANCE_CATEGORIES))
+  const cultivationByParcelId = computed(() =>
+    buildCultivationLookup(initialCultivationRecords.value),
+  )
+  const insuranceByParcelId = computed(() =>
+    policyFixture.value ? buildInsuranceLookup(policyFixture.value) : new Map<string, never>(),
+  )
+  /** 种植图层数据是否为空（Spec §12） */
+  const plantingDataEmpty = computed(() => isCultivationEmpty(cultivationByParcelId.value))
+  /** 保险图层数据是否为空（Spec §12） */
+  const insuranceDataEmpty = computed(() => isInsuranceEmpty(insuranceByParcelId.value))
   const parcelFilterState = createParcelFilterState()
   const hiddenParcelIds = parcelFilterState.hiddenIds
   const pendingHideParcelIds = parcelFilterState.pendingHideIds
@@ -284,6 +314,9 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     editingPendingManualId = null
     editingBatchManualKind = null
     parcelVillageCode.value = ''
+    parcelVisualMode.value = 'parcel'
+    plantingEnabledCategories.value = new Set(PLANTING_CATEGORIES)
+    insuranceEnabledCategories.value = new Set(INSURANCE_CATEGORIES)
     hiddenParcelIds.clear()
     hiddenParcelCount.value = 0
     parcelDisplayCount.value = 0
@@ -304,6 +337,29 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     }
     parcelOn.value = !parcelOn.value
     if (!parcelOn.value) clearSelection()
+    renderParcelLayer()
+  }
+
+  function setVisualMode(mode: ParcelVisualMode) {
+    if (parcelMode.value !== 'idle') return
+    // 同模式再点 → 回到默认地块图层（Spec §2 单选模式）
+    parcelVisualMode.value = parcelVisualMode.value === mode ? 'parcel' : mode
+    renderParcelLayer()
+  }
+
+  function togglePlantingCategory(category: string) {
+    const next = new Set(plantingEnabledCategories.value)
+    if (next.has(category)) next.delete(category)
+    else next.add(category)
+    plantingEnabledCategories.value = next
+    renderParcelLayer()
+  }
+
+  function toggleInsuranceCategory(category: string) {
+    const next = new Set(insuranceEnabledCategories.value)
+    if (next.has(category)) next.delete(category)
+    else next.add(category)
+    insuranceEnabledCategories.value = next
     renderParcelLayer()
   }
 
@@ -398,10 +454,17 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
 
   function selectionStyle(feature: Feature): L.PathOptions | null {
     const id = parcelId(feature)
-    if (!id || !selectedParcel.value) return null
+    if (!id || !selectedParcel.value) {
+      // 无选中时仍可按视觉模式着色
+      if (id && parcelVisualMode.value === 'planting') return plantingParcelStyle(id, cultivationByParcelId.value, plantingEnabledCategories.value)
+      if (id && parcelVisualMode.value === 'insurance') return insuranceParcelStyle(id, insuranceByParcelId.value, insuranceEnabledCategories.value)
+      return null
+    }
     if (id === selectedParcel.value.id) return { color: '#f97316', weight: 4, fillColor: '#fb923c', fillOpacity: 0.34 }
     if (highlightedInsuredIds.value.has(id)) return linkedParcelStyle(selectedPolicyContext.value?.currentPolicy?.insuredMode)
     if (highlightedPolicyIds.value.has(id)) return { color: '#a78bfa', weight: 2, dashArray: '7 5', fillColor: '#c4b5fd', fillOpacity: 0.14 }
+    if (parcelVisualMode.value === 'planting') return plantingParcelStyle(id, cultivationByParcelId.value, plantingEnabledCategories.value)
+    if (parcelVisualMode.value === 'insurance') return insuranceParcelStyle(id, insuranceByParcelId.value, insuranceEnabledCategories.value)
     return null
   }
 
@@ -937,6 +1000,14 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     applyAiParcels,
     retryBusinessData,
     toggleParcels,
+    setVisualMode,
+    parcelVisualMode,
+    plantingEnabledCategories,
+    insuranceEnabledCategories,
+    togglePlantingCategory,
+    toggleInsuranceCategory,
+    plantingDataEmpty,
+    insuranceDataEmpty,
     parcelId,
     requestCloseDetail,
     requestRestoreCultivation,

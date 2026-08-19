@@ -16,15 +16,17 @@ export function cultivationUrl(villageCode: string): string {
   return villageCode === DEFAULT_VILLAGE ? '/business/cultivation-v1.json' : `/business/cultivation-${villageCode}.json`
 }
 
-async function fetchJson(url: string): Promise<unknown> {
+async function fetchJson(url: string): Promise<unknown | null> {
   const response = await fetch(url, { cache: 'no-cache' })
+  if (response.status === 404) return null
   if (!response.ok) throw new Error(`${response.status}`)
   return response.json()
 }
 
 export async function loadPolicyFixture(villageCode: string = DEFAULT_VILLAGE): Promise<PolicyRepositoryResult<PolicyFixture>> {
   try {
-    const value = await fetchJson(policyUrl(villageCode)) as PolicyFixture
+    const value = await fetchJson(policyUrl(villageCode)) as PolicyFixture | null
+    if (value === null) return { data: null, error: null }
     const result = validatePolicyFixture(value)
     if (!result.valid) return { data: null, error: '保单数据版本不兼容或格式错误。' }
     if (value.villageCode !== villageCode) return { data: null, error: '保单数据与当前村不匹配。' }
@@ -36,7 +38,8 @@ export async function loadPolicyFixture(villageCode: string = DEFAULT_VILLAGE): 
 
 export async function loadCultivationFixture(villageCode: string = DEFAULT_VILLAGE): Promise<PolicyRepositoryResult<CultivationRecord[]>> {
   try {
-    const value = await fetchJson(cultivationUrl(villageCode)) as { schemaVersion: string; businessDate: string; records: CultivationRecord[] }
+    const value = await fetchJson(cultivationUrl(villageCode)) as { schemaVersion: string; businessDate: string; records: CultivationRecord[] } | null
+    if (value === null) return { data: null, error: null }
     if (value.schemaVersion !== 'cultivation-v1' || value.businessDate !== BUSINESS_DATE || !Array.isArray(value.records)) return { data: null, error: '种植档案版本不兼容或格式错误。' }
     const result = validateCultivationRecords(value.records)
     if (!result.valid) return { data: null, error: '种植档案版本不兼容或格式错误。' }

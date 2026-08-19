@@ -176,6 +176,18 @@
       :rs-visible="rsVisible"
     />
 
+    <ParcelVisualLegend
+      v-if="parcelVisualMode !== 'parcel'"
+      :title="parcelVisualMode === 'planting' ? '种植情况' : '保险状态'"
+      :entries="parcelVisualMode === 'planting' ? plantingLegend() : insuranceLegend()"
+      :enabled-categories="parcelVisualMode === 'planting' ? plantingEnabledCategories : insuranceEnabledCategories"
+      :empty="parcelVisualMode === 'planting' ? plantingDataEmpty : insuranceDataEmpty"
+      :empty-text="parcelVisualMode === 'planting' ? '当前暂无种植数据' : '当前暂无保险数据'"
+      :error="parcelVisualMode === 'planting' ? cultivationLoadError : policyLoadError"
+      @retry="retryBusinessData"
+      @toggle-category="onLegendToggleCategory"
+    />
+
     <MapControlStack
       ref="mapControlRef" :basemap="basemap"
       :rs-visible="rsVisible"
@@ -194,9 +206,12 @@
       :weather-entry-reason="anyWeatherActive ? '选择天气查看模块' : weatherEntry.reason"
       :weather-active="anyWeatherActive"
       :weather-modules="activeWeatherModules"
+      :parcel-visual-mode-visible="parcelVisualModeVisible"
+      :parcel-visual-mode="parcelVisualMode"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
+      @set-visual-mode="setVisualMode"
       @start-manual="startManualDrawing"
       @start-filter="startParcelEditing"
       @open-typhoon="enterTyphoonMode"
@@ -216,6 +231,7 @@ import ManualConfirmDialog from './map/ManualConfirmDialog.vue'
 import MapControlStack from './map/MapControlStack.vue'
 import ParcelEditToolbar from './map/ParcelEditToolbar.vue'
 import ParcelStatusCard from './map/ParcelStatusCard.vue'
+import ParcelVisualLegend from './map/ParcelVisualLegend.vue'
 import ParcelDetailPanel from './map/ParcelDetailPanel.vue'
 import PolicyRosterDrawer from './map/PolicyRosterDrawer.vue'
 import TyphoonPathPanel from './typhoon/TyphoonPathPanel.vue'
@@ -230,6 +246,7 @@ import NationalAlarmPanel from './weather/NationalAlarmPanel.vue'
 import NationalAlarmPopup from './weather/NationalAlarmPopup.vue'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import type { ParcelMode } from '../features/parcels/parcelTypes'
+import { plantingLegend, insuranceLegend } from '../features/parcels/parcelVisualMode'
 import { createMapNavigationController, type MapNavigationController } from '../map/mapNavigationController'
 import { autoLevelAllowed } from '../features/typhoon/disasterModeLifecycle'
 import { useTyphoonMode } from '../features/typhoon/useTyphoonMode'
@@ -282,6 +299,7 @@ const parcelMode = ref<ParcelMode>('idle')
 const rosterOpen = ref(false)
 const parcelVisible = ref(false)
 const parcelOn = ref(true)
+const parcelVisualModeVisible = computed(() => parcelVisible.value && parcelOn.value && store.current.level === 'village')
 const detailPanelRef = ref<InstanceType<typeof ParcelDetailPanel>>()
 const typhoonStore = useTyphoonStore()
 const weatherStore = useWeatherStore()
@@ -495,6 +513,14 @@ const {
   removeBatchManualParcel,
   startManualDrawing,
   parcelVillageCode,
+  setVisualMode,
+  parcelVisualMode,
+  plantingEnabledCategories,
+  insuranceEnabledCategories,
+  togglePlantingCategory,
+  toggleInsuranceCategory,
+  plantingDataEmpty,
+  insuranceDataEmpty,
 } = parcelWorkbench
 const {
   riskOverviewModel,
@@ -535,6 +561,12 @@ const baseStyle = (level: keyof typeof LEVEL_WEIGHT): L.PathOptions => ({
 function toggleRs() {
   rsOn.value = !rsOn.value
   navigationController.setImageryOpacity(rsOn.value ? RS_OPACITY : 0)
+}
+
+/** 图例复选框切换分类：按当前图层模式路由到对应的 toggle 函数 */
+function onLegendToggleCategory(category: string) {
+  if (parcelVisualMode.value === 'planting') togglePlantingCategory(category)
+  else if (parcelVisualMode.value === 'insurance') toggleInsuranceCategory(category)
 }
 
 function zoomIn() {
