@@ -1,16 +1,25 @@
 """Validate V1 policy/cultivation fixtures against the local parcel pilot.
 
+地块成片划分 V1 校验（龙江村与 12 个参保村统一 strict 语义；龙江村仅保留 legacy 文件名映射）：
+
+- schema 版本、确认清单覆盖、90% 参保、50 亩分类、一块一户、姓名/证件/银行卡、种植档案覆盖（沿用）
+- 成片指标（验收 1.1/1.2）：每个单一型保单地块集合满足任意地块到同户最近邻质心距离 ≤200m
+  （isolatedParcelIds 为空）；单块 >50 亩大田 trivially 成片
+- 大户面积（验收 1.3）：分类面积 >50.00 且 ≤500.00 亩
+- 归属完整性（验收 1.6）：大户片区无重复归属；任一参保地块恰好归属一个大户或团单
+- 团单（验收 2.1/2.2/2.3）：严格一块一户、不含未参保地块、恰好 1 张
+- 报告完整性（验收 3.4）：每户地块数/面积/最大跨度/孤岛列表 + 大户覆盖占比
+
 用法：
-  python scripts/validate-policy-fixture.py                  # 校验龙江村（默认，现有 v1 文件）
+  python scripts/validate-policy-fixture.py                  # 校验龙江村（默认，legacy v1 文件）
   python scripts/validate-policy-fixture.py --village 330604102016
   python scripts/validate-policy-fixture.py --all            # 校验 web/src/data 下全部带村代码的 fixture
-
-校验目标：schema 版本、确认清单覆盖、90% 参保、50 亩分类、4+1 结构、一块一户、
-承保面积、姓名/证件/银行卡规则、种植档案覆盖。参数化后对任意村按实际地块数量校验。
 """
 from __future__ import annotations
 import argparse
-import json, math, re
+import json
+import math
+import re
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -18,6 +27,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
 DATA = ROOT / "web/src/data"
+EXPECTED_ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
+CHAIN_DISTANCE_M = 200.0
+MAX_BIG_FARM_AREA_MU = Decimal("500.00")
+
+
+def distance(a, b) -> float:
+    """两质心的平面近似距离（米），与确认脚本同口径。"""
+    lat = (a[1] + b[1]) / 2 * math.pi / 180
+    dx = (a[0] - b[0]) * 111320 * math.cos(lat)
+    dy = (a[1] - b[1]) * 110540
+    return math.hypot(dx, dy)
 
 
 def check(ok: bool, message: str):
@@ -74,10 +94,8 @@ def fixture_paths(code: str) -> tuple[Path, Path, Path, Path]:
     )
 
 
-def validate_village(code: str, strict: bool = True) -> None:
-    """校验单个村。strict=True（新增村）：全部强一致检查；strict=False（龙江村）：
-    校验现役不变量，跳过与当前 parcels 几何的强一致（parcels 经 enrich 更新后面积
-    已变化，现役 fixture 基于旧版生成，用户要求龙江村数据保持不动）。"""
+def validate_village(code: str) -> None:
+    """校验单个村（龙江村与 12 村统一 strict 语义：重新生成后不再有旧版数据）。"""
     policy_path, cult_path, parcel_path, confirm_path = fixture_paths(code)
     if not parcel_path.exists():
         check(False, f"{code}: 地块源缺失 {parcel_path}")
@@ -91,13 +109,13 @@ def validate_village(code: str, strict: bool = True) -> None:
     g = json.loads(parcel_path.read_text(encoding="utf8"))
     q = json.loads(confirm_path.read_text(encoding="utf8"))
     areas = {str(f["properties"]["id"]): Decimal(str(f["properties"]["area_mu"])) for f in g["features"]}
+    points = {str(f["properties"]["id"]): (float(f["properties"]["label_lng"]), float(f["properties"]["label_lat"])) for f in g["features"]}
     policies = {x["id"]: x for x in p["policies"]}
     parties = {x["id"] for x in p["parties"]}
     items = {x["id"]: x for x in p["enrollmentItems"]}
     check(p["schemaVersion"] == "policy-v1" and c["schemaVersion"] == "cultivation-v1", f"{code}: schema 版本正确")
     check(p.get("villageCode") == code, f"{code}: fixture villageCode 一致")
     # 确认清单：记录唯一、全部参保地块都有归属；确认记录必须是参保地块的超集
-    # （龙江村 parcels 经 enrich 后有新增块，确认/policy 为历史版本，只要求保单引用的地块在确认内）
     conf_records = {x["parcelId"]: x for x in q["records"]}
     check(len(conf_records) == len(q["records"]), f"{code}: 确认清单记录唯一")
     check(all(record.get("insured") and record.get("insuredPartyId") or not record.get("insured") for record in conf_records.values()), f"{code}: 确认清单参保地块均有归属")
@@ -108,7 +126,6 @@ def validate_village(code: str, strict: bool = True) -> None:
     current_ids = [x["parcelId"] for x in current]
     check(len(current_ids) == len(set(current_ids)), f"{code}: 当前有效保单无重复承保")
     insured_conf = {pid for pid, record in conf_records.items() if record["insured"]}
-    # 覆盖率按确认口径：确认参保数/确认记录数（龙江村 1450/1533；新增村同口径）
     check(len(current_ids) <= len(insured_conf) and len(conf_records) - len(current_ids) <= math.floor(len(conf_records) * 0.1), f"{code}: 未参保数量不超过确认记录 10%（确认口径）")
     check(set(current_ids) == insured_conf or set(current_ids) == set(conf_records), f"{code}: 当前承保地块与确认参保集合一致")
     by_party = {}
@@ -124,27 +141,38 @@ def validate_village(code: str, strict: bool = True) -> None:
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
-    # 50 亩分类按面积：四区/大田（>50 亩）为单一型；其余一块一户进清单。
-    # 小村（参保总面积接近 250 亩）天然无法保证四个区都 >50 亩，允许单一型数量 <4，
-    # 实际数量以生成报告记录为准，不作为需求预设（沿用需求 6.2 口径）。
     check(len(roster_current) == 1, f"{code}: 当前恰好 1 张分户清单型保单")
-    check(all(
-        sum((Decimal(cov["insuredAreaMu"]) for cov in current if cov["policyId"] == pol["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP) > Decimal("50.00")
-        for pol in single_current
-    ), f"{code}: 全部单一型保单分类面积超过 50 亩")
-    check(len(single_current) >= 0, f"{code}: 单一型保单数量非负（小村允许 0 张）")
+    check(q.get("assignmentModel") == EXPECTED_ASSIGNMENT_MODEL, f"{code}: 确认清单使用成片聚类模型")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}
     check(len(roster_coverages) == len(roster_item_ids) and all(len(items[item_id]["parcelCoverageIds"]) == 1 for item_id in roster_item_ids), f"{code}: 分户清单严格一块一户")
-    multi_parcel_parties = [party for party, covs in by_party.items() if len(covs) > 1]
-    check(len(multi_parcel_parties) <= 4 and all(any(policy["insuredPartyId"] == party for policy in single_current) for party in multi_parcel_parties), f"{code}: 多块被保险人（≤4 个经营区）均为单一型保单")
-    check(q.get("assignmentModel") == "four-approximate-regions-plus-one-parcel-roster", f"{code}: 确认清单使用四区加一块一户模型")
+    # 验收 2.2：团单不含未参保地块；未参保地块无任何保单关联
+    roster_parcels = {x["parcelId"] for x in roster_coverages}
+    check(roster_parcels <= insured_conf, f"{code}: 团单不含未参保地块")
+    # 验收 1.3：每个大户分类面积 >50.00 且 ≤500.00 亩
+    for policy in single_current:
+        total = sum((Decimal(x["insuredAreaMu"]) for x in current if x["policyId"] == policy["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
+        check(total > Decimal("50.00"), f"{code}: 大户 {policy['insuredPartyId']} 分类面积 {total} 必须超过 50 亩")
+        check(total <= MAX_BIG_FARM_AREA_MU, f"{code}: 大户 {policy['insuredPartyId']} 分类面积 {total} 超过 500 亩上限")
+    # 验收 1.6：大户片区无重复归属；任一参保地块恰好归属一个大户或团单
+    seen_parcels: set[str] = set()
+    for policy in single_current:
+        parcels = {x["parcelId"] for x in current if x["policyId"] == policy["id"]}
+        check(not (seen_parcels & parcels), f"{code}: 大户 {policy['insuredPartyId']} 片区与既有大户重复归属")
+        seen_parcels |= parcels
+    check(seen_parcels | roster_parcels == set(current_ids), f"{code}: 参保地块恰好归属一个大户或团单")
+    # 验收 1.1/1.2：成片判定——任意地块到同户最近邻质心距离 ≤200m（单块 trivially 成片）
+    for policy in single_current:
+        parcels = [x["parcelId"] for x in current if x["policyId"] == policy["id"]]
+        for a in parcels:
+            others = [b for b in parcels if b != a]
+            if not others:
+                continue
+            nearest = min((distance(points[a], points[b]) for b in others))
+            check(nearest <= CHAIN_DISTANCE_M, f"{code}: 大户 {policy['insuredPartyId']} 地块 {a} 到同户最近邻 {nearest:.1f}m 超过 200m")
     check(all(Decimal(x["insuredAreaMu"]) > 0 for x in p["parcelCoverages"]), f"{code}: 承保面积均大于 0")
-    if strict:
-        check(all(Decimal(x["insuredAreaMu"]) <= areas[x["parcelId"]] for x in p["parcelCoverages"]), f"{code}: 承保面积不超过几何面积")
-    else:
-        print(f"{code}: 宽松模式跳过承保面积<=几何面积强一致检查（现役 fixture 基于 enrich 前 parcels）")
+    check(all(Decimal(x["insuredAreaMu"]) <= areas[x["parcelId"]] for x in p["parcelCoverages"]), f"{code}: 承保面积不超过几何面积")
     check(all(re.fullmatch(r"\d{22}", x["policyNo"]) for x in p["policies"]), f"{code}: 保单号均为项目唯一 22 位数字")
     check(len({x["policyNo"] for x in p["policies"]}) == len(p["policies"]), f"{code}: 保单号项目内唯一")
     check(all(x["insuredPartyId"] in parties for x in p["parcelCoverages"]), f"{code}: 主体引用完整")
@@ -167,8 +195,23 @@ def validate_village(code: str, strict: bool = True) -> None:
     check(len(accounts) == len(set(accounts)), f"{code}: 清单主体银行卡号唯一")
     check(not all(int(accounts[index]) - int(accounts[index - 1]) == 1 for index in range(1, len(accounts))), f"{code}: 清单主体银行卡号不使用顺序递增")
     check(all(party.get("bankName") == "中国邮政储蓄银行" for party in roster_parties if party["id"] != "party-roster"), f"{code}: 清单主体开户行统一为中国邮政储蓄银行")
-    base_count = len(conf_records) if not strict else len(areas)
-    print(f"{code}: 报告：基础 {base_count} 块，当前参保 {len(set(current_ids))} 块，未参保 {base_count - len(set(current_ids))} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（{len(single_current)} 单一型 + {len(roster_current)} 清单型），历史保单 {len(p['policies']) - len(current_policies)} 张。")
+    # 验收 3.4：报告字段完整——每户地块数/面积/最大跨度/孤岛列表 + 大户覆盖占比
+    rpt = p.get("report", {})
+    check(isinstance(rpt.get("bigFarmCount"), int), f"{code}: 报告记录大户数量")
+    check("bigFarmParcelCount" in rpt and "bigFarmInsuredAreaMu" in rpt and "insuredAreaMu" in rpt, f"{code}: 报告记录大户/参保面积")
+    share = rpt.get("bigFarmCoverageShareOfInsuredArea")
+    check(isinstance(share, (int, float)) and 0 <= share <= 1, f"{code}: 报告记录大户覆盖占比（0~1）")
+    metrics = rpt.get("spatialReview", {}).get("insuredPartyMetrics", [])
+    metric_by_party = {m["insuredPartyId"]: m for m in metrics}
+    for policy in single_current:
+        metric = metric_by_party.get(policy["insuredPartyId"])
+        check(metric is not None, f"{code}: 报告缺少大户 {policy['insuredPartyId']} 的空间指标")
+        for key in ("parcelCount", "geometryAreaMu", "maxDistanceM", "isolatedParcelIds"):
+            check(key in metric, f"{code}: 大户 {policy['insuredPartyId']} 报告缺少字段 {key}")
+        check(metric["isolatedParcelIds"] == [], f"{code}: 大户 {policy['insuredPartyId']} 报告孤岛列表应为空")
+    summary = metric_by_party.get("coverage-summary")
+    check(summary is not None and "bigFarmCoverageShareOfInsuredArea" in summary, f"{code}: 报告含覆盖比例汇总项")
+    print(f"{code}: 报告：基础 {len(areas)} 块，当前参保 {len(set(current_ids))} 块，未参保 {len(areas) - len(set(current_ids))} 块，当前被保险人 {len(by_party)} 户，当前保单 {len(current_policies)} 张（{len(single_current)} 单一型 + {len(roster_current)} 清单型），历史保单 {len(p['policies']) - len(current_policies)} 张，大户覆盖参保面积占比 {share}。")
 
 
 def discover_village_codes() -> list[str]:
@@ -185,7 +228,7 @@ def discover_village_codes() -> list[str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="校验保单/种植档案 fixture")
+    parser = argparse.ArgumentParser(description="校验保单/种植档案 fixture（地块成片划分 V1）")
     parser.add_argument("--village", default=DEFAULT_VILLAGE, help=f"村代码（默认 {DEFAULT_VILLAGE}）")
     parser.add_argument("--all", action="store_true", help="校验全部带村代码的 fixture")
     args = parser.parse_args()
@@ -193,9 +236,9 @@ def main():
         codes = [DEFAULT_VILLAGE] + [c for c in discover_village_codes() if c != DEFAULT_VILLAGE]
         print(f"将校验 {len(codes)} 个村: {codes}")
         for code in codes:
-            validate_village(code, strict=(code != DEFAULT_VILLAGE))
+            validate_village(code)
     else:
-        validate_village(args.village, strict=(args.village != DEFAULT_VILLAGE))
+        validate_village(args.village)
 
 
 if __name__ == "__main__":

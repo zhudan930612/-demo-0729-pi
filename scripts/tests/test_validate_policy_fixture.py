@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""validate-policy-fixture.py 参数化单测：龙江村宽松、新村严格、路径发现。"""
+"""validate-policy-fixture.py 参数化单测：龙江村/12 村统一 strict 校验、成片指标与报告字段检查、路径发现。"""
 
 import importlib.util
 import json
 import random
+import shutil
 import sys
 import tempfile
 import unittest
@@ -25,20 +26,29 @@ GF = load_module("gf", "generate-policy-fixture.py")
 VF = load_module("vf", "validate-policy-fixture.py")
 
 
-def make_parcel_source(count: int = 600, seed: int = 42) -> Path:
+def make_parcel_source(count: int = 600, seed: int = 42, spacing: float = 0.001) -> Path:
+    """混合布局：80% 地块在 0.001 网格密集成片簇（内部连通），20% 远处孤立（互不相邻）。"""
     tmp = Path(tempfile.mkdtemp())
     random.seed(seed)
     feats = []
+    cluster = int(count * 0.8)
+    cols = 30
     for i in range(1, count + 1):
-        row = (i - 1) // 30
-        col = (i - 1) % 30
-        lon = 120.86 + col * 0.001
-        lat = 29.76 + row * 0.001
         area_mu = round(random.uniform(0.5, 6.0), 2)
+        if i <= cluster:
+            row = (i - 1) // cols
+            col = (i - 1) % cols
+            lon = 120.86 + col * spacing
+            lat = 29.76 + row * spacing
+        else:
+            lon = 121.20 + (i - cluster) * 0.01
+            lat = 29.90 + (i - cluster) * 0.01
         feats.append({
             "type": "Feature",
-            "properties": {"id": i, "area_m2": round(area_mu * 666.67, 2), "area_mu": area_mu, "label_lng": lon, "label_lat": lat},
-            "geometry": {"type": "Polygon", "coordinates": [[[lon, lat], [lon + 0.0005, lat], [lon + 0.0005, lat + 0.0005], [lon, lat + 0.0005], [lon, lat]]]},
+            "properties": {"id": i, "area_m2": round(area_mu * 666.67, 2), "area_mu": area_mu,
+                           "label_lng": lon, "label_lat": lat},
+            "geometry": {"type": "Polygon", "coordinates": [[[lon, lat], [lon + 0.0005, lat],
+                                                             [lon + 0.0005, lat + 0.0005], [lon, lat + 0.0005], [lon, lat]]]},
         })
     src = tmp / "parcels.geojson"
     src.write_text(json.dumps({"type": "FeatureCollection", "features": feats}), encoding="utf-8")
@@ -46,17 +56,17 @@ def make_parcel_source(count: int = 600, seed: int = 42) -> Path:
 
 
 def build_fixture(code: str = "330604102016", count: int = 600):
+    """在临时目录完整跑确认 + fixture + 复制 parcels 到校验期望路径，返回 (tmp, code)。"""
     src = make_parcel_source(count)
     tmp = src.parent
-    # 复制 parcels 到 VF.ROOT 期望位置（web/public/data/parcels/{code}.geojson）
     parcel_dest = tmp / "web/public/data/parcels" / f"{code}.geojson"
     parcel_dest.parent.mkdir(parents=True, exist_ok=True)
-    import shutil
     shutil.copy(src, parcel_dest)
 
     pc_orig = (PC.source_path, PC.output_path)
     PC.source_path = lambda c: parcel_dest
-    conf = tmp / "web/src/data" / f"parcel-confirmation-{code}.json"
+    conf_name = "parcel-confirmation-v1.json" if code == "330604102014" else f"parcel-confirmation-{code}.json"
+    conf = tmp / "web/src/data" / conf_name
     conf.parent.mkdir(parents=True, exist_ok=True)
     PC.output_path = lambda c: conf
     try:
@@ -74,6 +84,12 @@ def build_fixture(code: str = "330604102016", count: int = 600):
     finally:
         GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT = gf_orig
     return tmp, code
+
+
+def policy_file(tmp: Path, code: str) -> Path:
+    if code == "330604102014":
+        return tmp / "web/src/data/policy-v1.json"
+    return tmp / "web/src/data" / f"policy-{code}.json"
 
 
 class ValidatePolicyFixtureTest(unittest.TestCase):
@@ -94,22 +110,56 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         self.assertFalse(VF.valid_identity("33060419760122112X"))
         self.assertFalse(VF.valid_luhn("6217993323793116730"))
 
-    def test_strict_validation_passes_for_new_village(self):
+    def test_validation_passes_for_new_village(self):
         tmp, code = build_fixture()
         vf_orig = (VF.DATA, VF.ROOT)
         VF.DATA = tmp / "web/src/data"
         VF.ROOT = tmp
         try:
-            VF.validate_village(code, strict=True)
+            VF.validate_village(code)
         finally:
             VF.DATA, VF.ROOT = vf_orig
 
-    def test_longjiang_loose_validation_passes(self):
+    def test_longjiang_validation_passes_after_regeneration(self):
+        # 龙江村授权重生成后按统一 strict 语义校验（legacy 文件名映射）
+        tmp, _ = build_fixture("330604102014")
         vf_orig = (VF.DATA, VF.ROOT)
-        VF.DATA = SCRIPTS.parent / "web/src/data"
-        VF.ROOT = SCRIPTS.parent
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
         try:
-            VF.validate_village("330604102014", strict=False)
+            VF.validate_village("330604102014")
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+
+    def test_validation_fails_on_isolated_parcel_in_report(self):
+        # 验收 1.1：报告孤岛列表非空 → 判定失败
+        tmp, code = build_fixture()
+        fx = json.loads(policy_file(tmp, code).read_text(encoding="utf-8"))
+        metrics = fx["report"]["spatialReview"]["insuredPartyMetrics"]
+        big = next(m for m in metrics if m["insuredPartyId"].startswith("party-"))
+        big["isolatedParcelIds"] = ["1"]
+        policy_file(tmp, code).write_text(json.dumps(fx, ensure_ascii=False), encoding="utf-8")
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            with self.assertRaises(AssertionError):
+                VF.validate_village(code)
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+
+    def test_validation_fails_when_report_missing_share(self):
+        # 验收 3.4：报告缺少大户覆盖占比 → 判定失败
+        tmp, code = build_fixture()
+        fx = json.loads(policy_file(tmp, code).read_text(encoding="utf-8"))
+        del fx["report"]["bigFarmCoverageShareOfInsuredArea"]
+        policy_file(tmp, code).write_text(json.dumps(fx, ensure_ascii=False), encoding="utf-8")
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            with self.assertRaises(AssertionError):
+                VF.validate_village(code)
         finally:
             VF.DATA, VF.ROOT = vf_orig
 
