@@ -18,13 +18,20 @@
           <span v-if="i < store.path.length - 1" class="sep">/</span>
         </template>
       </nav>
+      <span v-if="auth.isAuthenticated" class="divider" aria-hidden="true"></span>
+      <button v-if="auth.isAuthenticated" type="button" class="logout-btn" @click="logout">
+        {{ auth.username }} · 退出
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useDrilldownStore } from '../stores/drilldown'
+import { useAuthStore } from '../stores/auth'
 const store = useDrilldownStore()
+const auth = useAuthStore()
+const logout = () => { void auth.logout() }
 </script>
 
 <style scoped>
@@ -86,6 +93,29 @@ const store = useDrilldownStore()
 .crumb.clickable { color: #2563eb; cursor: pointer; }
 .crumb.clickable:hover { background: #eff6ff; color: #1d4ed8; }
 .sep { color: #94a3b8; }
+.divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgba(148, 163, 184, 0.34);
+}
+.logout-btn {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.logout-btn:hover { background: #eff6ff; color: #1d4ed8; }
+.logout-btn:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: 2px; }
 
 @media (max-width: 720px) {
   .navigation-status { right: 12px; }

@@ -6,6 +6,7 @@ import { createWeatherService } from './weather-service.js'
 import { WeatherSpatialError } from './weather-spatial-index.js'
 import { createNationalAlarmService, NationalAlarmError } from './national-alarm-service.js'
 import { createPrecipitationService, precipitationError, PrecipitationError } from './precipitation-service.js'
+import { createAuthService, AuthError } from './auth.js'
 
 function beijingYear(now = Date.now()) { return new Date(now + 8 * 60 * 60 * 1000).getUTCFullYear() }
 function responseAlive(response) { return !response.destroyed && !response.writableEnded }
@@ -44,6 +45,35 @@ function nationalAlarmError(error) {
   return { status: 503, code: 'NATIONAL_ALARM_UNAVAILABLE', message: '浙江预警数据暂不可用' }
 }
 function noBody(request) { return !Number(request.headers['content-length'] ?? 0) && !request.headers['transfer-encoding'] }
+function bearerToken(request) {
+  const header = request.headers.authorization
+  if (typeof header !== 'string') return null
+  const match = header.match(/^Bearer\s+(\S+)$/i)
+  return match ? match[1] : null
+}
+function authError(error) {
+  if (!(error instanceof AuthError)) return null
+  return { status: error.status, code: error.code, message: error.message }
+}
+function readJsonBody(request, maxBytes = 4096) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    let size = 0
+    let overflow = false
+    request.on('data', (chunk) => {
+      size += chunk.length
+      if (size > maxBytes) { overflow = true; return }
+      chunks.push(chunk)
+    })
+    request.on('end', () => {
+      if (overflow) { reject(new Error('body-too-large')); return }
+      const raw = Buffer.concat(chunks).toString('utf8')
+      if (!raw) { resolve(null); return }
+      try { resolve(JSON.parse(raw)) } catch { reject(new Error('body-invalid')) }
+    })
+    request.on('error', reject)
+  })
+}
 
 export function createAppServer(config, options = {}) {
   const client = createApiHzClient(config, options)
@@ -58,6 +88,7 @@ export function createAppServer(config, options = {}) {
   const weather = options.weatherService ?? createWeatherService(config.weather ?? {}, options.weatherOptions ?? options)
   const nationalAlarms = options.nationalAlarmService ?? createNationalAlarmService(config.nationalAlarms ?? {}, options.nationalAlarmOptions ?? options)
   const precipitation = options.precipitationService ?? createPrecipitationService(config.precipitation ?? {}, options.precipitationOptions ?? options)
+  const auth = options.authService ?? createAuthService(config.auth ?? {}, options)
   const rateLimiter = options.rateLimiter ?? createIpRateLimiter({
     limit: config.rateLimitPerMinute ?? 60,
     windowMs: 60_000,
@@ -111,6 +142,37 @@ export function createAppServer(config, options = {}) {
         try { alertId = decodeURIComponent(nationalDetail[1]) } catch { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警详情请求参数无效', requestId } }, requestId); return }
         if (url.search || !/^[^\u0000-\u001F]{1,128}$/.test(alertId)) { status = 400; sendJson(response, status, { error: { code: 'INVALID_NATIONAL_ALARM_REQUEST', message: '预警详情请求参数无效', requestId } }, requestId); return }
         try { const payload = await nationalAlarms.detail(alertId); status = 200; sendJson(response, status, payload, requestId); return } catch (error) { const mapped = nationalAlarmError(error); if (!mapped) throw error; status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return }
+      }
+      if (url.pathname === '/api/auth/login') {
+        routeName = 'auth-login'
+        if (request.method !== 'POST') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求', requestId } }, requestId); return }
+        if (url.search) { status = 400; sendJson(response, status, { error: { code: 'INVALID_AUTH_REQUEST', message: '登录请求不接受查询参数', requestId } }, requestId); return }
+        try {
+          const payload = await readJsonBody(request)
+          const record = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {}
+          if (typeof record.username !== 'string' || typeof record.password !== 'string') { status = 400; sendJson(response, status, { error: { code: 'INVALID_AUTH_REQUEST', message: '登录请求参数无效', requestId } }, requestId); return }
+          const session = auth.login(record.username, record.password)
+          status = 200; sendJson(response, status, session, requestId); return
+        } catch (error) {
+          if (error.message === 'body-too-large' || error.message === 'body-invalid') { status = 400; sendJson(response, status, { error: { code: 'INVALID_AUTH_REQUEST', message: '登录请求参数无效', requestId } }, requestId); return }
+          const mapped = authError(error); if (!mapped) throw error
+          status = mapped.status; sendJson(response, status, { error: { code: mapped.code, message: mapped.message, requestId } }, requestId); return
+        }
+      }
+      if (url.pathname === '/api/auth/logout') {
+        routeName = 'auth-logout'
+        if (request.method !== 'POST') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 POST 请求', requestId } }, requestId); return }
+        if (url.search || !noBody(request)) { status = 400; sendJson(response, status, { error: { code: 'INVALID_AUTH_REQUEST', message: '退出请求参数无效', requestId } }, requestId); return }
+        auth.logout(bearerToken(request))
+        status = 204; response.writeHead(status, { 'cache-control': 'no-store', 'x-request-id': requestId }); response.end(); return
+      }
+      if (url.pathname === '/api/auth/session') {
+        routeName = 'auth-session'
+        if (request.method !== 'GET') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
+        if (url.search) { status = 400; sendJson(response, status, { error: { code: 'INVALID_AUTH_REQUEST', message: '会话请求不接受查询参数', requestId } }, requestId); return }
+        const session = auth.verify(bearerToken(request))
+        if (!session) { status = 401; sendJson(response, status, { error: { code: 'UNAUTHORIZED', message: '登录已失效，请重新登录', requestId } }, requestId); return }
+        status = 200; sendJson(response, status, session, requestId); return
       }
       if (request.method !== 'GET') { status = 405; sendJson(response, status, { error: { code: 'METHOD_NOT_ALLOWED', message: '仅支持 GET 请求', requestId } }, requestId); return }
       const ip = request.socket.remoteAddress ?? 'unknown'

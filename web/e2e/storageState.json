@@ -1,0 +1,11 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:4173",
+      "localStorage": [
+        { "name": "agri-map:auth:v1", "value": "{\"token\":\"e2e-token\",\"username\":\"admin\"}" }
+      ]
+    }
+  ]
+}

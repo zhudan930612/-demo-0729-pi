@@ -95,6 +95,8 @@ http://localhost:5173
 
 只需地图、影像、地块与本机业务功能时可先单独启动前端；“查看台风”/“天气”还必须按下一节启动 Node 代理。
 
+页面打开后先显示登录门禁：默认演示账号 `admin` / `admin123`，登录后才会进入地图。登录接口由 Node 代理的模拟登录服务提供（`POST /api/auth/login`，会话校验 `GET /api/auth/session`）；演示账号与有效期可用 `AUTH_USERNAME` / `AUTH_PASSWORD` / `AUTH_TOKEN_TTL_MS` 覆盖，仅限内部验证，接统一身份体系前不应视为真实安全边界。
+
 ### 6. 启动后端代理并联调（终端 1）
 
 台风与天气通过独立 Node 服务访问 APIHz / 和风天气。APIHz 开发者 ID 和 KEY、和风凭据只能由服务端读取，不得使用 `VITE_*` 变量，也不得写入浏览器代码或提交到仓库。
@@ -128,6 +130,10 @@ WEATHER_DATA_DIR=../.dev-runtime/weather-data
 APIHZ_ADDRESS_URL=
 # 仅 loopback 缓存管理接口使用
 WEATHER_ADMIN_TOKEN=本机随机管理令牌
+# 可选：模拟登录（mock）演示账号与会话有效期（毫秒），默认 admin / admin123
+AUTH_USERNAME=admin
+AUTH_PASSWORD=admin123
+AUTH_TOKEN_TTL_MS=43200000
 ```
 
 `server/.env.local` 已被 Git 忽略。服务也兼容 `APIHZ_ID`，但优先读取 `APIHZ_DEVELOPER_ID`。生产环境应直接注入进程环境变量，不依赖文件。
@@ -149,7 +155,7 @@ Vite 将浏览器的 `/api` 请求转发至 `http://127.0.0.1:8787`。如本机�
 两个服务都起来后，按顺序确认：
 
 1. **后端健康**：`curl http://127.0.0.1:8787/healthz` 返回 `{"ok":true,...}`
-2. **前端页面**：浏览器打开 http://localhost:5173 ，看到天地图底图
+2. **前端页面**：浏览器打开 http://localhost:5173 ，用演示账号登录后看到天地图底图
 3. **行政区划下钻**：点击省→市→县→乡→村，边界逐级出现；乡镇/村级显示吉林一号影像（需已生成 tiles）
 4. **台风**（需 APIHz 凭据）：进入灾害风险模式，台风路径/风圈/时间轴正常
 5. **天气**（需和风凭据 + 已生成数据）：查看天气面板，实时/分钟降水/24 小时预报正常
