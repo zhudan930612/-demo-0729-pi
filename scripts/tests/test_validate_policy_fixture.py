@@ -63,16 +63,28 @@ def build_fixture(code: str = "330604102016", count: int = 600):
     parcel_dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(src, parcel_dest)
 
-    pc_orig = (PC.source_path, PC.output_path)
+    pc_orig = (PC.source_path, PC.output_path, PC.regions_config_path)
     PC.source_path = lambda c: parcel_dest
     conf_name = "parcel-confirmation-v1.json" if code == "330604102014" else f"parcel-confirmation-{code}.json"
     conf = tmp / "web/src/data" / conf_name
     conf.parent.mkdir(parents=True, exist_ok=True)
     PC.output_path = lambda c: conf
+    if code == "330604102014":
+        # 标注区域模式：写入覆盖簇区域的多边形配置（一部分参保地块进大户、区域外进团单）
+        cfg = tmp / "regions.json"
+        cfg.write_text(json.dumps({
+            "villageCode": code,
+            "assignmentModel": "user-annotated-regions-v1",
+            "regions": [{"party": "party-0001",
+                         "polygon": [[120.85, 29.75], [120.90, 29.75], [120.90, 29.80], [120.85, 29.80]]}],
+        }, ensure_ascii=False), encoding="utf-8")
+        PC.regions_config_path = lambda: cfg
+    else:
+        PC.regions_config_path = lambda: tmp / "unused-regions.json"  # 聚类村不读取
     try:
         PC.generate(code)
     finally:
-        PC.source_path, PC.output_path = pc_orig
+        PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
 
     gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
     GF.find_village = lambda c: {"properties": {"code": c, "name": "清潭村"}}
@@ -175,6 +187,74 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         try:
             with self.assertRaises(AssertionError):
                 VF.validate_village(code)
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+
+    def test_longjiang_region_mode_over_50_mu_outside_stays_roster(self):
+        # 标注区域模式：区域外 >50 亩单块仍一块一户进团单（区域标注为权威归属，验收 1.3/2.1 兼容）
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "parcels.geojson"
+        features = []
+        for i in range(1, 21):  # 区域内 20 块 × 3 亩 = 60 亩（去 mod17 未参保后 57 亩）
+            row = (i - 1) // 5
+            col = (i - 1) % 5
+            features.append({"type": "Feature", "properties": {"id": i, "area_m2": 2000, "area_mu": 3.0,
+                                                                 "label_lng": 120.000 + col * 0.001,
+                                                                 "label_lat": 30.000 + row * 0.001},
+                             "geometry": {"type": "Polygon", "coordinates": []}})
+        features.append({"type": "Feature", "properties": {"id": 21, "area_m2": 34267, "area_mu": 51.4,
+                                                               "label_lng": 120.100, "label_lat": 30.100},
+                         "geometry": {"type": "Polygon", "coordinates": []}})
+        for i in range(22, 31):  # 区域外小地块，保证 party 数 >=8（两字/三字名覆盖检查）
+            features.append({"type": "Feature", "properties": {"id": i, "area_m2": 667, "area_mu": 1.0,
+                                                                 "label_lng": 120.110 + (i - 22) * 0.01,
+                                                                 "label_lat": 30.110 + (i - 22) * 0.01},
+                             "geometry": {"type": "Polygon", "coordinates": []}})
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        parcel_dest = tmp / "web/public/data/parcels" / "330604102014.geojson"
+        parcel_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, parcel_dest)
+        pc_orig = (PC.source_path, PC.output_path, PC.regions_config_path)
+        PC.source_path = lambda c: parcel_dest
+        conf = tmp / "web/src/data/parcel-confirmation-v1.json"
+        conf.parent.mkdir(parents=True, exist_ok=True)
+        PC.output_path = lambda c: conf
+        cfg = tmp / "regions.json"
+        cfg.write_text(json.dumps({"villageCode": "330604102014", "assignmentModel": "user-annotated-regions-v1",
+                                   "regions": [{"party": "party-0001",
+                                                 "polygon": [[120.000, 30.000], [120.010, 30.000],
+                                                              [120.010, 30.010], [120.000, 30.010]]}]},
+                                  ensure_ascii=False), encoding="utf-8")
+        PC.regions_config_path = lambda: cfg
+        try:
+            PC.generate("330604102014")
+        finally:
+            PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
+        gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
+        GF.find_village = lambda c: {"properties": {"code": c, "name": "龙江村"}}
+        GF.parcel_path = lambda c: parcel_dest
+        GF.confirmation_path = lambda c: conf
+        GF.ROOT = tmp
+        try:
+            GF.generate("330604102014")
+        finally:
+            GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT = gf_orig
+        fx = json.loads((tmp / "web/src/data/policy-v1.json").read_text(encoding="utf-8"))
+        single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
+        self.assertEqual([p["insuredPartyId"] for p in single], ["party-0001"])
+        items = fx["enrollmentItems"]
+        self.assertEqual(len(items), 10)
+        self.assertEqual(items[0]["insuredPartyId"], "party-0002")
+        parcel21_cov = [c for c in fx["parcelCoverages"] if c["parcelId"] == "21" and c["policyId"] != "policy-2024-history"]
+        self.assertEqual(len(parcel21_cov), 1)
+        self.assertEqual(parcel21_cov[0]["policyId"], "policy-2025-roster")
+        self.assertIsNotNone(parcel21_cov[0]["enrollmentItemId"])
+        # 全链路校验通过（含标注区域模式检查）
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            VF.validate_village("330604102014")
         finally:
             VF.DATA, VF.ROOT = vf_orig
 

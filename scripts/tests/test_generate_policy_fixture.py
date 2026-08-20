@@ -63,14 +63,16 @@ def build_fixture(code: str = "330604102016", spacing: float = 0.001):
     src = make_parcel_source(spacing=spacing)
     tmp = src.parent
 
-    pc_orig = (PC.source_path, PC.output_path)
+    pc_orig = (PC.source_path, PC.output_path, PC.regions_config_path)
     PC.source_path = lambda c: src
     conf = tmp / "conf.json"
     PC.output_path = lambda c: conf
+    # 聚类村不读 regions 配置；提供占位避免误用
+    PC.regions_config_path = lambda: tmp / "unused-regions.json"
     try:
         PC.generate(code)
     finally:
-        PC.source_path, PC.output_path = pc_orig
+        PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
 
     gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
     GF.find_village = lambda c: {"properties": {"code": c, "name": "清潭村"}}
@@ -91,14 +93,22 @@ class GeneratePolicyFixtureTest(unittest.TestCase):
         # 龙江村授权重新生成：产物写 legacy 文件名（policy-v1/cultivation-v1 各两处 + report）
         src = make_parcel_source()
         tmp = src.parent
-        pc_orig = (PC.source_path, PC.output_path)
+        pc_orig = (PC.source_path, PC.output_path, PC.regions_config_path)
         PC.source_path = lambda c: src
         conf = tmp / "conf.json"
         PC.output_path = lambda c: conf
+        cfg = tmp / "regions.json"
+        cfg.write_text(json.dumps({
+            "villageCode": "330604102014",
+            "assignmentModel": "user-annotated-regions-v1",
+            "regions": [{"party": "party-0001",
+                         "polygon": [[120.85, 29.75], [120.90, 29.75], [120.90, 29.80], [120.85, 29.80]]}],
+        }, ensure_ascii=False), encoding="utf-8")
+        PC.regions_config_path = lambda: cfg
         try:
             PC.generate("330604102014")
         finally:
-            PC.source_path, PC.output_path = pc_orig
+            PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
         gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
         GF.find_village = lambda c: {"properties": {"code": c, "name": "龙江村"}}
         GF.parcel_path = lambda c: src

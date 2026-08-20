@@ -5,7 +5,7 @@
 - schema 版本、确认清单覆盖、90% 参保、50 亩分类、一块一户、姓名/证件/银行卡、种植档案覆盖（沿用）
 - 成片指标（验收 1.1/1.2）：每个单一型保单地块集合满足任意地块到同户最近邻质心距离 ≤200m
   （isolatedParcelIds 为空）；单块 >50 亩大田 trivially 成片
-- 大户面积（验收 1.3）：分类面积 >50.00 且 ≤500.00 亩
+- 大户面积（验收 1.3）：分类面积 >50.00 亩（面积上限已放开，标注区域可超 500 亩）
 - 归属完整性（验收 1.6）：大户片区无重复归属；任一参保地块恰好归属一个大户或团单
 - 团单（验收 2.1/2.2/2.3）：严格一块一户、不含未参保地块、恰好 1 张
 - 报告完整性（验收 3.4）：每户地块数/面积/最大跨度/孤岛列表 + 大户覆盖占比
@@ -28,8 +28,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
 DATA = ROOT / "web/src/data"
 EXPECTED_ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
+LONGJIANG_ASSIGNMENT_MODEL = "user-annotated-regions-v1"
 CHAIN_DISTANCE_M = 200.0
-MAX_BIG_FARM_AREA_MU = Decimal("500.00")
 
 
 def distance(a, b) -> float:
@@ -135,17 +135,23 @@ def validate_village(code: str) -> None:
     for x in current:
         by_party.setdefault(x["insuredPartyId"], []).append(x)
     violations = []
+    region_mode = q.get("assignmentModel") == LONGJIANG_ASSIGNMENT_MODEL
     for party, covs in by_party.items():
         total = sum((Decimal(x["insuredAreaMu"]) for x in covs), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
         roster = any(i["insuredPartyId"] == party for i in items.values())
-        if (total <= Decimal("50")) != roster:
+        if region_mode:
+            # 标注区域模式：区域外一块一户进团单（面积分类不适用，区域外 >50 亩单块也进团单）
+            expected_roster = len(covs) == 1
+        else:
+            expected_roster = total <= Decimal("50")
+        if expected_roster != roster:
             violations.append((party, str(total)))
-    check(not violations, f"{code}: 全部被保险人符合 50.00 亩分类且不拆分")
+    check(not violations, f"{code}: {'标注区域模式：团单严格一块一户（单块 party 全部进团单）' if region_mode else '全部被保险人符合 50.00 亩分类且不拆分'}")
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
     check(len(roster_current) == 1, f"{code}: 当前恰好 1 张分户清单型保单")
-    check(q.get("assignmentModel") == EXPECTED_ASSIGNMENT_MODEL, f"{code}: 确认清单使用成片聚类模型")
+    check(q.get("assignmentModel") == (LONGJIANG_ASSIGNMENT_MODEL if code == DEFAULT_VILLAGE else EXPECTED_ASSIGNMENT_MODEL), f"{code}: 确认清单使用{'标注区域' if code == DEFAULT_VILLAGE else '成片聚类'}模型")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}
@@ -153,11 +159,10 @@ def validate_village(code: str) -> None:
     # 验收 2.2：团单不含未参保地块；未参保地块无任何保单关联
     roster_parcels = {x["parcelId"] for x in roster_coverages}
     check(roster_parcels <= insured_conf, f"{code}: 团单不含未参保地块")
-    # 验收 1.3：每个大户分类面积 >50.00 且 ≤500.00 亩
+    # 验收 1.3：每个大户分类面积 >50.00 亩（面积上限已放开，标注区域可超 500 亩）
     for policy in single_current:
         total = sum((Decimal(x["insuredAreaMu"]) for x in current if x["policyId"] == policy["id"]), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
         check(total > Decimal("50.00"), f"{code}: 大户 {policy['insuredPartyId']} 分类面积 {total} 必须超过 50 亩")
-        check(total <= MAX_BIG_FARM_AREA_MU, f"{code}: 大户 {policy['insuredPartyId']} 分类面积 {total} 超过 500 亩上限")
     # 验收 1.6：大户片区无重复归属；任一参保地块恰好归属一个大户或团单
     seen_parcels: set[str] = set()
     for policy in single_current:

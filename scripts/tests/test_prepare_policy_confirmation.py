@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """prepare-policy-confirmation.py 参数化单测：成片聚类（≤200m）、500 亩切分、50 亩分类、
-单块 >50 亩立大户、确定性、龙江村/其他村重生成保留未参保集合。
+单块 >50 亩立大户、确定性、龙江村标注区域模式/其他村重生成保留未参保集合。
 断言落在 generate() 输出的 confirmation 结构（records/spatialReview）上，不测内部聚类函数细节。
 """
 
@@ -89,16 +89,35 @@ def make_confirmation(parcel_ids: list[str], uninsured_ids: set[str], model: str
     }
 
 
-def run_generate(code: str, src: Path, out: Path, force: bool = False) -> dict:
+def make_regions_config(path: Path, regions: list) -> Path:
+    """写入龙江村标注区域配置。regions: [(party_id, [[lng,lat],...]), ...]。"""
+    path.write_text(json.dumps({
+        "villageCode": LONGJIANG,
+        "assignmentModel": "user-annotated-regions-v1",
+        "regions": [{"party": party, "polygon": polygon} for party, polygon in regions],
+    }, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def run_generate(code: str, src: Path, out: Path, force: bool = False, regions: list | None = None) -> dict:
+    """regions 提供时写入临时标注区域配置并 patch regions_config_path；
+    默认使用覆盖全部源地块的大区域（全部参保地块进 party-0001）。"""
     original_source_path = MODULE.source_path
     original_output_path = MODULE.output_path
+    original_regions_path = MODULE.regions_config_path
+    cfg = src.parent / "regions.json"
+    if regions is None:
+        regions = [("party-0001", [[119.0, 29.0], [121.0, 29.0], [121.0, 31.0], [119.0, 31.0]])]
+    make_regions_config(cfg, regions)
     try:
         MODULE.source_path = lambda c: src
         MODULE.output_path = lambda c: out
+        MODULE.regions_config_path = lambda: cfg
         MODULE.generate(code, force=force)
     finally:
         MODULE.source_path = original_source_path
         MODULE.output_path = original_output_path
+        MODULE.regions_config_path = original_regions_path
     return json.loads(out.read_text(encoding="utf-8"))
 
 
@@ -138,7 +157,7 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         data = run_generate(LONGJIANG, src, out, force=True)
         new_un = {r["parcelId"] for r in data["records"] if not r["insured"]}
         self.assertEqual(new_un, un)
-        self.assertEqual(data["assignmentModel"], MODULE.ASSIGNMENT_MODEL)
+        self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
         self.assertEqual(len(data["records"]), 200)
 
     def test_longjiang_force_refuses_empty_uninsured(self):
@@ -284,6 +303,106 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         run_generate(OTHER, src, out, force=True)
         first = out.read_bytes()
         run_generate(OTHER, src, out, force=True)
+        second = out.read_bytes()
+        self.assertEqual(hashlib.sha256(first).hexdigest(), hashlib.sha256(second).hexdigest())
+
+    # ---- 龙江村：标注区域模式（user-annotated-regions-v1）----
+    def test_longjiang_region_mode_assigns_by_polygon(self):
+        # 两个方形区域 + 区域外孤立地块：区域内归大户、区域外一块一户、未参保保留
+        regions = [
+            ("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]]),
+            ("party-0002", [[120.020, 30.000], [120.030, 30.000], [120.030, 30.010], [120.020, 30.010]]),
+        ]
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "region-parcels.geojson"
+        parcels = []  # (id, lng, lat)
+        for i in range(1, 4):      # 区域1 内 3 块（0.001 网格）
+            parcels.append((i, 120.005 + (i - 1) * GRID, 30.005))
+        for i in range(4, 6):      # 区域2 内 2 块
+            parcels.append((i, 120.025 + (i - 4) * GRID, 30.005))
+        for i in range(6, 9):      # 区域外 3 块（互不相邻）
+            parcels.append((i, 120.050 + (i - 6) * 0.01, 30.050))
+        features = [{"type": "Feature", "properties": {"id": pid, "area_m2": 2000.0, "area_mu": 3.0,
+                                                         "label_lng": lng, "label_lat": lat},
+                     "geometry": {"type": "Polygon", "coordinates": []}} for pid, lng, lat in parcels]
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "parcel-confirmation-v1.json"
+        un = {"7"}
+        out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 9)], un), ensure_ascii=False), encoding="utf-8")
+        data = run_generate(LONGJIANG, src, out, force=True, regions=regions)
+        self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
+        recs = {r["parcelId"]: r for r in data["records"]}
+        self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["2"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["3"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["4"]["insuredPartyId"], "party-0002")
+        self.assertEqual(recs["5"]["insuredPartyId"], "party-0002")
+        # 区域外参保地块：独立 party，且不与大户共用
+        self.assertNotIn(recs["6"]["insuredPartyId"], ("party-0001", "party-0002"))
+        self.assertNotEqual(recs["6"]["insuredPartyId"], recs["8"]["insuredPartyId"])
+        # 未参保保留且不归属
+        self.assertFalse(recs["7"]["insured"])
+        self.assertIsNone(recs["7"]["insuredPartyId"])
+        # spatialReview：2 个区域大户 + roster + summary
+        region_metrics = [m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")]
+        self.assertEqual([m["insuredPartyId"] for m in region_metrics], ["party-0001", "party-0002"])
+        self.assertEqual(region_metrics[0]["parcelCount"], 3)
+        self.assertEqual(region_metrics[1]["parcelCount"], 2)
+        self.assertTrue(all(m["isolatedParcelIds"] == [] for m in region_metrics))
+        self.assertEqual(region_metrics[0]["regionIndex"], 1)
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 2)  # 6、8
+        summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
+        self.assertEqual(summary["bigFarmCount"], 2)
+        self.assertGreater(summary["bigFarmCoverageShareOfInsuredArea"], 0.0)
+
+    def test_longjiang_region_mode_regions_chained(self):
+        # 区域内地块组内最近邻 ≤200m、无孤岛；区域外一块一户
+        regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "region-chain.geojson"
+        features = []
+        for i in range(1, 5):
+            features.append({"type": "Feature", "properties": {"id": i, "area_m2": 2000.0, "area_mu": 3.0,
+                                                                 "label_lng": 120.000 + (i - 1) * GRID,
+                                                                 "label_lat": 30.000 + (i - 1) * GRID},
+                             "geometry": {"type": "Polygon", "coordinates": []}})
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "parcel-confirmation-v1.json"
+        data = run_generate(LONGJIANG, src, out, force=False, regions=regions)
+        metric = [m for m in data["spatialReview"] if m["insuredPartyId"] == "party-0001"][0]
+        self.assertEqual(metric["parcelCount"], 4)
+        self.assertEqual(metric["isolatedParcelIds"], [])
+        points = read_points(src)
+        group = [r["parcelId"] for r in data["records"] if r["insuredPartyId"] == "party-0001"]
+        for a in group:
+            nearest = min(MODULE.distance(points[a], points[b]) for b in group if b != a)
+            self.assertLessEqual(nearest, 200.0, f"地块 {a} 最近邻 {nearest:.1f}m 超过 200m")
+
+    def test_longjiang_region_mode_roster_one_parcel_per_party(self):
+        # 区域内/区域外混合：区域外参保地块严格一块一户进团单（不与大户共用 party）
+        regions = [("party-0001", [[120.000, 30.000], [120.005, 30.000], [120.005, 30.005], [120.000, 30.005]])]
+        src = make_parcel_source(60)
+        out = src.parent / "parcel-confirmation-v1.json"
+        data = run_generate(LONGJIANG, src, out, force=False, regions=regions)
+        party_parcels = {}
+        for r in data["records"]:
+            if r["insured"]:
+                party_parcels.setdefault(r["insuredPartyId"], []).append(r["parcelId"])
+        big_farm_ids = {m["insuredPartyId"] for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")}
+        roster_parties = {p for p, v in party_parcels.items() if p not in big_farm_ids}
+        self.assertTrue(roster_parties, "区域外参保地块应进团单")
+        self.assertTrue(all(len(party_parcels[p]) == 1 for p in roster_parties), "团单必须一块一户")
+        self.assertIn("party-0001", big_farm_ids, "区域内地块应立大户")
+
+    def test_longjiang_region_mode_deterministic(self):
+        regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
+        src = make_parcel_source(120)
+        out = src.parent / "parcel-confirmation-v1.json"
+        run_generate(LONGJIANG, src, out, force=False, regions=regions)
+        first = out.read_bytes()
+        out.unlink()
+        run_generate(LONGJIANG, src, out, force=False, regions=regions)
         second = out.read_bytes()
         self.assertEqual(hashlib.sha256(first).hexdigest(), hashlib.sha256(second).hexdigest())
 
