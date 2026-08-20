@@ -56,7 +56,7 @@ def make_parcel_source(count: int = 600, seed: int = 42, spacing: float = 0.001)
     return src
 
 
-def build_fixture(code: str = "330604102016", count: int = 600):
+def build_fixture(code: str = "330604102018", count: int = 600):
     """在临时目录完整跑确认 + fixture + 复制 parcels 到校验期望路径，返回 (tmp, code)。"""
     src = make_parcel_source(count)
     tmp = src.parent
@@ -93,6 +93,16 @@ def build_fixture(code: str = "330604102016", count: int = 600):
                 {"party": "party-0002",
                  "polygon": [[120.885, 29.75], [120.92, 29.75], [120.92, 29.80], [120.885, 29.80]]},
             ],
+        }, ensure_ascii=False), encoding="utf-8")
+        PC.regions_config_path = lambda c: cfg
+    elif code == "330604102016":
+        # 清潭村区域模式：regions 为空 = 无大户区域，全部参保地块一块一户进团单
+        cfg = tmp / "regions.json"
+        cfg.write_text(json.dumps({
+            "villageCode": code,
+            "assignmentModel": "user-annotated-regions-v1",
+            "mergeMeters": 0.0,
+            "regions": [],
         }, ensure_ascii=False), encoding="utf-8")
         PC.regions_config_path = lambda c: cfg
     elif code == "330604102017":
@@ -337,6 +347,32 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         fx = json.loads((tmp / "web/src/data/policy-330604102017.json").read_text(encoding="utf-8"))
         single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
         self.assertEqual(len(single), 1)
+        self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in fx["enrollmentItems"]))
+
+    def test_qingtan_region_mode_validation_passes(self):
+        # 清潭村区域模式 e2e：regions 为空（无大户），全部参保地块一块一户进团单、未参保保留；全链路校验通过
+        tmp, _ = build_fixture("330604102016")
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            VF.validate_village("330604102016")
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+        q = json.loads((tmp / "web/src/data/parcel-confirmation-330604102016.json").read_text(encoding="utf-8"))
+        self.assertEqual(q["assignmentModel"], "user-annotated-regions-v1")
+        big = [m for m in q["spatialReview"] if m["insuredPartyId"].startswith("party-")]
+        self.assertEqual(len(big), 0, "清潭村应无大户区域")
+        un = {r["parcelId"] for r in q["records"] if not r["insured"]}
+        self.assertGreater(len(un), 0, "未参保应保留")
+        summary = [m for m in q["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
+        self.assertEqual(summary["bigFarmCount"], 0)
+        self.assertEqual(summary["bigFarmCoverageShareOfInsuredArea"], 0)
+        fx = json.loads((tmp / "web/src/data/policy-330604102016.json").read_text(encoding="utf-8"))
+        single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
+        self.assertEqual(len(single), 0)
+        roster = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "insured_roster"]
+        self.assertEqual(len(roster), 1)
         self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in fx["enrollmentItems"]))
 
     def test_discover_village_codes_excludes_v1(self):

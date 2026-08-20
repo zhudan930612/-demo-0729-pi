@@ -23,7 +23,7 @@ SPEC.loader.exec_module(MODULE)
 LONGJIANG = "330604102014"
 DAQIAN = "330604102015"
 XINWEI = "330604102017"
-OTHER = "330604102016"
+OTHER = "330604102018"
 GRID = 0.001  # 网格间距：相邻质心约 96~110m（≤200m），全连通
 
 
@@ -589,6 +589,28 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertEqual(metric["isolatedParcelIds"], [])
         roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
         self.assertEqual(roster["parcelCount"], 2)  # 3、4
+
+    def test_qingtan_region_mode_empty_regions_all_roster(self):
+        # 清潭村（330604102016）区域模式：regions 为空 = 无大户区域，全部参保地块一块一户进唯一团单；未参保保留
+        tmp = Path(tempfile.mkdtemp())
+        src = make_parcel_source(60)
+        out = src.parent / "conf.json"
+        data = run_generate("330604102016", src, out, force=False, regions=[], merge_meters=0.0)
+        self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
+        big = [m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")]
+        self.assertEqual(len(big), 0, "无大户区域不应有单一型指标")
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        insured = [r for r in data["records"] if r["insured"]]
+        self.assertEqual(roster["parcelCount"], len(insured))
+        self.assertTrue(all(len([r for r in data["records"] if r["insuredPartyId"] == r2["insuredPartyId"]]) == 1
+                            for r2 in insured), "全部参保地块一块一户")
+        self.assertEqual(roster["rosterItemCount"], len(insured))
+        # 未参保保留（确定性规则 int(id)%17==0）
+        new_un = {r["parcelId"] for r in data["records"] if not r["insured"]}
+        self.assertEqual(new_un, MODULE.deterministic_uninsured([str(i) for i in range(1, 61)]))
+        summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
+        self.assertEqual(summary["bigFarmCount"], 0)
+        self.assertEqual(summary["bigFarmCoverageShareOfInsuredArea"], 0)
 
     def test_longjiang_region_mode_deterministic(self):
         regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]

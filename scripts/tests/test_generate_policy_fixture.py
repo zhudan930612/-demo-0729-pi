@@ -58,7 +58,7 @@ def make_parcel_source(count: int = 600, seed: int = 42, spacing: float = 0.001)
     return src
 
 
-def build_fixture(code: str = "330604102016", spacing: float = 0.001):
+def build_fixture(code: str = "330604102018", spacing: float = 0.001):
     """生成确认 + fixture，返回 (fixture, work_dir)。"""
     src = make_parcel_source(spacing=spacing)
     tmp = src.parent

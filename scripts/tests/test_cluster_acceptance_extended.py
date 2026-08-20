@@ -36,7 +36,7 @@ def load_module(name: str, script: str):
 PC = load_module("pc_ext", "prepare-policy-confirmation.py")
 GF = load_module("gf_ext", "generate-policy-fixture.py")
 
-OTHER = "330604102016"
+OTHER = "330604102018"
 GRID = 0.001  # 相邻质心约 96~110m（≤200m）
 STEP = 0.0015  # 相邻质心约 145m（≤200m），链式桥接用
 

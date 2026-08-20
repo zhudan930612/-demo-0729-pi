@@ -6,62 +6,38 @@
   "insuredParcelCount": 314,
   "uninsuredParcelCount": 19,
   "uninsuredAreaMu": "24.1000",
-  "partyCount": 9,
-  "policyCount": 4,
-  "currentPolicyCount": 3,
-  "currentSinglePolicyCount": 2,
+  "partyCount": 316,
+  "policyCount": 2,
+  "currentPolicyCount": 1,
+  "currentSinglePolicyCount": 0,
   "currentRosterPolicyCount": 1,
-  "rosterItemCount": 5,
-  "bigFarmCount": 2,
-  "bigFarmParcelCount": 309,
-  "bigFarmInsuredAreaMu": "557.8400",
+  "rosterItemCount": 314,
+  "bigFarmCount": 0,
+  "bigFarmParcelCount": 0,
+  "bigFarmInsuredAreaMu": "0.0000",
   "insuredAreaMu": "579.8100",
-  "bigFarmCoverageShareOfInsuredArea": 0.9621,
+  "bigFarmCoverageShareOfInsuredArea": 0.0,
   "spatialReview": {
     "confirmationVersion": "parcel-confirmation-v1",
     "confirmedAt": "2025-04-01",
     "confirmedBy": "operator-01",
-    "grouping": "spatial-chained-clustering-500mu-cap",
+    "grouping": "user-annotated-regions-v1",
     "insuredPartyMetrics": [
       {
-        "insuredPartyId": "party-0001",
-        "parcelCount": 37,
-        "geometryAreaMu": "144.4700",
-        "classifiedAreaMu": "144.47",
-        "insuredModePreview": "single_insured",
-        "spatialGroupCount": 1,
-        "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 599.3,
-        "isolatedParcelIds": [],
-        "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
-      },
-      {
-        "insuredPartyId": "party-0002",
-        "parcelCount": 272,
-        "geometryAreaMu": "413.3700",
-        "classifiedAreaMu": "413.37",
-        "insuredModePreview": "single_insured",
-        "spatialGroupCount": 1,
-        "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 1810.4,
-        "isolatedParcelIds": [],
-        "manualReview": "通过：成片聚类（质心距离≤200m 链式连通，无孤岛）；分类面积>50.00 且≤500.00 亩"
-      },
-      {
         "insuredPartyId": "roster-one-parcel-per-party",
-        "parcelCount": 5,
+        "parcelCount": 314,
         "insuredModePreview": "insured_roster",
-        "rosterItemCount": 5,
-        "manualReview": "通过：参保地块一块一户进团单（≤50.00 亩或切分孤岛回收地块）"
+        "rosterItemCount": 314,
+        "manualReview": "通过：全部参保地块一块一户进唯一一张团单（无大户区域，未参保保留）"
       },
       {
         "insuredPartyId": "coverage-summary",
-        "bigFarmCount": 2,
-        "bigFarmParcelCount": 309,
-        "bigFarmInsuredAreaMu": "557.8400",
+        "bigFarmCount": 0,
+        "bigFarmParcelCount": 0,
+        "bigFarmInsuredAreaMu": "0.0000",
         "insuredAreaMu": "579.8100",
-        "bigFarmCoverageShareOfInsuredArea": 0.9621,
-        "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）"
+        "bigFarmCoverageShareOfInsuredArea": 0.0,
+        "manualReview": "大户合计覆盖参保面积实际比例 0（无大户区域，用户标注确认，验收 1.4）"
       }
     ]
   }

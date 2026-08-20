@@ -24,16 +24,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
 DAQIAN_VILLAGE = "330604102015"
+QINGTAN_VILLAGE = "330604102016"
 XINWEIJIAZHUANG_VILLAGE = "330604102017"
 ADJACENCY_DISTANCE_M = 200.0
 MAX_GROUP_AREA_MU = Decimal("500.00")
 BIG_FARM_MIN_AREA_MU = Decimal("50.00")
 ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
 LONGJIANG_ASSIGNMENT_MODEL = "user-annotated-regions-v1"
-# 用户标注区域模式的村 → 区域配置文件（mergeMeters 可配置：龙江村 100 级联归并、大钱村/新魏家庄村 0 无归并）
+# 用户标注区域模式的村 → 区域配置文件（mergeMeters 可配置：龙江村 100 级联归并、大钱村/新魏家庄村/清潭村 0 无归并；
+# 清潭村 regions 为空 = 无大户区域，全部参保地块一块一户进团单）
 REGION_CONFIGS: dict[str, Path] = {
     DEFAULT_VILLAGE: ROOT / 'scripts/data/longjiang-regions-2025.json',
     DAQIAN_VILLAGE: ROOT / 'scripts/data/daqian-regions-2025.json',
+    QINGTAN_VILLAGE: ROOT / 'scripts/data/qingtan-regions-2025.json',
     XINWEIJIAZHUANG_VILLAGE: ROOT / 'scripts/data/xinweijiazhuang-regions-2025.json',
 }
 
@@ -182,11 +185,12 @@ def enforce_in_group_neighbors(group: list[str], adj: dict) -> tuple[list[str], 
 
 
 def assign_annotated_regions(code: str, parcel_ids: list[str], points: dict) -> tuple[list[tuple[str, list[str]]], list[str]]:
-    """用户标注区域模式（龙江村/大钱村）：区域内地块（含未参保）归该大户；区域外到最近区域成员
-    质心距离 < mergeMeters 米级联归并（mergeMeters>0）；其余归入团单池（参保/未参保由调用方区分）。
+    """用户标注区域模式（龙江村/大钱村/新魏家庄村/清潭村）：区域内地块（含未参保）归该大户；
+    区域外到最近区域成员质心距离 < mergeMeters 米级联归并（mergeMeters>0）；其余归入团单池。
 
-    区域按配置顺序匹配（首个包含该点的区域生效）；区域级 maxLng 右边界约定：区域内/归并块中
-    lng > maxLng 的移出到团单池；返回 (区域组 [(party, parcels)], 团单池地块)。
+    regions 可为空（清潭村：无大户区域，全部地块进团单池）。区域按配置顺序匹配（首个包含该点
+    的区域生效）；区域级 maxLng 右边界约定：区域内/归并块中 lng > maxLng 的移出到团单池；
+    返回 (区域组 [(party, parcels)], 团单池地块)。
     """
     cfg_path = regions_config_path(code)
     if cfg_path is None or not cfg_path.exists():
@@ -195,8 +199,6 @@ def assign_annotated_regions(code: str, parcel_ids: list[str], points: dict) -> 
     if cfg.get('villageCode') != code:
         raise SystemExit(f'regions config 村代码不匹配: {cfg.get("villageCode")} != {code}')
     regions = cfg.get('regions', [])
-    if not regions:
-        raise SystemExit(f'regions config 区域为空: {cfg_path}')
     merge_meters = float(cfg.get('mergeMeters', 0.0))
     inside: list[set[str]] = [set() for _ in regions]
     for pid in parcel_ids:  # 已按 id 排序，确定性
@@ -205,17 +207,20 @@ def assign_annotated_regions(code: str, parcel_ids: list[str], points: dict) -> 
                 inside[i].add(pid)
                 break
     roster: list[str] = []
-    for pid in parcel_ids:  # id 升序遍历，确定性
-        if any(pid in s for s in inside):
-            continue
-        # 归并：到最近区域成员（含已归并块，级联）质心距离 < mergeMeters
-        best_i = min(range(len(regions)),
-                     key=lambda i: min((distance(points[pid], points[q]) for q in inside[i]), default=float('inf')))
-        nearest_d = min((distance(points[pid], points[q]) for q in inside[best_i]), default=float('inf'))
-        if nearest_d < merge_meters:
-            inside[best_i].add(pid)
-        else:
-            roster.append(pid)
+    if regions:
+        for pid in parcel_ids:  # id 升序遍历，确定性
+            if any(pid in s for s in inside):
+                continue
+            # 归并：到最近区域成员（含已归并块，级联）质心距离 < mergeMeters
+            best_i = min(range(len(regions)),
+                         key=lambda i: min((distance(points[pid], points[q]) for q in inside[i]), default=float('inf')))
+            nearest_d = min((distance(points[pid], points[q]) for q in inside[best_i]), default=float('inf'))
+            if nearest_d < merge_meters:
+                inside[best_i].add(pid)
+            else:
+                roster.append(pid)
+    else:
+        roster = list(parcel_ids)  # 无大户区域：全部地块进团单池
     region_groups: list[tuple[str, list[str]]] = []
     for region, group_set in zip(regions, inside):
         group = sorted(group_set, key=int)
@@ -292,6 +297,10 @@ def generate(code: str, force: bool = False) -> None:
             region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/daqian-regions-2025.json，mergeMeters=0 无归并）；区域内地块归属该大户；组内最近邻≤200m 无孤岛'
             roster_review = '通过：区域外参保地块一块一户进团单（区域内未参保已转参保，区域外未参保保留）'
             summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）'
+        elif code == QINGTAN_VILLAGE:
+            region_farm_review = '通过：用户标注确认无大户区域（scripts/data/qingtan-regions-2025.json，regions 为空）'
+            roster_review = '通过：全部参保地块一块一户进唯一一张团单（无大户区域，未参保保留）'
+            summary_review = '大户合计覆盖参保面积实际比例 0（无大户区域，用户标注确认，验收 1.4）'
         else:
             region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/xinweijiazhuang-regions-2025.json，mergeMeters=0 无归并）；区域内地块归属该大户；组内最近邻≤200m 无孤岛'
             roster_review = '通过：区域外参保地块一块一户进团单（区域内未参保已转参保，区域外未参保保留）'
