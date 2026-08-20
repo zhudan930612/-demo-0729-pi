@@ -463,6 +463,48 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertEqual(recs["21"]["insuredPartyId"], "party-0002")
         self.assertEqual(recs["22"]["insuredPartyId"], "party-0003")
 
+    def test_longjiang_region_mode_maxlng_right_boundary(self):
+        # 区域级 maxLng 右边界约定：区域内/归并块中 lng > maxLng 的移出到团单池（一块一户）
+        regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]],
+                   120.005)]  # (party, polygon, maxLng)
+        # 手动构造带 maxLng 的配置：party-0001 多边形 [120.000-120.010]，maxLng=120.005
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "parcels.geojson"
+        features = []
+        for i in range(1, 9):  # 8 块：lng 120.000-120.007（一半 <120.005，一半 ≥120.005）
+            features.append({"type": "Feature", "properties": {"id": i, "area_m2": 2000, "area_mu": 3.0,
+                                                                 "label_lng": 120.000 + (i - 1) * 0.001,
+                                                                 "label_lat": 30.005},
+                             "geometry": {"type": "Polygon", "coordinates": []}})
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "parcel-confirmation-v1.json"
+        cfg_path = src.parent / "regions.json"
+        cfg_path.write_text(json.dumps({
+            "villageCode": LONGJIANG,
+            "assignmentModel": "user-annotated-regions-v1",
+            "mergeMeters": 0.0,
+            "regions": [{"party": "party-0001",
+                         "polygon": [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]],
+                         "maxLng": 120.005}],
+        }, ensure_ascii=False), encoding="utf-8")
+        orig = (MODULE.source_path, MODULE.output_path, MODULE.regions_config_path)
+        MODULE.source_path = lambda c: src
+        MODULE.output_path = lambda c: out
+        MODULE.regions_config_path = lambda: cfg_path
+        try:
+            MODULE.generate(LONGJIANG, force=False)
+        finally:
+            MODULE.source_path, MODULE.output_path, MODULE.regions_config_path = orig
+        data = json.loads(out.read_text(encoding="utf-8"))
+        recs = {r["parcelId"]: r for r in data["records"]}
+        # lng ≤ 120.005 的 6 块（120.000-120.005）留大户；lng > 120.005 的 2 块（120.006/120.007）移出团单
+        self.assertTrue(all(recs[str(i)]["insuredPartyId"] == "party-0001" for i in range(1, 7)))
+        self.assertTrue(all(recs[str(i)]["insuredPartyId"] != "party-0001" for i in range(7, 9)))
+        metric = [m for m in data["spatialReview"] if m["insuredPartyId"] == "party-0001"][0]
+        self.assertEqual(metric["parcelCount"], 6)
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 2)
+
     def test_longjiang_region_mode_deterministic(self):
         regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
         src = make_parcel_source(120)

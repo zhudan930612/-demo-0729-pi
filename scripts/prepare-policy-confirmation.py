@@ -174,7 +174,8 @@ def assign_annotated_regions(insured_ids: list[str], points: dict) -> tuple[list
     其余一块一户进团单（plan-merge100：未参保全部转参保，团单不得出现在红框区域内）。
 
     区域按配置顺序匹配（首个包含该点的区域生效）；归并采用级联（新归并块成为后续归并参考点，
-    与用户确认的 plan-merge100 一致）；返回 (区域组 [(party, parcels)], 团单地块)。
+    与用户确认的 plan-merge100 一致）；区域级 maxLng 右边界约定：区域内/归并块中 lng > maxLng 的
+    移出到团单池（区域1 半区调整用，用户确认 558/219）；返回 (区域组 [(party, parcels)], 团单地块)。
     """
     cfg_path = regions_config_path()
     if not cfg_path.exists():
@@ -207,9 +208,14 @@ def assign_annotated_regions(insured_ids: list[str], points: dict) -> tuple[list
     region_groups: list[tuple[str, list[str]]] = []
     for region, group_set in zip(regions, inside):
         group = sorted(group_set, key=int)
+        max_lng = region.get('maxLng')
+        if max_lng is not None:
+            # 右边界约定（maxLng）：区域内/归并块中 lng > maxLng 的移出到团单池（一块一户），不再归并
+            group = [pid for pid in group if points[pid][0] <= max_lng]
+            roster.extend(pid for pid in sorted(group_set, key=int) if points[pid][0] > max_lng)
         if not group:
             raise SystemExit(f'regions config 区域 {region["party"]} 无参保地块: {cfg_path}')
-        region_groups.append((region['party'], group))
+        region_groups.append((region['party'], sorted(group, key=int)))
     roster.sort(key=int)
     return region_groups, roster
 

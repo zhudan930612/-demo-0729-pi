@@ -6,17 +6,17 @@
   "insuredParcelCount": 1548,
   "uninsuredParcelCount": 0,
   "uninsuredAreaMu": "0",
-  "partyCount": 88,
+  "partyCount": 307,
   "policyCount": 5,
   "currentPolicyCount": 4,
   "currentSinglePolicyCount": 3,
   "currentRosterPolicyCount": 1,
-  "rosterItemCount": 83,
+  "rosterItemCount": 302,
   "bigFarmCount": 3,
-  "bigFarmParcelCount": 1465,
-  "bigFarmInsuredAreaMu": "2706.3400",
+  "bigFarmParcelCount": 1246,
+  "bigFarmInsuredAreaMu": "2392.3500",
   "insuredAreaMu": "2882.6600",
-  "bigFarmCoverageShareOfInsuredArea": 0.9388,
+  "bigFarmCoverageShareOfInsuredArea": 0.8299,
   "spatialReview": {
     "confirmationVersion": "parcel-confirmation-v1",
     "confirmedAt": "2025-04-01",
@@ -25,13 +25,13 @@
     "insuredPartyMetrics": [
       {
         "insuredPartyId": "party-0001",
-        "parcelCount": 777,
-        "geometryAreaMu": "1200.9200",
-        "classifiedAreaMu": "1200.92",
+        "parcelCount": 558,
+        "geometryAreaMu": "886.9300",
+        "classifiedAreaMu": "886.93",
         "insuredModePreview": "single_insured",
         "spatialGroupCount": 1,
         "primaryGroupAreaRatio": 1.0,
-        "maxDistanceM": 2227.8,
+        "maxDistanceM": 1431.7,
         "isolatedParcelIds": [],
         "manualReview": "通过：用户标注区域（红框）+100m 归并划分（scripts/data/longjiang-regions-2025.json，mergeMeters=100）；区域内/归并地块归属该大户；组内最近邻≤200m 无孤岛",
         "regionIndex": 1
@@ -64,18 +64,18 @@
       },
       {
         "insuredPartyId": "roster-one-parcel-per-party",
-        "parcelCount": 83,
+        "parcelCount": 302,
         "insuredModePreview": "insured_roster",
-        "rosterItemCount": 83,
+        "rosterItemCount": 302,
         "manualReview": "通过：区域外且距区域内地块 ≥100m 的参保地块一块一户进团单（未参保已全部转参保）"
       },
       {
         "insuredPartyId": "coverage-summary",
         "bigFarmCount": 3,
-        "bigFarmParcelCount": 1465,
-        "bigFarmInsuredAreaMu": "2706.3400",
+        "bigFarmParcelCount": 1246,
+        "bigFarmInsuredAreaMu": "2392.3500",
         "insuredAreaMu": "2882.6600",
-        "bigFarmCoverageShareOfInsuredArea": 0.9388,
+        "bigFarmCoverageShareOfInsuredArea": 0.8299,
         "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+归并自然结果，验收 1.4）"
       }
     ]
