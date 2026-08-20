@@ -46,6 +46,7 @@ pnpm --dir web build
 pnpm --dir web test:e2e             # 修改前端交互/共用面板/下钻时（跑前先清理 8790/4173 残留端口）
 pnpm --dir server test              # 修改 server（台风代理/预警/限流）时
 python scripts/validate-data.py     # 修改数据脚本或层级链路时
+python scripts/validate-policy-fixture.py --all   # 修改保单/地块区划数据或脚本时（区域模式村 + 聚类村全量校验）
 python scripts/check-codes.py       # 修改编码归属逻辑时
 git diff --check
 ```
