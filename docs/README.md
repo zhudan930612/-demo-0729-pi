@@ -14,7 +14,8 @@
 - [浙江省气象预警数据接入需求](./requirements/全国气象预警数据接入需求.md)
 - [面状降水预报需求（网格热力图）](./requirements/面状降水预报需求.md)（已实现；后续方向 V1.1 见下条）
 - [参保村灾害风险联动 V1.1 需求](./requirements/降水参保联动V1.1需求.md)
-- [演示 demo 方案（台风/理赔业务闭环）](./requirements/演示demo方案.md)（v3.13：共用面板双 tab + 受灾概览统计 + 风险卡片 + 保单表格 + 措施差异化；已实施并合并 main）
+- [参保村灾害风险联动 V1.1 需求](./requirements/降水参保联动V1.1需求.md)（v3.13：共用面板双 tab + 受灾概览统计 + 风险卡片 + 保单表格 + 措施差异化；已实施并合并 main）
+- [演示 demo 方案（台风/理赔业务闭环）](./requirements/演示demo方案.md)
 
 目录入口：[requirements/](./requirements/)
 
