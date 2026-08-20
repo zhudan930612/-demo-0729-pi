@@ -239,20 +239,31 @@ def generate(code: str, force: bool = False) -> None:
 
     if code == DEFAULT_VILLAGE:
         # 龙江村：用户标注区域模式（红框区域 = 大户，区域外 = 团单一块一户）
-        region_groups, roster_parcels = assign_annotated_regions(insured_ids, points)
+        region_groups, outside_parcels = assign_annotated_regions(insured_ids, points)
         model = LONGJIANG_ASSIGNMENT_MODEL
-        big_farm_groups = [group for _, group in region_groups]
         assignments: dict[str, str] = {}
         for party, group in region_groups:
             for pid in group:
                 assignments[pid] = party
         next_party = max((int(pid.rsplit('-', 1)[-1]) for pid, _ in region_groups), default=0) + 1
-        for pid in roster_parcels:
+        for pid in outside_parcels:  # 已按 id 排序，确定性
             assignments[pid] = f'party-{next_party:04d}'
             next_party += 1
-        farm_review = '通过：用户标注区域（红框）划分（scripts/data/longjiang-regions-2025.json），区域内参保地块归属该大户；组内最近邻≤200m 无孤岛'
-        roster_review = '通过：区域外参保地块一块一户进团单'
-        summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）'
+        # 50 亩分类规则统一适用：区域组 → 大户；区域外单块分类面积 >50.00 亩单独出单一型保单（单块大田），
+        # ≤50.00 亩进团单一块一户（用户标注只决定归属 party，不覆盖 50 亩分类规则）
+        region_party_ids = {party for party, _ in region_groups}
+        big_farm_groups = [group for _, group in region_groups]
+        roster_parcels = []
+        for pid in outside_parcels:
+            if classified_area([pid], areas) > BIG_FARM_MIN_AREA_MU:
+                big_farm_groups.append([pid])
+            else:
+                roster_parcels.append(pid)
+        roster_parcels.sort(key=int)
+        region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/longjiang-regions-2025.json），区域内参保地块归属该大户；组内最近邻≤200m 无孤岛'
+        single_farm_review = '通过：区域外单块参保地块分类面积>50.00 亩，按 50 亩分类规则单独出单一型保单（单块大田）'
+        roster_review = '通过：区域外参保地块一块一户进团单（分类面积≤50.00 亩）'
+        summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+单块大田自然结果，验收 1.4）'
     else:
         # 其他村：成片聚类模式
         adj = build_adjacency(insured_ids, points)
@@ -313,9 +324,10 @@ def generate(code: str, force: bool = False) -> None:
             'primaryGroupAreaRatio': 1.0,
             'maxDistanceM': round(max_span(group, points), 1),
             'isolatedParcelIds': isolated,
-            'manualReview': farm_review,
+            'manualReview': region_farm_review if (code == DEFAULT_VILLAGE and party_id in region_party_ids)
+                             else (single_farm_review if code == DEFAULT_VILLAGE else farm_review),
         }
-        if code == DEFAULT_VILLAGE:
+        if code == DEFAULT_VILLAGE and party_id in region_party_ids:
             metric['regionIndex'] = int(party_id[-4:])
         metrics.append(metric)
     metrics.append({

@@ -135,18 +135,13 @@ def validate_village(code: str) -> None:
     for x in current:
         by_party.setdefault(x["insuredPartyId"], []).append(x)
     violations = []
-    region_mode = q.get("assignmentModel") == LONGJIANG_ASSIGNMENT_MODEL
     for party, covs in by_party.items():
         total = sum((Decimal(x["insuredAreaMu"]) for x in covs), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
         roster = any(i["insuredPartyId"] == party for i in items.values())
-        if region_mode:
-            # 标注区域模式：区域外一块一户进团单（面积分类不适用，区域外 >50 亩单块也进团单）
-            expected_roster = len(covs) == 1
-        else:
-            expected_roster = total <= Decimal("50")
-        if expected_roster != roster:
+        # 50 亩分类规则统一（标注区域模式同样适用）：分类面积 >50.00 亩 → 单一型保单，≤50.00 亩 → 团单一块一户
+        if (total <= Decimal("50")) != roster:
             violations.append((party, str(total)))
-    check(not violations, f"{code}: {'标注区域模式：团单严格一块一户（单块 party 全部进团单）' if region_mode else '全部被保险人符合 50.00 亩分类且不拆分'}")
+    check(not violations, f"{code}: 全部被保险人符合 50.00 亩分类且不拆分")
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]

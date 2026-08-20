@@ -2178,7 +2178,7 @@
     {
       "id": "party-0198",
       "name": "彭勇",
-      "partyType": "自然人",
+      "partyType": "家庭农场",
       "identityOrOrgCode": "33060419740110334X",
       "contactPhone": "13571567962",
       "bankAccount": "6217992823534520746",
@@ -2300,8 +2300,34 @@
       }
     },
     {
-      "id": "policy-2025-roster",
+      "id": "policy-2025-party-0198",
       "policyNo": "3306041020142025000004",
+      "insuredMode": "single_insured",
+      "insuredPartyId": "party-0198",
+      "enrollmentListId": null,
+      "villageCode": "330604102014",
+      "product": "政策性水稻完全成本保险",
+      "insuredObject": "水稻",
+      "unitSumInsuredCentsPerMu": 125000,
+      "premiumRate": "0.032",
+      "subsidyRate": "0.80",
+      "signDate": "2025-04-15",
+      "periodStart": "2025-05-01",
+      "periodEnd": "2025-11-30",
+      "status": "保障中",
+      "summary": {
+        "insuredPartyCount": 1,
+        "parcelCount": 1,
+        "insuredAreaMu": "51.3600",
+        "sum_insured_cents": 6420000,
+        "premium_cents": 205440,
+        "subsidy_cents": 164352,
+        "self_paid_cents": 41088
+      }
+    },
+    {
+      "id": "policy-2025-roster",
+      "policyNo": "3306041020142025000005",
       "insuredMode": "insured_roster",
       "insuredPartyId": null,
       "enrollmentListId": "list-policy-2025-roster",
@@ -2316,18 +2342,18 @@
       "periodEnd": "2025-11-30",
       "status": "保障中",
       "summary": {
-        "insuredPartyCount": 197,
-        "parcelCount": 197,
-        "insuredAreaMu": "402.6000",
-        "sum_insured_cents": 50325000,
-        "premium_cents": 1610400,
-        "subsidy_cents": 1288320,
-        "self_paid_cents": 322080
+        "insuredPartyCount": 196,
+        "parcelCount": 196,
+        "insuredAreaMu": "351.2400",
+        "sum_insured_cents": 43905000,
+        "premium_cents": 1404960,
+        "subsidy_cents": 1123968,
+        "self_paid_cents": 280992
       }
     },
     {
       "id": "policy-2024-history",
-      "policyNo": "3306041020142024000005",
+      "policyNo": "3306041020142024000006",
       "insuredMode": "single_insured",
       "insuredPartyId": "party-0201",
       "enrollmentListId": null,
@@ -2553,8 +2579,7 @@
         "item-2025-0193",
         "item-2025-0194",
         "item-2025-0195",
-        "item-2025-0196",
-        "item-2025-0197"
+        "item-2025-0196"
       ]
     }
   ],
@@ -5279,20 +5304,6 @@
       "id": "item-2025-0195",
       "enrollmentListId": "list-policy-2025-roster",
       "itemNo": "2014-0195",
-      "insuredPartyId": "party-0198",
-      "parcelCoverageIds": [
-        "coverage-2025-1424"
-      ],
-      "insuredAreaMu": "51.3600",
-      "sum_insured_cents": 6420000,
-      "premium_cents": 205440,
-      "subsidy_cents": 164352,
-      "self_paid_cents": 41088
-    },
-    {
-      "id": "item-2025-0196",
-      "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2014-0196",
       "insuredPartyId": "party-0199",
       "parcelCoverageIds": [
         "coverage-2025-1447"
@@ -5304,9 +5315,9 @@
       "self_paid_cents": 1976
     },
     {
-      "id": "item-2025-0197",
+      "id": "item-2025-0196",
       "enrollmentListId": "list-policy-2025-roster",
-      "itemNo": "2014-0197",
+      "itemNo": "2014-0196",
       "insuredPartyId": "party-0200",
       "parcelCoverageIds": [
         "coverage-2025-1534"
@@ -17017,11 +17028,11 @@
     },
     {
       "id": "coverage-2025-1424",
-      "policyId": "policy-2025-roster",
+      "policyId": "policy-2025-party-0198",
       "parcelId": "1424",
       "insuredPartyId": "party-0198",
       "insuredAreaMu": "51.3600",
-      "enrollmentItemId": "item-2025-0195"
+      "enrollmentItemId": null
     },
     {
       "id": "coverage-2025-1447",
@@ -17029,7 +17040,7 @@
       "parcelId": "1447",
       "insuredPartyId": "party-0199",
       "insuredAreaMu": "2.4700",
-      "enrollmentItemId": "item-2025-0196"
+      "enrollmentItemId": "item-2025-0195"
     },
     {
       "id": "coverage-2025-1534",
@@ -17037,7 +17048,7 @@
       "parcelId": "1534",
       "insuredPartyId": "party-0200",
       "insuredAreaMu": "0.9600",
-      "enrollmentItemId": "item-2025-0197"
+      "enrollmentItemId": "item-2025-0196"
     },
     {
       "id": "coverage-2024-1",
@@ -17403,16 +17414,16 @@
     "uninsuredParcelCount": 83,
     "uninsuredAreaMu": "223.9300",
     "partyCount": 202,
-    "policyCount": 5,
-    "currentPolicyCount": 4,
-    "currentSinglePolicyCount": 3,
+    "policyCount": 6,
+    "currentPolicyCount": 5,
+    "currentSinglePolicyCount": 4,
     "currentRosterPolicyCount": 1,
-    "rosterItemCount": 197,
-    "bigFarmCount": 3,
-    "bigFarmParcelCount": 1268,
-    "bigFarmInsuredAreaMu": "2256.1300",
+    "rosterItemCount": 196,
+    "bigFarmCount": 4,
+    "bigFarmParcelCount": 1269,
+    "bigFarmInsuredAreaMu": "2307.4900",
     "insuredAreaMu": "2658.7300",
-    "bigFarmCoverageShareOfInsuredArea": 0.8486,
+    "bigFarmCoverageShareOfInsuredArea": 0.8679,
     "spatialReview": {
       "confirmationVersion": "parcel-confirmation-v1",
       "confirmedAt": "2025-04-01",
@@ -17459,20 +17470,32 @@
           "regionIndex": 3
         },
         {
+          "insuredPartyId": "party-0198",
+          "parcelCount": 1,
+          "geometryAreaMu": "51.3600",
+          "classifiedAreaMu": "51.36",
+          "insuredModePreview": "single_insured",
+          "spatialGroupCount": 1,
+          "primaryGroupAreaRatio": 1.0,
+          "maxDistanceM": 0,
+          "isolatedParcelIds": [],
+          "manualReview": "通过：区域外单块参保地块分类面积>50.00 亩，按 50 亩分类规则单独出单一型保单（单块大田）"
+        },
+        {
           "insuredPartyId": "roster-one-parcel-per-party",
-          "parcelCount": 197,
+          "parcelCount": 196,
           "insuredModePreview": "insured_roster",
-          "rosterItemCount": 197,
-          "manualReview": "通过：区域外参保地块一块一户进团单"
+          "rosterItemCount": 196,
+          "manualReview": "通过：区域外参保地块一块一户进团单（分类面积≤50.00 亩）"
         },
         {
           "insuredPartyId": "coverage-summary",
-          "bigFarmCount": 3,
-          "bigFarmParcelCount": 1268,
-          "bigFarmInsuredAreaMu": "2256.1300",
+          "bigFarmCount": 4,
+          "bigFarmParcelCount": 1269,
+          "bigFarmInsuredAreaMu": "2307.4900",
           "insuredAreaMu": "2658.7300",
-          "bigFarmCoverageShareOfInsuredArea": 0.8486,
-          "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）"
+          "bigFarmCoverageShareOfInsuredArea": 0.8679,
+          "manualReview": "大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+单块大田自然结果，验收 1.4）"
         }
       ]
     }

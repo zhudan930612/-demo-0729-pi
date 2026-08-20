@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -190,8 +191,9 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         finally:
             VF.DATA, VF.ROOT = vf_orig
 
-    def test_longjiang_region_mode_over_50_mu_outside_stays_roster(self):
-        # 标注区域模式：区域外 >50 亩单块仍一块一户进团单（区域标注为权威归属，验收 1.3/2.1 兼容）
+    def test_longjiang_region_mode_over_50_mu_outside_single_policy(self):
+        # 50 亩分类规则统一适用：区域外 >50 亩单块单独出单一型保单（不因“区域外”而进团单），
+        # 团单项全部 ≤50 亩且一块一户（验收 1.3/2.1）
         tmp = Path(tempfile.mkdtemp())
         src = tmp / "parcels.geojson"
         features = []
@@ -205,7 +207,7 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         features.append({"type": "Feature", "properties": {"id": 21, "area_m2": 34267, "area_mu": 51.4,
                                                                "label_lng": 120.100, "label_lat": 30.100},
                          "geometry": {"type": "Polygon", "coordinates": []}})
-        for i in range(22, 31):  # 区域外小地块，保证 party 数 >=8（两字/三字名覆盖检查）
+        for i in range(22, 31):  # 区域外小地块（1 亩，≤50 进团单）
             features.append({"type": "Feature", "properties": {"id": i, "area_m2": 667, "area_mu": 1.0,
                                                                  "label_lng": 120.110 + (i - 22) * 0.01,
                                                                  "label_lat": 30.110 + (i - 22) * 0.01},
@@ -230,6 +232,15 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
             PC.generate("330604102014")
         finally:
             PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
+        # 确认产物：区域外 >50 亩单块在 spatialReview 中单独出单一型指标，团单汇总排除该块
+        q = json.loads(conf.read_text(encoding="utf-8"))
+        single_metrics = {m["insuredPartyId"]: m for m in q["spatialReview"]
+                          if m["insuredPartyId"].startswith("party-")}
+        self.assertIn("party-0001", single_metrics)
+        self.assertIn("party-0002", single_metrics)
+        self.assertEqual(single_metrics["party-0002"]["parcelCount"], 1)
+        roster = [m for m in q["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 9)  # 22-30
         gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
         GF.find_village = lambda c: {"properties": {"code": c, "name": "龙江村"}}
         GF.parcel_path = lambda c: parcel_dest
@@ -241,15 +252,16 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
             GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT = gf_orig
         fx = json.loads((tmp / "web/src/data/policy-v1.json").read_text(encoding="utf-8"))
         single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
-        self.assertEqual([p["insuredPartyId"] for p in single], ["party-0001"])
+        self.assertEqual({p["insuredPartyId"] for p in single}, {"party-0001", "party-0002"})
         items = fx["enrollmentItems"]
-        self.assertEqual(len(items), 10)
-        self.assertEqual(items[0]["insuredPartyId"], "party-0002")
+        self.assertEqual(len(items), 9)
+        self.assertTrue(all(Decimal(i["insuredAreaMu"]) <= Decimal("50.00") for i in items), "团单项必须全部 ≤50 亩")
+        self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in items), "团单必须一块一户")
         parcel21_cov = [c for c in fx["parcelCoverages"] if c["parcelId"] == "21" and c["policyId"] != "policy-2024-history"]
         self.assertEqual(len(parcel21_cov), 1)
-        self.assertEqual(parcel21_cov[0]["policyId"], "policy-2025-roster")
-        self.assertIsNotNone(parcel21_cov[0]["enrollmentItemId"])
-        # 全链路校验通过（含标注区域模式检查）
+        self.assertEqual(parcel21_cov[0]["policyId"], "policy-2025-party-0002")
+        self.assertIsNone(parcel21_cov[0]["enrollmentItemId"])
+        # 全链路校验通过
         vf_orig = (VF.DATA, VF.ROOT)
         VF.DATA = tmp / "web/src/data"
         VF.ROOT = tmp
