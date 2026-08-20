@@ -1,12 +1,18 @@
 <template>
   <div class="login-view">
     <canvas ref="bgCanvas" class="login-bg" aria-hidden="true"></canvas>
-    <span class="login-vortex" aria-hidden="true"></span>
-    <span class="login-radar" aria-hidden="true"></span>
+    <div class="decor tape" aria-hidden="true"></div>
     <form class="login-card" novalidate @submit.prevent="submit">
-      <p class="kicker">农业保险 · 空间数据</p>
-      <h1 class="title">农险双精准地图 Demo</h1>
-      <p class="subtitle">内部技术验证工作台，登录后查看地图与业务数据</p>
+      <div class="card-head">
+        <span class="logo-ring" aria-hidden="true">农险</span>
+        <p class="kicker">草稿版 · 内部技术验证</p>
+      </div>
+
+      <h1 class="title">
+        农险双精准地图 Demo
+        <span class="exclaim" aria-hidden="true">!</span>
+      </h1>
+      <p class="subtitle">登录后查看地图与业务数据</p>
 
       <label class="field">
         <span class="field-label">用户名</span>
@@ -16,6 +22,7 @@
           type="text"
           name="username"
           autocomplete="username"
+          autofocus
           placeholder="请输入用户名"
           :disabled="submitting"
         />
@@ -23,25 +30,41 @@
 
       <label class="field">
         <span class="field-label">密码</span>
-        <input
-          v-model="password"
-          class="input"
-          type="password"
-          name="password"
-          autocomplete="current-password"
-          placeholder="请输入密码"
-          :disabled="submitting"
-        />
+        <span class="password-wrap">
+          <input
+            v-model="password"
+            class="input"
+            :type="showPassword ? 'text' : 'password'"
+            name="password"
+            autocomplete="current-password"
+            placeholder="请输入密码"
+            :disabled="submitting"
+          />
+          <button
+            type="button"
+            class="reveal"
+            :disabled="submitting"
+            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            @click="showPassword = !showPassword"
+          >{{ showPassword ? '隐藏' : '显示' }}</button>
+        </span>
       </label>
 
       <p v-if="auth.errorMessage" class="error" role="alert">{{ auth.errorMessage }}</p>
 
       <button class="submit" type="submit" :disabled="submitting || !username || !password">
-        {{ submitting ? '登录中…' : '登录' }}
+        {{ submitting ? '登录中…' : '登录 →' }}
       </button>
 
-      <p class="hint">演示账号：admin / admin123</p>
+      <div class="postit" aria-label="演示账号提示">
+        <span class="postit-pin" aria-hidden="true"></span>
+        演示账号：admin / admin123
+      </div>
     </form>
+    <svg class="decor arrow" viewBox="0 0 160 100" aria-hidden="true">
+      <path d="M10 20 C 60 20, 80 60, 140 80" fill="none" stroke="#2d2d2d" stroke-width="2" stroke-dasharray="6 4" />
+      <path d="M130 70 L 140 80 L 128 82" fill="none" stroke="#2d2d2d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
   </div>
 </template>
 
@@ -52,29 +75,37 @@ import { useAuthStore } from '../stores/auth'
 const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const submitting = ref(false)
 
-// —— 连线粒子网络背景（呼应参考登录页的 particleground 效果）——
+// —— 手绘风背景：漂浮的铅笔涂鸦 + 纸屑，呼应「草稿纸 + 涂鸦」主题 ——
 const bgCanvas = ref<HTMLCanvasElement | null>(null)
-const COLORS = ['#38bdf8', '#3b82f6', '#2563eb', '#7dd3fc']
-const LINK_DIST = 130 // 粒子/鼠标连线距离
-const MOUSE_DIST = 180 // 鼠标排斥作用半径
+const PENCIL = '#2d2d2d'
+const BLUE = '#2d5da1'
+const RED = '#ff4d4d'
 
-interface Particle {
+interface Scribble {
   x: number
   y: number
   vx: number
   vy: number
-  r: number
+  rot: number
+  rotV: number
+  kind: 'circle' | 'star' | 'cross' | 'dot' | 'dash' | 'triangle'
+  size: number
   color: string
+  opacity: number
 }
 
 let ctx: CanvasRenderingContext2D | null = null
-let particles: Particle[] = []
+let scribbles: Scribble[] = []
 let width = 0
 let height = 0
 let raf = 0
-const mouse = { x: -9999, y: -9999 }
+let reducedMotion = false
+
+const KINDS: Scribble['kind'][] = ['circle', 'star', 'cross', 'dot', 'dash', 'triangle']
+const COLORS = [PENCIL, PENCIL, PENCIL, BLUE, RED, PENCIL] // 铅笔黑为主，点缀蓝/红
 
 function resize() {
   const canvas = bgCanvas.value
@@ -90,92 +121,171 @@ function resize() {
 }
 
 function spawn() {
-  const count = Math.min(90, Math.max(40, Math.floor((width * height) / 16000)))
-  particles = Array.from({ length: count }, () => ({
+  const count = Math.min(60, Math.max(24, Math.floor((width * height) / 26000)))
+  scribbles = Array.from({ length: count }, () => ({
     x: Math.random() * width,
     y: Math.random() * height,
-    vx: (Math.random() - 0.5) * 0.45,
-    vy: (Math.random() - 0.5) * 0.45,
-    r: Math.random() * 1.6 + 0.7,
+    vx: (Math.random() - 0.5) * 0.35,
+    vy: (Math.random() - 0.5) * 0.25 - 0.08, // 微微上浮
+    rot: Math.random() * Math.PI * 2,
+    rotV: (Math.random() - 0.5) * 0.012,
+    kind: KINDS[Math.floor(Math.random() * KINDS.length)],
+    size: 10 + Math.random() * 22,
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    opacity: 0.18 + Math.random() * 0.22,
   }))
 }
 
-function onMouseMove(event: MouseEvent) {
-  mouse.x = event.clientX
-  mouse.y = event.clientY
-}
-
-function drawLink(aX: number, aY: number, bX: number, bY: number) {
-  const c = ctx
-  if (!c) return
-  const dist = Math.hypot(aX - bX, aY - bY)
-  if (dist >= LINK_DIST) return
-  const alpha = (1 - dist / LINK_DIST) * 0.32
-  c.strokeStyle = `rgba(56, 189, 248, ${alpha})`
-  c.lineWidth = 1
+// 手绘圆：多段弧线，半径抖动
+function drawWobblyCircle(cx: number, cy: number, r: number) {
+  const c = ctx!
+  const segs = 8
   c.beginPath()
-  c.moveTo(aX, aY)
-  c.lineTo(bX, bY)
-  c.stroke()
+  for (let i = 0; i <= segs; i++) {
+    const a = (i / segs) * Math.PI * 2
+    const jitter = (Math.sin(i * 3.7 + cx) * 0.5 + Math.cos(i * 2.3 + cy) * 0.4) * r * 0.08
+    const x = cx + Math.cos(a) * (r + jitter)
+    const y = cy + Math.sin(a) * (r + jitter)
+    if (i === 0) c.moveTo(x, y)
+    else c.lineTo(x, y)
+  }
+  c.closePath()
 }
 
-function loop() {
+// 手绘星星（五角）
+function drawWobblyStar(cx: number, cy: number, r: number) {
+  const c = ctx!
+  const spikes = 5
+  const outerR = r
+  const innerR = r * 0.45
+  c.beginPath()
+  for (let i = 0; i <= spikes * 2; i++) {
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2
+    const radius = i % 2 === 0 ? outerR : innerR
+    const jitter = Math.sin(i * 5.1 + cx) * r * 0.06
+    const x = cx + Math.cos(a) * (radius + jitter)
+    const y = cy + Math.sin(a) * (radius + jitter)
+    if (i === 0) c.moveTo(x, y)
+    else c.lineTo(x, y)
+  }
+  c.closePath()
+}
+
+// 手绘叉
+function drawCross(cx: number, cy: number, r: number) {
+  const c = ctx!
+  const off = r * 0.7
+  c.beginPath()
+  c.moveTo(cx - off + 1, cy - off - 1); c.lineTo(cx + off + 1, cy + off + 1)
+  c.moveTo(cx + off - 1, cy - off + 1); c.lineTo(cx - off - 1, cy + off - 1)
+}
+
+// 手绘三角
+function drawWobblyTriangle(cx: number, cy: number, r: number) {
+  const c = ctx!
+  const pts = [
+    [cx, cy - r * 0.9],
+    [cx - r * 0.9, cy + r * 0.7],
+    [cx + r * 0.9, cy + r * 0.7],
+  ]
+  c.beginPath()
+  c.moveTo(pts[0][0], pts[0][1])
+  for (const [x, y] of pts.slice(1)) c.lineTo(x + Math.sin(y) * 2, y)
+  c.closePath()
+}
+
+function drawScribble(s: Scribble) {
+  const c = ctx!
+  c.save()
+  c.globalAlpha = s.opacity
+  c.strokeStyle = s.color
+  c.fillStyle = s.color
+  c.lineWidth = 2.2
+  c.lineCap = 'round'
+  c.lineJoin = 'round'
+  c.translate(s.x, s.y)
+  c.rotate(s.rot)
+
+  switch (s.kind) {
+    case 'circle':
+      drawWobblyCircle(0, 0, s.size * 0.5)
+      c.stroke()
+      break
+    case 'star':
+      drawWobblyStar(0, 0, s.size * 0.5)
+      c.stroke()
+      break
+    case 'cross':
+      drawCross(0, 0, s.size * 0.5)
+      c.stroke()
+      break
+    case 'dot':
+      c.beginPath()
+      c.arc(0, 0, s.size * 0.15, 0, Math.PI * 2)
+      c.fill()
+      break
+    case 'dash':
+      c.beginPath()
+      c.moveTo(-s.size * 0.5, 0)
+      c.lineTo(s.size * 0.5, Math.sin(s.x) * 2)
+      c.stroke()
+      break
+    case 'triangle':
+      drawWobblyTriangle(0, 0, s.size * 0.5)
+      c.stroke()
+      break
+  }
+  c.restore()
+}
+
+function update() {
+  for (const s of scribbles) {
+    s.x += s.vx
+    s.y += s.vy
+    s.rot += s.rotV
+    // 环绕
+    if (s.x < -30) s.x = width + 30
+    else if (s.x > width + 30) s.x = -30
+    if (s.y < -30) s.y = height + 30
+    else if (s.y > height + 30) s.y = -30
+  }
+}
+
+function renderFrame() {
   const c = ctx
   if (!c) return
   c.clearRect(0, 0, width, height)
+  for (const s of scribbles) drawScribble(s)
+}
 
-  for (const p of particles) {
-    p.x += p.vx
-    p.y += p.vy
-    const dx = p.x - mouse.x
-    const dy = p.y - mouse.y
-    const dist = Math.hypot(dx, dy)
-    if (dist < MOUSE_DIST && dist > 0.01) {
-      const force = ((MOUSE_DIST - dist) / MOUSE_DIST) * 0.9
-      p.x += (dx / dist) * force
-      p.y += (dy / dist) * force
-    }
-    if (p.x < -20) p.x = width + 20
-    else if (p.x > width + 20) p.x = -20
-    if (p.y < -20) p.y = height + 20
-    else if (p.y > height + 20) p.y = -20
-  }
-
-  for (let i = 0; i < particles.length; i++) {
-    const a = particles[i]
-    for (let j = i + 1; j < particles.length; j++) {
-      drawLink(a.x, a.y, particles[j].x, particles[j].y)
-    }
-    drawLink(a.x, a.y, mouse.x, mouse.y)
-  }
-
-  for (const p of particles) {
-    c.fillStyle = p.color
-    c.globalAlpha = 0.75
-    c.beginPath()
-    c.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-    c.fill()
-  }
-  c.globalAlpha = 1
-
+function loop() {
+  update()
+  renderFrame()
   raf = requestAnimationFrame(loop)
+}
+
+function onResize() {
+  resize()
+  if (reducedMotion) renderFrame()
 }
 
 onMounted(() => {
   ctx = bgCanvas.value?.getContext('2d') ?? null
   if (!ctx) return
+  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   resize()
   spawn()
-  window.addEventListener('resize', resize)
-  window.addEventListener('mousemove', onMouseMove)
-  raf = requestAnimationFrame(loop)
+  window.addEventListener('resize', onResize)
+  if (reducedMotion) {
+    renderFrame() // 尊重减少动效偏好：只画静态一帧
+  } else {
+    raf = requestAnimationFrame(loop)
+  }
 })
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
-  window.removeEventListener('resize', resize)
-  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('resize', onResize)
 })
 
 async function submit() {
@@ -192,211 +302,331 @@ async function submit() {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Patrick+Hand&display=swap');
+
+/* —— 手绘风设计令牌（只用于登录页） —— */
 .login-view {
+  --paper: #fdfbf7;
+  --pencil: #2d2d2d;
+  --muted: #e5e0d8;
+  --accent-red: #ff4d4d;
+  --accent-blue: #2d5da1;
+  --postit: #fff9c4;
+  --wobbly: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wobbly-md: 180px 22px 160px 18px / 18px 140px 20px 180px;
+  --shadow: 4px 4px 0 0 var(--pencil);
+  --shadow-lift: 2px 2px 0 0 var(--pencil);
+  --shadow-press: 0 0 0 0 var(--pencil);
+  --hand: 'Patrick Hand', 'Kalam', 'PingFang SC', 'Microsoft YaHei', cursive, sans-serif;
+  --display: 'Kalam', 'PingFang SC', 'Microsoft YaHei', cursive, sans-serif;
+
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background:
-    radial-gradient(900px 520px at 100% 100%, rgba(56, 189, 248, 0.16), transparent 60%),
-    radial-gradient(720px 440px at 0% 0%, rgba(37, 99, 235, 0.16), transparent 60%),
-    linear-gradient(158deg, #0a111f 0%, #0f172a 46%, #14233d 100%);
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--muted) 1.4px, transparent 1.4px);
+  background-size: 22px 22px;
+  font-family: var(--hand);
+  color: var(--pencil);
 }
+
 .login-bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 0;
 }
-/* 地图坐标网格：斜向平移，边缘径向淡出 */
-.login-view::before {
-  content: '';
+
+/* 顶部胶带装饰 */
+.decor.tape {
   position: absolute;
-  inset: -2px;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, rgba(0, 0, 0, 0.65), transparent 80%);
-  mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, rgba(0, 0, 0, 0.65), transparent 80%);
-  animation: login-grid-pan 16s linear infinite;
+  top: -10px;
+  left: 50%;
+  width: 180px;
+  height: 26px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: rgba(180, 175, 165, 0.55);
+  border: 1.5px solid rgba(100, 95, 85, 0.35);
   pointer-events: none;
+  z-index: 2;
+  animation: tape-sway 5s ease-in-out infinite;
 }
-/* 极光光斑：大块蓝色柔光漂移 */
-.login-view::after {
-  content: '';
+@keyframes tape-sway {
+  0%, 100% { transform: translateX(-50%) rotate(-2deg); }
+  50% { transform: translateX(-50%) rotate(1deg); }
+}
+
+/* 手绘箭头装饰（指向表单） */
+.decor.arrow {
   position: absolute;
-  left: -160px;
-  top: -200px;
-  width: 680px;
-  height: 680px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.38), transparent 62%);
-  filter: blur(70px);
-  animation: login-aurora 9s ease-in-out infinite alternate;
+  right: 10%;
+  bottom: 16%;
+  width: 160px;
+  height: 100px;
+  opacity: 0.85;
   pointer-events: none;
+  z-index: 0;
+  animation: arrow-bounce 3.2s ease-in-out infinite;
 }
-/* 台风涡旋：左上角旋转的螺旋雨带，呼应台风专题 */
-.login-vortex {
-  position: absolute;
-  left: -140px;
-  top: -140px;
-  width: 560px;
-  height: 560px;
-  border-radius: 50%;
-  opacity: 0.75;
-  background: conic-gradient(from 0deg,
-    transparent 0deg,
-    rgba(37, 99, 235, 0.22) 40deg,
-    transparent 90deg,
-    rgba(56, 189, 248, 0.18) 150deg,
-    transparent 200deg,
-    rgba(37, 99, 235, 0.16) 260deg,
-    transparent 360deg);
-  -webkit-mask-image: radial-gradient(circle, transparent 0 30%, #000 30% 76%, transparent 76%);
-  mask-image: radial-gradient(circle, transparent 0 30%, #000 30% 76%, transparent 76%);
-  animation: login-vortex-spin 20s linear infinite;
-  pointer-events: none;
+@keyframes arrow-bounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-6px) rotate(0deg); }
 }
-/* 雷达：同心圆量程环 + 旋转扫描波束 */
-.login-radar {
-  position: absolute;
-  right: 9%;
-  bottom: 11%;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  opacity: 0.75;
-  pointer-events: none;
-  background:
-    radial-gradient(circle, rgba(56, 189, 248, 0.9) 0 2px, transparent 3px),
-    repeating-radial-gradient(circle, transparent 0 46px, rgba(56, 189, 248, 0.25) 46px 47px);
-}
-.login-radar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(56, 189, 248, 0.4), transparent 70deg);
-  animation: login-radar-spin 4s linear infinite;
-}
-.login-radar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-}
-@keyframes login-grid-pan {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 44px 44px, 44px 44px; }
-}
-@keyframes login-aurora {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(240px, 180px, 0) scale(1.15); }
-}
-@keyframes login-vortex-spin {
-  to { transform: rotate(360deg); }
-}
-@keyframes login-radar-spin {
-  to { transform: rotate(360deg); }
-}
+
 .login-card {
   position: relative;
   z-index: 1;
-  width: 360px;
+  width: 420px;
   max-width: calc(100vw - 32px);
   box-sizing: border-box;
-  padding: 32px 28px 24px;
-  background: #ffffff; /* panel-white */
-  border-radius: 14px; /* rounded.dialog */
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.42); /* 确认对话框阴影（深底加深） */
+  padding: 36px 32px 28px;
+  background: #ffffff;
+  border: 3px solid var(--pencil);
+  border-radius: var(--wobbly-md);
+  box-shadow: var(--shadow);
+  transform: rotate(-0.6deg);
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+.login-card:hover {
+  transform: rotate(0deg);
+  box-shadow: 6px 6px 0 0 var(--pencil);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.logo-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 44px;
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pencil);
+  border: 3px solid var(--pencil);
+  border-radius: var(--wobbly);
+  transform: rotate(-4deg);
+  background: #ffffff;
 }
 .kicker {
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #2563eb; /* action-blue */
-  letter-spacing: 0.02em;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--accent-blue);
+  letter-spacing: 0.01em;
 }
+
 .title {
-  margin: 0 0 6px;
-  font-size: 20px;
+  margin: 14px 0 4px;
+  font-family: var(--display);
+  font-size: 34px;
   font-weight: 700;
-  color: #0f172a; /* canvas-slate */
+  line-height: 1.05;
+  color: var(--pencil);
+  letter-spacing: -0.01em;
 }
+.exclaim {
+  display: inline-block;
+  color: var(--accent-red);
+  transform: rotate(-6deg);
+  margin-left: 2px;
+  animation: exclaim-wiggle 2.4s ease-in-out infinite;
+}
+@keyframes exclaim-wiggle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(4deg) translateY(-2px); }
+}
+
 .subtitle {
-  margin: 0 0 24px;
-  font-size: 12px;
-  color: #64748b; /* muted-slate */
+  margin: 0 0 22px;
+  font-size: 16px;
+  color: var(--pencil);
+  opacity: 0.75;
 }
+
 .field {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .field-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569; /* ink-slate */
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--pencil);
 }
 .input {
   width: 100%;
   box-sizing: border-box;
-  height: 34px;
-  padding: 0 12px;
-  font-size: 13px;
-  color: #0f172a;
-  border: 1px solid rgba(148, 163, 184, 0.34); /* panel-border */
-  border-radius: 7px; /* rounded.control */
+  height: 44px;
+  padding: 0 14px;
+  font-family: var(--hand);
+  font-size: 16px;
+  color: var(--pencil);
+  background: #ffffff;
+  border: 2.5px solid var(--pencil);
+  border-radius: var(--wobbly);
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
+}
+.input::placeholder {
+  color: var(--pencil);
+  opacity: 0.4;
 }
 .input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(45, 93, 161, 0.22);
+  transform: rotate(0.4deg);
 }
 .input:disabled {
-  background: #f1f5f9;
-  color: #94a3b8; /* disabled-slate */
+  background: var(--muted);
+  color: var(--pencil);
+  opacity: 0.6;
 }
+.password-wrap {
+  position: relative;
+  display: block;
+}
+.password-wrap .input {
+  padding-right: 68px;
+}
+.reveal {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 28px;
+  padding: 0 10px;
+  border: 2px solid var(--pencil);
+  border-radius: var(--wobbly);
+  background: #ffffff;
+  color: var(--accent-blue);
+  font-family: var(--hand);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 100ms ease, transform 100ms ease, box-shadow 100ms ease;
+}
+.reveal:hover:not(:disabled) {
+  background: var(--postit);
+  transform: translateY(-50%) rotate(-2deg);
+}
+.reveal:focus-visible {
+  outline: 3px solid rgba(45, 93, 161, 0.35);
+  outline-offset: 2px;
+}
+.reveal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .error {
   margin: 0 0 14px;
-  padding: 8px 10px;
-  font-size: 12px;
-  color: #991b1b; /* error-text */
-  background: #fef2f2; /* error-bg */
-  border-radius: 6px; /* rounded.hint */
+  padding: 10px 12px 10px 14px;
+  font-size: 15px;
+  font-family: var(--hand);
+  color: #8b1a1a;
+  background: #fff3f0;
+  border: 2.5px dashed var(--accent-red);
+  border-radius: var(--wobbly);
 }
+.error::before {
+  content: '⚠';
+  margin-right: 6px;
+  font-size: 16px;
+}
+
 .submit {
   width: 100%;
-  height: 34px;
-  margin-top: 2px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-  background: #2563eb; /* action-blue */
-  border: none;
-  border-radius: 7px;
+  height: 48px;
+  margin-top: 4px;
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pencil);
+  background: #ffffff;
+  border: 3px solid var(--pencil);
+  border-radius: var(--wobbly);
   cursor: pointer;
-  transition: background-color 160ms ease;
+  box-shadow: var(--shadow);
+  transform: translate(0, 0);
+  transition: background-color 100ms ease, color 100ms ease, box-shadow 100ms ease, transform 100ms ease;
 }
 .submit:hover:not(:disabled) {
-  background: #1d4ed8; /* action-blue-hover */
+  background: var(--accent-red);
+  color: #ffffff;
+  box-shadow: var(--shadow-lift);
+  transform: translate(2px, 2px) rotate(-0.6deg);
+}
+.submit:active:not(:disabled) {
+  box-shadow: var(--shadow-press);
+  transform: translate(4px, 4px);
 }
 .submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.hint {
-  margin: 16px 0 0;
-  font-size: 12px;
-  color: #94a3b8; /* disabled-slate */
-  text-align: center;
+
+/* 便签纸式演示账号提示 */
+.postit {
+  position: relative;
+  margin: 20px auto 0;
+  width: fit-content;
+  padding: 8px 14px;
+  background: var(--postit);
+  border: 2.5px solid var(--pencil);
+  border-radius: var(--wobbly);
+  box-shadow: 3px 3px 0 0 var(--pencil);
+  font-family: var(--hand);
+  font-size: 14px;
+  color: var(--pencil);
+  transform: rotate(-1.4deg);
+  animation: postit-flutter 4s ease-in-out infinite;
+}
+@keyframes postit-flutter {
+  0%, 100% { transform: rotate(-1.4deg) translateY(0); }
+  50% { transform: rotate(-0.6deg) translateY(-2px); }
+}
+.postit-pin {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  border: 2px solid var(--pencil);
+  box-shadow: 1px 1px 0 0 var(--pencil);
+}
+
+/* 减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .decor.tape,
+  .decor.arrow,
+  .exclaim,
+  .postit {
+    animation: none;
+  }
+}
+
+/* 响应式 */
+@media (max-width: 520px) {
+  .login-card {
+    padding: 28px 20px 22px;
+  }
+  .title { font-size: 26px; }
+  .submit { font-size: 17px; height: 44px; }
+  .decor.arrow { display: none; }
+  .decor.tape { width: 130px; }
 }
 </style>
