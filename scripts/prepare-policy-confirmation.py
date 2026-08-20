@@ -24,15 +24,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
 DAQIAN_VILLAGE = "330604102015"
+XINWEIJIAZHUANG_VILLAGE = "330604102017"
 ADJACENCY_DISTANCE_M = 200.0
 MAX_GROUP_AREA_MU = Decimal("500.00")
 BIG_FARM_MIN_AREA_MU = Decimal("50.00")
 ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
 LONGJIANG_ASSIGNMENT_MODEL = "user-annotated-regions-v1"
-# 用户标注区域模式的村 → 区域配置文件（mergeMeters 可配置：龙江村 100 级联归并、大钱村 0 无归并）
+# 用户标注区域模式的村 → 区域配置文件（mergeMeters 可配置：龙江村 100 级联归并、大钱村/新魏家庄村 0 无归并）
 REGION_CONFIGS: dict[str, Path] = {
     DEFAULT_VILLAGE: ROOT / 'scripts/data/longjiang-regions-2025.json',
     DAQIAN_VILLAGE: ROOT / 'scripts/data/daqian-regions-2025.json',
+    XINWEIJIAZHUANG_VILLAGE: ROOT / 'scripts/data/xinweijiazhuang-regions-2025.json',
 }
 
 
@@ -286,8 +288,12 @@ def generate(code: str, force: bool = False) -> None:
             region_farm_review = '通过：用户标注区域（红框）+100m 归并划分（scripts/data/longjiang-regions-2025.json，mergeMeters=100）；区域内/归并地块归属该大户；组内最近邻≤200m 无孤岛'
             roster_review = '通过：区域外且距区域内地块 ≥100m 的参保地块一块一户进团单（未参保已全部转参保）'
             summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+归并自然结果，验收 1.4）'
-        else:
+        elif code == DAQIAN_VILLAGE:
             region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/daqian-regions-2025.json，mergeMeters=0 无归并）；区域内地块归属该大户；组内最近邻≤200m 无孤岛'
+            roster_review = '通过：区域外参保地块一块一户进团单（区域内未参保已转参保，区域外未参保保留）'
+            summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）'
+        else:
+            region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/xinweijiazhuang-regions-2025.json，mergeMeters=0 无归并）；区域内地块归属该大户；组内最近邻≤200m 无孤岛'
             roster_review = '通过：区域外参保地块一块一户进团单（区域内未参保已转参保，区域外未参保保留）'
             summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）'
         single_farm_review = region_farm_review

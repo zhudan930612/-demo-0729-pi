@@ -1,0 +1,11 @@
+{
+  "villageCode": "330604102017",
+  "assignmentModel": "user-annotated-regions-v1",
+  "mergeMeters": 0,
+  "regions": [
+    {
+      "party": "party-0001",
+      "polygon": [[120.88885, 29.75766], [120.8612, 29.75805], [120.86128, 29.74888], [120.88897, 29.74888]]
+    }
+  ]
+}

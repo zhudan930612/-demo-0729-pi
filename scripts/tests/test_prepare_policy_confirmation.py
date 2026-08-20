@@ -22,6 +22,7 @@ SPEC.loader.exec_module(MODULE)
 
 LONGJIANG = "330604102014"
 DAQIAN = "330604102015"
+XINWEI = "330604102017"
 OTHER = "330604102016"
 GRID = 0.001  # 网格间距：相邻质心约 96~110m（≤200m），全连通
 
@@ -553,6 +554,41 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertEqual(roster["parcelCount"], 2)  # 5、6
         summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
         self.assertEqual(summary["bigFarmCount"], 2)
+
+    def test_xinweijiazhuang_region_mode_polygon_assign(self):
+        # 新魏家庄村（330604102017）区域模式：1 个红框多边形、无归并；
+        # 区域内全部（含未参保）归大户、区域外未参保保留、区域外参保一块一户团单
+        regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "xinwei-parcels.geojson"
+        parcels = [
+            (1, 120.005, 30.005), (2, 120.006, 30.005),   # 框内
+            (3, 120.0105, 30.005),  # 框外紧邻（mergeMeters=0 不归并）
+            (4, 120.050, 30.050),
+            (5, 120.060, 30.060),
+        ]
+        features = [{"type": "Feature", "properties": {"id": pid, "area_m2": 2000.0, "area_mu": 3.0,
+                                                         "label_lng": lng, "label_lat": lat},
+                     "geometry": {"type": "Polygon", "coordinates": []}} for pid, lng, lat in parcels]
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "conf.json"
+        un = {"2", "5"}  # 2 框内（转参保）、5 框外（保留）
+        out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 6)], un), ensure_ascii=False), encoding="utf-8")
+        data = run_generate(XINWEI, src, out, force=True, regions=regions, merge_meters=0.0)
+        self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
+        recs = {r["parcelId"]: r for r in data["records"]}
+        self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["2"]["insuredPartyId"], "party-0001", "区域内未参保应转参保归大户")
+        self.assertNotEqual(recs["3"]["insuredPartyId"], "party-0001", "mergeMeters=0 时不归并")
+        self.assertNotEqual(recs["4"]["insuredPartyId"], "party-0001")
+        self.assertFalse(recs["5"]["insured"])
+        self.assertIsNone(recs["5"]["insuredPartyId"])
+        self.assertEqual({r["parcelId"] for r in data["records"] if not r["insured"]}, {"5"})
+        metric = [m for m in data["spatialReview"] if m["insuredPartyId"] == "party-0001"][0]
+        self.assertEqual(metric["parcelCount"], 2)
+        self.assertEqual(metric["isolatedParcelIds"], [])
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 2)  # 3、4
 
     def test_longjiang_region_mode_deterministic(self):
         regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]

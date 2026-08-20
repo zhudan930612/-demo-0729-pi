@@ -95,6 +95,17 @@ def build_fixture(code: str = "330604102016", count: int = 600):
             ],
         }, ensure_ascii=False), encoding="utf-8")
         PC.regions_config_path = lambda c: cfg
+    elif code == "330604102017":
+        # 新魏家庄村区域模式：单个 bbox 矩形（无归并）
+        cfg = tmp / "regions.json"
+        cfg.write_text(json.dumps({
+            "villageCode": code,
+            "assignmentModel": "user-annotated-regions-v1",
+            "mergeMeters": 0.0,
+            "regions": [{"party": "party-0001",
+                         "polygon": [[120.85, 29.75], [120.90, 29.75], [120.90, 29.80], [120.85, 29.80]]}],
+        }, ensure_ascii=False), encoding="utf-8")
+        PC.regions_config_path = lambda c: cfg
     else:
         PC.regions_config_path = lambda c: tmp / "unused-regions.json"  # 聚类村不读取
     try:
@@ -304,6 +315,28 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         fx = json.loads((tmp / "web/src/data/policy-330604102015.json").read_text(encoding="utf-8"))
         single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
         self.assertEqual(len(single), 2)
+        self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in fx["enrollmentItems"]))
+
+    def test_xinweijiazhuang_region_mode_validation_passes(self):
+        # 新魏家庄村区域模式 e2e：单 bbox 红框（无归并），区域内未参保转参保、区域外未参保保留；全链路校验通过
+        tmp, _ = build_fixture("330604102017")
+        vf_orig = (VF.DATA, VF.ROOT)
+        VF.DATA = tmp / "web/src/data"
+        VF.ROOT = tmp
+        try:
+            VF.validate_village("330604102017")
+        finally:
+            VF.DATA, VF.ROOT = vf_orig
+        q = json.loads((tmp / "web/src/data/parcel-confirmation-330604102017.json").read_text(encoding="utf-8"))
+        self.assertEqual(q["assignmentModel"], "user-annotated-regions-v1")
+        un = {r["parcelId"] for r in q["records"] if not r["insured"]}
+        self.assertGreater(len(un), 0, "区域外未参保应保留")
+        big = [m for m in q["spatialReview"] if m["insuredPartyId"].startswith("party-")]
+        self.assertEqual(len(big), 1)
+        self.assertTrue(all(m["isolatedParcelIds"] == [] for m in big))
+        fx = json.loads((tmp / "web/src/data/policy-330604102017.json").read_text(encoding="utf-8"))
+        single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
+        self.assertEqual(len(single), 1)
         self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in fx["enrollmentItems"]))
 
     def test_discover_village_codes_excludes_v1(self):
