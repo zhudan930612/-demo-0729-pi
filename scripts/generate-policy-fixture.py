@@ -188,16 +188,24 @@ def generate(code: str) -> None:
     confirmed_groups: dict[str, list[str]] = {}
     for parcel_id in insured_ids:
         confirmed_groups.setdefault(confirmed[parcel_id]["insuredPartyId"], []).append(parcel_id)
+    # 区域模式（user-annotated-regions-v1）：以确认文件 spatialReview 的大户身份为准——区域 party 单独出单一型保单，
+    # 其余团单池全部一块一户进团单（忽略 50 亩单独出单规则，仅区域划分；团单池块 ≤50 亩由数据保证）
+    region_mode = confirmation.get("assignmentModel") == "user-annotated-regions-v1"
+    single_parties = {m["insuredPartyId"] for m in confirmation.get("spatialReview", [])
+                      if m.get("insuredModePreview") == "single_insured"} if region_mode else set()
     big_farm_policy_ids: list[str] = []
     for confirmed_party_id, group in sorted(confirmed_groups.items(), key=lambda item: item[0]):
         group = sorted(group, key=int)
         party_number = int(confirmed_party_id.rsplit("-", 1)[-1])
         area = sum((areas[i] for i in group), Decimal("0"))
         classified = area.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        # 50 亩分类规则统一按被保险人汇总面积（非地块数）：分类面积（内部 4 位小数求和、四舍五入 2 位）
-        # >50.00 亩 → 单一型保单单独出单（单块大田也立大户）；≤50.00 亩 → 团单一块一户。
-        # 用户标注区域只决定地块归属 party，不覆盖 50 亩分类规则（区域外 >50 亩单块同样单独出单）。
-        mode = "single_insured" if classified > Decimal("50.00") else "insured_roster"
+        if region_mode:
+            # 区域模式：区域 party 单独出单一型保单；其余单块 party 一块一户进团单
+            mode = "single_insured" if confirmed_party_id in single_parties else "insured_roster"
+        else:
+            # 聚类模式：50 亩分类规则按被保险人汇总面积（非地块数）：分类面积（内部 4 位小数求和、四舍五入 2 位）
+            # >50.00 亩 → 单一型保单单独出单（单块大田也立大户）；≤50.00 亩 → 团单一块一户。
+            mode = "single_insured" if classified > Decimal("50.00") else "insured_roster"
         if mode == "single_insured":
             party_type = "家庭农场"  # 大户（单一型）
         else:

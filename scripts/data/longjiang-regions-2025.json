@@ -1,6 +1,7 @@
 {
   "villageCode": "330604102014",
   "assignmentModel": "user-annotated-regions-v1",
+  "mergeMeters": 100,
   "regions": [
     {
       "party": "party-0001",

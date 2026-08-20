@@ -89,17 +89,19 @@ def make_confirmation(parcel_ids: list[str], uninsured_ids: set[str], model: str
     }
 
 
-def make_regions_config(path: Path, regions: list) -> Path:
+def make_regions_config(path: Path, regions: list, merge_meters: float = 0.0) -> Path:
     """写入龙江村标注区域配置。regions: [(party_id, [[lng,lat],...]), ...]。"""
     path.write_text(json.dumps({
         "villageCode": LONGJIANG,
         "assignmentModel": "user-annotated-regions-v1",
+        "mergeMeters": merge_meters,
         "regions": [{"party": party, "polygon": polygon} for party, polygon in regions],
     }, ensure_ascii=False), encoding="utf-8")
     return path
 
 
-def run_generate(code: str, src: Path, out: Path, force: bool = False, regions: list | None = None) -> dict:
+def run_generate(code: str, src: Path, out: Path, force: bool = False, regions: list | None = None,
+                 merge_meters: float = 0.0) -> dict:
     """regions 提供时写入临时标注区域配置并 patch regions_config_path；
     默认使用覆盖全部源地块的大区域（全部参保地块进 party-0001）。"""
     original_source_path = MODULE.source_path
@@ -108,7 +110,7 @@ def run_generate(code: str, src: Path, out: Path, force: bool = False, regions: 
     cfg = src.parent / "regions.json"
     if regions is None:
         regions = [("party-0001", [[119.0, 29.0], [121.0, 29.0], [121.0, 31.0], [119.0, 31.0]])]
-    make_regions_config(cfg, regions)
+    make_regions_config(cfg, regions, merge_meters)
     try:
         MODULE.source_path = lambda c: src
         MODULE.output_path = lambda c: out
@@ -149,23 +151,26 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         data = run_generate(LONGJIANG, src, out, force=False)
         self.assertEqual(before, out.read_text(encoding="utf-8"))
 
-    def test_longjiang_force_regenerate_preserves_uninsured(self):
+    def test_longjiang_force_regenerate_converts_all_to_insured(self):
+        # 区域模式（plan-merge100）：未参保全部转参保（83→0），不再保留未参保集合
         src = make_parcel_source(200)
         out = src.parent / "parcel-confirmation-v1.json"
         un = {"7", "14", "21", "105"}
         out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 201)], un), ensure_ascii=False), encoding="utf-8")
         data = run_generate(LONGJIANG, src, out, force=True)
         new_un = {r["parcelId"] for r in data["records"] if not r["insured"]}
-        self.assertEqual(new_un, un)
+        self.assertEqual(new_un, set(), "区域模式未参保应全部转参保")
+        self.assertTrue(all(r["insured"] for r in data["records"]))
         self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
         self.assertEqual(len(data["records"]), 200)
 
-    def test_longjiang_force_refuses_empty_uninsured(self):
+    def test_longjiang_force_allows_empty_uninsured(self):
+        # 区域模式目标未参保=0：现有确认文件未参保为空时可正常重新生成
         src = make_parcel_source(200)
         out = src.parent / "parcel-confirmation-v1.json"
         out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 201)], set()), ensure_ascii=False), encoding="utf-8")
-        with self.assertRaises(SystemExit):
-            run_generate(LONGJIANG, src, out, force=True)
+        data = run_generate(LONGJIANG, src, out, force=True)
+        self.assertEqual({r["parcelId"] for r in data["records"] if not r["insured"]}, set())
 
     # ---- 其他村：--force 保留现有未参保集合；无文件时确定性规则 ----
     def test_other_village_force_preserves_existing_uninsured(self):
@@ -306,9 +311,9 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         second = out.read_bytes()
         self.assertEqual(hashlib.sha256(first).hexdigest(), hashlib.sha256(second).hexdigest())
 
-    # ---- 龙江村：标注区域模式（user-annotated-regions-v1）----
+    # ---- 龙江村：标注区域模式（user-annotated-regions-v1，plan-merge100）----
     def test_longjiang_region_mode_assigns_by_polygon(self):
-        # 两个方形区域 + 区域外孤立地块：区域内归大户、区域外一块一户、未参保保留
+        # 两个方形区域 + 区域外孤立地块：区域内归大户、区域外一块一户；未参保全部转参保（83→0）
         regions = [
             ("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]]),
             ("party-0002", [[120.020, 30.000], [120.030, 30.000], [120.030, 30.010], [120.020, 30.010]]),
@@ -320,29 +325,28 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
             parcels.append((i, 120.005 + (i - 1) * GRID, 30.005))
         for i in range(4, 6):      # 区域2 内 2 块
             parcels.append((i, 120.025 + (i - 4) * GRID, 30.005))
-        for i in range(6, 9):      # 区域外 3 块（互不相邻）
+        for i in range(6, 9):      # 区域外 3 块（互不相邻、远离区域）
             parcels.append((i, 120.050 + (i - 6) * 0.01, 30.050))
         features = [{"type": "Feature", "properties": {"id": pid, "area_m2": 2000.0, "area_mu": 3.0,
                                                          "label_lng": lng, "label_lat": lat},
                      "geometry": {"type": "Polygon", "coordinates": []}} for pid, lng, lat in parcels]
         src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
         out = src.parent / "parcel-confirmation-v1.json"
-        un = {"7"}
+        un = {"7"}  # 旧未参保（7）应转参保
         out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 9)], un), ensure_ascii=False), encoding="utf-8")
         data = run_generate(LONGJIANG, src, out, force=True, regions=regions)
         self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
+        self.assertTrue(all(r["insured"] for r in data["records"]), "未参保应全部转参保")
         recs = {r["parcelId"]: r for r in data["records"]}
         self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
         self.assertEqual(recs["2"]["insuredPartyId"], "party-0001")
         self.assertEqual(recs["3"]["insuredPartyId"], "party-0001")
         self.assertEqual(recs["4"]["insuredPartyId"], "party-0002")
         self.assertEqual(recs["5"]["insuredPartyId"], "party-0002")
-        # 区域外参保地块：独立 party，且不与大户共用
+        # 区域外（含原未参保 7）：独立 party，且不与大户共用
         self.assertNotIn(recs["6"]["insuredPartyId"], ("party-0001", "party-0002"))
-        self.assertNotEqual(recs["6"]["insuredPartyId"], recs["8"]["insuredPartyId"])
-        # 未参保保留且不归属
-        self.assertFalse(recs["7"]["insured"])
-        self.assertIsNone(recs["7"]["insuredPartyId"])
+        self.assertNotEqual(recs["6"]["insuredPartyId"], recs["7"]["insuredPartyId"])
+        self.assertNotEqual(recs["7"]["insuredPartyId"], recs["8"]["insuredPartyId"])
         # spatialReview：2 个区域大户 + roster + summary
         region_metrics = [m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")]
         self.assertEqual([m["insuredPartyId"] for m in region_metrics], ["party-0001", "party-0002"])
@@ -351,10 +355,37 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertTrue(all(m["isolatedParcelIds"] == [] for m in region_metrics))
         self.assertEqual(region_metrics[0]["regionIndex"], 1)
         roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
-        self.assertEqual(roster["parcelCount"], 2)  # 6、8
+        self.assertEqual(roster["parcelCount"], 3)  # 6、7、8
         summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
         self.assertEqual(summary["bigFarmCount"], 2)
         self.assertGreater(summary["bigFarmCoverageShareOfInsuredArea"], 0.0)
+
+    def test_longjiang_region_mode_merge_100m(self):
+        # 区域外块到最近区域内地块质心距离 <100m → 归并进最近区域大户
+        regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "region-merge.geojson"
+        parcels = [
+            (1, 120.0005, 30.0005),   # 区域内
+            (2, 120.0099, 30.0099),   # 区域内（右缘内）
+            (3, 120.0105, 30.0099),   # 区域外但距 2 约 58m <100m → 归并
+            (4, 120.0500, 30.0500),   # 区域外且远离 → 团单
+        ]
+        features = [{"type": "Feature", "properties": {"id": pid, "area_m2": 2000.0, "area_mu": 3.0,
+                                                         "label_lng": lng, "label_lat": lat},
+                     "geometry": {"type": "Polygon", "coordinates": []}} for pid, lng, lat in parcels]
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "parcel-confirmation-v1.json"
+        data = run_generate(LONGJIANG, src, out, force=False, regions=regions, merge_meters=100.0)
+        recs = {r["parcelId"]: r for r in data["records"]}
+        self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["2"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["3"]["insuredPartyId"], "party-0001", "100m 内应归并进区域大户")
+        self.assertNotEqual(recs["4"]["insuredPartyId"], "party-0001", "远离区域应进团单")
+        metric = [m for m in data["spatialReview"] if m["insuredPartyId"] == "party-0001"][0]
+        self.assertEqual(metric["parcelCount"], 3)
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 1)
 
     def test_longjiang_region_mode_regions_chained(self):
         # 区域内地块组内最近邻 ≤200m、无孤岛；区域外一块一户
@@ -395,13 +426,13 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertTrue(all(len(party_parcels[p]) == 1 for p in roster_parties), "团单必须一块一户")
         self.assertIn("party-0001", big_farm_ids, "区域内地块应立大户")
 
-    def test_longjiang_region_mode_over_50_single_metric(self):
-        # 50 亩分类规则统一适用：区域外 >50 亩单块在 spatialReview 单独出单一型指标，团单汇总排除该块
+    def test_longjiang_region_mode_outside_pool_all_roster(self):
+        # 区域模式以区域划分为权威归属：区域外团单池全部一块一户进团单（忽略 50 亩单独出单规则）
         regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]
         tmp = Path(tempfile.mkdtemp())
         src = tmp / "parcels.geojson"
         features = []
-        for i in range(1, 21):  # 区域内 20 块 × 3 亩（id 17 未参保 → 19 块 57 亩）
+        for i in range(1, 21):  # 区域内 20 块 × 3 亩 = 60 亩（未参保已转参保，id 17 也在区域内）
             row = (i - 1) // 5
             col = (i - 1) % 5
             features.append({"type": "Feature", "properties": {"id": i, "area_m2": 2000, "area_mu": 3.0,
@@ -420,17 +451,13 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         out = src.parent / "parcel-confirmation-v1.json"
         data = run_generate(LONGJIANG, src, out, force=False, regions=regions)
         metrics = {m["insuredPartyId"]: m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")}
-        self.assertEqual(list(metrics), ["party-0001", "party-0002"])
-        self.assertEqual(metrics["party-0001"]["parcelCount"], 19)
+        self.assertEqual(list(metrics), ["party-0001"], "区域外团单池（含 >50 亩块）不出单一型指标")
+        self.assertEqual(metrics["party-0001"]["parcelCount"], 20)
         self.assertEqual(metrics["party-0001"]["regionIndex"], 1)
-        self.assertEqual(metrics["party-0002"]["parcelCount"], 1)
-        self.assertEqual(metrics["party-0002"]["maxDistanceM"], 0.0)
-        self.assertEqual(metrics["party-0002"]["isolatedParcelIds"], [])
-        self.assertNotIn("regionIndex", metrics["party-0002"], "非区域单块大田不应带 regionIndex")
         roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
-        self.assertEqual(roster["parcelCount"], 9)
+        self.assertEqual(roster["parcelCount"], 10)
         summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
-        self.assertEqual(summary["bigFarmCount"], 2)
+        self.assertEqual(summary["bigFarmCount"], 1)
         self.assertGreater(summary["bigFarmCoverageShareOfInsuredArea"], 0.0)
         recs = {r["parcelId"]: r for r in data["records"]}
         self.assertEqual(recs["21"]["insuredPartyId"], "party-0002")

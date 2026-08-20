@@ -191,13 +191,12 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         finally:
             VF.DATA, VF.ROOT = vf_orig
 
-    def test_longjiang_region_mode_over_50_mu_outside_single_policy(self):
-        # 50 亩分类规则统一适用：区域外 >50 亩单块单独出单一型保单（不因“区域外”而进团单），
-        # 团单项全部 ≤50 亩且一块一户（验收 1.3/2.1）
+    def test_longjiang_region_mode_uninsured_zero_and_outside_pool_roster(self):
+        # 区域模式（plan-merge100）：未参保全部转参保（83→0）；区域外团单池全部一块一户进团单（忽略 50 亩规则）
         tmp = Path(tempfile.mkdtemp())
         src = tmp / "parcels.geojson"
         features = []
-        for i in range(1, 21):  # 区域内 20 块 × 3 亩 = 60 亩（去 mod17 未参保后 57 亩）
+        for i in range(1, 21):  # 区域内 20 块 × 3 亩 = 60 亩（原 id 17 未参保已转参保，仍属区域内）
             row = (i - 1) // 5
             col = (i - 1) % 5
             features.append({"type": "Feature", "properties": {"id": i, "area_m2": 2000, "area_mu": 3.0,
@@ -207,7 +206,7 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         features.append({"type": "Feature", "properties": {"id": 21, "area_m2": 34267, "area_mu": 51.4,
                                                                "label_lng": 120.100, "label_lat": 30.100},
                          "geometry": {"type": "Polygon", "coordinates": []}})
-        for i in range(22, 31):  # 区域外小地块（1 亩，≤50 进团单）
+        for i in range(22, 31):  # 区域外小地块（1 亩）
             features.append({"type": "Feature", "properties": {"id": i, "area_m2": 667, "area_mu": 1.0,
                                                                  "label_lng": 120.110 + (i - 22) * 0.01,
                                                                  "label_lat": 30.110 + (i - 22) * 0.01},
@@ -223,6 +222,7 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
         PC.output_path = lambda c: conf
         cfg = tmp / "regions.json"
         cfg.write_text(json.dumps({"villageCode": "330604102014", "assignmentModel": "user-annotated-regions-v1",
+                                   "mergeMeters": 100.0,
                                    "regions": [{"party": "party-0001",
                                                  "polygon": [[120.000, 30.000], [120.010, 30.000],
                                                               [120.010, 30.010], [120.000, 30.010]]}]},
@@ -232,15 +232,14 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
             PC.generate("330604102014")
         finally:
             PC.source_path, PC.output_path, PC.regions_config_path = pc_orig
-        # 确认产物：区域外 >50 亩单块在 spatialReview 中单独出单一型指标，团单汇总排除该块
+        # 确认产物：未参保 0；区域外团单池（含 >50 亩单块）不出单一型指标
         q = json.loads(conf.read_text(encoding="utf-8"))
+        self.assertTrue(all(r["insured"] for r in q["records"]), "区域模式未参保应全部转参保")
         single_metrics = {m["insuredPartyId"]: m for m in q["spatialReview"]
                           if m["insuredPartyId"].startswith("party-")}
-        self.assertIn("party-0001", single_metrics)
-        self.assertIn("party-0002", single_metrics)
-        self.assertEqual(single_metrics["party-0002"]["parcelCount"], 1)
+        self.assertEqual(list(single_metrics), ["party-0001"])
         roster = [m for m in q["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
-        self.assertEqual(roster["parcelCount"], 9)  # 22-30
+        self.assertEqual(roster["parcelCount"], 10)  # 21-30
         gf_orig = (GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT)
         GF.find_village = lambda c: {"properties": {"code": c, "name": "龙江村"}}
         GF.parcel_path = lambda c: parcel_dest
@@ -252,16 +251,15 @@ class ValidatePolicyFixtureTest(unittest.TestCase):
             GF.find_village, GF.parcel_path, GF.confirmation_path, GF.ROOT = gf_orig
         fx = json.loads((tmp / "web/src/data/policy-v1.json").read_text(encoding="utf-8"))
         single = [p for p in fx["policies"] if p["status"] != "已到期" and p["insuredMode"] == "single_insured"]
-        self.assertEqual({p["insuredPartyId"] for p in single}, {"party-0001", "party-0002"})
+        self.assertEqual([p["insuredPartyId"] for p in single], ["party-0001"])
         items = fx["enrollmentItems"]
-        self.assertEqual(len(items), 9)
-        self.assertTrue(all(Decimal(i["insuredAreaMu"]) <= Decimal("50.00") for i in items), "团单项必须全部 ≤50 亩")
+        self.assertEqual(len(items), 10)
         self.assertTrue(all(len(i["parcelCoverageIds"]) == 1 for i in items), "团单必须一块一户")
         parcel21_cov = [c for c in fx["parcelCoverages"] if c["parcelId"] == "21" and c["policyId"] != "policy-2024-history"]
         self.assertEqual(len(parcel21_cov), 1)
-        self.assertEqual(parcel21_cov[0]["policyId"], "policy-2025-party-0002")
-        self.assertIsNone(parcel21_cov[0]["enrollmentItemId"])
-        # 全链路校验通过
+        self.assertEqual(parcel21_cov[0]["policyId"], "policy-2025-roster")
+        self.assertIsNotNone(parcel21_cov[0]["enrollmentItemId"], "区域外 >50 亩单块按区域划分仍进团单")
+        # 全链路校验通过（含未参保 0 与区域模式检查）
         vf_orig = (VF.DATA, VF.ROOT)
         VF.DATA = tmp / "web/src/data"
         VF.ROOT = tmp

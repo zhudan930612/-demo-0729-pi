@@ -135,13 +135,19 @@ def validate_village(code: str) -> None:
     for x in current:
         by_party.setdefault(x["insuredPartyId"], []).append(x)
     violations = []
+    region_mode = q.get("assignmentModel") == LONGJIANG_ASSIGNMENT_MODEL
     for party, covs in by_party.items():
         total = sum((Decimal(x["insuredAreaMu"]) for x in covs), Decimal(0)).quantize(Decimal(".01"), rounding=ROUND_HALF_UP)
         roster = any(i["insuredPartyId"] == party for i in items.values())
-        # 50 亩分类规则统一（标注区域模式同样适用）：分类面积 >50.00 亩 → 单一型保单，≤50.00 亩 → 团单一块一户
-        if (total <= Decimal("50")) != roster:
+        if region_mode:
+            # 区域模式：区域划分权威——区域 party 单独出单一型保单，团单池全部一块一户进团单（忽略 50 亩规则）
+            expected_roster = len(covs) == 1
+        else:
+            # 聚类模式：50 亩分类规则——分类面积 >50.00 亩 → 单一型保单，≤50.00 亩 → 团单一块一户
+            expected_roster = total <= Decimal("50")
+        if expected_roster != roster:
             violations.append((party, str(total)))
-    check(not violations, f"{code}: 全部被保险人符合 50.00 亩分类且不拆分")
+    check(not violations, f"{code}: {'区域模式：团单池全部一块一户进团单' if region_mode else '全部被保险人符合 50.00 亩分类且不拆分'}")
     current_policies = [policy for policy in p["policies"] if policy["status"] != "已到期"]
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
@@ -181,7 +187,9 @@ def validate_village(code: str) -> None:
     check(all(x["insuredPartyId"] in parties for x in p["parcelCoverages"]), f"{code}: 主体引用完整")
     current_records = {x["parcelId"] for x in c["records"] if x["year"] == 2025 and x["crop"] == "水稻"}
     check(set(current_ids) <= current_records, f"{code}: 全部当前参保基础地块具备 2025 水稻初始档案")
-    check(bool(current_records - set(current_ids)), f"{code}: 部分当前未参保地块具备初始档案")
+    # 未参保 0 的村（龙江村区域模式：未参保全部转参保）无需具备未参保初始档案
+    if len(conf_records) - len(current_ids) > 0:
+        check(bool(current_records - set(current_ids)), f"{code}: 部分当前未参保地块具备初始档案")
     # 清单主体 = 非历史主体（partyType != 合作社）且非村集体组织者
     roster_parties = [party for party in p["parties"] if party["id"].startswith("party-") and party["partyType"] != "合作社"]
     current_party_names = [party["name"] for party in roster_parties if party["id"] != "party-roster"]
