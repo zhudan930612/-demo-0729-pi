@@ -68,7 +68,7 @@ def build_fixture(code: str = "330604102016", spacing: float = 0.001):
     conf = tmp / "conf.json"
     PC.output_path = lambda c: conf
     # 聚类村不读 regions 配置；提供占位避免误用
-    PC.regions_config_path = lambda: tmp / "unused-regions.json"
+    PC.regions_config_path = lambda c: tmp / "unused-regions.json"
     try:
         PC.generate(code)
     finally:
@@ -104,7 +104,7 @@ class GeneratePolicyFixtureTest(unittest.TestCase):
             "regions": [{"party": "party-0001",
                          "polygon": [[120.85, 29.75], [120.90, 29.75], [120.90, 29.80], [120.85, 29.80]]}],
         }, ensure_ascii=False), encoding="utf-8")
-        PC.regions_config_path = lambda: cfg
+        PC.regions_config_path = lambda c: cfg
         try:
             PC.generate("330604102014")
         finally:

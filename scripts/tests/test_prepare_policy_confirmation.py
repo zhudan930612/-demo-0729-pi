@@ -21,6 +21,7 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 LONGJIANG = "330604102014"
+DAQIAN = "330604102015"
 OTHER = "330604102016"
 GRID = 0.001  # 网格间距：相邻质心约 96~110m（≤200m），全连通
 
@@ -89,10 +90,10 @@ def make_confirmation(parcel_ids: list[str], uninsured_ids: set[str], model: str
     }
 
 
-def make_regions_config(path: Path, regions: list, merge_meters: float = 0.0) -> Path:
-    """写入龙江村标注区域配置。regions: [(party_id, [[lng,lat],...]), ...]。"""
+def make_regions_config(path: Path, regions: list, merge_meters: float = 0.0, code: str = LONGJIANG) -> Path:
+    """写入标注区域配置（villageCode=code）。regions: [(party_id, [[lng,lat],...]), ...]。"""
     path.write_text(json.dumps({
-        "villageCode": LONGJIANG,
+        "villageCode": code,
         "assignmentModel": "user-annotated-regions-v1",
         "mergeMeters": merge_meters,
         "regions": [{"party": party, "polygon": polygon} for party, polygon in regions],
@@ -110,11 +111,11 @@ def run_generate(code: str, src: Path, out: Path, force: bool = False, regions: 
     cfg = src.parent / "regions.json"
     if regions is None:
         regions = [("party-0001", [[119.0, 29.0], [121.0, 29.0], [121.0, 31.0], [119.0, 31.0]])]
-    make_regions_config(cfg, regions, merge_meters)
+    make_regions_config(cfg, regions, merge_meters, code=code)
     try:
         MODULE.source_path = lambda c: src
         MODULE.output_path = lambda c: out
-        MODULE.regions_config_path = lambda: cfg
+        MODULE.regions_config_path = lambda c: cfg
         MODULE.generate(code, force=force)
     finally:
         MODULE.source_path = original_source_path
@@ -336,7 +337,6 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 9)], un), ensure_ascii=False), encoding="utf-8")
         data = run_generate(LONGJIANG, src, out, force=True, regions=regions)
         self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
-        self.assertTrue(all(r["insured"] for r in data["records"]), "未参保应全部转参保")
         recs = {r["parcelId"]: r for r in data["records"]}
         self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
         self.assertEqual(recs["2"]["insuredPartyId"], "party-0001")
@@ -345,8 +345,11 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertEqual(recs["5"]["insuredPartyId"], "party-0002")
         # 区域外（含原未参保 7）：独立 party，且不与大户共用
         self.assertNotIn(recs["6"]["insuredPartyId"], ("party-0001", "party-0002"))
-        self.assertNotEqual(recs["6"]["insuredPartyId"], recs["7"]["insuredPartyId"])
-        self.assertNotEqual(recs["7"]["insuredPartyId"], recs["8"]["insuredPartyId"])
+        self.assertNotEqual(recs["6"]["insuredPartyId"], recs["8"]["insuredPartyId"])
+        # 区域内未参保转参保；区域外未参保保留（一般区域规则）
+        self.assertFalse(recs["7"]["insured"])
+        self.assertIsNone(recs["7"]["insuredPartyId"])
+        self.assertTrue(all(r["insured"] for pid, r in recs.items() if pid != "7"))
         # spatialReview：2 个区域大户 + roster + summary
         region_metrics = [m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")]
         self.assertEqual([m["insuredPartyId"] for m in region_metrics], ["party-0001", "party-0002"])
@@ -355,7 +358,7 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertTrue(all(m["isolatedParcelIds"] == [] for m in region_metrics))
         self.assertEqual(region_metrics[0]["regionIndex"], 1)
         roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
-        self.assertEqual(roster["parcelCount"], 3)  # 6、7、8
+        self.assertEqual(roster["parcelCount"], 2)  # 6、8
         summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
         self.assertEqual(summary["bigFarmCount"], 2)
         self.assertGreater(summary["bigFarmCoverageShareOfInsuredArea"], 0.0)
@@ -490,7 +493,7 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         orig = (MODULE.source_path, MODULE.output_path, MODULE.regions_config_path)
         MODULE.source_path = lambda c: src
         MODULE.output_path = lambda c: out
-        MODULE.regions_config_path = lambda: cfg_path
+        MODULE.regions_config_path = lambda c: cfg_path
         try:
             MODULE.generate(LONGJIANG, force=False)
         finally:
@@ -504,6 +507,52 @@ class PreparePolicyConfirmationTest(unittest.TestCase):
         self.assertEqual(metric["parcelCount"], 6)
         roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
         self.assertEqual(roster["parcelCount"], 2)
+
+    def test_daqian_region_mode_bbox_assign_and_uninsured_kept(self):
+        # 大钱村（330604102015）区域模式 v3：严格按红框 bbox、无 100m 归并；
+        # 区域内全部（含未参保）归大户；区域外未参保保留、区域外参保一块一户团单
+        regions = [
+            ("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]]),
+            ("party-0002", [[120.020, 30.000], [120.030, 30.000], [120.030, 30.010], [120.020, 30.010]]),
+        ]
+        tmp = Path(tempfile.mkdtemp())
+        src = tmp / "daqian-parcels.geojson"
+        parcels = [
+            (1, 120.005, 30.005), (2, 120.006, 30.005),   # 框1 内
+            (3, 120.025, 30.005), (4, 120.026, 30.005),   # 框2 内
+            (5, 120.0105, 30.005),  # 框1 外紧邻（mergeMeters=0 不归并 → 团单）
+            (6, 120.050, 30.050),
+            (7, 120.060, 30.060),
+        ]
+        features = [{"type": "Feature", "properties": {"id": pid, "area_m2": 2000.0, "area_mu": 3.0,
+                                                         "label_lng": lng, "label_lat": lat},
+                     "geometry": {"type": "Polygon", "coordinates": []}} for pid, lng, lat in parcels]
+        src.write_text(json.dumps({"type": "FeatureCollection", "features": features}), encoding="utf-8")
+        out = src.parent / "conf.json"
+        un = {"2", "7"}  # 2 在框1 内（转参保）、7 在框外（保留未参保）
+        out.write_text(json.dumps(make_confirmation([str(i) for i in range(1, 8)], un), ensure_ascii=False), encoding="utf-8")
+        data = run_generate(DAQIAN, src, out, force=True, regions=regions, merge_meters=0.0)
+        self.assertEqual(data["assignmentModel"], MODULE.LONGJIANG_ASSIGNMENT_MODEL)
+        recs = {r["parcelId"]: r for r in data["records"]}
+        self.assertEqual(recs["1"]["insuredPartyId"], "party-0001")
+        self.assertEqual(recs["2"]["insuredPartyId"], "party-0001", "区域内未参保应转参保归大户")
+        self.assertEqual(recs["3"]["insuredPartyId"], "party-0002")
+        self.assertEqual(recs["4"]["insuredPartyId"], "party-0002")
+        self.assertNotEqual(recs["5"]["insuredPartyId"], "party-0001", "mergeMeters=0 时紧邻红框也不归并")
+        self.assertNotEqual(recs["6"]["insuredPartyId"], "party-0001")
+        # 区域外未参保保留
+        self.assertFalse(recs["7"]["insured"])
+        self.assertIsNone(recs["7"]["insuredPartyId"])
+        new_un = {r["parcelId"] for r in data["records"] if not r["insured"]}
+        self.assertEqual(new_un, {"7"})
+        # spatialReview
+        region_metrics = [m for m in data["spatialReview"] if m["insuredPartyId"].startswith("party-")]
+        self.assertEqual([m["insuredPartyId"] for m in region_metrics], ["party-0001", "party-0002"])
+        self.assertTrue(all(m["isolatedParcelIds"] == [] for m in region_metrics))
+        roster = [m for m in data["spatialReview"] if m["insuredPartyId"] == "roster-one-parcel-per-party"][0]
+        self.assertEqual(roster["parcelCount"], 2)  # 5、6
+        summary = [m for m in data["spatialReview"] if m["insuredPartyId"] == "coverage-summary"][0]
+        self.assertEqual(summary["bigFarmCount"], 2)
 
     def test_longjiang_region_mode_deterministic(self):
         regions = [("party-0001", [[120.000, 30.000], [120.010, 30.000], [120.010, 30.010], [120.000, 30.010]])]

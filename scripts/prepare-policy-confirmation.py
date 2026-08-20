@@ -23,17 +23,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VILLAGE = "330604102014"
+DAQIAN_VILLAGE = "330604102015"
 ADJACENCY_DISTANCE_M = 200.0
 MAX_GROUP_AREA_MU = Decimal("500.00")
 BIG_FARM_MIN_AREA_MU = Decimal("50.00")
 ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
 LONGJIANG_ASSIGNMENT_MODEL = "user-annotated-regions-v1"
-LONGJIANG_REGIONS_PATH = ROOT / 'scripts/data/longjiang-regions-2025.json'
+# 用户标注区域模式的村 → 区域配置文件（mergeMeters 可配置：龙江村 100 级联归并、大钱村 0 无归并）
+REGION_CONFIGS: dict[str, Path] = {
+    DEFAULT_VILLAGE: ROOT / 'scripts/data/longjiang-regions-2025.json',
+    DAQIAN_VILLAGE: ROOT / 'scripts/data/daqian-regions-2025.json',
+}
 
 
-def regions_config_path() -> Path:
-    """龙江村标注区域配置文件路径（测试可 monkeypatch）。"""
-    return LONGJIANG_REGIONS_PATH
+def regions_config_path(code: str) -> Path | None:
+    """按村返回标注区域配置文件路径（测试可 monkeypatch）。"""
+    return REGION_CONFIGS.get(code)
+
+
+def is_region_mode(code: str) -> bool:
+    """该村是否使用用户标注区域模式。"""
+    return code in REGION_CONFIGS
 
 
 def point_in_polygon(lng: float, lat: float, polygon: list) -> bool:
@@ -169,32 +179,31 @@ def enforce_in_group_neighbors(group: list[str], adj: dict) -> tuple[list[str], 
     return kept, demoted
 
 
-def assign_annotated_regions(insured_ids: list[str], points: dict) -> tuple[list[tuple[str, list[str]]], list[str]]:
-    """龙江村标注区域模式：区域内地块归该大户；区域外到最近区域内地块质心距离 < mergeMeters 米归并；
-    其余一块一户进团单（plan-merge100：未参保全部转参保，团单不得出现在红框区域内）。
+def assign_annotated_regions(code: str, parcel_ids: list[str], points: dict) -> tuple[list[tuple[str, list[str]]], list[str]]:
+    """用户标注区域模式（龙江村/大钱村）：区域内地块（含未参保）归该大户；区域外到最近区域成员
+    质心距离 < mergeMeters 米级联归并（mergeMeters>0）；其余归入团单池（参保/未参保由调用方区分）。
 
-    区域按配置顺序匹配（首个包含该点的区域生效）；归并采用级联（新归并块成为后续归并参考点，
-    与用户确认的 plan-merge100 一致）；区域级 maxLng 右边界约定：区域内/归并块中 lng > maxLng 的
-    移出到团单池（区域1 半区调整用，用户确认 558/219）；返回 (区域组 [(party, parcels)], 团单地块)。
+    区域按配置顺序匹配（首个包含该点的区域生效）；区域级 maxLng 右边界约定：区域内/归并块中
+    lng > maxLng 的移出到团单池；返回 (区域组 [(party, parcels)], 团单池地块)。
     """
-    cfg_path = regions_config_path()
-    if not cfg_path.exists():
-        raise SystemExit(f'missing regions config: {cfg_path}')
+    cfg_path = regions_config_path(code)
+    if cfg_path is None or not cfg_path.exists():
+        raise SystemExit(f'missing regions config for {code}: {cfg_path}')
     cfg = json.loads(cfg_path.read_text(encoding='utf8'))
-    if cfg.get('villageCode') != DEFAULT_VILLAGE:
-        raise SystemExit(f'regions config 村代码不匹配: {cfg.get("villageCode")}')
+    if cfg.get('villageCode') != code:
+        raise SystemExit(f'regions config 村代码不匹配: {cfg.get("villageCode")} != {code}')
     regions = cfg.get('regions', [])
     if not regions:
         raise SystemExit(f'regions config 区域为空: {cfg_path}')
     merge_meters = float(cfg.get('mergeMeters', 0.0))
     inside: list[set[str]] = [set() for _ in regions]
-    for pid in insured_ids:  # 已按 id 排序，确定性
+    for pid in parcel_ids:  # 已按 id 排序，确定性
         for i, region in enumerate(regions):
             if point_in_polygon(points[pid][0], points[pid][1], region['polygon']):
                 inside[i].add(pid)
                 break
     roster: list[str] = []
-    for pid in insured_ids:  # id 升序遍历，确定性
+    for pid in parcel_ids:  # id 升序遍历，确定性
         if any(pid in s for s in inside):
             continue
         # 归并：到最近区域成员（含已归并块，级联）质心距离 < mergeMeters
@@ -248,34 +257,42 @@ def generate(code: str, force: bool = False) -> None:
         print(f'{code}: 按确定性规则生成未参保集合 {len(existing_uninsured)} 块（{len(existing_uninsured) / len(ids):.1%}）')
 
     uninsured = {pid for pid in existing_uninsured if pid in areas}
-    if code == DEFAULT_VILLAGE:
-        # 龙江村区域模式（plan-merge100）：未参保全部转参保（83→0），团单不得出现在红框区域内
-        if uninsured:
-            print(f'{code}: 区域模式——未参保 {len(uninsured)} 块全部转参保，参与区域/归并/团单归属')
-        uninsured = set()
-    insured_ids = [i for i in ids if i not in uninsured]
 
-    if code == DEFAULT_VILLAGE:
-        # 龙江村：用户标注区域模式（plan-merge100：区域内+100m 归并 = 大户，其余 = 团单一块一户，未参保全部转参保）
-        region_groups, roster_parcels = assign_annotated_regions(insured_ids, points)
+    if is_region_mode(code):
+        # 用户标注区域模式：区域内全部地块（含未参保）归大户；mergeMeters>0 时区域外级联归并；
+        # 未参保集合 = 原集合 − 区域内/归并转参保块（保留区域外未参保）
+        region_groups, roster_pool = assign_annotated_regions(code, list(ids), points)
+        inside_merged = set().union(*[group for _, group in region_groups])
+        converted = uninsured & inside_merged
+        if converted:
+            print(f'{code}: 区域模式——区域内/归并未参保 {len(converted)} 块转参保归大户')
+        uninsured = uninsured - inside_merged
+        insured_ids = [i for i in ids if i not in uninsured]
         model = LONGJIANG_ASSIGNMENT_MODEL
         assignments: dict[str, str] = {}
         for party, group in region_groups:
             for pid in group:
                 assignments[pid] = party
         next_party = max((int(pid.rsplit('-', 1)[-1]) for pid, _ in region_groups), default=0) + 1
-        for pid in roster_parcels:  # 已按 id 排序，确定性
+        roster_parcels = [pid for pid in roster_pool if pid in insured_ids]  # 仅参保块进团单
+        roster_parcels.sort(key=int)
+        for pid in roster_parcels:
             assignments[pid] = f'party-{next_party:04d}'
             next_party += 1
-        # 区域模式以区域划分为权威归属：区域（含 100m 归并）= 大户；其余团单池全部一块一户进团单
-        # （忽略 50 亩单独出单规则；团单不得出现在红框区域内，团单块 ≤50 亩由数据保证）
+        # 区域划分权威：区域 = 大户；区域外团单池全部一块一户进团单（忽略 50 亩单独出单规则）
         region_party_ids = {party for party, _ in region_groups}
         big_farm_groups = [group for _, group in region_groups]
-        region_farm_review = '通过：用户标注区域（红框）+100m 归并划分（scripts/data/longjiang-regions-2025.json，mergeMeters=100）；区域内/归并地块归属该大户；组内最近邻≤200m 无孤岛'
+        if code == DEFAULT_VILLAGE:
+            region_farm_review = '通过：用户标注区域（红框）+100m 归并划分（scripts/data/longjiang-regions-2025.json，mergeMeters=100）；区域内/归并地块归属该大户；组内最近邻≤200m 无孤岛'
+            roster_review = '通过：区域外且距区域内地块 ≥100m 的参保地块一块一户进团单（未参保已全部转参保）'
+            summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+归并自然结果，验收 1.4）'
+        else:
+            region_farm_review = '通过：用户标注区域（红框）划分（scripts/data/daqian-regions-2025.json，mergeMeters=0 无归并）；区域内地块归属该大户；组内最近邻≤200m 无孤岛'
+            roster_review = '通过：区域外参保地块一块一户进团单（区域内未参保已转参保，区域外未参保保留）'
+            summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域自然结果，验收 1.4）'
         single_farm_review = region_farm_review
-        roster_review = '通过：区域外且距区域内地块 ≥100m 的参保地块一块一户进团单（未参保已全部转参保）'
-        summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，用户标注区域+归并自然结果，验收 1.4）'
     else:
+        insured_ids = [i for i in ids if i not in uninsured]
         # 其他村：成片聚类模式
         adj = build_adjacency(insured_ids, points)
         components = connected_components(insured_ids, adj)
@@ -316,10 +333,11 @@ def generate(code: str, force: bool = False) -> None:
         summary_review = '大户合计覆盖参保面积实际比例（无硬性指标，聚类自然形态，验收 1.4）'
 
     metrics: list[dict] = []
+    region_mode = is_region_mode(code)
     for group in big_farm_groups:
         party_id = assignments[group[0]]
         total = sum((areas[pid] for pid in group), Decimal(0))
-        if code == DEFAULT_VILLAGE:
+        if region_mode:
             isolated = [pid for pid in sorted(group, key=int)
                         if len(group) > 1 and not any(distance(points[pid], points[other]) <= ADJACENCY_DISTANCE_M
                                                       for other in group if other != pid)]
@@ -335,10 +353,10 @@ def generate(code: str, force: bool = False) -> None:
             'primaryGroupAreaRatio': 1.0,
             'maxDistanceM': round(max_span(group, points), 1),
             'isolatedParcelIds': isolated,
-            'manualReview': region_farm_review if (code == DEFAULT_VILLAGE and party_id in region_party_ids)
-                             else (single_farm_review if code == DEFAULT_VILLAGE else farm_review),
+            'manualReview': region_farm_review if (region_mode and party_id in region_party_ids)
+                             else (single_farm_review if region_mode else farm_review),
         }
-        if code == DEFAULT_VILLAGE and party_id in region_party_ids:
+        if region_mode and party_id in region_party_ids:
             metric['regionIndex'] = int(party_id[-4:])
         metrics.append(metric)
     metrics.append({

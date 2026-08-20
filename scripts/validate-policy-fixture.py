@@ -29,6 +29,8 @@ DEFAULT_VILLAGE = "330604102014"
 DATA = ROOT / "web/src/data"
 EXPECTED_ASSIGNMENT_MODEL = "spatial-chained-clustering-500mu-cap"
 LONGJIANG_ASSIGNMENT_MODEL = "user-annotated-regions-v1"
+# 用户标注区域模式的村（确认产物使用 user-annotated-regions-v1）
+REGION_MODE_VILLAGES = {DEFAULT_VILLAGE, "330604102015"}
 CHAIN_DISTANCE_M = 200.0
 
 
@@ -152,7 +154,7 @@ def validate_village(code: str) -> None:
     single_current = [policy for policy in current_policies if policy["insuredMode"] == "single_insured"]
     roster_current = [policy for policy in current_policies if policy["insuredMode"] == "insured_roster"]
     check(len(roster_current) == 1, f"{code}: 当前恰好 1 张分户清单型保单")
-    check(q.get("assignmentModel") == (LONGJIANG_ASSIGNMENT_MODEL if code == DEFAULT_VILLAGE else EXPECTED_ASSIGNMENT_MODEL), f"{code}: 确认清单使用{'标注区域' if code == DEFAULT_VILLAGE else '成片聚类'}模型")
+    check(q.get("assignmentModel") == (LONGJIANG_ASSIGNMENT_MODEL if code in REGION_MODE_VILLAGES else EXPECTED_ASSIGNMENT_MODEL), f"{code}: 确认清单使用{'标注区域' if code in REGION_MODE_VILLAGES else '成片聚类'}模型")
     roster_policy_id = roster_current[0]["id"]
     roster_coverages = [coverage for coverage in current if coverage["policyId"] == roster_policy_id]
     roster_item_ids = {item["id"] for item in items.values() if item["enrollmentListId"] == roster_current[0]["enrollmentListId"]}
