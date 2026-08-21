@@ -22,7 +22,7 @@
 |------|------|--------|
 | OSM 底图 | 底图切换选项集合，含 OSM 标准（OpenStreetMap 街道瓦片，`tile.openstreetmap.org`）与 OSM 地貌（OpenTopoMap 地形瓦片，`tile.opentopomap.org`）两种，均免费、无需 token | 街景、谷歌地图 |
 | 底图切换 | 在菜单中单选一个底图选项，移除当前底图图层组并添加所选底图图层组，不刷新页面、不改变地图中心与缩放 | — |
-| 版权标注 | OSM/OpenTopoMap 强制要求的地图归属文字：OSM 标准「© OpenStreetMap contributors」；OSM 地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」 | — |
+| 版权标注 | 地图归属文字：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 OSM 版权页的超链接（`https://www.openstreetmap.org/copyright`，点击新标签页打开）（内部 demo 极简取舍，官方完整文本「Kartendaten: © OpenStreetMap contributors, SRTM | Kartendarstellung: © OpenTopoMap (CC-BY-SA)」见 C3.1） | — |
 
 ## B1. 需求点 R1：新增 OSM 底图选项
 
@@ -45,7 +45,7 @@
 | 1.1 | 底图切换菜单出现「OSM 标准」「OSM 地貌」两项，连同卫星、矢量共四项；当前选中项有选中态标识，默认选中「卫星」 | 无 |
 | 1.2 | 选择「OSM 标准」后，底图切换为 OpenStreetMap 街道瓦片（请求 `tile.openstreetmap.org`），地图中心与缩放级别保持不变，页面不刷新 | 重复点击当前已选中的 OSM 标准不产生任何变化 |
 | 1.3 | 选择「OSM 地貌」后，底图切换为 OpenTopoMap 地形瓦片（请求 `tile.opentopomap.org`），地图中心与缩放级别保持不变，页面不刷新 | 同上 |
-| 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见且文本正确：OSM 标准「© OpenStreetMap contributors」；OSM 地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」 | 切回天地图后显示天地图标注，不残留 OSM 标注 |
+| 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见、文本正确且可点击（链接指向 `https://www.openstreetmap.org/copyright`，新标签页打开）：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」（文案统一为 2026-08-21 用户决策，见 C3.1） | 切回天地图后显示天地图标注，不残留 OSM 标注 |
 | 1.5 | （异常）OSM 标准/地貌瓦片加载失败（如网络中断）时，对应区域显示空白/灰块，地图容器不崩溃，行政边界、地块等业务图层不受影响；切回天地图卫星/矢量后底图立即恢复 | 断网后切回天地图仍能正常显示（天地图可达时） |
 | 1.6 | 切换至任一 OSM 底图后，高分影像叠加、行政边界、地块显示与交互均不受影响；切回天地图卫星/矢量后一切恢复正常 | 切换底图不重置高分影像开关状态 |
 
@@ -56,7 +56,7 @@
 | 1.1 | [E2E-自动化] | 启动 dev server，浏览器打开底图菜单，DOM 断言 4 个菜单项与默认选中态 |
 | 1.2 | [E2E-自动化] | route 拦截 OSM 域名记录请求 URL：点击「OSM 标准」后断言 tile 请求域名变为 `tile.openstreetmap.org`（fulfill 204，不依赖真实网络），且中心/缩放不变、页面不刷新 |
 | 1.3 | [E2E-自动化] | 同上：点击「OSM 地貌」后断言 tile 请求域名变为 `tile.opentopomap.org`，且中心/缩放不变 |
-| 1.4 | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本（配置值，与网络无关）；人工目视确认标注渲染位置正确（需在可访问 OSM 的浏览器环境） |
+| 1.4 | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本（统一「© OpenStreetMap」）、超链接 href 与 target=_blank（配置值，与网络无关）；人工目视确认标注渲染位置正确（需在可访问 OSM 的浏览器环境） |
 | 1.5 | [E2E-自动化] + [E2E-人工] | route 拦截 OSM 域名返回 503 模拟失败：断言地图不崩溃、行政边界/地块图层完好、切回天地图卫星恢复正常；人工可选复核真实断网场景 |
 | 1.6 | [E2E-自动化] + [E2E-人工] | 切换前后对比高分影像开关、边界、地块图层状态断言；人工目视确认浙江区域 OSM/地貌瓦片实际加载效果（需在可访问 OSM 的浏览器环境） |
 
@@ -65,7 +65,7 @@
 - 新增 OSM 底图遵循现有底图切换机制：一个底图选项 = 一个可整体添加/移除的图层组，接口沿用现有 `Basemaps` 结构（可扩展，不得破坏现有调用方）
 - 不修改现有天地图底图定义与默认选中逻辑
 - OSM 瓦片无独立注记层（文字注记烘焙在瓦片中）；切换到 OSM 时天地图注记随图层组一并移除、不得残留；天地图注记置顶（annotationPane）规则不受影响
-- OSM/OpenTopoMap 版权标注是强制要求，任何 OSM 底图状态下必须显示
+- OSM/OpenTopoMap 版权标注必须显示（任何 OSM 底图状态下），文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（新标签页打开）；OSM 标准与 OSM 地貌**统一采用极简**「© OpenStreetMap」（2026-08-21 用户决策；官方要求完整标注见 C3.1，公开分发前须恢复完整标注）
 - 不引入新凭据：token 仅天地图 `VITE_TIANDITU_TOKEN` 一项，OSM/OpenTopoMap 免 token
 - 缩放上限（数据源事实）：OSM 标准原生最高 z19；OpenTopoMap 原生最高 z17（z18+ 由 Leaflet 放大 z17 瓦片，变模糊属预期）。村级视图与地块操作（z15–15.25）均在两源原生范围内，无影响
 
@@ -91,6 +91,7 @@
 - 裸 curl（无 Referer）请求 `tile.openstreetmap.org` 返回 403（tile usage policy 拦截）；浏览器加载带页面 Referer，不受影响
 - **依赖声明**：OSM 两项底图的加载依赖浏览器网络路径可访问 OSM 域名（系统代理或等效国际出口）；演示环境需保持该网络条件，否则底图灰块（对应验收项 1.5）
 - **已确认决策（2026-08-21，grill-me 拷打结论）**：演示现场**接受无代理降级**——现场无代理时 OSM 两项灰块（验收 1.5 异常路径），演示只展示天地图两项，OSM 定位为「有条件可用」功能；瓦片加载失败**保持灰块、不加失败提示 UI**（与天地图现有行为一致，不新增文案）
+- **标注极简决策（2026-08-21，用户拍板，主 agent 提示过合规风险后仍坚持）**：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（`target="_blank"` 新标签页打开）。OpenTopoMap 官方许可（CC-BY-SA）要求完整标注「Kartendaten: © OpenStreetMap contributors, SRTM | Kartendarstellung: © OpenTopoMap (CC-BY-SA)」（官网 /about）；OSM 官方推荐标注为「© OpenStreetMap contributors」；统一极简版不满足官方完整要求，作为内部 demo 取舍记录。**如未来公开分发/对外发布，须恢复官方完整标注后再上线**
 
 ## C4. 非功能要求
 
