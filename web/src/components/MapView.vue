@@ -266,7 +266,8 @@ import {
   NEXT_LEVEL,
   LEVEL_WEIGHT,
 } from '../stores/drilldown'
-import { createBasemaps, type Basemaps } from '../api/tianditu'
+import { createBasemaps, type Basemaps, type BasemapKey } from '../api/tianditu'
+import { switchBasemap as applyBasemapSwitch } from '../map/basemapSwitcher'
 import { fetchJSON, fetchRsInfo, type RsInfo } from '../api/data'
 import { pointInGeometry } from '../utils/geo'
 
@@ -342,7 +343,7 @@ const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
 const canZoomIn = computed(() => currentZoom.value < 19)
 const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
-const basemap = ref<'img' | 'vec' | 'osm' | 'topo'>('img')
+const basemap = ref<BasemapKey>('img')
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
 
@@ -537,11 +538,9 @@ const {
 } = precipitationMode
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
-function switchBasemap(type: 'img' | 'vec' | 'osm' | 'topo') {
-  if (type === basemap.value || !basemaps) return
-  map.removeLayer(basemaps[basemap.value])
-  basemaps[type].addTo(map)
-  basemap.value = type
+function switchBasemap(type: BasemapKey) {
+  if (!basemaps) return
+  basemap.value = applyBasemapSwitch(map, basemaps, basemap.value, type)
 }
 
 const toFeature = (geometry: Geometry | null | undefined): Feature<Geometry | null> => ({

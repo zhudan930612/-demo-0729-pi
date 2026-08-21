@@ -40,6 +40,9 @@ export interface Basemaps {
   topo: L.LayerGroup
 }
 
+/** 底图选项键：img/vec/osm/topo，与 Basemaps 键一一对应 */
+export type BasemapKey = keyof Basemaps
+
 export function createBasemaps(): Basemaps {
   return {
     img: L.layerGroup([tdtLayer('img_w', 1), tdtLayer('cia_w', 4)]),
