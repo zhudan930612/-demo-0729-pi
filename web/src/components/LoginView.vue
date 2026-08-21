@@ -1,531 +1,379 @@
 <template>
   <div class="login-view">
-    <!-- 顶部纯色区：Logo + 标题 -->
-    <div class="hero-area">
-      <div class="hero-content">
-        <span class="logo-ring" aria-hidden="true">农险</span>
-        <p class="kicker">草稿版 · 内部技术验证</p>
-        <h1 class="title">
-          农险双精准地图 Demo
-          <span class="exclaim" aria-hidden="true">!</span>
-        </h1>
-        <p class="subtitle">登录后查看地图与业务数据</p>
-      </div>
-      <div class="decor tape" aria-hidden="true"></div>
+    <!-- 背景轮播区 -->
+    <div class="bg-slider" aria-hidden="true">
+      <!-- 底图：常驻 -->
+      <div class="bg-slide bg-base" :style="{ backgroundImage: `url('${baseSlide}')` }"></div>
+
+      <!-- 6 张覆盖图：依次播放 -->
+      <div v-for="(slide, index) in overlaySlides" :key="index" class="bg-slide" :class="slideClass(index)" :style="{ backgroundImage: `url('${slide.url}')` }"></div>
     </div>
 
-    <!-- 底部图片区：登录表单 -->
-    <div class="lower-area">
-      <canvas ref="bgCanvas" class="login-bg" aria-hidden="true"></canvas>
+    <div class="product-box"></div>
 
+    <!-- 登录卡片 -->
+    <div class="login-wrapper">
       <form class="login-card" novalidate @submit.prevent="submit">
+        <div class="card-header">
+          <span class="logo-icon" aria-hidden="true">🌾</span>
+          <div class="card-title-group">
+            <h1 class="card-title">农险双精准地图</h1>
+            <p class="card-subtitle">内部技术验证工作台</p>
+          </div>
+        </div>
+
         <label class="field">
           <span class="field-label">用户名</span>
-          <input
-            v-model.trim="username"
-            class="input"
-            type="text"
-            name="username"
-            autocomplete="username"
-            autofocus
-            placeholder="请输入用户名"
-            :disabled="submitting"
-          />
+          <input v-model.trim="username" class="input" type="text" name="username" autocomplete="username" autofocus placeholder="请输入用户名" :disabled="submitting" />
         </label>
 
         <label class="field">
           <span class="field-label">密码</span>
           <span class="password-wrap">
-            <input
-              v-model="password"
-              class="input"
-              :type="showPassword ? 'text' : 'password'"
-              name="password"
-              autocomplete="current-password"
-              placeholder="请输入密码"
-              :disabled="submitting"
-            />
-            <button
-              type="button"
-              class="reveal"
-              :disabled="submitting"
-              :aria-label="showPassword ? '隐藏密码' : '显示密码'"
-              @click="showPassword = !showPassword"
-            >{{ showPassword ? '隐藏' : '显示' }}</button>
+            <input v-model="password" class="input" :type="showPassword ? 'text' : 'password'" name="password" autocomplete="current-password" placeholder="请输入密码" :disabled="submitting" />
+            <button type="button" class="reveal" :disabled="submitting" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click="showPassword = !showPassword">
+              {{ showPassword ? '隐藏' : '显示' }}
+            </button>
           </span>
         </label>
 
-        <p v-if="auth.errorMessage" class="error" role="alert"> {{ auth.errorMessage }}</p>
+        <p v-if="auth.errorMessage" class="error" role="alert">{{ auth.errorMessage }}</p>
 
         <button class="submit" type="submit" :disabled="submitting || !username || !password">
-          {{ submitting ? '登录中…' : '登录 →' }}
+          {{ submitting ? '登录中…' : '登 录' }}
         </button>
 
-        <div class="postit" aria-label="演示账号提示">
-          <span class="postit-pin" aria-hidden="true"></span>
-          演示账号：admin / admin123
-        </div>
+        <div class="demo-hint">演示账号：admin / admin123</div>
       </form>
 
-      <svg class="decor arrow" viewBox="0 0 160 100" aria-hidden="true">
-        <path d="M10 20 C 60 20, 80 60, 140 80" fill="none" stroke="#2d3a1e" stroke-width="2" stroke-dasharray="6 4" />
-        <path d="M130 70 L 140 80 L 128 82" fill="none" stroke="#2d3a1e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <p class="footer-text">© 2024 农险双精准地图 Demo · 内部技术验证</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useAuthStore } from '../stores/auth'
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useAuthStore } from '../stores/auth';
 
-const auth = useAuthStore()
-const username = ref('')
-const password = ref('')
-const showPassword = ref(false)
-const submitting = ref(false)
+const auth = useAuthStore();
+const username = ref('');
+const password = ref('');
+const showPassword = ref(false);
+const submitting = ref(false);
 
-// —— 手绘风背景：漂浮的铅笔涂鸦 + 纸屑，呼应「草稿纸 + 涂鸦」主题 ——
-const bgCanvas = ref<HTMLCanvasElement | null>(null)
-const PENCIL = '#2d3a1e'
-const GREEN = '#4a7c23'
-const RED = '#c0392b'
+// —— 底图（常驻） ——
+const baseSlide = '/login/dataProduct_01.f1a826ca.webp';
 
-interface Scribble {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  rot: number
-  rotV: number
-  kind: 'circle' | 'star' | 'cross' | 'dot' | 'dash' | 'triangle'
-  size: number
-  color: string
-  opacity: number
+// —— 6 张覆盖图 + 各自进场类型 ——
+const overlaySlides = [
+  { url: '/login/dataProduct_02_b.085ba46e.webp', enterType: 'inset' }, // 从右向左揭示
+  { url: '/login/dataProduct_03_r.51c11ac2.webp', enterType: 'circle-tr' }, // 从右上角圆形展开
+  { url: '/login/dataProduct_04_w.fa8dacce.webp', enterType: 'fade' }, // 淡入
+  { url: '/login/dataProduct_05_v.6e39d4b9.webp', enterType: 'circle-bl' }, // 从左下角圆形展开
+  { url: '/login/dataProduct_06_s1.13923a35.webp', enterType: 'fade' }, // 淡入
+  { url: '/login/dataProduct_07_ao.c30812ed.webp', enterType: 'fade' }, // 淡入
+];
+
+// 动画时序
+const ENTER_MS = 1500; // 每张图进场 1.5s
+const ALL_VISIBLE_MS = 3500; // 全部显示后停留 3.5s
+const EXIT_MS = 1500; // 一起淡出 1.5s
+const BASE_MS = 1500; // 底图独享 1.5s
+
+// 每张覆盖图的状态：hidden / entering / visible / exiting
+const slideStates = ref(overlaySlides.map(() => 'hidden' as 'hidden' | 'entering' | 'visible' | 'exiting'));
+let slideTimer: ReturnType<typeof setTimeout> | undefined;
+
+function slideClass(index: number) {
+  const state = slideStates.value[index];
+  if (state === 'hidden') return 'slide-hidden';
+  return [`slide-${state}`, `enter-${overlaySlides[index].enterType}`];
 }
 
-let ctx: CanvasRenderingContext2D | null = null
-let scribbles: Scribble[] = []
-let width = 0
-let height = 0
-let raf = 0
-let reducedMotion = false
-
-const KINDS: Scribble['kind'][] = ['circle', 'star', 'cross', 'dot', 'dash', 'triangle']
-const COLORS = [PENCIL, PENCIL, PENCIL, GREEN, RED, GREEN] // 铅笔绿为主，点缀红
-
-function resize() {
-  const canvas = bgCanvas.value
-  if (!canvas) return
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  width = window.innerWidth
-  height = window.innerHeight
-  canvas.width = Math.floor(width * dpr)
-  canvas.height = Math.floor(height * dpr)
-  canvas.style.width = `${width}px`
-  canvas.style.height = `${height}px`
-  ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
-}
-
-function spawn() {
-  const count = Math.min(60, Math.max(24, Math.floor((width * height) / 26000)))
-  scribbles = Array.from({ length: count }, () => ({
-    x: Math.random() * width,
-    y: Math.random() * height,
-    vx: (Math.random() - 0.5) * 0.35,
-    vy: (Math.random() - 0.5) * 0.25 - 0.08, // 微微上浮
-    rot: Math.random() * Math.PI * 2,
-    rotV: (Math.random() - 0.5) * 0.012,
-    kind: KINDS[Math.floor(Math.random() * KINDS.length)],
-    size: 10 + Math.random() * 22,
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    opacity: 0.18 + Math.random() * 0.22,
-  }))
-}
-
-// 手绘圆：多段弧线，半径抖动
-function drawWobblyCircle(cx: number, cy: number, r: number) {
-  const c = ctx!
-  const segs = 8
-  c.beginPath()
-  for (let i = 0; i <= segs; i++) {
-    const a = (i / segs) * Math.PI * 2
-    const jitter = (Math.sin(i * 3.7 + cx) * 0.5 + Math.cos(i * 2.3 + cy) * 0.4) * r * 0.08
-    const x = cx + Math.cos(a) * (r + jitter)
-    const y = cy + Math.sin(a) * (r + jitter)
-    if (i === 0) c.moveTo(x, y)
-    else c.lineTo(x, y)
-  }
-  c.closePath()
-}
-
-// 手绘星星（五角）
-function drawWobblyStar(cx: number, cy: number, r: number) {
-  const c = ctx!
-  const spikes = 5
-  const outerR = r
-  const innerR = r * 0.45
-  c.beginPath()
-  for (let i = 0; i <= spikes * 2; i++) {
-    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2
-    const radius = i % 2 === 0 ? outerR : innerR
-    const jitter = Math.sin(i * 5.1 + cx) * r * 0.06
-    const x = cx + Math.cos(a) * (radius + jitter)
-    const y = cy + Math.sin(a) * (radius + jitter)
-    if (i === 0) c.moveTo(x, y)
-    else c.lineTo(x, y)
-  }
-  c.closePath()
-}
-
-// 手绘叉
-function drawCross(cx: number, cy: number, r: number) {
-  const c = ctx!
-  const off = r * 0.7
-  c.beginPath()
-  c.moveTo(cx - off + 1, cy - off - 1); c.lineTo(cx + off + 1, cy + off + 1)
-  c.moveTo(cx + off - 1, cy - off + 1); c.lineTo(cx - off - 1, cy + off - 1)
-}
-
-// 手绘三角
-function drawWobblyTriangle(cx: number, cy: number, r: number) {
-  const c = ctx!
-  const pts = [
-    [cx, cy - r * 0.9],
-    [cx - r * 0.9, cy + r * 0.7],
-    [cx + r * 0.9, cy + r * 0.7],
-  ]
-  c.beginPath()
-  c.moveTo(pts[0][0], pts[0][1])
-  for (const [x, y] of pts.slice(1)) c.lineTo(x + Math.sin(y) * 2, y)
-  c.closePath()
-}
-
-function drawScribble(s: Scribble) {
-  const c = ctx!
-  c.save()
-  c.globalAlpha = s.opacity
-  c.strokeStyle = s.color
-  c.fillStyle = s.color
-  c.lineWidth = 2.2
-  c.lineCap = 'round'
-  c.lineJoin = 'round'
-  c.translate(s.x, s.y)
-  c.rotate(s.rot)
-
-  switch (s.kind) {
-    case 'circle':
-      drawWobblyCircle(0, 0, s.size * 0.5)
-      c.stroke()
-      break
-    case 'star':
-      drawWobblyStar(0, 0, s.size * 0.5)
-      c.stroke()
-      break
-    case 'cross':
-      drawCross(0, 0, s.size * 0.5)
-      c.stroke()
-      break
-    case 'dot':
-      c.beginPath()
-      c.arc(0, 0, s.size * 0.15, 0, Math.PI * 2)
-      c.fill()
-      break
-    case 'dash':
-      c.beginPath()
-      c.moveTo(-s.size * 0.5, 0)
-      c.lineTo(s.size * 0.5, Math.sin(s.x) * 2)
-      c.stroke()
-      break
-    case 'triangle':
-      drawWobblyTriangle(0, 0, s.size * 0.5)
-      c.stroke()
-      break
-  }
-  c.restore()
-}
-
-function update() {
-  for (const s of scribbles) {
-    s.x += s.vx
-    s.y += s.vy
-    s.rot += s.rotV
-    // 环绕
-    if (s.x < -30) s.x = width + 30
-    else if (s.x > width + 30) s.x = -30
-    if (s.y < -30) s.y = height + 30
-    else if (s.y > height + 30) s.y = -30
-  }
-}
-
-function renderFrame() {
-  const c = ctx
-  if (!c) return
-  c.clearRect(0, 0, width, height)
-  for (const s of scribbles) drawScribble(s)
-}
-
-function loop() {
-  update()
-  renderFrame()
-  raf = requestAnimationFrame(loop)
-}
-
-function onResize() {
-  resize()
-  if (reducedMotion) renderFrame()
+function runSlideSequence() {
+  const run = () => {
+    // 阶段 1：依次进场（每张间隔 1.5s）
+    let entered = 0;
+    const enterNext = () => {
+      if (entered < overlaySlides.length) {
+        slideStates.value[entered] = 'entering';
+        entered++;
+        slideTimer = setTimeout(enterNext, ENTER_MS);
+      } else {
+        // 阶段 2：全部进入 visible
+        slideStates.value = slideStates.value.map(() => 'visible');
+        slideTimer = setTimeout(() => {
+          // 阶段 3：一起淡出
+          slideStates.value = slideStates.value.map(() => 'exiting');
+          slideTimer = setTimeout(() => {
+            // 阶段 4：回到底图
+            slideStates.value = slideStates.value.map(() => 'hidden');
+            slideTimer = setTimeout(run, BASE_MS);
+          }, EXIT_MS);
+        }, ALL_VISIBLE_MS);
+      }
+    };
+    slideTimer = setTimeout(enterNext, 1500); // 初始 1.5s 底图展示
+  };
+  run();
 }
 
 onMounted(() => {
-  ctx = bgCanvas.value?.getContext('2d') ?? null
-  if (!ctx) return
-  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  resize()
-  spawn()
-  window.addEventListener('resize', onResize)
-  if (reducedMotion) {
-    renderFrame() // 尊重减少动效偏好：只画静态一帧
-  } else {
-    raf = requestAnimationFrame(loop)
-  }
-})
+  runSlideSequence();
+});
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf)
-  window.removeEventListener('resize', onResize)
-})
+  if (slideTimer !== undefined) clearTimeout(slideTimer);
+});
 
 async function submit() {
-  if (submitting.value || !username.value || !password.value) return
-  submitting.value = true
+  if (submitting.value || !username.value || !password.value) return;
+  submitting.value = true;
   try {
-    await auth.login(username.value, password.value)
+    await auth.login(username.value, password.value);
   } catch {
     // 错误文案已写入 store.errorMessage，交由模板展示。
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Patrick+Hand&display=swap');
-
-/* —— 手绘风设计令牌（农业主题） —— */
 .login-view {
-  --paper: #f5f9f0;
-  --pencil: #2d3a1e;
-  --muted: #d4e0c8;
-  --accent-red: #c0392b;
-  --accent-blue: #2c5f2d;
-  --accent-green: #4a7c23;
-  --postit: #fef9e7;
-  --wobbly: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  --wobbly-md: 180px 22px 160px 18px / 18px 140px 20px 180px;
-  --shadow: 4px 4px 0 0 var(--accent-green);
-  --shadow-lift: 2px 2px 0 0 var(--accent-green);
-  --shadow-press: 0 0 0 0 var(--accent-green);
-  --hand: 'Patrick Hand', 'Kalam', 'PingFang SC', 'Microsoft YaHei', cursive, sans-serif;
-  --display: 'Kalam', 'PingFang SC', 'Microsoft YaHei', cursive, sans-serif;
-
   position: fixed;
   inset: 0;
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  font-family: var(--hand);
-  color: var(--pencil);
-}
-
-/* ===== 顶部图片区 ===== */
-.hero-area {
-  flex: 0 0 38%;
-  background:
-    linear-gradient(rgba(245, 249, 240, 0.55), rgba(245, 249, 240, 0.35)),
-    linear-gradient(rgba(74, 124, 35, 0.15), rgba(74, 124, 35, 0.15)),
-    url('/login-bg.jpg');
-  background-size: cover;
-  background-position: center 8%;
-  background-repeat: no-repeat;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
-.hero-content {
-  text-align: center;
-  padding: 0 20px;
-}
-
-.logo-ring {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 56px;
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--accent-green);
-  border: 3px solid var(--accent-green);
-  border-radius: var(--wobbly);
-  transform: rotate(-3deg);
-  background: #ffffff;
-  box-shadow: 3px 3px 0 0 var(--accent-green);
-  margin-bottom: 8px;
-}
-
-.kicker {
-  margin: 0 0 8px;
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--accent-blue);
-  letter-spacing: 0.01em;
-}
-
-.title {
-  margin: 0 0 8px;
-  font-family: var(--display);
-  font-size: 42px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--pencil);
-  letter-spacing: -0.01em;
-}
-
-.exclaim {
-  display: inline-block;
-  color: var(--accent-red);
-  transform: rotate(-6deg);
-  margin-left: 2px;
-  animation: exclaim-wiggle 2.4s ease-in-out infinite;
-}
-
-@keyframes exclaim-wiggle {
-  0%, 100% { transform: rotate(-6deg); }
-  50% { transform: rotate(4deg) translateY(-2px); }
-}
-
-.subtitle {
-  margin: 0;
-  font-size: 17px;
-  color: var(--pencil);
-  opacity: 0.7;
-}
-
-/* 顶部胶带装饰 */
-.decor.tape {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  width: 180px;
-  height: 26px;
-  transform: translateX(-50%) rotate(-2deg);
-  background: rgba(180, 200, 165, 0.55);
-  border: 1.5px solid rgba(74, 124, 35, 0.35);
-  pointer-events: none;
-  z-index: 2;
-  animation: tape-sway 5s ease-in-out infinite;
-}
-
-@keyframes tape-sway {
-  0%, 100% { transform: translateX(-50%) rotate(-2deg); }
-  50% { transform: translateX(-50%) rotate(1deg); }
-}
-
-/* ===== 底部图片区 ===== */
-.lower-area {
-  flex: 1;
-  position: relative;
-  background:
-    linear-gradient(rgba(74, 124, 35, 0.2), rgba(74, 124, 35, 0.28)),
-    url('/login-bg.jpg');
-  background-size: cover;
-  background-position: center 55%;
-  background-repeat: no-repeat;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12vh;
-  overflow: hidden;
-}
-
-.login-bg {
+/* ===== 背景轮播 ===== */
+.bg-slider {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
   z-index: 0;
+}
+.product-box {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(0, 0, 2, 0.4), rgba(32, 32, 32, 0.06));
+}
+
+.bg-slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* 底图：常驻显示 */
+.bg-base {
+  opacity: 1;
+  z-index: 1;
+}
+
+/* 覆盖图默认隐藏 */
+.slide-hidden {
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ===== 进场动画 ===== */
+
+/* 类型 1：inset 揭示（从右向左） */
+.slide-entering.enter-inset {
+  animation: enter-inset 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 3;
+}
+@keyframes enter-inset {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+/* 类型 2：从右上角圆形展开 */
+.slide-entering.enter-circle-tr {
+  animation: enter-circle-tr 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 3;
+}
+@keyframes enter-circle-tr {
+  0% {
+    clip-path: circle(0% at 100% 0%);
+    opacity: 1;
+  }
+  100% {
+    clip-path: circle(150%);
+    opacity: 1;
+  }
+}
+
+/* 类型 3：淡入 */
+.slide-entering.enter-fade {
+  animation: enter-fade 1.5s ease-in-out forwards;
+  z-index: 3;
+}
+@keyframes enter-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 类型 4：从左下角圆形展开 */
+.slide-entering.enter-circle-bl {
+  animation: enter-circle-bl 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 3;
+}
+@keyframes enter-circle-bl {
+  0% {
+    clip-path: circle(0% at 0% 100%);
+    opacity: 0;
+  }
+  100% {
+    clip-path: circle(150%);
+    opacity: 1;
+  }
+}
+
+/* ===== 显示状态 ===== */
+.slide-visible {
+  opacity: 1;
+  z-index: 3;
+}
+
+/* ===== 退场动画（统一淡出） ===== */
+.slide-exiting {
+  animation: exit-fade 1.5s ease-in-out forwards;
+  z-index: 3;
+}
+@keyframes exit-fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* ===== 登录卡片 ===== */
-.login-card {
+.login-wrapper {
   position: relative;
-  z-index: 1;
-  width: 400px;
-  max-width: calc(100vw - 32px);
-  box-sizing: border-box;
-  padding: 28px 28px 22px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border: 3px solid var(--accent-green);
-  border-radius: var(--wobbly-md);
-  box-shadow: var(--shadow);
-  transform: rotate(-0.4deg);
-  transition: transform 100ms ease, box-shadow 100ms ease;
+  z-index: 10;
+  width: 100%;
+  max-width: 440px;
+  padding: 0 20px;
 }
 
-.login-card:hover {
-  transform: rotate(0deg);
-  box-shadow: 6px 6px 0 0 var(--accent-green);
+.login-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 40px 36px 32px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.logo-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4a7c23 0%, #2d3a1e 100%);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.card-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #2d3a1e;
+  letter-spacing: -0.01em;
+}
+
+.card-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7a5f;
 }
 
 .field {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .field-label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--pencil);
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3a1e;
 }
 
 .input {
   width: 100%;
   box-sizing: border-box;
-  height: 42px;
-  padding: 0 14px;
-  font-family: var(--hand);
-  font-size: 16px;
-  color: var(--pencil);
+  height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+  color: #2d3a1e;
   background: #ffffff;
-  border: 2.5px solid var(--accent-green);
-  border-radius: var(--wobbly);
+  border: 1.5px solid #d4e0c8;
+  border-radius: 10px;
   outline: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 100ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .input::placeholder {
-  color: var(--pencil);
-  opacity: 0.4;
+  color: #9aa88f;
 }
 
 .input:focus {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 4px rgba(44, 95, 45, 0.22);
-  transform: rotate(0.3deg);
+  border-color: #4a7c23;
+  box-shadow: 0 0 0 3px rgba(74, 124, 35, 0.12);
 }
 
 .input:disabled {
-  background: var(--muted);
-  color: var(--pencil);
-  opacity: 0.6;
+  background: #f5f7f3;
+  color: #6b7a5f;
 }
 
 .password-wrap {
@@ -534,7 +382,7 @@ async function submit() {
 }
 
 .password-wrap .input {
-  padding-right: 68px;
+  padding-right: 72px;
 }
 
 .reveal {
@@ -542,25 +390,27 @@ async function submit() {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  height: 28px;
-  padding: 0 10px;
-  border: 2px solid var(--accent-green);
-  border-radius: var(--wobbly);
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid #d4e0c8;
+  border-radius: 6px;
   background: #ffffff;
-  color: var(--accent-blue);
-  font-family: var(--hand);
+  color: #4a7c23;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 100ms ease, transform 100ms ease, box-shadow 100ms ease;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 
 .reveal:hover:not(:disabled) {
-  background: var(--postit);
-  transform: translateY(-50%) rotate(-2deg);
+  background: #f5f9f0;
+  border-color: #4a7c23;
 }
 
 .reveal:focus-visible {
-  outline: 3px solid rgba(44, 95, 45, 0.35);
+  outline: 2px solid #4a7c23;
   outline-offset: 2px;
 }
 
@@ -570,50 +420,42 @@ async function submit() {
 }
 
 .error {
-  margin: 0 0 12px;
-  padding: 10px 12px 10px 14px;
-  font-size: 15px;
-  font-family: var(--hand);
-  color: #8b1a1a;
-  background: #fff3f0;
-  border: 2.5px dashed var(--accent-red);
-  border-radius: var(--wobbly);
-}
-
-.error::before {
-  content: '';
-  margin-right: 6px;
-  font-size: 16px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #c0392b;
+  background: #fdf2f0;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
 }
 
 .submit {
   width: 100%;
-  height: 46px;
-  margin-top: 2px;
-  font-family: var(--display);
-  font-size: 19px;
-  font-weight: 700;
+  height: 48px;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 600;
   color: #ffffff;
-  background: var(--accent-green);
-  border: 3px solid var(--accent-green);
-  border-radius: var(--wobbly);
+  background: linear-gradient(135deg, #4a7c23 0%, #2d3a1e 100%);
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
-  box-shadow: var(--shadow);
-  transform: translate(0, 0);
-  transition: background-color 100ms ease, color 100ms ease, box-shadow 100ms ease, transform 100ms ease;
+  transition:
+    opacity 150ms ease,
+    transform 100ms ease,
+    box-shadow 150ms ease;
+  box-shadow: 0 4px 12px rgba(74, 124, 35, 0.3);
 }
 
 .submit:hover:not(:disabled) {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
-  color: #ffffff;
-  box-shadow: var(--shadow-lift);
-  transform: translate(2px, 2px) rotate(-0.5deg);
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(74, 124, 35, 0.4);
 }
 
 .submit:active:not(:disabled) {
-  box-shadow: var(--shadow-press);
-  transform: translate(4px, 4px);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(74, 124, 35, 0.25);
 }
 
 .submit:disabled {
@@ -621,96 +463,33 @@ async function submit() {
   cursor: not-allowed;
 }
 
-/* 便签纸式演示账号提示 */
-.postit {
-  position: relative;
-  margin: 18px auto 0;
-  width: fit-content;
-  padding: 7px 14px;
-  background: var(--postit);
-  border: 2.5px solid var(--accent-green);
-  border-radius: var(--wobbly);
-  box-shadow: 3px 3px 0 0 var(--accent-green);
-  font-family: var(--hand);
-  font-size: 14px;
-  color: var(--pencil);
-  transform: rotate(-1.4deg);
-  animation: postit-flutter 4s ease-in-out infinite;
+.demo-hint {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #8b9a7f;
 }
 
-@keyframes postit-flutter {
-  0%, 100% { transform: rotate(-1.4deg) translateY(0); }
-  50% { transform: rotate(-0.6deg) translateY(-2px); }
-}
-
-.postit-pin {
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent-red);
-  border: 2px solid var(--accent-green);
-  box-shadow: 1px 1px 0 0 var(--accent-green);
-}
-
-/* 手绘箭头装饰 */
-.decor.arrow {
-  position: absolute;
-  right: 8%;
-  bottom: 12%;
-  width: 140px;
-  height: 90px;
-  opacity: 0.8;
-  pointer-events: none;
-  z-index: 0;
-  animation: arrow-bounce 3.2s ease-in-out infinite;
-}
-
-@keyframes arrow-bounce {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50% { transform: translateY(-6px) rotate(0deg); }
-}
-
-/* 减少动效偏好 */
-@media (prefers-reduced-motion: reduce) {
-  .decor.tape,
-  .decor.arrow,
-  .exclaim,
-  .postit {
-    animation: none;
-  }
+.footer-text {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.01em;
 }
 
 /* 响应式 */
-@media (max-width: 600px) {
-  .hero-area {
-    flex: 0 0 32%;
-  }
-  .title { font-size: 28px; }
-  .subtitle { font-size: 14px; }
-  .logo-ring { width: 56px; height: 44px; font-size: 18px; }
+@media (max-width: 480px) {
   .login-card {
-    padding: 22px 20px 18px;
-    width: 340px;
+    padding: 32px 24px 24px;
   }
-  .lower-area {
-    padding-top: 6vh;
+  .card-title {
+    font-size: 19px;
   }
-  .decor.arrow { display: none; }
-  .decor.tape { width: 130px; }
-}
-
-@media (max-width: 400px) {
-  .hero-area {
-    flex: 0 0 28%;
-  }
-  .title { font-size: 22px; }
-  .kicker { font-size: 13px; }
-  .login-card {
-    width: calc(100vw - 24px);
+  .logo-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 28px;
   }
 }
 </style>
