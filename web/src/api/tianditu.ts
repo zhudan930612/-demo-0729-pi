@@ -18,16 +18,37 @@ function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
   )
 }
 
+/** OSM/OpenTopoMap 免 token 瓦片；文字注记烘焙在瓦片中，无独立注记层 */
+function osmLayer(url: string, attribution: string, maxNativeZoom: number) {
+  return L.tileLayer(url, {
+    maxNativeZoom, // z>maxNativeZoom 由 Leaflet 放大该级瓦片（模糊属预期）
+    maxZoom: 19,
+    keepBuffer: 3,  // 多留缓存瓦片, 回退缩放不白屏
+    zIndex: 1,
+    attribution,
+  })
+}
+
 export interface Basemaps {
   /** 卫星影像底图 + 影像注记 (决策#9, 默认) */
   img: L.LayerGroup
   /** 矢量底图 + 矢量注记 */
   vec: L.LayerGroup
+  /** OSM 标准: OpenStreetMap 街道瓦片 (tile.openstreetmap.org, 免 token) */
+  osm: L.LayerGroup
+  /** OSM 地貌: OpenTopoMap 地形瓦片 (tile.opentopomap.org, 免 token) */
+  topo: L.LayerGroup
 }
 
 export function createBasemaps(): Basemaps {
   return {
     img: L.layerGroup([tdtLayer('img_w', 1), tdtLayer('cia_w', 4)]),
     vec: L.layerGroup([tdtLayer('vec_w', 1), tdtLayer('cva_w', 4)]),
+    osm: L.layerGroup([
+      osmLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', 19),
+    ]),
+    topo: L.layerGroup([
+      osmLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)', 17),
+    ]),
   }
 }
