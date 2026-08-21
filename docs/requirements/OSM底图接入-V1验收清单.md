@@ -9,10 +9,10 @@
 | 编号 | 验收项（行为断言） | 验证层级 | 验证方式 | 证据标准 | 状态 | 证据/备注 |
 |------|-------------------|----------|----------|----------|------|-----------|
 | 1.1 | 底图切换菜单出现「OSM 标准」「OSM 地貌」两项，连同卫星、矢量共四项；当前选中项有选中态标识，默认选中「卫星」 | [E2E-自动化] | 启动 dev server，浏览器打开底图菜单，DOM 断言 4 个菜单项与默认选中态 | 测试命令 + 实际输出 | ☐ | 默认行为必须与当前 V1 完全一致 |
-| 1.2 | 选择「OSM 标准」后，底图切换为 OpenStreetMap 街道瓦片（请求 `tile.openstreetmap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | 点击「OSM 标准」，断言 tile 请求 URL 域名切换 + 中心/缩放不变 | 测试命令 + 输出/网络记录 | ☐ | 重复点击已选中的 OSM 标准不产生变化 |
-| 1.3 | 选择「OSM 地貌」后，底图切换为 OpenTopoMap 地形瓦片（请求 `tile.opentopomap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | 点击「OSM 地貌」，断言 tile 请求 URL 域名切换 + 中心/缩放不变 | 测试命令 + 输出/网络记录 | ☐ | 同上 |
-| 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见且文本正确：OSM 标准「© OpenStreetMap contributors」；OSM 地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」 | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本；人工目视确认标注渲染位置 | 测试命令 + 输出 + 截图 | ☐ | 切回天地图后显示天地图标注，不残留 OSM 标注 |
-| 1.5 | （异常）OSM 标准/地貌瓦片加载失败（如网络中断）时，对应区域显示空白/灰块，地图容器不崩溃，行政边界、地块等业务图层不受影响；切回天地图卫星/矢量后底图立即恢复 | [E2E-人工] | 拦截 tile 域名模拟断网，观察空白/灰块与业务图层完好；恢复后切回天地图 | 验证人 + 步骤 + 截图 + 确认 | ☐ | 天地图可达时切回立即恢复 |
+| 1.2 | 选择「OSM 标准」后，底图切换为 OpenStreetMap 街道瓦片（请求 `tile.openstreetmap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | route 拦截 OSM 域名记录请求 URL：点击后断言 tile 请求域名变为 `tile.openstreetmap.org`（fulfill 204，不依赖真实网络），中心/缩放不变、页面不刷新 | 测试命令 + 网络记录 + 断言输出 | ☐ | 重复点击已选中的 OSM 标准不产生变化；自动化不依赖系统代理 |
+| 1.3 | 选择「OSM 地貌」后，底图切换为 OpenTopoMap 地形瓦片（请求 `tile.opentopomap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | route 拦截：断言 tile 请求域名变为 `tile.opentopomap.org`（fulfill 204），中心/缩放不变 | 测试命令 + 网络记录 + 断言输出 | ☐ | 同上 |
+| 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见且文本正确：OSM 标准「© OpenStreetMap contributors」；OSM 地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」 | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本（配置值，与网络无关）；人工目视确认标注渲染位置（需可访问 OSM 的浏览器环境） | 测试命令 + 输出 + 截图 | ☐ | 切回天地图后显示天地图标注，不残留 OSM 标注 |
+| 1.5 | （异常）OSM 标准/地貌瓦片加载失败（如网络中断）时，对应区域显示空白/灰块，地图容器不崩溃，行政边界、地块等业务图层不受影响；切回天地图卫星/矢量后底图立即恢复 | [E2E-自动化] + [E2E-人工] | route 拦截 OSM 域名返回 503：断言地图不崩溃、行政边界/地块图层完好、切回天地图卫星恢复正常；人工可选复核真实断网 | 测试命令 + 输出 + 截图 | ☐ | 已确认接受无代理降级：现场无代理时 OSM 灰块即本项常态 |
 | 1.6 | 切换至任一 OSM 底图后，高分影像叠加、行政边界、地块显示与交互均不受影响；切回天地图卫星/矢量后一切恢复正常 | [E2E-自动化] + [E2E-人工] | 切换前后对比高分影像开关、边界、地块图层状态断言；人工目视确认浙江区域瓦片实际加载效果 | 测试命令 + 输出 + 截图 | ☐ | 切换底图不重置高分影像开关状态 |
 
 - 编号规则：模块.序号（1.1、1.2…），与需求文档 B3/B4 完全一致
@@ -23,10 +23,11 @@
 
 | 模块 | seam（公共接口/边界） | 说明 |
 |------|----------------------|------|
-| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上 |
+| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上；OSM 两源 tile URL、attribution 文案、maxNativeZoom（OSM 标准 19 / OpenTopoMap 17） |
 | R1 切换逻辑 | `web/src/components/MapView.vue` 的 `switchBasemap`（类型扩展为 4 项，移除旧组/添加新组） | 单测断言切换不改变中心/缩放、不重建地图 |
 | R1 菜单 UI | `web/src/components/map/MapControlStack.vue` 的 `chooseBasemap` 事件与菜单项（扩展 2→4 项） | e2e 断言菜单项、选中态、aria 属性 |
 | R1 版权标注 | 各 OSM tileLayer 的 `attribution` 配置 | e2e DOM 断言 attribution 控件文本 |
+| R1 网络隔离 | e2e 中 `page.route` 拦截 OSM 域名（fulfill 204 / 503） | 自动化断言不依赖系统代理与真实网络；真实瓦片目视确认归人工 |
 
 编码 agent 写测试时按此 seam 执行（配合 tdd 技能），不得另选 seam；验收 agent 核对测试是否按 seam 落地。
 
