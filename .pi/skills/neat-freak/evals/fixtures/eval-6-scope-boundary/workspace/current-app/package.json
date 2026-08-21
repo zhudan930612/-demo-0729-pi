@@ -1,4 +1,0 @@
-{
-  "scripts": {"dev": "vite"},
-  "dependencies": {"graphql-yoga": "latest"}
-}
