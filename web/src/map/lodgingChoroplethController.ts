@@ -1,12 +1,11 @@
 import L from 'leaflet'
 import type { Feature, Geometry } from 'geojson'
-import type { DamageRate } from '../features/lodging/lodgingCalc'
 
 /**
- * 倒伏评估 Choropleth 填色图图层控制器（需求 §3.2）
- * - 按行政区划面填色，颜色按受损率分档：0% 透明 / 30% 绿 / 60% 黄 / 100% 红
+ * 倒伏评估 Choropleth 填色图图层控制器（需求 §3.2，v2.0）
+ * - 按行政区划面填色，颜色按受损率连续值分档：0% 透明 / (0,30%) 绿 / [30,60%) 黄 / [60,100%] 红
  * - pane < 450（不遮挡天地图文字注记与地块）
- * - 悬停 tooltip 显示区划名称 + 受损率
+ * - 悬停 tooltip 显示区划名称 + 受损率（精确百分比）
  */
 
 export const CHOROPLETH_PANE = { name: 'lodgingChoroplethPane', zIndex: 420 } as const
@@ -29,27 +28,42 @@ function ensureStyle(): void {
   document.head.appendChild(style)
 }
 
-/** 受损率 → 填色（需求 §3.2：0% 透明 / 30% 绿 / 60% 黄 / 100% 红） */
-export const DAMAGE_RATE_FILL_COLOR: Record<DamageRate, string> = {
-  0: 'transparent',
-  30: 'rgba(34, 197, 94, 0.45)',   // success-green
-  60: 'rgba(234, 179, 8, 0.5)',    // warning-yellow
-  100: 'rgba(239, 68, 68, 0.55)',  // danger-red
+// ========== 连续值受损率 → 颜色 ==========
+
+/** 绿色（轻度） */
+const COLOR_LIGHT = 'rgba(34, 197, 94, 0.45)'
+const STROKE_LIGHT = '#16a34a'
+
+/** 黄色（中度） */
+const COLOR_MEDIUM = 'rgba(234, 179, 8, 0.5)'
+const STROKE_MEDIUM = '#ca8a04'
+
+/** 红色（重度） */
+const COLOR_HEAVY = 'rgba(239, 68, 68, 0.55)'
+const STROKE_HEAVY = '#dc2626'
+
+/** 根据连续值受损率返回填充颜色 */
+export function fillColorForRate(damageRate: number): string {
+  if (damageRate <= 0) return 'transparent'
+  if (damageRate < 30) return COLOR_LIGHT
+  if (damageRate < 60) return COLOR_MEDIUM
+  return COLOR_HEAVY
 }
 
-/** 受损率 → 描边色 */
-export const DAMAGE_RATE_STROKE_COLOR: Record<DamageRate, string> = {
-  0: 'transparent',
-  30: '#16a34a',
-  60: '#ca8a04',
-  100: '#dc2626',
+/** 根据连续值受损率返回描边颜色 */
+export function strokeColorForRate(damageRate: number): string {
+  if (damageRate <= 0) return 'transparent'
+  if (damageRate < 30) return STROKE_LIGHT
+  if (damageRate < 60) return STROKE_MEDIUM
+  return STROKE_HEAVY
 }
 
-export const DAMAGE_RATE_TEXT: Record<DamageRate, string> = {
-  0: '无受损',
-  30: '轻度',
-  60: '中度',
-  100: '重度',
+/** 根据连续值受损率返回文本描述 */
+export function severityText(damageRate: number): string {
+  if (damageRate <= 0) return '无受损'
+  if (damageRate < 30) return '轻度'
+  if (damageRate < 60) return '中度'
+  return '重度'
 }
 
 export interface ChoroplethEntry {
@@ -57,8 +71,8 @@ export interface ChoroplethEntry {
   code: string
   /** 区划名称 */
   name: string
-  /** 受损率 */
-  damageRate: DamageRate
+  /** 受损率（连续值 0~100%） */
+  damageRate: number
   /** GeoJSON 几何 */
   geometry: Geometry
 }
@@ -86,7 +100,7 @@ export function createChoroplethLayerController(
   function ensurePane(target: L.Map): void {
     const pane = target.getPane(CHOROPLETH_PANE.name) ?? target.createPane(CHOROPLETH_PANE.name)
     pane.style.zIndex = String(CHOROPLETH_PANE.zIndex)
-    pane.style.pointerEvents = 'none' // 不拦截点击，由 GeoJSON feature 单独处理
+    pane.style.pointerEvents = 'none'
   }
 
   function render(): void {
@@ -95,11 +109,11 @@ export function createChoroplethLayerController(
     if (!visible) return
 
     for (const entry of entries) {
-      // 受损率 0% 不填色（透明），跳过渲染以提升性能
-      if (entry.damageRate === 0) continue
+      if (entry.damageRate <= 0) continue
 
-      const fillColor = DAMAGE_RATE_FILL_COLOR[entry.damageRate]
-      const strokeColor = DAMAGE_RATE_STROKE_COLOR[entry.damageRate]
+      const fillColor = fillColorForRate(entry.damageRate)
+      const strokeColor = strokeColorForRate(entry.damageRate)
+      const rateText = severityText(entry.damageRate)
 
       const feature: Feature = {
         type: 'Feature',
@@ -119,25 +133,26 @@ export function createChoroplethLayerController(
           color: strokeColor,
           weight: 1.5,
           opacity: strokeColor === 'transparent' ? 0 : 0.8,
-          className: 'lodging-choropleth-feature', // 用于 CSS 移除点击边框
+          className: 'lodging-choropleth-feature',
         },
         onEachFeature: (_feat, lyr) => {
-          // 悬停 tooltip
-          const rateText = DAMAGE_RATE_TEXT[entry.damageRate]
+          // 悬停 tooltip：显示区划名称 + 精确受损率
+          const rateDisplay = entry.damageRate < 1
+            ? entry.damageRate.toFixed(1)
+            : Math.round(entry.damageRate).toString()
           lyr.bindTooltip(
-            `<b>${entry.name}</b><br/>受损率 ${entry.damageRate}%（${rateText}）`,
+            `<b>${entry.name}</b><br/>受损率 ${rateDisplay}%（${rateText}）`,
             { sticky: true, direction: 'auto' }
           )
           // 点击回调
           lyr.on('click', (e) => {
-            L.DomEvent.stopPropagation(e) // 阻止冒泡，避免触发地图点击
+            L.DomEvent.stopPropagation(e)
             options.onRegionClick?.(entry.code)
           })
-          // 允许该 feature 接收事件
           const el = (lyr as L.Path).getElement()
           if (el) {
             (el as HTMLElement).style.pointerEvents = 'auto'
-            ;(el as HTMLElement).style.outline = 'none' // 移除焦点边框
+            ;(el as HTMLElement).style.outline = 'none'
           }
         },
       })

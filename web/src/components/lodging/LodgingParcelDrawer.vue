@@ -13,13 +13,13 @@
 
             <!-- 筛选栏 -->
             <div class="filter-bar">
-              <label class="filter-label">受损等级：</label>
-              <select v-model="filterLevel" class="filter-select">
+              <label class="filter-label">受损程度：</label>
+              <select v-model="filterSeverity" class="filter-select">
                 <option value="all">全部</option>
-                <option value="100">重度 (100%)</option>
-                <option value="60">中度 (60%)</option>
-                <option value="30">轻度 (30%)</option>
-                <option value="0">无受损 (0%)</option>
+                <option value="heavy">重度</option>
+                <option value="medium">中度</option>
+                <option value="light">轻度</option>
+                <option value="none">无受损</option>
               </select>
               <span class="result-count">共 {{ filteredParcels.length }} 个地块</span>
             </div>
@@ -33,9 +33,9 @@
                       地块编号
                       <span v-if="sortKey === 'parcelId'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
                     </th>
-                    <th class="col-level" @click="toggleSort('damageRate')">
-                      受损等级
-                      <span v-if="sortKey === 'damageRate'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+                    <th class="col-level" @click="toggleSort('severity')">
+                      受损程度
+                      <span v-if="sortKey === 'severity'" class="sort-icon">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
                     </th>
                     <th class="col-rate" @click="toggleSort('damageRate')">
                       受损率
@@ -62,11 +62,11 @@
                   >
                     <td class="col-id">地块#{{ parcel.parcelId }}</td>
                     <td class="col-level">
-                      <span class="damage-badge" :class="damageLevelClass(parcel.damageRate)">
-                        {{ damageLevelText(parcel.damageRate) }}
+                      <span class="damage-badge" :class="severityClass(parcel.severity)">
+                        {{ severityLabel(parcel.severity) }}
                       </span>
                     </td>
-                    <td class="col-rate">{{ parcel.damageRate }}%</td>
+                    <td class="col-rate">{{ formatRate(parcel.damageRate) }}</td>
                     <td class="col-area">{{ fmtArea(parcel.areaMu) }} 亩</td>
                     <td class="col-comp">{{ fmtYuan(parcel.compensation) }}</td>
                     <td class="col-insured">{{ parcel.insuredName || '-' }}</td>
@@ -83,11 +83,14 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { DamageRate } from '../../features/lodging/lodgingCalc'
+import type { RegionSeverity } from '../../features/lodging/lodgingCalc'
+import { parcelDamageSeverity } from '../../features/lodging/lodgingCalc'
 
 export interface ParcelRowData {
   parcelId: string
-  damageRate: DamageRate
+  /** 受损率（连续值 0~100%） */
+  damageRate: number
+  /** 受损面积（亩）—— 口径 A：受灾算整块 */
   areaMu: number
   compensation: number
   insuredName: string
@@ -104,17 +107,26 @@ const emit = defineEmits<{
   'select-parcel': [parcelId: string]
 }>()
 
-const filterLevel = ref<string>('all')
-const sortKey = ref<string>('compensation')
-const sortDir = ref<'asc' | 'desc'>('desc')
+const filterSeverity = ref<string>('all')
+const sortKey = ref<string>('severity')
+const sortDir = ref<'asc' | 'desc'>('asc') // asc = severe first
+
+/** 为行数据附加 severity */
+function withSeverity(parcel: ParcelRowData): ParcelRowData & { severity: RegionSeverity } {
+  return { ...parcel, severity: parcelDamageSeverity(parcel.damageRate) }
+}
+
+const severityWeight: Record<RegionSeverity, number> = {
+  heavy: 0, medium: 1, light: 2, none: 3,
+}
 
 const filteredParcels = computed(() => {
-  let result = [...props.parcels]
+  let result = props.parcels.map(withSeverity)
 
   // 筛选
-  if (filterLevel.value !== 'all') {
-    const level = Number(filterLevel.value) as DamageRate
-    result = result.filter((p) => p.damageRate === level)
+  if (filterSeverity.value !== 'all') {
+    const sev = filterSeverity.value as RegionSeverity
+    result = result.filter((p) => p.severity === sev)
   }
 
   // 排序
@@ -122,8 +134,11 @@ const filteredParcels = computed(() => {
     let cmp = 0
     if (sortKey.value === 'parcelId') {
       cmp = a.parcelId.localeCompare(b.parcelId)
-    } else if (sortKey.value === 'damageRate') {
-      cmp = a.damageRate - b.damageRate
+    } else if (sortKey.value === 'severity' || sortKey.value === 'damageRate') {
+      // 默认按 severity 排（重>中>轻>无），同 severity 按 damageRate 降序
+      const sw = severityWeight[a.severity] - severityWeight[b.severity]
+      if (sw !== 0) cmp = sw
+      else cmp = a.damageRate - b.damageRate
     } else if (sortKey.value === 'areaMu') {
       cmp = a.areaMu - b.areaMu
     } else if (sortKey.value === 'compensation') {
@@ -142,18 +157,32 @@ function toggleSort(key: string) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortKey.value = key
-    sortDir.value = 'desc'
+    sortDir.value = key === 'severity' || key === 'damageRate' ? 'asc' : 'desc'
   }
 }
 
-function damageLevelText(rate: DamageRate): string {
-  const map: Record<DamageRate, string> = { 0: '无', 30: '轻度', 60: '中度', 100: '重度' }
-  return map[rate] ?? '-'
+function severityLabel(severity: RegionSeverity): string {
+  switch (severity) {
+    case 'heavy': return '重度'
+    case 'medium': return '中度'
+    case 'light': return '轻度'
+    case 'none': return '无'
+  }
 }
 
-function damageLevelClass(rate: DamageRate): string {
-  const map: Record<DamageRate, string> = { 0: 'none', 30: 'light', 60: 'mid', 100: 'severe' }
-  return map[rate] ?? ''
+function severityClass(severity: RegionSeverity): string {
+  switch (severity) {
+    case 'heavy': return 'severe'
+    case 'medium': return 'mid'
+    case 'light': return 'light'
+    case 'none': return 'none'
+  }
+}
+
+function formatRate(rate: number): string {
+  if (rate <= 0) return '—'
+  if (rate < 1) return rate.toFixed(1) + '%'
+  return Math.round(rate) + '%'
 }
 
 function fmtArea(mu: number): string {
@@ -170,9 +199,9 @@ function fmtYuan(yuan: number): string {
 // 关闭时重置筛选
 watch(() => props.open, (isOpen) => {
   if (!isOpen) {
-    filterLevel.value = 'all'
-    sortKey.value = 'compensation'
-    sortDir.value = 'desc'
+    filterSeverity.value = 'all'
+    sortKey.value = 'severity'
+    sortDir.value = 'asc'
   }
 })
 </script>

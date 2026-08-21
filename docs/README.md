@@ -17,6 +17,7 @@
 - [参保村灾害风险联动 V1.1 需求](./requirements/降水参保联动V1.1需求.md)（v3.13：共用面板双 tab + 受灾概览统计 + 风险卡片 + 保单表格 + 措施差异化；已实施并合并 main）
 - [演示 demo 方案（台风/理赔业务闭环）](./requirements/演示demo方案.md)
 - [异常地块管理设计方案](./requirements/异常地块管理设计方案.md)（待开发：人工维护异常记录、地图标记与管理后台）
+- [水稻倒伏评估需求 v2.0](./requirements/水稻倒伏评估需求.md)（v2.0：受损率连续值 + 空间连片生成 + 五级区域统计表；开发分支 `feature/xmap-v2`）
 
 目录入口：[requirements/](./requirements/)
 

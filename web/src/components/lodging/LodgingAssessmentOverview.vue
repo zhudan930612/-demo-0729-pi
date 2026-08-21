@@ -17,7 +17,7 @@
         </div>
       </header>
 
-      <!-- KPI 统计区 -->
+      <!-- KPI 受损统计 -->
       <section class="stats" aria-label="评估统计">
         <div class="stat-panel">
           <div class="stat-row damage">
@@ -45,43 +45,68 @@
         <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>
         </svg>
-        当前气象条件下无参保区域受损
+        当前无参保区域受损
       </div>
 
       <template v-else>
-        <!-- 区域列表 -->
-        <section class="affected" aria-label="受损区域">
+        <!-- 非村级：区域统计表 -->
+        <LodgingRegionTable
+          v-if="!model.isVillageLevel"
+          title="区域统计"
+          :rows="model.regionRows"
+          @select-region="(code: string) => emit('select-region', code)"
+        />
+
+        <!-- 村级：地块列表（表格形式，与区域统计表对齐风格一致） -->
+        <section v-else class="parcel-section" aria-label="受损地块">
           <h3 class="section-title">
             <span class="section-title-icon" aria-hidden="true">⚠</span>
-            {{ isVillageLevel ? '受损地块 Top 10' : '最严重区域 Top 3' }}
+            受损地块
           </h3>
-          <ul v-if="topItems.length > 0" class="region-list">
-            <li
-              v-for="(item, idx) in topItems"
-              :key="item.code"
-              class="region-row"
-              @click="emit('select-region', item.code)"
-            >
-              <div class="row-main">
-                <div class="row-line1">
-                  <span class="region-rank" :class="'rank-' + (idx + 1)">{{ idx + 1 }}</span>
-                  <span class="region-name">{{ item.name }}</span>
-                  <span class="damage-badge" :class="damageClass(item.damageRate)">
-                    {{ damageText(item.damageRate) }}
-                  </span>
-                </div>
-              </div>
-              <span class="region-summary">
-                <span class="rate-text">受损率 {{ item.damageRate }}%</span>
-                <template v-if="item.areaMu !== undefined">
-                  <span class="sep">·</span>
-                  <span class="area-text">{{ fmtArea(item.areaMu) }} 亩</span>
-                </template>
-              </span>
-            </li>
-          </ul>
+          <div v-if="model.parcelRows.length > 0" class="parcel-table-wrapper">
+            <table class="parcel-table">
+              <colgroup>
+                <col /><col /><col /><col /><col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="p-col-rank">#</th>
+                  <th class="p-col-id">地块</th>
+                  <th class="p-col-severity">程度</th>
+                  <th class="p-col-rate">受损率</th>
+                  <th class="p-col-area">受损面积</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(row, idx) in visibleParcelRows"
+                  :key="row.parcelId"
+                  class="parcel-row"
+                  @click="emit('select-region', row.parcelId)"
+                >
+                  <td class="p-col-rank">
+                    <span class="parcel-rank" :class="rankClass(idx)">{{ idx + 1 }}</span>
+                  </td>
+                  <td class="p-col-id">
+                    <span class="parcel-id-text" :title="'地块#' + row.parcelId">#{{ row.parcelId }}</span>
+                  </td>
+                  <td class="p-col-severity">
+                    <span class="severity-badge" :class="severityClass(row.severity)">
+                      {{ severityLabel(row.severity) }}
+                    </span>
+                  </td>
+                  <td class="p-col-rate">
+                    <span class="rate-text">{{ formatRate(row.damageRate) }}</span>
+                  </td>
+                  <td class="p-col-area">
+                    <span class="area-text">{{ fmtArea(row.damageAreaMu) }} 亩</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <button
-            v-if="isVillageLevel && model.totalParcelCount > 10"
+            v-if="model.totalParcelCount > PARCEL_CARD_LIMIT"
             class="view-all-btn"
             @click="emit('view-all-parcels')"
           >
@@ -105,24 +130,36 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DamageRate } from '../../features/lodging/lodgingCalc'
+import type { RegionSeverity } from '../../features/lodging/lodgingCalc'
+import LodgingRegionTable from './LodgingRegionTable.vue'
+import type { RegionTableRow } from './LodgingRegionTable.vue'
 
-export interface LodgingOverviewItem {
-  code: string
-  name: string
-  damageRate: DamageRate
-  areaMu?: number
-  compensation?: number
+/** 卡片内最多展示的地块数 */
+const PARCEL_CARD_LIMIT = 30
+
+export interface ParcelRow {
+  parcelId: string
+  severity: RegionSeverity
+  damageRate: number
+  damageAreaMu: number
+  compensation: number
 }
 
 export interface LodgingOverviewModel {
   currentLevelName: string
   isVillageLevel: boolean
+  /** 受损面积（亩）—— 口径 A */
   totalDamagedAreaMu: number
+  /** 受损户数（按投保人去重） */
   totalHouseholdCount: number
+  /** 预估赔付总额（元） */
   totalCompensation: number
+  /** 当前视图范围内的总地块数（村级） */
   totalParcelCount: number
-  topItems: LodgingOverviewItem[]
+  /** 区域统计表行（非村级使用） */
+  regionRows: RegionTableRow[]
+  /** 地块列表行（村级使用） */
+  parcelRows: ParcelRow[]
   evaluatedAt: string
   isDemoMode: boolean
 }
@@ -142,24 +179,47 @@ const isEmpty = computed(() => {
   return props.model.totalDamagedAreaMu === 0 && props.model.totalCompensation === 0
 })
 
-const isVillageLevel = computed(() => props.model?.isVillageLevel ?? false)
-const topItems = computed(() => props.model?.topItems ?? [])
+const visibleParcelRows = computed(() => {
+  if (!props.model) return []
+  return props.model.parcelRows.slice(0, PARCEL_CARD_LIMIT)
+})
 
 const disclaimerText = computed(() => {
   if (!props.model) return ''
   return props.model.isDemoMode
-    ? '评估基于模拟气象数据，仅供演示'
-    : '评估基于当前气象快照，Demo 数据为模拟，不构成理赔依据'
+    ? '评估基于模拟受灾数据，仅供演示，不构成理赔依据'
+    : '评估基于实际受灾数据，不构成理赔依据'
 })
 
-function damageText(rate: DamageRate): string {
-  const map: Record<DamageRate, string> = { 0: '无', 30: '轻度', 60: '中度', 100: '重度' }
-  return map[rate] ?? '-'
+function rankClass(idx: number): string {
+  if (idx === 0) return 'rank-1'
+  if (idx === 1) return 'rank-2'
+  if (idx === 2) return 'rank-3'
+  return ''
 }
 
-function damageClass(rate: DamageRate): string {
-  const map: Record<DamageRate, string> = { 0: 'none', 30: 'light', 60: 'mid', 100: 'severe' }
-  return map[rate] ?? ''
+function severityLabel(severity: RegionSeverity): string {
+  switch (severity) {
+    case 'heavy': return '重度'
+    case 'medium': return '中度'
+    case 'light': return '轻度'
+    case 'none': return '—'
+  }
+}
+
+function severityClass(severity: RegionSeverity): string {
+  switch (severity) {
+    case 'heavy': return 'severe'
+    case 'medium': return 'mid'
+    case 'light': return 'light'
+    case 'none': return 'none'
+  }
+}
+
+function formatRate(rate: number): string {
+  if (rate <= 0) return '—'
+  if (rate < 1) return rate.toFixed(1) + '%'
+  return Math.round(rate) + '%'
 }
 
 function fmtArea(mu: number): string {
@@ -322,114 +382,146 @@ function fmtYuan(yuan: number): string {
   letter-spacing: 0.01em;
 }
 
-/* ---------- 区域列表 ---------- */
-.affected {
-  padding: 6px 8px 4px;
+/* ---------- 村级地块列表（表格） ---------- */
+.parcel-section {
+  padding: 8px 10px 6px;
 }
+
 .section-title {
-  margin: 0 0 8px;
-  font-size: 11px;
+  margin: 0 0 10px;
+  font-size: 11.5px;
   font-weight: 700;
   color: #1e40af;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   letter-spacing: 0.01em;
 }
 .section-title-icon {
   font-size: 12px;
 }
-.region-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+
+.parcel-table-wrapper {
   max-height: calc(60vh - 230px);
   overflow-y: auto;
-}
-.region-row {
-  background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
-.region-row:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.08);
-}
-.row-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-}
-.row-line1 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+
+.parcel-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
+  table-layout: fixed;
 }
-.region-rank {
-  width: 16px;
-  height: 16px;
+
+/* 列宽分配 */
+.parcel-table colgroup col:nth-child(1) { width: 32px; }  /* 排名 */
+.parcel-table colgroup col:nth-child(2) { width: auto; } /* 地块（自适应） */
+.parcel-table colgroup col:nth-child(3) { width: 58px; } /* 程度 */
+.parcel-table colgroup col:nth-child(4) { width: 56px; } /* 受损率 */
+.parcel-table colgroup col:nth-child(5) { width: 72px; } /* 受损面积 */
+
+.parcel-table th {
+  padding: 8px 8px;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1.5px solid #e2e8f0;
+  font-size: 10.5px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  background: #fafbfc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 表头对齐 */
+.parcel-table th.p-col-rank { text-align: center; }
+.parcel-table th.p-col-id { text-align: left; }
+.parcel-table th.p-col-severity { text-align: center; }
+.parcel-table th.p-col-rate { text-align: right; }
+.parcel-table th.p-col-area { text-align: right; }
+
+.parcel-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #0f172a;
+  vertical-align: middle;
+}
+
+.parcel-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.parcel-row:hover {
+  background: #eff6ff;
+}
+
+.parcel-row:last-child td {
+  border-bottom: none;
+}
+
+/* 数据对齐 */
+.p-col-rank { text-align: center; }
+.p-col-id { text-align: left; overflow: hidden; }
+.p-col-severity { text-align: center; white-space: nowrap; }
+.p-col-rate { text-align: right; font-variant-numeric: tabular-nums; }
+.p-col-area { text-align: right; font-variant-numeric: tabular-nums; }
+
+.parcel-rank {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  font-size: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-size: 10.5px;
   font-weight: 700;
-  flex: none;
   background: #e2e8f0;
   color: #475569;
 }
-.region-rank.rank-1 { background: #dc2626; color: #fff; }
-.region-rank.rank-2 { background: #f97316; color: #fff; }
-.region-rank.rank-3 { background: #eab308; color: #fff; }
-.region-name {
+.parcel-rank.rank-1 { background: #dc2626; color: #fff; }
+.parcel-rank.rank-2 { background: #f97316; color: #fff; }
+.parcel-rank.rank-3 { background: #eab308; color: #fff; }
+
+.parcel-id-text {
   font-weight: 600;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #0f172a;
+  display: block;
+  color: #1e293b;
 }
-.damage-badge {
-  padding: 1px 7px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 600;
-  flex: none;
-  letter-spacing: 0.02em;
-}
-.damage-badge.severe { background: #dc2626; }
-.damage-badge.mid { background: #ca8a04; }
-.damage-badge.light { background: #16a34a; }
-.damage-badge.none { background: #94a3b8; }
 
-.region-summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #334155;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  flex: none;
+.severity-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
   white-space: nowrap;
 }
-.rate-text { color: #475569; }
-.sep { color: #cbd5e1; }
-.area-text { color: #64748b; }
+.severity-badge.severe { background: #fef2f2; color: #dc2626; }
+.severity-badge.mid { background: #fef3c7; color: #ca8a04; }
+.severity-badge.light { background: #dcfce7; color: #16a34a; }
+.severity-badge.none { background: #f1f5f9; color: #94a3b8; }
+
+.rate-text {
+  color: #334155;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.area-text {
+  color: #475569;
+  font-weight: 500;
+  font-size: 12px;
+}
 
 .view-all-btn {
   display: flex;

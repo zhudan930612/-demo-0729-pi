@@ -6,14 +6,17 @@ import type { Level } from '../../stores/drilldown'
 import { NEXT_LEVEL } from '../../stores/drilldown'
 import { createChoroplethLayerController, type ChoroplethLayerController, type ChoroplethEntry } from '../../map/lodgingChoroplethController'
 import {
-  computeDamageRate,
   computeCompensation,
-  type LodgingSignals,
+  computeRegionSeverity,
+  parcelDamageSeverity,
+  sortRegionResults,
   type ParcelDamage,
-  type DamageRate,
+  type AggregatedResult,
+  type RegionSeverity,
 } from '../../features/lodging/lodgingCalc'
-import { getDemoDamageForParcel, getVillageParcelDamageRate } from './lodgingDemoData'
-import type { LodgingOverviewModel, LodgingOverviewItem } from '../../components/lodging/LodgingAssessmentOverview.vue'
+import { generateDemoDamageData, type ParcelCoverageInput } from './lodgingDemoData'
+import type { LodgingOverviewModel, ParcelRow } from '../../components/lodging/LodgingAssessmentOverview.vue'
+import type { RegionTableRow } from '../../components/lodging/LodgingRegionTable.vue'
 import type { ParcelRowData } from '../../components/lodging/LodgingParcelDrawer.vue'
 import { fetchJSON } from '../../api/data'
 import { childrenUrl } from '../../stores/drilldown'
@@ -22,7 +25,13 @@ import { loadPolicyFixture } from '../policy/policyRepository'
 import { INSURED_VILLAGE_CODES } from '../village-risk/villageRiskData'
 
 /**
- * 水稻倒伏评估模式（需求 §3）
+ * 水稻倒伏评估模式（需求 §3，v2.0）
+ *
+ * v2.0 变更：
+ * - 移除气象信号依赖
+ * - 演示模式：调用 lodgingDamageGenerator 生成空间连片受灾数据
+ * - 真实模式：无数据输入，展示空态
+ * - 概览卡片改为 KPI + 区域统计表结构
  */
 
 export interface LodgingModeContext {
@@ -40,12 +49,6 @@ export interface LodgingModeContext {
   showToast(message: string): void
   /** 村级视图中点击地块时回调，用于打开地块详情弹窗 */
   onLodgingParcelClick?(parcelId: string): void
-}
-
-export interface LodgingWeatherSignals {
-  typhoonDistanceKm: number | null
-  precipPeakMm: number
-  windLevel: number
 }
 
 export interface LodgingAssessmentMode {
@@ -67,65 +70,24 @@ export interface LodgingAssessmentMode {
 
 // ========== 区划代码匹配工具 ==========
 
-/** 子层级 */
 function getChildLevel(level: Level): Level | null {
   return NEXT_LEVEL[level]
 }
 
 /**
- * 判断一个 villageCode 是否属于某个区划 feature code（根据子层级）。
- *
- * 行政区划代码格式：
- * - 市级 GeoJSON: 6 位（如 330600），前 4 位有意义，后 2 位 "00"
- * - 县级 GeoJSON: 6 位（如 330604），全部有意义
- * - 乡镇级 GeoJSON: 12 位（如 330604104000），前 9 位有意义，后 3 位 "000"
- * - 村级 GeoJSON: 12 位（如 330604102014），全部有意义
- *
- * villageCode 是 12 位。匹配规则：
- * - city 子层级: villageCode 前 4 位 = featureCode 前 4 位
- * - county 子层级: villageCode 前 6 位 = featureCode
- * - township 子层级: 通过 townshipFileOf 反查
- * - village 子层级: villageCode = featureCode
- */
-function villageMatchesFeature(villageCode: string, featureCode: string, childLevel: Level): boolean {
-  switch (childLevel) {
-    case 'city':
-      // city feature "330600" → villageCode starts with "3306"
-      return villageCode.startsWith(featureCode.slice(0, 4))
-    case 'county':
-      // county feature "330604" → villageCode starts with "330604"
-      return villageCode.startsWith(featureCode)
-    case 'township': {
-      // township feature "330604104000" → need reverse lookup
-      const file = townshipFileOf(villageCode)
-      if (!file) return false
-      // Extract township code from file path: '/data/villages/330604104000.geojson' → '330604104000'
-      const match = file.match(/\/(\d+)\.geojson$/)
-      if (!match) return false
-      return match[1] === featureCode
-    }
-    case 'village':
-      return villageCode === featureCode
-    default:
-      return false
-  }
-}
-
-/**
  * 获取 villageCode 在子层级对应的区划代码。
- * 用于 DEMO_DAMAGE_MAP 查找和概览聚合。
  */
 function getRegionCodeForVillage(villageCode: string, childLevel: Level): string {
   switch (childLevel) {
     case 'city':
-      return villageCode.slice(0, 4) + '00'   // e.g. "330600"
+      return villageCode.slice(0, 4) + '00'
     case 'county':
-      return villageCode.slice(0, 6)           // e.g. "330604"
+      return villageCode.slice(0, 6)
     case 'township': {
       const file = townshipFileOf(villageCode)
       if (!file) return ''
       const match = file.match(/\/(\d+)\.geojson$/)
-      return match ? match[1] : ''             // e.g. "330604104000"
+      return match ? match[1] : ''
     }
     case 'village':
       return villageCode
@@ -134,43 +96,7 @@ function getRegionCodeForVillage(villageCode: string, childLevel: Level): string
   }
 }
 
-/**
- * 将 parcels 按子层级聚合到 feature code 级别。
- * 返回 Map<featureCode, { maxDamageRate, totalDamagedAreaMu, totalCompensation, householdCount }>
- */
-function aggregateParcelsByFeatures(
-  parcels: ParcelDamage[],
-  childLevel: Level,
-): Map<string, { maxDamageRate: DamageRate; totalDamagedAreaMu: number; damagedAreaMu: number; totalCompensation: number; householdCount: number }> {
-  const groups = new Map<string, { maxDamageRate: DamageRate; totalDamagedAreaMu: number; damagedAreaMu: number; totalCompensation: number; householdCount: number }>()
-
-  for (const parcel of parcels) {
-    const regionCode = getRegionCodeForVillage(parcel.villageCode, childLevel)
-    if (!regionCode) continue
-
-    const comp = computeCompensation(parcel.areaMu, parcel.sumInsured, parcel.damageRate)
-
-    let group = groups.get(regionCode)
-    if (!group) {
-      group = { maxDamageRate: 0, totalDamagedAreaMu: 0, damagedAreaMu: 0, totalCompensation: 0, householdCount: 0 }
-      groups.set(regionCode, group)
-    }
-    group.totalDamagedAreaMu += parcel.areaMu
-    group.totalCompensation += comp
-    if (parcel.damageRate > 0) {
-      group.damagedAreaMu += parcel.areaMu
-      group.householdCount += 1
-    }
-    group.maxDamageRate = Math.max(group.maxDamageRate, parcel.damageRate) as DamageRate
-  }
-
-  return groups
-}
-
 // ========== 主 composable ==========
-
-/** 每个村最多加载的地块数（演示模式限制，避免渲染过多地块） */
-const MAX_PARCELS_PER_VILLAGE = 400
 
 export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssessmentMode {
   const isActive = ref(false)
@@ -190,12 +116,11 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
   let evaluatedAt: string | null = null
   let childFeatureMap = new Map<string, Feature>()
 
-  /** 加载行政边界名称（加载所有层级的所有可用文件） */
+  /** 加载行政边界名称 */
   async function loadAdminNames(): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>()
     nameMap.set('330000', '浙江省')
 
-    // 加载所有城市的边界数据（用于省级视图名称 + 所有市级名称）
     const cityCodes: string[] = []
     try {
       const cityFc = await fetchJSON<FeatureCollection>('/data/boundary/city/330000.geojson')
@@ -209,7 +134,6 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       }
     } catch { /* ignore */ }
 
-    // 加载所有城市下的县级数据
     const countyCodes: string[] = []
     for (const cityCode of cityCodes) {
       try {
@@ -225,8 +149,6 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       } catch { /* ignore */ }
     }
 
-    // 加载有参保村的县级下的乡镇数据
-    // 从参保村的 countyCode 去重
     const countiesWithVillages = new Set<string>()
     for (const code of INSURED_VILLAGE_CODES) {
       countiesWithVillages.add(code.slice(0, 6))
@@ -242,7 +164,6 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       } catch { /* ignore */ }
     }
 
-    // 村级：从村界数据中提取
     for (const v of villageBoundaries) {
       nameMap.set(v.code, v.name)
     }
@@ -254,16 +175,19 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
     return adminNameMap.get(code) ?? code
   }
 
-  /** 加载所有 13 村保单数据，计算每个地块的受损率 */
-  async function loadAllData(signals: LodgingSignals): Promise<{
+  /**
+   * 加载所有 13 村保单数据，生成演示受灾数据。
+   * v2.0：演示模式调用连片生成器；真实模式返回空数据。
+   */
+  async function loadAllData(): Promise<{
     parcels: ParcelDamage[]
     villages: VillageBoundary[]
     partyNames: Map<string, string>
   }> {
     const villageCodesToLoad = [...INSURED_VILLAGE_CODES]
-
     const villages = await loadInsuredVillages()
 
+    // 加载保单数据
     const fixtureResults = await Promise.all(
       villageCodesToLoad.map(async (code) => {
         const result = await loadPolicyFixture(code)
@@ -271,8 +195,8 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       })
     )
 
-    const parcels: ParcelDamage[] = []
     const partyNames = new Map<string, string>()
+    const coveragesByVillage = new Map<string, ParcelCoverageInput[]>()
 
     for (const { code, fixture } of fixtureResults) {
       if (!fixture) continue
@@ -290,39 +214,32 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
         partyMap.set(party.id, party.name)
       }
 
-      // 限制每村最多加载 MAX_PARCELS_PER_VILLAGE 个地块（演示数据量控制）
-      let parcelCount = 0
+      const coverages: ParcelCoverageInput[] = []
       for (const coverage of fixture.parcelCoverages) {
-        if (parcelCount >= MAX_PARCELS_PER_VILLAGE) break
         const policyInfo = policyMap.get(coverage.policyId)
         if (!policyInfo || policyInfo.status !== '保障中') continue
 
         const partyName = partyMap.get(coverage.insuredPartyId) ?? ''
         if (partyName) partyNames.set(coverage.parcelId, partyName)
 
-        // 演示模式：用 DEMO_DAMAGE_MAP 按区域匹配；村级使用差异化受损率
-        let damageRate: DamageRate
-        if (isDemoMode.value) {
-          if (ctx.store.current.level === 'village') {
-            const villageRate = getDemoDamageForParcel(code, 'township')
-            damageRate = getVillageParcelDamageRate(villageRate, coverage.parcelId)
-          } else {
-            damageRate = getDemoDamageForParcel(code, ctx.store.current.level)
-          }
-        } else {
-          damageRate = computeDamageRate(signals)
-        }
-
-        parcels.push({
+        coverages.push({
           parcelId: coverage.parcelId,
-          villageCode: code,
           areaMu: Number(coverage.insuredAreaMu),
           sumInsured: policyInfo.unitSumInsured,
-          damageRate,
+          insuredPartyId: coverage.insuredPartyId,
         })
-        parcelCount++
+      }
+      if (coverages.length > 0) {
+        coveragesByVillage.set(code, coverages)
       }
     }
+
+    // 演示模式：调用连片生成器
+    let parcels: ParcelDamage[] = []
+    if (isDemoMode.value) {
+      parcels = await generateDemoDamageData(villages, coveragesByVillage)
+    }
+    // 真实模式：parcels 为空（所有地块 damageAreaMu = 0 → 空态）
 
     return { parcels, villages, partyNames }
   }
@@ -350,93 +267,168 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
     }
   }
 
-  /** 构建概览卡片模型 */
+  /** 聚合 parcels 到子层级 feature code 级别，返回 AggregatedResult[] */
+  function aggregateByFeatureCode(
+    parcels: ParcelDamage[],
+    childLevel: Level,
+  ): AggregatedResult[] {
+    interface GroupAccum {
+      totalInsuredAreaMu: number
+      totalCompensation: number
+      damagedAreaMu: number
+      householdIds: Set<string>
+    }
+    const groups = new Map<string, GroupAccum>()
+
+    for (const parcel of parcels) {
+      const regionCode = getRegionCodeForVillage(parcel.villageCode, childLevel)
+      if (!regionCode) continue
+
+      const damageRate = parcel.damageRate
+      const comp = computeCompensation(parcel.damageAreaMu, parcel.sumInsured, damageRate)
+
+      let group = groups.get(regionCode)
+      if (!group) {
+        group = { totalInsuredAreaMu: 0, totalCompensation: 0, damagedAreaMu: 0, householdIds: new Set() }
+        groups.set(regionCode, group)
+      }
+      group.totalInsuredAreaMu += parcel.areaMu
+      group.totalCompensation += comp
+      group.damagedAreaMu += parcel.damageAreaMu
+      if (parcel.damageAreaMu > 0 && parcel.insuredPartyId) {
+        group.householdIds.add(parcel.insuredPartyId)
+      }
+    }
+
+    return Array.from(groups.entries()).map(([code, g]) => {
+      const regionDamageRate = g.totalInsuredAreaMu > 0
+        ? Math.round((g.damagedAreaMu / g.totalInsuredAreaMu) * 10000) / 100
+        : 0
+      return {
+        code,
+        totalInsuredAreaMu: Math.round(g.totalInsuredAreaMu * 100) / 100,
+        totalCompensation: Math.round(g.totalCompensation * 100) / 100,
+        damagedAreaMu: Math.round(g.damagedAreaMu * 100) / 100,
+        householdCount: g.householdIds.size,
+        damageRate: regionDamageRate,
+        severity: computeRegionSeverity(regionDamageRate),
+      }
+    })
+  }
+
+  /** 构建区域统计表行 */
+  function buildRegionTableRows(aggregated: AggregatedResult[]): RegionTableRow[] {
+    const sorted = sortRegionResults(aggregated, adminNameMap)
+    return sorted.map((r) => ({
+      code: r.code,
+      name: getAdminName(r.code),
+      severity: r.severity,
+      damageRate: r.damageRate,
+      damagedAreaMu: r.damagedAreaMu,
+    }))
+  }
+
+  /** 构建地块列表行（村级） */
+  function buildParcelRows(parcels: ParcelDamage[]): ParcelRow[] {
+    return parcels
+      .map(p => {
+        const damageRate = p.damageRate
+        const compensation = computeCompensation(p.damageAreaMu, p.sumInsured, damageRate)
+        const severity = parcelDamageSeverity(damageRate)
+        return {
+          parcelId: p.parcelId,
+          severity,
+          damageRate,
+          damageAreaMu: p.damageAreaMu,
+          compensation,
+        }
+      })
+      .filter(p => p.damageAreaMu > 0)
+      .sort((a, b) => {
+        // 排序：受损程度（重>中>轻）→ 受损率降序 → 地块编号
+        const severityWeight: Record<RegionSeverity, number> = { heavy: 0, medium: 1, light: 2, none: 3 }
+        const sw = severityWeight[a.severity] - severityWeight[b.severity]
+        if (sw !== 0) return sw
+        if (a.damageRate !== b.damageRate) return b.damageRate - a.damageRate
+        return a.parcelId.localeCompare(b.parcelId)
+      })
+  }
+
+  /** 构建概览卡片模型
+   *  @param aggregated 预计算的区域聚合结果（与 Choropleth 共享，确保一致）
+   */
   function buildOverviewModel(
     parcels: ParcelDamage[],
     currentLevelName: string,
-    isVillageLevel: boolean
+    isVillageLevel: boolean,
+    aggregated: AggregatedResult[],
   ): LodgingOverviewModel {
-    const level = ctx.store.current.level
-
-    // 过滤到当前视图范围
     const relevantParcels = filterParcelsToScope(parcels)
 
-    // 总计（当前视图范围）
+    // KPI 统计
     let totalDamagedAreaMu = 0
-    let totalHouseholdCount = 0
+    const householdIds = new Set<string>()
     let totalCompensation = 0
+
     for (const p of relevantParcels) {
-      if (p.damageRate > 0) {
-        totalDamagedAreaMu += p.areaMu
-        totalHouseholdCount += 1
+      const damageRate = p.damageRate
+      if (p.damageAreaMu > 0) {
+        totalDamagedAreaMu += p.damageAreaMu
+        if (p.insuredPartyId) householdIds.add(p.insuredPartyId)
       }
-      totalCompensation += computeCompensation(p.areaMu, p.sumInsured, p.damageRate)
+      totalCompensation += computeCompensation(p.damageAreaMu, p.sumInsured, damageRate)
     }
 
-    // Top N：按子级聚合
-    let topItems: LodgingOverviewItem[] = []
+    // 区域统计表（非村级，使用共享的聚合数据）或地块列表（村级）
+    let regionRows: RegionTableRow[] = []
+    let parcelRows: ParcelRow[] = []
 
     if (!isVillageLevel) {
-      const childLevel = getChildLevel(level)
-      if (childLevel) {
-        const groups = aggregateParcelsByFeatures(relevantParcels, childLevel)
-        const sorted = [...groups.entries()]
-          .filter(([, g]) => g.maxDamageRate > 0)
-          .sort(([, a], [, b]) => b.totalCompensation - a.totalCompensation)
-
-        topItems = sorted.slice(0, 3).map(([code, g]) => ({
-          code,
-          name: getAdminName(code),
-          damageRate: g.maxDamageRate,
-          areaMu: Math.round(g.damagedAreaMu * 100) / 100,
-          compensation: Math.round(g.totalCompensation * 100) / 100,
-        }))
-      }
+      regionRows = buildRegionTableRows(aggregated)
     } else {
-      // 村级：Top 10 地块
-      const sorted = [...relevantParcels]
-        .filter(p => p.damageRate > 0)
-        .sort((a, b) => computeCompensation(b.areaMu, b.sumInsured, b.damageRate) - computeCompensation(a.areaMu, a.sumInsured, a.damageRate))
-      topItems = sorted.slice(0, 10).map(p => ({
-        code: p.parcelId,
-        name: '地块#' + p.parcelId,
-        damageRate: p.damageRate,
-        areaMu: p.areaMu,
-        compensation: computeCompensation(p.areaMu, p.sumInsured, p.damageRate),
-      }))
+      parcelRows = buildParcelRows(relevantParcels)
     }
 
     return {
       currentLevelName,
       isVillageLevel,
       totalDamagedAreaMu: Math.round(totalDamagedAreaMu * 100) / 100,
-      totalHouseholdCount,
+      totalHouseholdCount: householdIds.size,
       totalCompensation: Math.round(totalCompensation * 100) / 100,
-      totalParcelCount: relevantParcels.length,
-      topItems,
+      totalParcelCount: isVillageLevel ? parcelRows.length : 0,
+      regionRows,
+      parcelRows,
       evaluatedAt: evaluatedAt ?? '',
       isDemoMode: isDemoMode.value,
     }
   }
 
   /** 构建地块抽屉数据 */
-  function buildParcelDrawerRows(parcelDamages: ParcelDamage[]): ParcelRowData[] {
+  function buildParcelDrawerRows(parcels: ParcelDamage[]): ParcelRowData[] {
     if (ctx.store.current.level !== 'village') return []
     const villageCode = ctx.store.current.code
-    return parcelDamages
+    return parcels
       .filter(p => p.villageCode === villageCode)
-      .map(p => ({
-        parcelId: p.parcelId,
-        damageRate: p.damageRate,
-        areaMu: p.areaMu,
-        compensation: computeCompensation(p.areaMu, p.sumInsured, p.damageRate),
-        insuredName: partyNameByParcelId.get(p.parcelId) ?? '',
-      }))
+      .map(p => {
+        const damageRate = p.damageRate
+        return {
+          parcelId: p.parcelId,
+          damageRate,
+          areaMu: p.damageAreaMu,
+          compensation: computeCompensation(p.damageAreaMu, p.sumInsured, damageRate),
+          insuredName: partyNameByParcelId.get(p.parcelId) ?? '',
+        }
+      })
   }
 
   /** 构建 ChoroplethEntry[] */
+  /** 构建 ChoroplethEntry[]
+   *  @param parcels 地块数据
+   *  @param aggregatedMap 预计算的区域聚合结果（code → damageRate），非村级使用，确保与统计表一致
+   */
   async function buildChoroplethEntries(
     parcels: ParcelDamage[],
+    aggregatedMap: Map<string, number>,
   ): Promise<ChoroplethEntry[]> {
     const level = ctx.store.current.level
     childFeatureMap.clear()
@@ -450,7 +442,8 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
         )
         if (!parcelFc) return []
 
-        const damageByParcelId = new Map<string, DamageRate>()
+        // 构建 parcelId → damageRate map
+        const damageByParcelId = new Map<string, number>()
         for (const p of parcels) {
           if (p.villageCode === villageCode) {
             damageByParcelId.set(p.parcelId, p.damageRate)
@@ -461,7 +454,7 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
         for (const feature of parcelFc.features) {
           const parcelId = String(feature.properties?.id ?? feature.properties?.parcelId ?? '')
           const damageRate = damageByParcelId.get(parcelId) ?? 0
-          if (damageRate === 0 || !feature.geometry) continue
+          if (damageRate <= 0 || !feature.geometry) continue
 
           entries.push({
             code: parcelId,
@@ -477,7 +470,7 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       }
     }
 
-    // 非村级：加载子区划边界 GeoJSON
+    // 非村级：加载子区划边界 GeoJSON，使用预计算的聚合结果
     const crumb = ctx.store.current
     const url = childrenUrl(crumb)
     if (!url) return []
@@ -489,43 +482,26 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
       return []
     }
 
-    const childLevel = getChildLevel(level)
-    if (!childLevel) return []
-
-    // 对每个 GeoJSON feature，找到属于它的 parcels，计算最大受损率
     const entries: ChoroplethEntry[] = []
     for (const feature of fc.features) {
       const code = String(feature.properties?.code ?? '')
       const name = String(feature.properties?.name ?? code)
       if (!code || !feature.geometry) continue
 
-      // 找到属于这个区划的所有 parcels
-      const matchingParcels = parcels.filter(p =>
-        villageMatchesFeature(p.villageCode, code, childLevel)
-      )
+      // 使用预计算的聚合 damageRate，确保与统计表完全一致
+      const damageRate = aggregatedMap.get(code) ?? 0
+      if (damageRate <= 0) continue
 
-      if (matchingParcels.length === 0) continue
-
-      // 计算该区划的最大受损率
-      let maxDamageRate: DamageRate = 0
-      for (const p of matchingParcels) {
-        if (p.damageRate > maxDamageRate) {
-          maxDamageRate = p.damageRate
-        }
-      }
-
-      if (maxDamageRate === 0) continue
-
-      entries.push({ code, name, damageRate: maxDamageRate, geometry: feature.geometry })
+      entries.push({ code, name, damageRate, geometry: feature.geometry })
       childFeatureMap.set(code, feature as Feature)
     }
 
     return entries
   }
 
-  async function renderChoropleth(parcelDamages: ParcelDamage[]) {
+  async function renderChoropleth(parcels: ParcelDamage[], aggregatedMap: Map<string, number>) {
     if (!choroplethController) return
-    const entries = await buildChoroplethEntries(parcelDamages)
+    const entries = await buildChoroplethEntries(parcels, aggregatedMap)
     choroplethController.setData(entries)
     choroplethController.setVisible(true)
   }
@@ -533,25 +509,34 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
   async function runAssessment() {
     isLoading.value = true
     try {
-      const signals: LodgingSignals = isDemoMode.value
-        ? { precip: 80, wind: 8, typhoon: 150 }
-        : { precip: 80, wind: 8, typhoon: 150 } // TODO: 接入真实信号
-
       const now = new Date()
       evaluatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
-      const { parcels, villages, partyNames } = await loadAllData(signals)
+      const { parcels, villages, partyNames } = await loadAllData()
       parcelDamages = parcels
       villageBoundaries = villages
       partyNameByParcelId = partyNames
 
       adminNameMap = await loadAdminNames()
 
-      await renderChoropleth(parcelDamages)
+      // 计算一次聚合，Choropleth 和统计表共享，确保数据完全一致
+      const level = ctx.store.current.level
+      const childLevel = getChildLevel(level)
+      const relevantParcels = filterParcelsToScope(parcelDamages)
+      let aggregatedMap = new Map<string, number>()
+      let aggregatedResults: AggregatedResult[] = []
+      if (childLevel) {
+        aggregatedResults = aggregateByFeatureCode(relevantParcels, childLevel)
+        for (const r of aggregatedResults) {
+          aggregatedMap.set(r.code, r.damageRate)
+        }
+      }
+
+      await renderChoropleth(parcelDamages, aggregatedMap)
 
       const currentLevelName = ctx.store.current.name
       const isVillageLevel = ctx.store.current.level === 'village'
-      overviewModel.value = buildOverviewModel(parcelDamages, currentLevelName, isVillageLevel)
+      overviewModel.value = buildOverviewModel(parcelDamages, currentLevelName, isVillageLevel, aggregatedResults)
 
       parcelDrawerRows.value = buildParcelDrawerRows(parcelDamages)
 
@@ -579,7 +564,6 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
         onRegionClick: (code) => {
           const level = ctx.store.current.level
           if (level === 'village') {
-            // 村级视图：点击地块 → 打开地块详情弹窗
             ctx.onLodgingParcelClick?.(code)
             return
           }

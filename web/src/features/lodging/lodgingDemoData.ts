@@ -1,137 +1,149 @@
 /**
- * 水稻倒伏评估 —— 演示模式数据与工具函数
- * 纯数据/函数，无浏览器依赖，可直接在 Node 环境中单测。
- */
-
-import type { DamageRate, LodgingSignals } from './lodgingCalc'
-import type { Level } from '../../stores/drilldown'
-
-/** 演示模式下，按行政区级别标注受损等级 */
-export const DEMO_DAMAGE_MAP: Record<string, DamageRate> = {
-  // 省级视图（展示市级 choropleth）
-  '330600': 100, // 绍兴市 → 重度
-  '330100': 30,  // 杭州市 → 轻度
-  '330200': 30,  // 宁波市 → 轻度
-  '330300': 60,  // 温州市 → 中度
-
-  // 市级视图（绍兴下辖，展示县级 choropleth）
-  '330604': 100, // 上虞区 → 重度
-  '330683': 60,  // 嵊州市 → 中度
-  '330603': 60,  // 柯桥区 → 中度
-  '330602': 30,  // 越城区 → 轻度
-  '330681': 30,  // 诸暨市 → 轻度
-
-  // 县级视图（上虞区下辖，展示乡镇级 choropleth）
-  '330604104000': 100, // 章镇镇 → 重度
-  '330604004000': 60,  // 道墟街道 → 中度
-  '330604001000': 60,  // 百官街道 → 中度
-  '330604101000': 30,  // 长塘镇 → 轻度
-  '330604106000': 30,  // 丰惠镇 → 轻度
-
-  // 乡镇级视图（章镇镇下辖，展示村级 choropleth）
-  '330604102014': 100, // 龙江村 → 重度
-  '330604102011': 100, // 新南村 → 重度
-  '330604102015': 60,  // 大钱村 → 中度
-  '330604102016': 60,  // 清潭村 → 中度
-  '330604102017': 60,  // 新魏家庄村 → 中度
-  '330604102018': 30,  // 新三联村 → 轻度
-  '330604102020': 30,  // 新魏村 → 轻度
-  '330604102033': 30,  // 湾头村 → 轻度
-  '330604102013': 30,  // 龙浦村 → 轻度
-  '330604102012': 30,  // 泰山村 → 轻度
-}
-
-/**
- * 村码前缀 → 乡镇代码 映射。
- * 用于 county 级别匹配：村码前缀(330604102) ≠ 乡镇代码(330604104000)。
- */
-const VILLAGE_PREFIX_TO_TOWNSHIP: Record<string, string> = {
-  '330604102': '330604104000', // 章镇镇辖区村 → 章镇镇 township code
-  '330683104': '330683104000', // 三界镇辖区村 → 三界镇 township code
-}
-
-/** 根据村码反查乡镇代码 */
-function resolveTownshipCode(villageCode: string): string {
-  for (const [prefix, townshipCode] of Object.entries(VILLAGE_PREFIX_TO_TOWNSHIP)) {
-    if (villageCode.startsWith(prefix)) return townshipCode
-  }
-  return ''
-}
-
-/** 根据目标受损率反算信号组合（无台风，仅用降水+风力） */
-export function signalsForDamageRate(rate: DamageRate): LodgingSignals {
-  switch (rate) {
-    case 0:   return { precip: 30,  wind: 5,  typhoon: null }
-    case 30:  return { precip: 75,  wind: 7,  typhoon: null }
-    case 60:  return { precip: 150, wind: 9,  typhoon: null }
-    case 100: return { precip: 250, wind: 12, typhoon: null }
-  }
-}
-
-/**
- * 根据当前 drilldown 层级，获取某村庄在 DEMO_DAMAGE_MAP 中的受损率。
+ * 水稻倒伏评估 —— 演示模式数据桥接（v2.0）
  *
- * 匹配逻辑：
- * - province 视图 → 匹配前4位+'00'（市级代码，如 330600）
- * - city 视图 → 匹配前6位（县级代码，如 330604）
- * - county 视图 → 通过村码前缀反查乡镇代码（如 330604102xxx → 330604104000）
- * - township 视图 → 匹配完整12位村代码（如 330604102014）
- * - village 视图 → 匹配完整12位村代码
+ * 职责：
+ * - 从保单地块数据 + 地块 GeoJSON + 村边界数据 生成连片受灾演示数据
+ * - 调用 lodgingDamageGenerator 的空间连片算法
+ * - 输出 lodgingCalc.ParcelDamage[] 供汇总层消费
+ *
+ * v2.0 变更（相对 v1.3）：
+ * - 移除 DEMO_DAMAGE_MAP 硬编码
+ * - 移除 signalsForDamageRate / getDemoDamageForParcel / getVillageParcelDamageRate
+ * - 改为调用 lodgingDamageGenerator 连片生成
  */
-export function getDemoDamageForParcel(
-  villageCode: string,
-  currentLevel: Level,
-): DamageRate {
-  let lookupCode: string
-  switch (currentLevel) {
-    case 'province':
-      lookupCode = villageCode.slice(0, 4) + '00'
-      break
-    case 'city':
-      lookupCode = villageCode.slice(0, 6)
-      break
-    case 'county':
-      // 村码前缀(330604102) ≠ 乡镇代码(330604104000)，需要通过映射反查
-      lookupCode = resolveTownshipCode(villageCode)
-      break
-    case 'township':
-    case 'village':
-      lookupCode = villageCode
-      break
-    default:
-      return 0
-  }
 
-  return DEMO_DAMAGE_MAP[lookupCode] ?? 0
+import type { FeatureCollection } from 'geojson'
+import { fetchJSON } from '../../api/data'
+import type { VillageBoundary } from '../village-risk/villageRiskData'
+import type { ParcelInput, VillageDamageResult } from './lodgingDamageGenerator'
+import { generateVillageDamage } from './lodgingDamageGenerator'
+import type { ParcelDamage } from './lodgingCalc'
+import centroid from '@turf/center'
+
+/** 全局随机种子（可配置，用于演示数据一致性） */
+export const DEMO_GLOBAL_SEED = 20260821
+
+/** 保单地块原始数据（从 fixture 提取） */
+export interface ParcelCoverageInput {
+  parcelId: string
+  areaMu: number
+  sumInsured: number
+  insuredPartyId: string
 }
 
 /**
- * 村级视图：为单个地块生成差异化受损率。
- * 基于村整体受损率和 parcelId 种子，产生 0%/30%/60%/100% 的混合分布。
+ * 从地块 GeoJSON 计算每个地块的质心坐标。
+ * 返回 Map<parcelId, [lon, lat]>。
  */
-export function getVillageParcelDamageRate(
-  villageDamageRate: DamageRate,
-  parcelId: string,
-): DamageRate {
-  if (villageDamageRate === 0) return 0
+function computeParcelCentroids(
+  parcelFc: FeatureCollection,
+): Map<string, [number, number]> {
+  const centroids = new Map<string, [number, number]>()
+  for (const feature of parcelFc.features) {
+    const id = String(feature.properties?.id ?? feature.properties?.parcelId ?? '')
+    if (!id || !feature.geometry) continue
+    try {
+      const c = centroid(feature)
+      centroids.set(id, c.geometry.coordinates as [number, number])
+    } catch {
+      // 退化：使用 bbox 中心（如果没有 bbox，跳过）
+      // 实际中大多数 polygon feature 都能正常计算 centroid
+    }
+  }
+  return centroids
+}
 
-  const seed = parseInt(parcelId, 10) || 0
-  const variant = seed % 10
-
-  // 按村整体受损率决定分布比例
-  // 重度村: 50% 重度, 20% 中度, 20% 轻度, 10% 无
-  // 中度村: 20% 重度, 40% 中度, 30% 轻度, 10% 无
-  // 轻度村: 10% 重度, 20% 中度, 40% 轻度, 30% 无
-  const thresholds: Record<DamageRate, [number, number, number]> = {
-    100: [5, 7, 9],   // 0-4:重度, 5-6:中度, 7-8:轻度, 9:无
-    60:  [2, 6, 9],   // 0-1:重度, 2-5:中度, 6-8:轻度, 9:无
-    30:  [1, 3, 7],   // 0:重度, 1-2:中度, 3-6:轻度, 7-9:无
-    0:   [0, 0, 0],
+/**
+ * 为单个村生成演示受灾数据。
+ */
+function generateDemoForVillage(
+  village: VillageBoundary,
+  coverages: ParcelCoverageInput[],
+  parcelCentroids: Map<string, [number, number]>,
+  seed: number,
+): VillageDamageResult {
+  // 构造 ParcelInput（只保留有质心的地块）
+  const parcelInputs: ParcelInput[] = []
+  for (const cov of coverages) {
+    const centroid = parcelCentroids.get(cov.parcelId)
+    if (!centroid) continue
+    parcelInputs.push({
+      parcelId: cov.parcelId,
+      villageCode: village.code,
+      areaMu: cov.areaMu,
+      sumInsured: cov.sumInsured,
+      insuredPartyId: cov.insuredPartyId,
+      centroid,
+    })
   }
 
-  const [heavy, medium, light] = thresholds[villageDamageRate]
-  if (variant < heavy) return 100
-  if (variant < medium) return 60
-  if (variant < light) return 30
-  return 0
+  return generateVillageDamage(village, parcelInputs, seed)
+}
+
+/**
+ * 加载单个村的地块 GeoJSON（用于计算质心）。
+ */
+async function loadParcelGeoJSON(villageCode: string): Promise<FeatureCollection | null> {
+  try {
+    return await fetchJSON<FeatureCollection>(`/data/parcels/${villageCode}.geojson`)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 为所有村生成演示受灾数据。
+ *
+ * @param villages 村边界数据（来自 loadInsuredVillages）
+ * @param coveragesByVillage 按村代码分组的保单地块数据
+ * @returns 所有地块的受损数据（ParcelDamage[]）
+ */
+export async function generateDemoDamageData(
+  villages: VillageBoundary[],
+  coveragesByVillage: Map<string, ParcelCoverageInput[]>,
+  seed: number = DEMO_GLOBAL_SEED,
+): Promise<ParcelDamage[]> {
+  const results: ParcelDamage[] = []
+
+  // 并行加载所有村的地块 GeoJSON
+  const villageCodes = [...coveragesByVillage.keys()]
+  const geojsonResults = await Promise.all(
+    villageCodes.map(async (code) => {
+      const fc = await loadParcelGeoJSON(code)
+      return { code, fc }
+    })
+  )
+
+  // 计算质心
+  const centroidsByVillage = new Map<string, Map<string, [number, number]>>()
+  for (const { code, fc } of geojsonResults) {
+    if (fc) {
+      centroidsByVillage.set(code, computeParcelCentroids(fc))
+    }
+  }
+
+  // 按村生成
+  const villageMap = new Map(villages.map(v => [v.code, v]))
+  for (const [villageCode, coverages] of coveragesByVillage) {
+    const village = villageMap.get(villageCode)
+    if (!village) continue
+
+    const centroids = centroidsByVillage.get(villageCode)
+    if (!centroids || centroids.size === 0) continue
+
+    const damageResult = generateDemoForVillage(village, coverages, centroids, seed)
+    for (const p of damageResult.parcels) {
+      results.push({
+        parcelId: p.parcelId,
+        villageCode: p.villageCode,
+        areaMu: p.areaMu,
+        sumInsured: p.sumInsured,
+        damageAreaMu: p.damageAreaMu,
+        damageRate: p.damageRate,
+        insuredPartyId: p.insuredPartyId,
+      })
+    }
+  }
+
+  return results
 }
