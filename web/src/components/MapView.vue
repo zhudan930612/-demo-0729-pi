@@ -342,7 +342,7 @@ const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
 const canZoomIn = computed(() => currentZoom.value < 19)
 const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
-const basemap = ref<'img' | 'vec'>('img')
+const basemap = ref<'img' | 'vec' | 'osm' | 'topo'>('img')
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
 const canvasRenderer = L.canvas({ padding: 0.5 })
 
@@ -537,7 +537,7 @@ const {
 } = precipitationMode
 
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
-function switchBasemap(type: 'img' | 'vec') {
+function switchBasemap(type: 'img' | 'vec' | 'osm' | 'topo') {
   if (type === basemap.value || !basemaps) return
   map.removeLayer(basemaps[basemap.value])
   basemaps[type].addTo(map)
@@ -856,6 +856,8 @@ onMounted(async () => {
     renderer: canvasRenderer, // 矢量图层默认走 Canvas
   })
   map.setView([29.5, 120.5], 7) // 初始视野, 防止 flyToBounds 前无中心点
+  // e2e 断言 seam: DEV 下暴露 map 实例供自动化测试读取中心/缩放（生产构建为死代码）
+  if (import.meta.env.DEV) (window as unknown as { __map?: L.Map }).__map = map
   const provinceData=await fetchJSON<FeatureCollection>('/data/boundary/province.geojson').catch(()=>null)
   provinceGeometry=provinceData?.features[0]?.geometry??null
   currentZoom.value = map.getZoom()
