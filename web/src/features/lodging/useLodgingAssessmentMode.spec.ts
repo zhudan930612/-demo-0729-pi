@@ -36,119 +36,152 @@ describe('signalsForDamageRate', () => {
 })
 
 // ========== getDemoDamageForParcel ==========
+//
+// 新设计：无论当前处于哪一层级，同一村庄始终返回相同受损率。
+// 查找策略：村码精确匹配 → 乡镇基准值 → 0
 
 describe('getDemoDamageForParcel', () => {
-  describe('province level', () => {
-    it('matches 绍兴市 code for 章镇镇 villages', () => {
-      // 330604102014 → 前4位=3306 → +00 → 330600 (绍兴市) → 100
-      expect(getDemoDamageForParcel('330604102014', 'province')).toBe(100)
+  describe('章镇镇各村（有村级差异化条目）', () => {
+    it('龙江村 → 重度 100%', () => {
+      expect(getDemoDamageForParcel('330604102014')).toBe(100)
     })
 
-    it('matches 杭州市 code for 杭州区域 villages', () => {
-      expect(getDemoDamageForParcel('330102100000', 'province')).toBe(30)
+    it('新南村 → 重度 100%', () => {
+      expect(getDemoDamageForParcel('330604102011')).toBe(100)
     })
 
-    it('matches 温州市 code', () => {
-      expect(getDemoDamageForParcel('330302100000', 'province')).toBe(60)
+    it('大钱村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330604102015')).toBe(60)
     })
 
-    it('returns 0 for unmapped city', () => {
-      expect(getDemoDamageForParcel('330700100000', 'province')).toBe(0)
-    })
-  })
-
-  describe('city level', () => {
-    it('matches 上虞区 code for 章镇镇 villages', () => {
-      // 330604102014 → 前6位=330604 → 上虞区 → 100
-      expect(getDemoDamageForParcel('330604102014', 'city')).toBe(100)
+    it('清潭村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330604102016')).toBe(60)
     })
 
-    it('matches 嵊州市 code for 三界镇 villages', () => {
-      // 330683104224 → 前6位=330683 → 嵊州市 → 60
-      expect(getDemoDamageForParcel('330683104224', 'city')).toBe(60)
+    it('新魏家庄村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330604102017')).toBe(60)
     })
 
-    it('returns 0 for unmapped county', () => {
-      // 330624 → 新昌县 (not in DEMO_DAMAGE_MAP)
-      expect(getDemoDamageForParcel('330624100000', 'city')).toBe(0)
-    })
-  })
-
-  describe('county level', () => {
-    it('resolves 龙江村 to 章镇镇 via prefix mapping', () => {
-      // 330604102014 → village prefix 330604102 → township code 330604104000 → 100
-      expect(getDemoDamageForParcel('330604102014', 'county')).toBe(100)
+    it('新三联村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330604102018')).toBe(30)
     })
 
-    it('resolves 新南村 to 章镇镇 via prefix mapping', () => {
-      // 330604102011 → village prefix 330604102 → township code 330604104000 → 100
-      expect(getDemoDamageForParcel('330604102011', 'county')).toBe(100)
+    it('新魏村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330604102020')).toBe(30)
     })
 
-    it('resolves 三界镇 villages to 三界镇 township', () => {
-      // 330683104224 → village prefix 330683104 → township code 330683104000
-      // 330683104000 is NOT in DEMO_DAMAGE_MAP → 0
-      expect(getDemoDamageForParcel('330683104224', 'county')).toBe(0)
+    it('湾头村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330604102033')).toBe(30)
     })
 
-    it('returns 0 for villages with no township mapping', () => {
-      // Unknown prefix → no mapping → 0
-      expect(getDemoDamageForParcel('330102100000', 'county')).toBe(0)
+    it('龙浦村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330604102013')).toBe(30)
+    })
+
+    it('泰山村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330604102012')).toBe(30)
     })
   })
 
-  describe('township level', () => {
-    it('matches 龙江村 directly by full village code', () => {
-      expect(getDemoDamageForParcel('330604102014', 'township')).toBe(100)
+  describe('三界镇各村（有村级差异化条目）', () => {
+    it('临虞村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330683104307')).toBe(60)
     })
 
-    it('matches 新南村 directly', () => {
-      expect(getDemoDamageForParcel('330604102011', 'township')).toBe(100)
+    it('北街村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330683104306')).toBe(60)
     })
 
-    it('matches 大钱村 as 中度', () => {
-      expect(getDemoDamageForParcel('330604102015', 'township')).toBe(60)
+    it('白沙村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330683104224')).toBe(30)
     })
 
-    it('matches 新三联村 as 轻度', () => {
-      expect(getDemoDamageForParcel('330604102018', 'township')).toBe(30)
+    it('车骑山村 → 中度 60%', () => {
+      expect(getDemoDamageForParcel('330683104308')).toBe(60)
     })
 
-    it('returns 0 for unmapped village', () => {
-      // 330604102001 is not in DEMO_DAMAGE_MAP
-      expect(getDemoDamageForParcel('330604102001', 'township')).toBe(0)
+    it('盛岙村 → 轻度 30%', () => {
+      expect(getDemoDamageForParcel('330683104309')).toBe(30)
     })
   })
 
-  describe('village level', () => {
-    it('uses full village code same as township level', () => {
-      expect(getDemoDamageForParcel('330604102014', 'village')).toBe(100)
-      expect(getDemoDamageForParcel('330604102018', 'village')).toBe(30)
+  describe('乡镇基准值回退', () => {
+    it('章镇镇辖区内未单独列出的村 → 回退到乡镇基准 100%', () => {
+      // 330604102001 是章镇镇辖区村码前缀，但不在村级条目中
+      expect(getDemoDamageForParcel('330604102001')).toBe(100)
+    })
+
+    it('三界镇辖区内未单独列出的村 → 回退到乡镇基准 60%', () => {
+      // 330683104001 是三界镇辖区村码前缀，但不在村级条目中
+      expect(getDemoDamageForParcel('330683104001')).toBe(60)
+    })
+  })
+
+  describe('无匹配区域 → 0', () => {
+    it('不属于任何参保乡镇的村庄 → 0', () => {
+      expect(getDemoDamageForParcel('330102100000')).toBe(0)
+    })
+
+    it('未知前缀 → 0', () => {
+      expect(getDemoDamageForParcel('330700100000')).toBe(0)
+    })
+  })
+
+  describe('层级无关性（核心一致性保证）', () => {
+    it('同一村庄在不同层级参数下返回相同值', () => {
+      const levels = ['province', 'city', 'county', 'township', 'village'] as const
+      for (const level of levels) {
+        expect(getDemoDamageForParcel('330604102014', level)).toBe(100)
+        expect(getDemoDamageForParcel('330604102015', level)).toBe(60)
+        expect(getDemoDamageForParcel('330604102018', level)).toBe(30)
+        expect(getDemoDamageForParcel('330683104307', level)).toBe(60)
+        expect(getDemoDamageForParcel('330683104224', level)).toBe(30)
+      }
     })
   })
 })
 
-// ========== DEMO_DAMAGE_MAP 覆盖完整性 ==========
+// ========== 13 个参保村覆盖完整性 ==========
 
 describe('DEMO_DAMAGE_MAP coverage', () => {
-  it('all 13 insured villages have a matching entry at township level', () => {
+  it('所有 13 个参保村都有非零受损率', () => {
     // 章镇镇 8 村
     const zhangzhen = [
       '330604102014', '330604102011', '330604102015', '330604102016',
       '330604102017', '330604102018', '330604102020', '330604102033',
     ]
     for (const code of zhangzhen) {
-      const rate = getDemoDamageForParcel(code, 'township')
-      expect(rate, `village ${code} should have a damage rate`).toBeGreaterThan(0)
+      expect(getDemoDamageForParcel(code), `章镇镇 ${code} 应有受损率`).toBeGreaterThan(0)
     }
 
-    // 三界镇 5 村 — not in DEMO_DAMAGE_MAP at township level, but should match at city level
+    // 三界镇 5 村
     const sanjie = [
       '330683104307', '330683104306', '330683104224', '330683104308', '330683104309',
     ]
     for (const code of sanjie) {
-      const rate = getDemoDamageForParcel(code, 'city')
-      expect(rate, `village ${code} should match 嵊州市 at city level`).toBe(60)
+      expect(getDemoDamageForParcel(code), `三界镇 ${code} 应有受损率`).toBeGreaterThan(0)
     }
+  })
+
+  it('章镇镇各村受损率分布：重度×2 + 中度×3 + 轻度×5（含乡镇基准回退村）', () => {
+    // 显式列出的村
+    expect(getDemoDamageForParcel('330604102014')).toBe(100) // 龙江村
+    expect(getDemoDamageForParcel('330604102011')).toBe(100) // 新南村
+    expect(getDemoDamageForParcel('330604102015')).toBe(60)  // 大钱村
+    expect(getDemoDamageForParcel('330604102016')).toBe(60)  // 清潭村
+    expect(getDemoDamageForParcel('330604102017')).toBe(60)  // 新魏家庄村
+    expect(getDemoDamageForParcel('330604102018')).toBe(30)  // 新三联村
+    expect(getDemoDamageForParcel('330604102020')).toBe(30)  // 新魏村
+    expect(getDemoDamageForParcel('330604102033')).toBe(30)  // 湾头村
+    expect(getDemoDamageForParcel('330604102013')).toBe(30)  // 龙浦村
+    expect(getDemoDamageForParcel('330604102012')).toBe(30)  // 泰山村
+  })
+
+  it('三界镇各村受损率分布：中度×3 + 轻度×2', () => {
+    expect(getDemoDamageForParcel('330683104307')).toBe(60)  // 临虞村
+    expect(getDemoDamageForParcel('330683104306')).toBe(60)  // 北街村
+    expect(getDemoDamageForParcel('330683104224')).toBe(30)  // 白沙村
+    expect(getDemoDamageForParcel('330683104308')).toBe(60)  // 车骑山村
+    expect(getDemoDamageForParcel('330683104309')).toBe(30)  // 盛岙村
   })
 })
