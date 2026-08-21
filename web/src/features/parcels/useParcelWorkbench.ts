@@ -120,6 +120,7 @@ export interface ParcelWorkbench {
   clearBusinessData(): void
   /** 村级高分影像加载后：设置 AI 地块并渲染（render 调用） */
   applyAiParcels(parcels: FeatureCollection): void
+  selectParcel(parcel: ParcelSummaryInput, force?: boolean): Promise<void>
   retryBusinessData(): void
   toggleParcels(): Promise<void>
   setVisualMode(mode: ParcelVisualMode): void
@@ -378,8 +379,8 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     void selectParcel(parcel)
   }
 
-  async function selectParcel(parcel: ParcelSummaryInput) {
-    if (parcelMode.value !== 'idle' || !parcelOn.value) return
+  async function selectParcel(parcel: ParcelSummaryInput, force = false) {
+    if (!force && (parcelMode.value !== 'idle' || !parcelOn.value)) return
     if (cultivationEditing.value && !await openManualDialog('切换地块', '当前种植档案尚未保存，是否确认放弃并切换地块？', '确认切换')) return
     selectedParcel.value = parcel
     selectedPolicyContext.value = policyFixture.value
@@ -998,6 +999,7 @@ export function useParcelWorkbench(ctx: ParcelWorkbenchContext): ParcelWorkbench
     enterVillageContext,
     clearBusinessData,
     applyAiParcels,
+    selectParcel,
     retryBusinessData,
     toggleParcels,
     setVisualMode,
