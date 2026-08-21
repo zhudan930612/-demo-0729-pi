@@ -80,8 +80,15 @@
 
 | 数据源 | 用途 | 凭据 | 可用性前提 |
 |--------|------|------|-----------|
-| `tile.openstreetmap.org` | OSM 标准街道瓦片 | 无 | 演示环境有网；境外服务器，大陆访问速度/稳定性一般 |
+| `tile.openstreetmap.org` | OSM 标准街道瓦片 | 无 | 浏览器须经系统代理/国际出口（当前开发机 `127.0.0.1:10808`）；中国大陆直连被 GFW 屏蔽（DNS 投毒 + IP 封锁） |
 | `tile.opentopomap.org` | OSM 地貌（OpenTopoMap）地形瓦片 | 无 | 同上；浙江区域等高线内容较稀疏，属第三方数据形态 |
+
+### C3.1 网络可达性验证记录（2026-08-21）
+
+- 大陆直连（无代理）：两域名 TCP 443 均超时；DNS 被污染（内网/阿里 DNS 返回 Facebook/Dropbox 等误导 IP）
+- 经系统代理 `127.0.0.1:10808`、浏览器式请求（Chrome UA + Referer + Accept）实测：两域名均 HTTP 200、`image/png` 有效瓦片；OpenTopoMap 浙江永康区域瓦片含等高线/地形晕渲/中英地名注记
+- 裸 curl（无 Referer）请求 `tile.openstreetmap.org` 返回 403（tile usage policy 拦截）；浏览器加载带页面 Referer，不受影响
+- **依赖声明**：OSM 两项底图的加载依赖浏览器网络路径可访问 OSM 域名（系统代理或等效国际出口）；演示环境需保持该网络条件，否则底图灰块（对应验收项 1.5）
 
 ## C4. 非功能要求
 
