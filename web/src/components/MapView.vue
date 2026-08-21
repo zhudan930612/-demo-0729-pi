@@ -51,6 +51,29 @@
         />
       </template>
     </DisasterWorkbenchPanel>
+
+    <!-- 水稻倒伏评估概览卡片（地块详情打开时隐藏，避免遮挡） -->
+    <div v-if="lodgingMode.isActive.value && !selectedParcel" class="lodging-overview-container">
+      <LodgingAssessmentOverview
+        :model="lodgingMode.overviewModel.value"
+        :loading="lodgingMode.isLoading.value"
+        @select-region="handleLodgingRegionSelect"
+        @view-all-parcels="lodgingParcelDrawerOpen = true"
+      />
+    </div>
+
+    <!-- 水稻倒伏地块抽屉 -->
+    <LodgingParcelDrawer
+      :open="lodgingParcelDrawerOpen"
+      :parcels="lodgingMode.parcelDrawerRows.value"
+      :selected-parcel-id="selectedLodgingParcelId"
+      @close="lodgingParcelDrawerOpen = false"
+      @select-parcel="handleLodgingParcelSelect"
+    />
+
+    <!-- 全局 Toast -->
+    <AppToast ref="toastRef" />
+
     <TyphoonHoverPopup
       v-if="disasterActive"
       :model="typhoonHoverModel"
@@ -208,6 +231,10 @@
       :weather-modules="activeWeatherModules"
       :parcel-visual-mode-visible="parcelVisualModeVisible"
       :parcel-visual-mode="parcelVisualMode"
+      :lodging-entry-disabled="lodgingMode.entryDisabled.value"
+      :lodging-entry-reason="lodgingMode.entryReason.value"
+      :lodging-assessment-active="lodgingMode.isActive.value"
+      :lodging-demo-mode="lodgingMode.isDemoMode.value"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
@@ -219,6 +246,9 @@
       @close-weather="closeWeatherFromToolbar"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
+      @enter-lodging-assessment="lodgingMode.enterAssessmentMode()"
+      @exit-lodging-assessment="lodgingMode.exitAssessmentMode()"
+      @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
     />
   </div>
 </template>
@@ -257,6 +287,10 @@ import { useNationalAlarmStore } from '../stores/nationalAlarms'
 import { usePrecipitationStore } from '../stores/precipitation'
 import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
+import { useLodgingAssessmentMode } from '../features/lodging/useLodgingAssessmentMode'
+import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
+import LodgingParcelDrawer from './lodging/LodgingParcelDrawer.vue'
+import AppToast from './ui/AppToast.vue'
 import { useWeatherMode } from '../features/weather/useWeatherMode'
 import { usePrecipitationMode } from '../features/precipitation/usePrecipitationMode'
 import { useParcelWorkbench } from '../features/parcels/useParcelWorkbench'
@@ -448,6 +482,73 @@ const precipitationMode = usePrecipitationMode({
 })
 precipitationEnter = () => { void precipitationMode.enterPrecipitationMode() }
 precipitationExit = () => precipitationMode.exitPrecipitationMode()
+
+// 水稻倒伏评估模式
+const toastRef = ref<InstanceType<typeof AppToast>>()
+const lodgingParcelDrawerOpen = ref(false)
+const selectedLodgingParcelId = ref<string | null>(null)
+
+function handleLodgingRegionSelect(code: string) {
+  // 村级视图：Top 10 点击的是地块（code = parcelId），打开详情弹窗
+  if (store.current.level === 'village') {
+    handleLodgingParcelSelect(code)
+    return
+  }
+  // 非村级：点击子区划 → drilldown
+  const feature = lodgingMode.getChildFeature(code)
+  if (!feature) return
+  const level = store.current.level
+  const nextLevel = NEXT_LEVEL[level]
+  if (!nextLevel) return
+  const name = String(feature.properties?.name ?? code)
+  void store.drill({
+    level: nextLevel,
+    code,
+    name,
+    geometry: feature.geometry,
+  })
+}
+
+function handleLodgingParcelSelect(parcelId: string) {
+  selectedLodgingParcelId.value = parcelId
+  // 先关闭抽屉，避免其 z-index(2000) 遮挡地块详情弹窗(1050)
+  lodgingParcelDrawerOpen.value = false
+  // 从地块抽屉数据中找到对应的地块信息
+  const row = lodgingMode.parcelDrawerRows.value.find(r => r.parcelId === parcelId)
+  if (!row) return
+  // 构造 ParcelSummaryInput 并调用 parcelWorkbench.selectParcel 打开详情弹窗
+  void parcelWorkbench.selectParcel({
+    id: parcelId,
+    source: 'base',
+    areaMu: row.areaMu,
+    areaM2: row.areaMu * 666.67,
+  }, true)
+}
+
+const lodgingMode = useLodgingAssessmentMode({
+  store,
+  anyWeatherActive: () => anyWeatherActive.value,
+  disasterActive,
+  exits: {
+    weather: () => weatherMode.exitWeatherMode(),
+    nationalAlarms: () => weatherMode.exitNationalAlarms(),
+    typhoon: () => typhoonMode.exitTyphoonMode(),
+    precipitation: () => precipitationMode.exitPrecipitationMode(),
+  },
+  resetToProvince: () => store.resetToProvince(),
+  render: () => render(),
+  showToast: (msg) => { toastRef.value?.show(msg) },
+  onLodgingParcelClick: (parcelId) => {
+    handleLodgingParcelSelect(parcelId)
+  },
+})
+
+// 模式互斥：当其他模式激活时，自动退出评估模式
+watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen], ([weather, typhoon, precip]) => {
+  if (lodgingMode.isActive.value && (weather || typhoon || precip)) {
+    lodgingMode.exitAssessmentMode()
+  }
+})
 
 const parcelWorkbench = useParcelWorkbench({
   store,
@@ -892,6 +993,7 @@ onMounted(async () => {
   weatherMode.init(map)
   precipitationMode.init(map)
   typhoonMode.init(map)
+  lodgingMode.init(map)
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {

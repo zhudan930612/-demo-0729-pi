@@ -18,6 +18,39 @@
       </Transition>
     </div>
 
+    <!-- 风险评估入口 -->
+    <div class="tool-entry">
+      <button
+        type="button" class="icon-btn lodging-btn" :class="{ active: lodgingMenuOpen || lodgingAssessmentActive }"
+        :disabled="lodgingEntryDisabled" :title="lodgingTip" :aria-label="lodgingTip"
+        aria-haspopup="true" :aria-expanded="lodgingMenuOpen" aria-controls="lodging-tool-menu" @click="toggleLodgingMenu"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><circle cx="12" cy="12" r="2"/></svg>
+        <span class="icon-tip" role="tooltip">{{ lodgingTip }}</span>
+      </button>
+      <Transition name="tool-menu">
+        <div v-if="lodgingMenuOpen" id="lodging-tool-menu" class="tool-menu" aria-label="选择评估类型">
+          <button type="button" class="menu-action" :class="{ selected: lodgingAssessmentActive }" @click="chooseLodgingAssessment('rice')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M8 6c0 2 1 4 4 4s4-2 4-4M6 10c0 2 1.5 4 6 4s6-2 6-4M4 14c0 2 2 4 8 4s8-2 8-4"/></svg>
+            <span>🌾 水稻倒伏</span>
+          </button>
+          <button type="button" class="menu-action" disabled title="即将上线">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M9 8c0 1.5 1 3 3 3s3-1.5 3-3M7 12c0 1.5 1.5 3 5 3s5-1.5 5-3"/></svg>
+            <span>🌿 小麦倒伏 <small style="color:#94a3b8">(即将上线)</small></span>
+          </button>
+          <button v-if="lodgingAssessmentActive" type="button" class="menu-action" @click="exitLodgingAssessment">
+            <span>✕ 退出评估</span>
+          </button>
+          <div class="menu-divider"></div>
+          <label class="menu-toggle">
+            <span class="toggle-label">演示模式</span>
+            <input type="checkbox" :checked="lodgingDemoMode" @change="toggleLodgingDemoMode" />
+            <span class="toggle-switch"></span>
+          </label>
+        </div>
+      </Transition>
+    </div>
+
     <button
       type="button" class="icon-btn typhoon-btn" :class="{ active: disasterActive }"
       :disabled="disasterEntryDisabled || disasterActive"
@@ -93,34 +126,59 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParcelMode } from '../../features/parcels/parcelTypes'
 import type { ParcelVisualMode } from '../../features/parcels/parcelVisualMode'
 type WeatherModule = 'alerts' | 'current' | 'precipitation'
-const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode }>()
-const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode] }>()
+const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean }>()
+const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
-const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false)
+const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false),lodgingMenuOpen=ref(false)
 const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'查看台风')
 const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModules.map((module)=>module==='alerts'?'气象预警':module==='precipitation'?'降雨量':'实时天气').join('、')}，点击菜单项可退出`:props.weatherEntryReason)
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'种植':props.parcelVisualMode==='insurance'?'保险':'地块';return`地图图层：${label}`})
+const lodgingTip=computed(()=>props.lodgingAssessmentActive?'风险评估模式已开启':props.lodgingEntryReason?props.lodgingEntryReason:'水稻倒伏评估')
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
-function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false}
-function openBasemapMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=true}
+function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false}
+function openBasemapMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=true;lodgingMenuOpen.value=false}
 function closeBasemapMenu(){basemapMenuOpen.value=false}
 function chooseBasemap(type:'img'|'vec'){closeBasemapMenu();emit('switch-basemap',type)}
-function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
-function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
-function toggleLayerMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;layerMenuOpen.value=!layerMenuOpen.value}
+function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
+function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
+function toggleLayerMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=!layerMenuOpen.value}
 function chooseParcelMode(mode:'manual'|'filter'){parcelMenuOpen.value=false;if(mode==='manual')emit('start-manual');else emit('start-filter')}
 function chooseWeatherModule(module:WeatherModule){weatherMenuOpen.value=false;if(props.weatherModules.includes(module)){emit('close-weather',module);return}emit('open-weather',module)}
 function chooseVisualMode(mode:ParcelVisualMode){layerMenuOpen.value=false;emit('set-visual-mode',mode)}
-function closeOnOutside(event:PointerEvent){if((parcelMenuOpen.value||weatherMenuOpen.value||layerMenuOpen.value||basemapMenuOpen.value)&&!controlStackRef.value?.contains(event.target as Node))closeMenus()}
-function onKeydown(event:KeyboardEvent){if(event.key!=='Escape'||(!parcelMenuOpen.value&&!weatherMenuOpen.value&&!layerMenuOpen.value&&!basemapMenuOpen.value))return;event.preventDefault();event.stopImmediatePropagation();closeMenus()}
+function toggleLodgingMenu(){
+  if(props.lodgingEntryDisabled)return
+  // 如果已在评估模式，点击图标直接退出
+  if(props.lodgingAssessmentActive){
+    lodgingMenuOpen.value=false
+    emit('exit-lodging-assessment')
+    return
+  }
+  // 否则打开菜单
+  parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=!lodgingMenuOpen.value
+}
+function chooseLodgingAssessment(_type:'rice'){lodgingMenuOpen.value=false;emit('enter-lodging-assessment')}
+function exitLodgingAssessment(){lodgingMenuOpen.value=false;emit('exit-lodging-assessment')}
+function toggleLodgingDemoMode(){emit('toggle-lodging-demo-mode')}
+function closeOnOutside(event:PointerEvent){if((parcelMenuOpen.value||weatherMenuOpen.value||layerMenuOpen.value||basemapMenuOpen.value||lodgingMenuOpen.value)&&!controlStackRef.value?.contains(event.target as Node))closeMenus()}
+function onKeydown(event:KeyboardEvent){if(event.key!=='Escape'||(!parcelMenuOpen.value&&!weatherMenuOpen.value&&!layerMenuOpen.value&&!basemapMenuOpen.value&&!lodgingMenuOpen.value))return;event.preventDefault();event.stopImmediatePropagation();closeMenus()}
 watch(()=>[props.parcelToolsVisible,props.parcelToolsDisabled,props.weatherEntryDisabled,props.parcelVisualModeVisible] as const,()=>{if(!props.parcelToolsVisible||props.parcelToolsDisabled)parcelMenuOpen.value=false;if(props.weatherEntryDisabled)weatherMenuOpen.value=false;if(!props.parcelVisualModeVisible)layerMenuOpen.value=false})
 document.addEventListener('pointerdown',closeOnOutside);window.addEventListener('keydown',onKeydown,true)
 onBeforeUnmount(()=>{document.removeEventListener('pointerdown',closeOnOutside);window.removeEventListener('keydown',onKeydown,true)})
 </script>
 
 <style scoped>
-.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:0;width:max-content;min-width:132px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.basemap-menu{min-width:148px}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translateX(6px)}
+.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active,.lodging-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:0;width:max-content;min-width:132px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.basemap-menu{min-width:148px}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translateX(6px)}
+.menu-divider{height:1px;margin:4px 8px;background:#e2e8f0}
+.menu-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;gap:8px}
+.toggle-label{font-size:12px;color:#475569;font-weight:500}
+.toggle-switch{position:relative;width:36px;height:20px;background:#cbd5e1;border-radius:10px;transition:background 0.2s;flex-shrink:0}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.menu-toggle input{display:none}
+.menu-toggle input:checked + .toggle-switch{background:#3b82f6}
+.menu-toggle input:checked + .toggle-switch::after{transform:translateX(16px)}
+.exit-action{color:#dc2626!important}
+.exit-action:hover:not(:disabled){background:#fef2f2!important;color:#dc2626!important}
 @media(prefers-reduced-motion:reduce){.icon-btn,.menu-action,.icon-tip,.tool-menu-enter-active,.tool-menu-leave-active{transition:none}}
 </style>
