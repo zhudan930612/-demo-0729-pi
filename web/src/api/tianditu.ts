@@ -1,6 +1,7 @@
 import L from 'leaflet'
 
 const TOKEN = import.meta.env.VITE_TIANDITU_TOKEN as string
+const TRACESTRACK_KEY = import.meta.env.VITE_TRACESTRACK_KEY as string
 const SUBDOMAINS = ['0', '1', '2', '3', '4', '5', '6', '7']
 
 function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
@@ -18,7 +19,7 @@ function tdtLayer(type: 'img_w' | 'cia_w' | 'vec_w' | 'cva_w', zIndex: number) {
   )
 }
 
-/** OSM/OpenTopoMap 免 token 瓦片；文字注记烘焙在瓦片中，无独立注记层 */
+/** OSM 标准免 token 瓦片 + Tracestrack Topo 地貌瓦片（key 经 URL 参数）；文字注记烘焙在瓦片中，无独立注记层 */
 function osmLayer(url: string, attribution: string, maxNativeZoom: number) {
   return L.tileLayer(url, {
     maxNativeZoom, // z>maxNativeZoom 由 Leaflet 放大该级瓦片（模糊属预期）
@@ -36,7 +37,7 @@ export interface Basemaps {
   vec: L.LayerGroup
   /** OSM 标准: OpenStreetMap 街道瓦片 (tile.openstreetmap.org, 免 token) */
   osm: L.LayerGroup
-  /** OSM 地貌: OpenTopoMap 地形瓦片 (tile.opentopomap.org, 免 token) */
+  /** OSM 地貌: Tracestrack Topo 地形瓦片 (tile.tracestrack.com, 需 key；@1x=256px 与其余底图统一) */
   topo: L.LayerGroup
 }
 
@@ -51,7 +52,7 @@ export function createBasemaps(): Basemaps {
       osmLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', 19),
     ]),
     topo: L.layerGroup([
-      osmLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', 17),
+      osmLayer(`https://tile.tracestrack.com/topo__/{z}/{x}/{y}@1x.png?key=${TRACESTRACK_KEY}`, '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', 19),
     ]),
   }
 }

@@ -19,7 +19,7 @@ async function interceptOsmTiles(page: Page, status: 204 | 503) {
     osmRequests.push(route.request().url())
     await respond(route)
   })
-  await page.route('https://tile.opentopomap.org/**', async (route) => {
+  await page.route('https://tile.tracestrack.com/**', async (route) => {
     topoRequests.push(route.request().url())
     await respond(route)
   })
@@ -107,7 +107,7 @@ test('验收1.2: 选择 OSM 标准后请求 tile.openstreetmap.org 且中心/缩
   expect(osmRequests.length).toBe(countAfterSettle)
 })
 
-test('验收1.3: 选择 OSM 地貌后请求 tile.opentopomap.org 且中心/缩放不变', async ({ page }) => {
+test('验收1.3: 选择 OSM 地貌后请求 tile.tracestrack.com 且中心/缩放不变', async ({ page }) => {
   await installFixtures(page)
   const { topoRequests } = await interceptOsmTiles(page, 204)
   await page.goto('/')
@@ -119,7 +119,7 @@ test('验收1.3: 选择 OSM 地貌后请求 tile.opentopomap.org 且中心/缩�
 
   await expect(page.getByRole('button', { name: '底图：OSM 地貌' })).toBeVisible()
   await expect.poll(() => topoRequests.length).toBeGreaterThan(0)
-  expect(topoRequests.every((url) => new URL(url).hostname === 'tile.opentopomap.org')).toBe(true)
+  expect(topoRequests.every((url) => new URL(url).hostname === 'tile.tracestrack.com')).toBe(true)
 
   expect(await mapState(page)).toEqual(before)
 })
@@ -152,7 +152,7 @@ test('验收1.4: OSM 底图显示正确版权标注，切回天地图后不残�
   await expect(page.getByRole('button', { name: '底图：卫星' })).toBeVisible()
   await expect(attribution).toContainText('天地图')
   await expect(attribution).not.toContainText('OpenStreetMap')
-  await expect(attribution).not.toContainText('OpenTopoMap')
+  await expect(attribution).not.toContainText('Tracestrack')
 })
 
 test('验收1.5: OSM 瓦片加载失败(503)时地图不崩溃，切回天地图卫星后恢复正常', async ({ page }) => {

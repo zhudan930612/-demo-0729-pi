@@ -28,7 +28,7 @@ async function interceptOsmTiles(page: Page, status: 204 | 503) {
     osmRequests.push(route.request().url())
     await respond(route)
   })
-  await page.route('https://tile.opentopomap.org/**', async (route) => {
+  await page.route('https://tile.tracestrack.com/**', async (route) => {
     topoRequests.push(route.request().url())
     await respond(route)
   })
@@ -124,7 +124,7 @@ test('验收1.6 补充: 切换 OSM 底图不重置高分影像开关、层级/�
   await expect(page.locator('.leaflet-control-attribution')).toContainText('天地图')
 })
 
-test('补充: OSM 瓦片请求 URL 不含 token/凭据（免 token）', async ({ page }) => {
+test('补充: OSM 瓦片请求 URL 不含天地图 token/凭据；Tracestrack 用独立 key（不泄露其他凭据）', async ({ page }) => {
   await installFixtures(page)
   const { osmRequests, topoRequests } = await interceptOsmTiles(page, 204)
   await page.goto('/')
@@ -137,15 +137,24 @@ test('补充: OSM 瓦片请求 URL 不含 token/凭据（免 token）', async ({
   await menu2.getByRole('radio', { name: 'OSM 地貌' }).click()
   await expect.poll(() => topoRequests.length).toBeGreaterThan(0)
 
-  const all = [...osmRequests, ...topoRequests]
-  expect(all.length).toBeGreaterThan(0)
-  for (const u of all) {
+  // OSM 标准：免凭据，任何 token/key 参数都不应出现
+  for (const u of osmRequests) {
     const url = new URL(u)
     expect(url.username, `不应带用户名: ${u}`).toBe('')
     expect(url.password, `不应带密码: ${u}`).toBe('')
     expect(url.searchParams.get('tk'), `不应带天地图 token: ${u}`).toBeNull()
     expect(url.searchParams.get('token'), `不应带 token: ${u}`).toBeNull()
     expect(url.searchParams.get('key'), `不应带 key: ${u}`).toBeNull()
+  }
+  // Tracestrack 地貌：仅带自身 key 参数（凭据来源 .env.local），不得携带其他 token/凭据
+  expect(topoRequests.length).toBeGreaterThan(0)
+  for (const u of topoRequests) {
+    const url = new URL(u)
+    expect(url.username, `不应带用户名: ${u}`).toBe('')
+    expect(url.password, `不应带密码: ${u}`).toBe('')
+    expect(url.searchParams.get('tk'), `不应带天地图 token: ${u}`).toBeNull()
+    expect(url.searchParams.get('token'), `不应带 token: ${u}`).toBeNull()
+    expect(url.searchParams.get('key'), `Tracestrack key 缺失: ${u}`).not.toBeNull()
   }
 })
 

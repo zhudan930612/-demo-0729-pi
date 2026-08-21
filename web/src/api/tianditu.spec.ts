@@ -57,13 +57,16 @@ describe('createBasemaps OSM 底图配置', () => {
     expect(layer.options.maxNativeZoom).toBe(19)
   })
 
-  it('OSM 地貌：tile.opentopomap.org 瓦片、统一版权文案（© OpenStreetMap 带链接）、原生最高 z17', () => {
+  it('OSM 地貌：tile.tracestrack.com 瓦片（带 key 参数）、统一版权文案（© OpenStreetMap 带链接）、原生最高 z19', () => {
     const basemaps = createBasemaps() as unknown as Record<string, FakeGroup>
     const topo = basemaps.topo
     expect(topo.layers).toHaveLength(1) // 文字烘焙在瓦片中，无独立注记层
     const [layer] = topo.layers
-    expect(new URL(layer.url).hostname).toBe('tile.opentopomap.org')
+    expect(new URL(layer.url).hostname).toBe('tile.tracestrack.com')
+    expect(layer.url).toContain('topo__')
+    expect(layer.url).toContain('@1x.png')
+    expect(layer.url).toContain('key=') // Tracestrack 凭据经 URL 参数注入，key 值来自环境不硬编码
     expect(layer.options.attribution).toBe('© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>')
-    expect(layer.options.maxNativeZoom).toBe(17)
+    expect(layer.options.maxNativeZoom).toBe(19)
   })
 })

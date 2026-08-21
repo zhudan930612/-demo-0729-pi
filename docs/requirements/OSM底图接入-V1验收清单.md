@@ -10,7 +10,7 @@
 |------|-------------------|----------|----------|----------|------|-----------|
 | 1.1 | 底图切换菜单出现「OSM 标准」「OSM 地貌」两项，连同卫星、矢量共四项；当前选中项有选中态标识，默认选中「卫星」 | [E2E-自动化] | 启动 dev server，浏览器打开底图菜单，DOM 断言 4 个菜单项与默认选中态 | 测试命令 + 实际输出 | ☐ | 默认行为必须与当前 V1 完全一致 |
 | 1.2 | 选择「OSM 标准」后，底图切换为 OpenStreetMap 街道瓦片（请求 `tile.openstreetmap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | route 拦截 OSM 域名记录请求 URL：点击后断言 tile 请求域名变为 `tile.openstreetmap.org`（fulfill 204，不依赖真实网络），中心/缩放不变、页面不刷新 | 测试命令 + 网络记录 + 断言输出 | ☐ | 重复点击已选中的 OSM 标准不产生变化；自动化不依赖系统代理 |
-| 1.3 | 选择「OSM 地貌」后，底图切换为 OpenTopoMap 地形瓦片（请求 `tile.opentopomap.org`），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | route 拦截：断言 tile 请求域名变为 `tile.opentopomap.org`（fulfill 204），中心/缩放不变 | 测试命令 + 网络记录 + 断言输出 | ☐ | 同上 |
+| 1.3 | 选择「OSM 地貌」后，底图切换为 Tracestrack Topo 地形瓦片（请求 `tile.tracestrack.com`，带 key 参数），地图中心与缩放级别保持不变，页面不刷新 | [E2E-自动化] | route 拦截：断言 tile 请求域名变为 `tile.tracestrack.com`（含 key 参数，fulfill 204），中心/缩放不变 | 测试命令 + 网络记录 + 断言输出 | ☐ | 同上；key 值不硬编码断言，仅断言参数存在 |
 | 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见、文本正确且可点击（链接指向 `https://www.openstreetmap.org/copyright`，新标签页打开）：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」（文案统一为 2026-08-21 用户决策；官方完整标注要求见需求文档 C3.1） | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本、超链接 href 与 target=_blank（配置值，与网络无关）；人工目视确认标注渲染位置（需可访问 OSM 的浏览器环境） | 测试命令 + 输出 + 截图 | ☐ | 切回天地图后显示天地图标注，不残留 OSM 标注 |
 | 1.5 | （异常）OSM 标准/地貌瓦片加载失败（如网络中断）时，对应区域显示空白/灰块，地图容器不崩溃，行政边界、地块等业务图层不受影响；切回天地图卫星/矢量后底图立即恢复 | [E2E-自动化] + [E2E-人工] | route 拦截 OSM 域名返回 503：断言地图不崩溃、行政边界/地块图层完好、切回天地图卫星恢复正常；人工可选复核真实断网 | 测试命令 + 输出 + 截图 | ☐ | 已确认接受无代理降级：现场无代理时 OSM 灰块即本项常态 |
 | 1.6 | 切换至任一 OSM 底图后，高分影像叠加、行政边界、地块显示与交互均不受影响；切回天地图卫星/矢量后一切恢复正常 | [E2E-自动化] + [E2E-人工] | 切换前后对比高分影像开关、边界、地块图层状态断言；人工目视确认浙江区域瓦片实际加载效果 | 测试命令 + 输出 + 截图 | ☐ | 切换底图不重置高分影像开关状态 |
@@ -23,7 +23,7 @@
 
 | 模块 | seam（公共接口/边界） | 说明 |
 |------|----------------------|------|
-| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构 + `BasemapKey` 类型（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上；OSM 两源 tile URL、统一 attribution 文案（「© OpenStreetMap」带链接）、maxNativeZoom（OSM 标准 19 / OpenTopoMap 17） |
+| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构 + `BasemapKey` 类型（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上；OSM 标准 URL/无凭据断言、Tracestrack URL（topo__/@1x/key 参数）断言、统一 attribution 文案（「© OpenStreetMap」带链接）、maxNativeZoom（OSM 标准 19 / Tracestrack 19） |
 | R1 切换逻辑 | `web/src/map/basemapSwitcher.ts`（switchBasemap 抽出的可注入模块：removeLayer 旧组 + addLayer 新组 + 更新当前值；`MapView.vue` 复用并保留 `!basemaps` 守卫） | 单测断言切换不改变中心/缩放、不重建地图（调用记录仅 [removeLayer, addLayer]、同一地图实例）、重复点击零调用 |
 | R1 菜单 UI | `web/src/components/map/MapControlStack.vue` 的 `chooseBasemap` 事件与菜单项（扩展 2→4 项） | e2e 断言菜单项、选中态、aria 属性 |
 | R1 版权标注 | 各 OSM tileLayer 的 `attribution` 配置（统一「© OpenStreetMap」+ 链接 + target=_blank） | e2e DOM 断言 attribution 文本、链接 href 与 target |
@@ -43,4 +43,4 @@
 
 - 未执行不算通过；AI 无资格自称人工验证（AI 自跑 UI 点验只能算冒烟，不能算人工验证）
 - 自动化优先：主观视觉/审美、真实渲染目视确认、真实交互体验、业务合理性判断、最终用户接受（UAT）才允许 [E2E-人工]
-- 本需求 1.4/1.6 的人工目视部分用于确认第三方瓦片在浙江区域的实际渲染形态（OSM/OpenTopoMap 数据形态属外部事实，自动化无法替代目视）
+- 本需求 1.4/1.6 的人工目视部分用于确认第三方瓦片在浙江区域的实际渲染形态（OSM/Tracestrack 数据形态属外部事实，自动化无法替代目视）

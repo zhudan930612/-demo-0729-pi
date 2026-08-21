@@ -5,7 +5,7 @@
 
 ## A1. 背景与目标
 
-当前底图切换菜单支持天地图「卫星 / 矢量」两种（`web/src/api/tianditu.ts` 的 `createBasemaps()`，默认卫星）。目标：在菜单中新增「OSM 标准」「OSM 地貌」两个官方免费瓦片选项，供用户切换查看 OpenStreetMap 街道底图与 OpenTopoMap 地形底图。
+当前底图切换菜单支持天地图「卫星 / 矢量」两种（`web/src/api/tianditu.ts` 的 `createBasemaps()`，默认卫星）。目标：在菜单中新增「OSM 标准」「OSM 地貌」两个选项，供用户切换查看 OpenStreetMap 街道底图与 Tracestrack Topo 地形底图（OSM 官网「地貌」图层同款样式）。
 
 - 只扩展底图切换能力，不改动任何业务功能
 - 默认底图保持天地图卫星，进入应用时的视觉与交互与现状一致
@@ -20,7 +20,7 @@
 
 | 术语 | 定义 | 避免词 |
 |------|------|--------|
-| OSM 底图 | 底图切换选项集合，含 OSM 标准（OpenStreetMap 街道瓦片，`tile.openstreetmap.org`）与 OSM 地貌（OpenTopoMap 地形瓦片，`tile.opentopomap.org`）两种，均免费、无需 token | 街景、谷歌地图 |
+| OSM 底图 | 底图切换选项集合，含 OSM 标准（OpenStreetMap 街道瓦片，`tile.openstreetmap.org`）与 OSM 地貌（Tracestrack Topo 地形瓦片，`tile.tracestrack.com`，OSM 官网 `layers=P` 同款）两种；OSM 标准免 token，OSM 地貌需 Tracestrack key（`web/.env.local`） | 街景、谷歌地图 |
 | 底图切换 | 在菜单中单选一个底图选项，移除当前底图图层组并添加所选底图图层组，不刷新页面、不改变地图中心与缩放 | — |
 | 版权标注 | 地图归属文字：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 OSM 版权页的超链接（`https://www.openstreetmap.org/copyright`，点击新标签页打开）（内部 demo 极简取舍，官方完整文本「Kartendaten: © OpenStreetMap contributors, SRTM | Kartendarstellung: © OpenTopoMap (CC-BY-SA)」见 C3.1） | — |
 
@@ -44,7 +44,7 @@
 |------|--------|---------------|
 | 1.1 | 底图切换菜单出现「OSM 标准」「OSM 地貌」两项，连同卫星、矢量共四项；当前选中项有选中态标识，默认选中「卫星」 | 无 |
 | 1.2 | 选择「OSM 标准」后，底图切换为 OpenStreetMap 街道瓦片（请求 `tile.openstreetmap.org`），地图中心与缩放级别保持不变，页面不刷新 | 重复点击当前已选中的 OSM 标准不产生任何变化 |
-| 1.3 | 选择「OSM 地貌」后，底图切换为 OpenTopoMap 地形瓦片（请求 `tile.opentopomap.org`），地图中心与缩放级别保持不变，页面不刷新 | 同上 |
+| 1.3 | 选择「OSM 地貌」后，底图切换为 Tracestrack Topo 地形瓦片（请求 `tile.tracestrack.com`，带 key 参数），地图中心与缩放级别保持不变，页面不刷新 | 同上 |
 | 1.4 | 任一 OSM 底图显示状态下，地图版权标注可见、文本正确且可点击（链接指向 `https://www.openstreetmap.org/copyright`，新标签页打开）：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」（文案统一为 2026-08-21 用户决策，见 C3.1） | 切回天地图后显示天地图标注，不残留 OSM 标注 |
 | 1.5 | （异常）OSM 标准/地貌瓦片加载失败（如网络中断）时，对应区域显示空白/灰块，地图容器不崩溃，行政边界、地块等业务图层不受影响；切回天地图卫星/矢量后底图立即恢复 | 断网后切回天地图仍能正常显示（天地图可达时） |
 | 1.6 | 切换至任一 OSM 底图后，高分影像叠加、行政边界、地块显示与交互均不受影响；切回天地图卫星/矢量后一切恢复正常 | 切换底图不重置高分影像开关状态 |
@@ -55,7 +55,7 @@
 |------|----------|----------|
 | 1.1 | [E2E-自动化] | 启动 dev server，浏览器打开底图菜单，DOM 断言 4 个菜单项与默认选中态 |
 | 1.2 | [E2E-自动化] | route 拦截 OSM 域名记录请求 URL：点击「OSM 标准」后断言 tile 请求域名变为 `tile.openstreetmap.org`（fulfill 204，不依赖真实网络），且中心/缩放不变、页面不刷新 |
-| 1.3 | [E2E-自动化] | 同上：点击「OSM 地貌」后断言 tile 请求域名变为 `tile.opentopomap.org`，且中心/缩放不变 |
+| 1.3 | [E2E-自动化] | 同上：点击「OSM 地貌」后断言 tile 请求域名变为 `tile.tracestrack.com`（含 `key` 参数），且中心/缩放不变 |
 | 1.4 | [E2E-自动化] + [E2E-人工] | DOM 断言 attribution 控件文本（统一「© OpenStreetMap」）、超链接 href 与 target=_blank（配置值，与网络无关）；人工目视确认标注渲染位置正确（需在可访问 OSM 的浏览器环境） |
 | 1.5 | [E2E-自动化] + [E2E-人工] | route 拦截 OSM 域名返回 503 模拟失败：断言地图不崩溃、行政边界/地块图层完好、切回天地图卫星恢复正常；人工可选复核真实断网场景 |
 | 1.6 | [E2E-自动化] + [E2E-人工] | 切换前后对比高分影像开关、边界、地块图层状态断言；人工目视确认浙江区域 OSM/地貌瓦片实际加载效果（需在可访问 OSM 的浏览器环境） |
@@ -65,9 +65,9 @@
 - 新增 OSM 底图遵循现有底图切换机制：一个底图选项 = 一个可整体添加/移除的图层组，接口沿用现有 `Basemaps` 结构（可扩展，不得破坏现有调用方）
 - 不修改现有天地图底图定义与默认选中逻辑
 - OSM 瓦片无独立注记层（文字注记烘焙在瓦片中）；切换到 OSM 时天地图注记随图层组一并移除、不得残留；天地图注记置顶（annotationPane）规则不受影响
-- OSM/OpenTopoMap 版权标注必须显示（任何 OSM 底图状态下），文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（新标签页打开）；OSM 标准与 OSM 地貌**统一采用极简**「© OpenStreetMap」（2026-08-21 用户决策；官方要求完整标注见 C3.1，公开分发前须恢复完整标注）
-- 不引入新凭据：token 仅天地图 `VITE_TIANDITU_TOKEN` 一项，OSM/OpenTopoMap 免 token
-- 缩放上限（数据源事实）：OSM 标准原生最高 z19；OpenTopoMap 原生最高 z17（z18+ 由 Leaflet 放大 z17 瓦片，变模糊属预期）。村级视图与地块操作（z15–15.25）均在两源原生范围内，无影响
+- OSM/Tracestrack 版权标注必须显示（任何 OSM 底图状态下），文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（新标签页打开）；OSM 标准与 OSM 地貌**统一采用极简**「© OpenStreetMap」（2026-08-21 用户决策；Tracestrack 要求 CC BY 4.0 归属、OSM 官方推荐标注见 C3.1，公开分发前须恢复完整标注）
+- 凭据：OSM 标准免凭据；Tracestrack key 仅存 `web/.env.local`（`VITE_TRACESTRACK_KEY`，不提交），浏览器直连 `tile.tracestrack.com` 时随 URL 参数携带
+- 缩放上限（数据源事实）：OSM 标准原生最高 z19；Tracestrack Topo 原生最高 z19（@1x 256px 瓦片，与其余底图统一）。村级视图与地块操作（z15–15.25）均在两源原生范围内，无影响
 
 ## C2. 非目标
 
@@ -82,16 +82,18 @@
 | 数据源 | 用途 | 凭据 | 可用性前提 |
 |--------|------|------|-----------|
 | `tile.openstreetmap.org` | OSM 标准街道瓦片 | 无 | 浏览器须经系统代理/国际出口（当前开发机 `127.0.0.1:10808`）；中国大陆直连被 GFW 屏蔽（DNS 投毒 + IP 封锁） |
-| `tile.opentopomap.org` | OSM 地貌（OpenTopoMap）地形瓦片 | 无 | 同上；浙江区域等高线内容较稀疏，属第三方数据形态 |
+| `tile.tracestrack.com` | OSM 地貌（Tracestrack Topo）地形瓦片，`topo__` 语言中立变体、`@1x` 256px | Tracestrack key（`web/.env.local`，不提交） | 同上；免费层 100K credits（1 credit/瓦片）、120 请求/分钟、**仅非商业用途**；需 CC BY 4.0 归属 |
 
 ### C3.1 网络可达性验证记录（2026-08-21）
 
 - 大陆直连（无代理）：两域名 TCP 443 均超时；DNS 被污染（内网/阿里 DNS 返回 Facebook/Dropbox 等误导 IP）
-- 经系统代理 `127.0.0.1:10808`、浏览器式请求（Chrome UA + Referer + Accept）实测：两域名均 HTTP 200、`image/png` 有效瓦片；OpenTopoMap 浙江永康区域瓦片含等高线/地形晕渲/中英地名注记
+- 经系统代理 `127.0.0.1:10808`、浏览器式请求（Chrome UA + Referer + Accept）实测：OSM 标准与 OpenTopoMap 两域名均 HTTP 200、`image/png` 有效瓦片；OpenTopoMap 浙江永康区域瓦片含等高线/地形晕渲/中英地名注记（**2026-08-21 换源前记录**）
+- **换源验证（2026-08-21）**：用户指出「OSM 地貌」样式与官网（openstreetmap.org `#layers=P` = Tracestrack Topo，见 openstreetmap-website layers.yml）不一致；实测 `tile.tracestrack.com/topo__/{z}/{x}/{y}@1x.png?key=...` 经代理 z12–z19 均 HTTP 200 有效 256px 瓦片，样式与官网一致；无 key 请求返回 403
 - 裸 curl（无 Referer）请求 `tile.openstreetmap.org` 返回 403（tile usage policy 拦截）；浏览器加载带页面 Referer，不受影响
 - **依赖声明**：OSM 两项底图的加载依赖浏览器网络路径可访问 OSM 域名（系统代理或等效国际出口）；演示环境需保持该网络条件，否则底图灰块（对应验收项 1.5）
 - **已确认决策（2026-08-21，grill-me 拷打结论）**：演示现场**接受无代理降级**——现场无代理时 OSM 两项灰块（验收 1.5 异常路径），演示只展示天地图两项，OSM 定位为「有条件可用」功能；瓦片加载失败**保持灰块、不加失败提示 UI**（与天地图现有行为一致，不新增文案）
-- **标注极简决策（2026-08-21，用户拍板，主 agent 提示过合规风险后仍坚持）**：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（`target="_blank"` 新标签页打开）。OpenTopoMap 官方许可（CC-BY-SA）要求完整标注「Kartendaten: © OpenStreetMap contributors, SRTM | Kartendarstellung: © OpenTopoMap (CC-BY-SA)」（官网 /about）；OSM 官方推荐标注为「© OpenStreetMap contributors」；统一极简版不满足官方完整要求，作为内部 demo 取舍记录。**如未来公开分发/对外发布，须恢复官方完整标注后再上线**
+- **标注极简决策（2026-08-21，用户拍板，主 agent 提示过合规风险后仍坚持）**：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（`target="_blank"` 新标签页打开）。Tracestrack 服务要求 CC BY 4.0 归属（tracestrack.com/tiles）；OSM 官方推荐标注为「© OpenStreetMap contributors」；统一极简版不满足完整归属要求，作为内部 demo 取舍记录。**如未来公开分发/对外发布，须恢复完整归属标注后再上线**
+- **换源决策（2026-08-21，用户拍板）**：OSM 地貌数据源由 OpenTopoMap 更换为 **Tracestrack Topo**（OSM 官网 `layers=P` 同款样式）。用户提供免费 key（`VITE_TRACESTRACK_KEY`，仅存 `web/.env.local` 不提交）；免费层 100K credits、120 请求/分钟、仅非商业用途；演示/e2e 断言全部 route 拦截不消耗 credits；`@1x` 256px 瓦片与其余底图统一，maxNativeZoom 19
 
 ## C4. 非功能要求
 
