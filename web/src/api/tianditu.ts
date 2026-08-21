@@ -48,10 +48,10 @@ export function createBasemaps(): Basemaps {
     img: L.layerGroup([tdtLayer('img_w', 1), tdtLayer('cia_w', 4)]),
     vec: L.layerGroup([tdtLayer('vec_w', 1), tdtLayer('cva_w', 4)]),
     osm: L.layerGroup([
-      osmLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', 19),
+      osmLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', 19),
     ]),
     topo: L.layerGroup([
-      osmLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)', 17),
+      osmLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>', 17),
     ]),
   }
 }

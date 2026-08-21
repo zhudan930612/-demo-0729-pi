@@ -47,23 +47,23 @@ describe('createBasemaps 底图组结构', () => {
 })
 
 describe('createBasemaps OSM 底图配置', () => {
-  it('OSM 标准：tile.openstreetmap.org 瓦片、无独立注记层、官方版权文案、原生最高 z19', () => {
+  it('OSM 标准：tile.openstreetmap.org 瓦片、无独立注记层、统一版权文案（© OpenStreetMap 带链接）、原生最高 z19', () => {
     const basemaps = createBasemaps() as unknown as Record<string, FakeGroup>
     const osm = basemaps.osm
     expect(osm.layers).toHaveLength(1) // 文字烘焙在瓦片中，无独立注记层
     const [layer] = osm.layers
     expect(new URL(layer.url).hostname).toBe('tile.openstreetmap.org')
-    expect(layer.options.attribution).toBe('© OpenStreetMap contributors')
+    expect(layer.options.attribution).toBe('© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>')
     expect(layer.options.maxNativeZoom).toBe(19)
   })
 
-  it('OSM 地貌：tile.opentopomap.org 瓦片、版权文案含 OpenTopoMap、原生最高 z17', () => {
+  it('OSM 地貌：tile.opentopomap.org 瓦片、统一版权文案（© OpenStreetMap 带链接）、原生最高 z17', () => {
     const basemaps = createBasemaps() as unknown as Record<string, FakeGroup>
     const topo = basemaps.topo
     expect(topo.layers).toHaveLength(1) // 文字烘焙在瓦片中，无独立注记层
     const [layer] = topo.layers
     expect(new URL(layer.url).hostname).toBe('tile.opentopomap.org')
-    expect(layer.options.attribution).toBe('© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)')
+    expect(layer.options.attribution).toBe('© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>')
     expect(layer.options.maxNativeZoom).toBe(17)
   })
 })

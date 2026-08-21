@@ -136,13 +136,15 @@ test('验收1.4: OSM 底图显示正确版权标注，切回天地图后不残�
   const menu = await openBasemapMenu(page, '底图：卫星')
   await menu.getByRole('radio', { name: 'OSM 标准' }).click()
   await expect(page.getByRole('button', { name: '底图：OSM 标准' })).toBeVisible()
-  await expect(attribution).toContainText('© OpenStreetMap contributors')
+  await expect(attribution).toContainText('© OpenStreetMap')
+  await expect(attribution.locator('a[href="https://www.openstreetmap.org/copyright"]')).toHaveAttribute('target', '_blank')
   await expect(attribution).not.toContainText('天地图')
 
-  // OSM 地貌标注
+  // OSM 地貌标注（与标准同一文案）
   const menuTopo = await openBasemapMenu(page, '底图：OSM 标准')
   await menuTopo.getByRole('radio', { name: 'OSM 地貌' }).click()
-  await expect(attribution).toContainText('© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)')
+  await expect(attribution).toContainText('© OpenStreetMap')
+  await expect(attribution.locator('a[href="https://www.openstreetmap.org/copyright"]')).toHaveAttribute('target', '_blank')
 
   // 切回天地图卫星：显示天地图标注，不残留 OSM 标注
   const menuBack = await openBasemapMenu(page, '底图：OSM 地貌')
