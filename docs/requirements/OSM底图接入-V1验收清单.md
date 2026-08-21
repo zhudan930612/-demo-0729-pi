@@ -23,11 +23,12 @@
 
 | 模块 | seam（公共接口/边界） | 说明 |
 |------|----------------------|------|
-| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上；OSM 两源 tile URL、attribution 文案、maxNativeZoom（OSM 标准 19 / OpenTopoMap 17） |
-| R1 切换逻辑 | `web/src/components/MapView.vue` 的 `switchBasemap`（类型扩展为 4 项，移除旧组/添加新组） | 单测断言切换不改变中心/缩放、不重建地图 |
+| R1 底图定义 | `web/src/api/tianditu.ts` 的 `createBasemaps()` 返回结构 + `BasemapKey` 类型（新增 OSM 图层组，保持/扩展 `Basemaps` 接口） | 单测断言落在图层组结构与 tile URL/版权标注配置上；OSM 两源 tile URL、attribution 文案、maxNativeZoom（OSM 标准 19 / OpenTopoMap 17） |
+| R1 切换逻辑 | `web/src/map/basemapSwitcher.ts`（switchBasemap 抽出的可注入模块：removeLayer 旧组 + addLayer 新组 + 更新当前值；`MapView.vue` 复用并保留 `!basemaps` 守卫） | 单测断言切换不改变中心/缩放、不重建地图（调用记录仅 [removeLayer, addLayer]、同一地图实例）、重复点击零调用 |
 | R1 菜单 UI | `web/src/components/map/MapControlStack.vue` 的 `chooseBasemap` 事件与菜单项（扩展 2→4 项） | e2e 断言菜单项、选中态、aria 属性 |
 | R1 版权标注 | 各 OSM tileLayer 的 `attribution` 配置 | e2e DOM 断言 attribution 控件文本 |
 | R1 网络隔离 | e2e 中 `page.route` 拦截 OSM 域名（fulfill 204 / 503） | 自动化断言不依赖系统代理与真实网络；真实瓦片目视确认归人工 |
+| R1 e2e 视角 | `window.__map`（仅 `import.meta.env.DEV` 暴露，生产为死代码；不暴露凭据） | e2e 专用 seam，断言切换前后中心/缩放不变 |
 
 编码 agent 写测试时按此 seam 执行（配合 tdd 技能），不得另选 seam；验收 agent 核对测试是否按 seam 落地。
 
