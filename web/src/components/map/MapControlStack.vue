@@ -48,7 +48,7 @@
     <div class="tool-entry basemap-entry" @mouseenter="openBasemapMenu" @mouseleave="closeBasemapMenu" @focusin="openBasemapMenu">
       <button
         type="button" class="icon-btn layer-btn" :class="{ active: basemapMenuOpen }"
-        :aria-label="basemap === 'img' ? '底图：卫星' : '底图：矢量'"
+        :aria-label="basemapLabel"
         aria-haspopup="true" :aria-expanded="basemapMenuOpen" aria-controls="basemap-tool-menu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="icon-tip" role="tooltip">选择底图</span>
@@ -57,6 +57,8 @@
         <div v-if="basemapMenuOpen" id="basemap-tool-menu" class="tool-menu basemap-menu" role="radiogroup" aria-label="选择底图">
           <button type="button" class="menu-action" role="radio" :aria-checked="basemap === 'img'" :class="{ selected: basemap === 'img' }" @click="chooseBasemap('img')"><span>卫星底图</span></button>
           <button type="button" class="menu-action" role="radio" :aria-checked="basemap === 'vec'" :class="{ selected: basemap === 'vec' }" @click="chooseBasemap('vec')"><span>矢量底图</span></button>
+          <button type="button" class="menu-action" role="radio" :aria-checked="basemap === 'osm'" :class="{ selected: basemap === 'osm' }" @click="chooseBasemap('osm')"><span>OSM 标准</span></button>
+          <button type="button" class="menu-action" role="radio" :aria-checked="basemap === 'topo'" :class="{ selected: basemap === 'topo' }" @click="chooseBasemap('topo')"><span>OSM 地貌</span></button>
         </div>
       </Transition>
     </div>
@@ -93,8 +95,8 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParcelMode } from '../../features/parcels/parcelTypes'
 import type { ParcelVisualMode } from '../../features/parcels/parcelVisualMode'
 type WeatherModule = 'alerts' | 'current' | 'precipitation'
-const props = defineProps<{ basemap:'img'|'vec'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode }>()
-const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode] }>()
+const props = defineProps<{ basemap:'img'|'vec'|'osm'|'topo'; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode }>()
+const emit = defineEmits<{ 'switch-basemap':[type:'img'|'vec'|'osm'|'topo']; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode] }>()
 const controlStackRef=ref<HTMLElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false)
@@ -102,11 +104,12 @@ const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启'
 const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModules.map((module)=>module==='alerts'?'气象预警':module==='precipitation'?'降雨量':'实时天气').join('、')}，点击菜单项可退出`:props.weatherEntryReason)
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'种植':props.parcelVisualMode==='insurance'?'保险':'地块';return`地图图层：${label}`})
+const basemapLabel=computed(()=>({img:'底图：卫星',vec:'底图：矢量',osm:'底图：OSM 标准',topo:'底图：OSM 地貌'})[props.basemap])
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
 function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false}
 function openBasemapMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=true}
 function closeBasemapMenu(){basemapMenuOpen.value=false}
-function chooseBasemap(type:'img'|'vec'){closeBasemapMenu();emit('switch-basemap',type)}
+function chooseBasemap(type:'img'|'vec'|'osm'|'topo'){closeBasemapMenu();emit('switch-basemap',type)}
 function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
 function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
 function toggleLayerMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;layerMenuOpen.value=!layerMenuOpen.value}
