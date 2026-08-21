@@ -83,6 +83,7 @@
 |--------|------|------|-----------|
 | `tile.openstreetmap.org` | OSM 标准街道瓦片 | 无 | 浏览器须经系统代理/国际出口（当前开发机 `127.0.0.1:10808`）；中国大陆直连被 GFW 屏蔽（DNS 投毒 + IP 封锁） |
 | `tile.tracestrack.com` | OSM 地貌（Tracestrack Topo）地形瓦片，`topo__` 语言中立变体、`@1x` 256px | Tracestrack key（`web/.env.local`，不提交） | 同上；免费层 100K credits（1 credit/瓦片）、120 请求/分钟、**仅非商业用途**；需 CC BY 4.0 归属 |
+| `tile.opentopomap.org`（**备用**） | OSM 地貌备用源（OpenTopoMap 地形瓦片），额度耗尽时回退用 | 无 | 同上；样式与 Tracestrack Topo 不同（米色/橙路风格）；maxNativeZoom 17（z18+ 放大模糊）；切换步骤见 C3.1「备用切换方案」 |
 
 ### C3.1 网络可达性验证记录（2026-08-21）
 
@@ -94,6 +95,12 @@
 - **已确认决策（2026-08-21，grill-me 拷打结论）**：演示现场**接受无代理降级**——现场无代理时 OSM 两项灰块（验收 1.5 异常路径），演示只展示天地图两项，OSM 定位为「有条件可用」功能；瓦片加载失败**保持灰块、不加失败提示 UI**（与天地图现有行为一致，不新增文案）
 - **标注极简决策（2026-08-21，用户拍板，主 agent 提示过合规风险后仍坚持）**：OSM 标准与 OSM 地貌**统一显示**「© OpenStreetMap」，文本带指向 `https://www.openstreetmap.org/copyright` 的超链接（`target="_blank"` 新标签页打开）。Tracestrack 服务要求 CC BY 4.0 归属（tracestrack.com/tiles）；OSM 官方推荐标注为「© OpenStreetMap contributors」；统一极简版不满足完整归属要求，作为内部 demo 取舍记录。**如未来公开分发/对外发布，须恢复完整归属标注后再上线**
 - **换源决策（2026-08-21，用户拍板）**：OSM 地貌数据源由 OpenTopoMap 更换为 **Tracestrack Topo**（OSM 官网 `layers=P` 同款样式）。用户提供免费 key（`VITE_TRACESTRACK_KEY`，仅存 `web/.env.local` 不提交）；免费层 100K credits、120 请求/分钟、仅非商业用途；演示/e2e 断言全部 route 拦截不消耗 credits；`@1x` 256px 瓦片与其余底图统一，maxNativeZoom 19
+- **备用切换方案（2026-08-21，用户拍板）**：Tracestrack 免费额度耗尽（429/403/额度提示）时，**回退到 OpenTopoMap**（旧实现）。用户届时指示切换，主 agent 按下列清单执行：
+  - 代码 `web/src/api/tianditu.ts`：topo 图层 URL 由 `https://tile.tracestrack.com/topo__/{z}/{x}/{y}@1x.png?key=${TRACESTRACK_KEY}` 改回 `https://tile.opentopomap.org/{z}/{x}/{y}.png`（无 key）；`maxNativeZoom` 19→17；移除/停用 `VITE_TRACESTRACK_KEY` 引用（`.env.local` 条目可保留不删）；attribution 保持不变（统一「© OpenStreetMap」带链接，用户已拍板）
+  - 测试同步：`web/src/api/tianditu.spec.ts`（topo URL 域名/key 参数/maxNativeZoom 断言）、`web/e2e/basemapMenu.spec.ts`（1.3 域名断言 `tile.opentopomap.org` + 拦截规则）、`web/e2e/osmBasemapSupplement.spec.ts`（免 token 分源断言改回：两源均无 key 参数）
+  - 文档同步：本需求文档 C3 数据依赖表（Tracestrack 行标记备用、OpenTopoMap 行转正）、CONTEXT.md 服务表（凭据位置改回无）
+  - 验证：`pnpm --dir web test`、`pnpm --dir web build`、`pnpm --dir web test:e2e`（basemap 相关）
+  - 注意：回退后地貌样式与 OSM 官网 `layers=P` 不一致（OpenTopoMap 为米色/橙路风格），属预期；回退后再次切换回 Tracestrack 按「换源决策」步骤执行
 
 ## C4. 非功能要求
 

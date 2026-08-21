@@ -46,6 +46,7 @@
 |---|---|---|---|
 | 天地图 | 底图瓦片（卫星/矢量） | `web/.env.local`（不提交） | 浏览器直连（文字注记需置于影像/地块/边界之上） |
 | OpenStreetMap / Tracestrack | OSM 标准底图瓦片 / OSM 地貌（Tracestrack Topo）瓦片 | OSM 标准无凭据；Tracestrack key 在 `web/.env.local`（`VITE_TRACESTRACK_KEY`，不提交） | 浏览器直连不可达（大陆被屏蔽）；**须经系统代理/国际出口**（必须显示「© OpenStreetMap」版权标注，带链接、新标签页打开） |
+| OpenTopoMap（备用） | OSM 地貌备用瓦片（Tracestrack 额度耗尽时回退，见 OSM 需求 C3.1 备用切换方案） | 无 | 同上（样式与 Tracestrack 不同，maxNativeZoom 17） |
 | 吉林一号影像 | 高分影像叠加 | 无凭据，受控数据 | 私有仓库 + Git LFS |
 | APIHz | 台风路径/预测、可选地址增强 | 仅 `server/` 环境变量 | **浏览器只访问本站 `/api`**，不经手凭据 |
 | 和风天气 | 实时天气、分钟级降水、24 小时预报 | 仅 `server/` 环境变量 | 同上；**预警接口已下线** |
