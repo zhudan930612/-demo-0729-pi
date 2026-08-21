@@ -28,7 +28,7 @@
 | 1.1 | ✅ 通过 | `basemapMenu.spec.ts`「验收1.1」+ 单测 `tianditu.spec.ts`：e2e 断言 4 菜单项 + 默认选中「卫星底图」（aria-checked） |
 | 1.2 | ✅ 通过 | 「验收1.2」：route 拦截断言请求域名 `tile.openstreetmap.org`、中心/缩放不变、`__basemapNavMarker` 不变（页面不重建/不刷新）、重复点击不产生新瓦片请求 |
 | 1.3 | ✅ 通过 | 「验收1.3」：请求域名 `tile.opentopomap.org`、中心/缩放不变 |
-| 1.4 | ✅ 自动化通过 / ⏳ 人工待确认 | 「验收1.4」：DOM 断言两源 attribution 文案（标准「© OpenStreetMap contributors」；地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」）+ 切回天地图无残留标注；**目视渲染位置归人工** |
+| 1.4 | ✅ 自动化通过 / ⏳ 人工待确认 | 「验收1.4」：DOM 断言两源 attribution 文案（**验收后用户决策变更：统一为「© OpenStreetMap」带链接、新标签页打开，见下方变更记录**）+ 切回天地图无残留标注；**目视渲染位置归人工** |
 | 1.5 | ✅ 自动化通过 / ⏳ 人工待确认 | 「验收1.5」：route 503 → 地图容器不崩溃、中心/缩放不变、切回卫星恢复标注；**真实断网复核归人工（可选）** |
 | 1.6 | ✅ 自动化通过 / ⏳ 人工待确认 | 原清单无 e2e 覆盖 → 补充测试「验收1.6 补充」：切换底图不高分影像开关重置、面包屑/地块工具不受影响、切回恢复；**浙江区域真实瓦片目视归人工** |
 
@@ -59,6 +59,11 @@
 
 - 无本需求引入的失败；全量 e2e 2 个失败均为改动前既有陈旧测试（已用 pre-change worktree 独立核实）
 - 覆盖度缺口 1 项（免 token 无显式验收项）已由补充测试关闭，非行为缺陷
+
+## 验收后变更记录（2026-08-21，用户决策）
+
+- **版权标注统一极简**：OSM 标准与 OSM 地貌标注统一为「© OpenStreetMap」，带指向 `https://www.openstreetmap.org/copyright` 的超链接（`target="_blank"` 新标签页打开）。原验收断言为完整文案（标准「© OpenStreetMap contributors」；地貌「© OpenStreetMap contributors / © OpenTopoMap (CC-BY-SA)」），已按用户决策同步代码（d3dd4c9）、单测、e2e 断言（统一文案 + href + target）。官方许可要求完整标注（见需求文档 C3.1），极简版为内部 demo 取舍，公开分发前须恢复。
+- 验收项 1.4 行为不变（标注可见、文本正确、可点击），仅文案值变化；自动化断言已同步并通过。
 
 ## 归档信息
 
