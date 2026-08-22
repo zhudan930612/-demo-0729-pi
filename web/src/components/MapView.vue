@@ -175,10 +175,8 @@
       />
     </Transition>
 
-    <div v-if="policyLoadError || cultivationLoadError" class="business-load-error" role="alert">
-      <strong>业务数据加载失败</strong>
-      <span>{{ [policyLoadError, cultivationLoadError].filter(Boolean).join(' ') }}</span>
-      <button type="button" @click="retryBusinessData">重试</button>
+    <div v-if="businessLoadErrorVisible" class="business-load-error" role="alert">
+      <strong>当前区域暂无地块数据</strong>
     </div>
 
     <ManualConfirmDialog
@@ -638,6 +636,22 @@ const {
   refreshPrecipitation,
 } = precipitationMode
 
+// 业务数据提示条：任一加载失败时显示「当前区域暂无地块数据」，5 秒后自动消失
+const businessLoadErrorVisible = ref(false)
+let businessLoadErrorTimer: ReturnType<typeof setTimeout> | null = null
+watch([policyLoadError, cultivationLoadError], ([policy, cultivation]) => {
+  if (businessLoadErrorTimer) clearTimeout(businessLoadErrorTimer)
+  if (policy || cultivation) {
+    businessLoadErrorVisible.value = true
+    businessLoadErrorTimer = setTimeout(() => {
+      businessLoadErrorVisible.value = false
+      businessLoadErrorTimer = null
+    }, 5000)
+  } else {
+    businessLoadErrorVisible.value = false
+  }
+})
+
 /** 切换底图；文字注记使用独立 annotationPane 始终置顶 */
 function switchBasemap(type: BasemapKey) {
   if (!basemaps) return
@@ -1027,6 +1041,7 @@ onBeforeUnmount(() => {
   disposed = true
   flySeq += 1
   if (saveNoticeTimer) clearTimeout(saveNoticeTimer)
+  if (businessLoadErrorTimer) clearTimeout(businessLoadErrorTimer)
   if (beforeUnloadHandler) window.removeEventListener('beforeunload', beforeUnloadHandler)
   window.removeEventListener('keydown', onManualKeydown)
   store.setNavigationGuard(null)
