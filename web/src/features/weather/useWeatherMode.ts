@@ -293,7 +293,7 @@ export function useWeatherMode(ctx: WeatherModeContext): WeatherMode {
 
   function silentLoadNationalAlarms() {
     nationalAlarmStore.beginSilent()
-    void nationalAlarmRepository.load(false, false).finally(() => {
+    void nationalAlarmRepository.load().finally(() => {
       nationalAlarmStore.endSilent()
       if (nationalAlarmStore.phase !== 'closed') nationalAlarmStore.phase = 'closed'
     })
