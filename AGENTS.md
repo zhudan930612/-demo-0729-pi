@@ -37,7 +37,7 @@
 6. 复杂跨模块工作先建立版本化专项计划；仓库当前没有统一计划目录，新增入口时同步 `docs/README.md`。
 7. **数据口径/空间形态类需求（地块归属/分组/布局/造数等，用户可见产物形态由数据决定）**：必须执行 dev-flow 的**形态预检**（编码前先给用户看可目视形态样例/图，确认业务形态再编码）与**产物目视预检**（编码后先给用户目视预检产物，形态不符先回需求变更，再进自动化验收）；纯自动化验收无法替代形态确认。
 8. **简单改动走快路径**：改动只落在单个组件 / composable / 单图层时，先定位目标组件 → 确认改动范围（如「只改触发交互、不改二级交互」）→ 直接改。勿为简单 UI 改动考古 `DESIGN.md`/需求文档/历史 e2e；验证按「验证命令」分级，简单改动走定向层（build + 单测 + 定向 e2e），非必要不全量。
-9. **git 中间态纪律**：测基线/回退用 git（先 commit 或 `git stash`），不用 `git checkout --` 覆盖工作区（会丢未提交改动）；不在仓库/工作区生成临时备份文件（如 `_backup_*.vue`）。注意仓库 git hooks 拦截含 `push` 子命令的命令（`git stash push`/`git push` 都会被拦），改用无 push 的 `git stash`/`git stash pop`；改动完成即 commit 再继续，防并发会话覆盖。
+9. **git 中间态纪律**：测基线/回退用 git（先 commit 或 `git stash`），不用 `git checkout --` 覆盖工作区（会丢未提交改动）；不在仓库/工作区生成临时备份文件（如 `_backup_*.vue`）。注意仓库 git hooks 会拦截命令或参数中出现 `push` 的操作（`git push`、`git stash push`、甚至 commit message 含 `push` 都会被拦），改用无 `push` 的 `git stash`/`git stash pop`，或把 message 里的 `push` 换成中文。改动完成即 commit 再继续，防并发会话覆盖。
 
 > **诊断纪律**：排查前端渲染/时序问题时，不要向源码加 `console.log` 临时日志——vite 编译失败后 dev server 会继续服务旧 bundle，误导排查。改用 e2e DOM 断言、页面 `console` 捕获或全局标记验证；临时改动后先确认 `vue-tsc`/build 干净再诊断。
 
