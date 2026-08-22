@@ -1,10 +1,10 @@
 <template>
   <div ref="controlStackRef" class="ctrl-stack">
-    <div class="tool-entry">
+    <div class="tool-entry" @mouseenter="openWeatherMenu" @mouseleave="scheduleCloseMenus">
       <button
         ref="weatherButtonRef" type="button" class="icon-btn weather-btn" :class="{ active: weatherMenuOpen }"
         :disabled="weatherEntryDisabled" :title="weatherTip" :aria-label="weatherTip"
-        aria-haspopup="true" :aria-expanded="weatherMenuOpen" aria-controls="weather-tool-menu" @click="toggleWeatherMenu"
+        aria-haspopup="true" :aria-expanded="weatherMenuOpen" aria-controls="weather-tool-menu" @click="focusWeatherMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18.5h10a3.5 3.5 0 1 0-.78-6.91A5.25 5.25 0 0 0 5.61 13.2 2.7 2.7 0 0 0 6.5 18.5Z"/><path d="M8 5.5v-2M4.1 7.1 2.7 5.7M11.9 7.1l1.4-1.4"/></svg>
         <span class="icon-tip" role="tooltip">{{ weatherTip }}</span>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- 风险评估入口 -->
-    <div class="tool-entry">
+    <div class="tool-entry" @mouseenter="openLodgingMenu" @mouseleave="scheduleCloseMenus" @focusin="openLodgingMenu">
       <button
         type="button" class="icon-btn lodging-btn" :class="{ active: lodgingMenuOpen || lodgingAssessmentActive }"
         :disabled="lodgingEntryDisabled" :title="lodgingTip" :aria-label="lodgingTip"
@@ -61,11 +61,11 @@
       <span class="icon-tip" role="tooltip">{{ typhoonTip }}</span>
     </button>
 
-    <div v-if="parcelToolsVisible" class="tool-entry">
+    <div v-if="parcelToolsVisible" class="tool-entry" @mouseenter="openParcelMenu" @mouseleave="scheduleCloseMenus">
       <button
         type="button" class="icon-btn parcel-tool-btn" :class="{ active: parcelMenuOpen }"
         :disabled="parcelToolsDisabled" :title="parcelTip" :aria-label="parcelTip"
-        aria-haspopup="true" :aria-expanded="parcelMenuOpen" aria-controls="parcel-tool-menu" @click="toggleParcelMenu"
+        aria-haspopup="true" :aria-expanded="parcelMenuOpen" aria-controls="parcel-tool-menu" @click="focusParcelMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 5 7-2 5 5-2 10-8 2-2-8Z"/><path d="M17 13h4M19 11v4"/></svg>
         <span class="icon-tip" role="tooltip">{{ parcelTip }}</span>
@@ -78,11 +78,11 @@
       </Transition>
     </div>
 
-    <div class="tool-entry basemap-entry" @mouseenter="openBasemapMenu" @mouseleave="closeBasemapMenu" @focusin="openBasemapMenu">
+    <div class="tool-entry basemap-entry" @mouseenter="openBasemapMenu" @mouseleave="scheduleCloseMenus" @focusin="openBasemapMenu">
       <button
         type="button" class="icon-btn layer-btn" :class="{ active: basemapMenuOpen }"
         :aria-label="basemapLabel"
-        aria-haspopup="true" :aria-expanded="basemapMenuOpen" aria-controls="basemap-tool-menu"
+        aria-haspopup="true" :aria-expanded="basemapMenuOpen" aria-controls="basemap-tool-menu" @click="openBasemapMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="icon-tip" role="tooltip">选择底图</span>
       </button>
@@ -101,10 +101,10 @@
     <button v-if="parcelVisible" type="button" class="icon-btn parcel-btn" :class="{ off: !parcelOn }" :disabled="mode !== 'idle'" :aria-label="parcelOn ? '关闭地块图层' : '打开地块图层'" @click="emit('toggle-parcels')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 4 7-1 3 6-2 11-8 1z"/><path d="m10 3 8 2 3 6-4 9-6-1"/><path d="m13 9 8 2"/><path d="m4 14 8-2"/></svg><span class="icon-tip" role="tooltip">{{ parcelOn ? '关闭地块图层' : '打开地块图层' }}</span>
     </button>
-    <div v-if="parcelVisualModeVisible" class="tool-entry">
+    <div v-if="parcelVisualModeVisible" class="tool-entry" @mouseenter="openLayerMenu" @mouseleave="scheduleCloseMenus" @focusin="openLayerMenu">
       <button
         type="button" class="icon-btn layer-btn" :class="{ active: layerMenuOpen }"
-        :aria-label="layerTip" aria-haspopup="true" :aria-expanded="layerMenuOpen" aria-controls="layer-tool-menu" @click="toggleLayerMenu"
+        :aria-label="layerTip" aria-haspopup="true" :aria-expanded="layerMenuOpen" aria-controls="layer-tool-menu" @click="openLayerMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="icon-tip" role="tooltip">{{ layerTip }}</span>
       </button>
@@ -141,26 +141,27 @@ const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'�
 const lodgingTip=computed(()=>props.lodgingAssessmentActive?'风险评估模式已开启':props.lodgingEntryReason?props.lodgingEntryReason:'水稻倒伏评估')
 const basemapLabel=computed(()=>({img:'底图：卫星',vec:'底图：矢量',osm:'底图：OSM 标准',topo:'底图：OSM 地貌'})[props.basemap])
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
+let closeHoverTimer:ReturnType<typeof setTimeout>|undefined
+function cancelScheduledClose(){if(closeHoverTimer){clearTimeout(closeHoverTimer);closeHoverTimer=undefined}}
+function scheduleCloseMenus(){if(closeHoverTimer)clearTimeout(closeHoverTimer);closeHoverTimer=setTimeout(closeMenus,180)}
 function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false}
-function openBasemapMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=true;lodgingMenuOpen.value=false}
-function closeBasemapMenu(){basemapMenuOpen.value=false}
-function chooseBasemap(type:BasemapKey){closeBasemapMenu();emit('switch-basemap',type)}
-function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
-function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
-function toggleLayerMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=!layerMenuOpen.value}
+function openWeatherMenu(){if(props.weatherEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=true}
+function focusWeatherMenu(){openWeatherMenu();if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
+function openLodgingMenu(){if(props.lodgingEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=true}
+function openParcelMenu(){if(props.parcelToolsDisabled)return;cancelScheduledClose();weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=true}
+function focusParcelMenu(){openParcelMenu();if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
+function openLayerMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=true}
+function openBasemapMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;lodgingMenuOpen.value=false;basemapMenuOpen.value=true}
+function chooseBasemap(type:BasemapKey){closeMenus();emit('switch-basemap',type)}
 function chooseParcelMode(mode:'manual'|'filter'){parcelMenuOpen.value=false;if(mode==='manual')emit('start-manual');else emit('start-filter')}
 function chooseWeatherModule(module:WeatherModule){weatherMenuOpen.value=false;if(props.weatherModules.includes(module)){emit('close-weather',module);return}emit('open-weather',module)}
 function chooseVisualMode(mode:ParcelVisualMode){layerMenuOpen.value=false;emit('set-visual-mode',mode)}
 function toggleLodgingMenu(){
   if(props.lodgingEntryDisabled)return
-  // 如果已在评估模式，点击图标直接退出
-  if(props.lodgingAssessmentActive){
-    lodgingMenuOpen.value=false
-    emit('exit-lodging-assessment')
-    return
-  }
-  // 否则打开菜单
-  parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=!lodgingMenuOpen.value
+  // 评估模式下点击图标直接退出；否则打开/收起菜单
+  if(props.lodgingAssessmentActive){closeMenus();emit('exit-lodging-assessment');return}
+  if(lodgingMenuOpen.value){closeMenus();return}
+  openLodgingMenu()
 }
 function chooseLodgingAssessment(_type:'rice'){lodgingMenuOpen.value=false;emit('enter-lodging-assessment')}
 function exitLodgingAssessment(){lodgingMenuOpen.value=false;emit('exit-lodging-assessment')}
