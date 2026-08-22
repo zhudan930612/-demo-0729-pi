@@ -5,6 +5,7 @@
 13 个影像覆盖村（章镇镇 8 村 + 三界镇 5 村）展示 Delineate Anything v2 自动识别的演示地块（龙江村为首个试点）；省级灾害风险模式展示 APIHz 实时/历史台风路径、预测、风圈、警戒线和时间轴。
 
 - 文档总入口：[docs/README.md](docs/README.md)
+- 协作流程与规则（新协作者先读）：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 地图与地块：[docs/requirements/需求文档.md](docs/requirements/需求文档.md)
 - 地块详情、种植档案与保单：[docs/requirements/地块详情与保单关联V1需求.md](docs/requirements/地块详情与保单关联V1需求.md)
 - 灾害风险与台风：[docs/requirements/灾害风险与台风查看需求.md](docs/requirements/灾害风险与台风查看需求.md)
