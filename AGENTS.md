@@ -36,21 +36,56 @@
 5. 按改动范围运行下面的验证命令，并记录实际结果；未运行时不要宣称完成。
 6. 复杂跨模块工作先建立版本化专项计划；仓库当前没有统一计划目录，新增入口时同步 `docs/README.md`。
 7. **数据口径/空间形态类需求（地块归属/分组/布局/造数等，用户可见产物形态由数据决定）**：必须执行 dev-flow 的**形态预检**（编码前先给用户看可目视形态样例/图，确认业务形态再编码）与**产物目视预检**（编码后先给用户目视预检产物，形态不符先回需求变更，再进自动化验收）；纯自动化验收无法替代形态确认。
+8. **简单改动走快路径**：改动只落在单个组件 / composable / 单图层时，先定位目标组件 → 确认改动范围（如「只改触发交互、不改二级交互」）→ 直接改。勿为简单 UI 改动考古 `DESIGN.md`/需求文档/历史 e2e；验证按「验证命令」分级，简单改动走定向层（build + 单测 + 定向 e2e），非必要不全量。
+9. **git 中间态纪律**：测基线/回退用 git（先 commit 或 `git stash`），不用 `git checkout --` 覆盖工作区（会丢未提交改动）；不在仓库/工作区生成临时备份文件（如 `_backup_*.vue`）。注意仓库 git hooks 会拦截命令或参数中出现 `push` 的操作（`git push`、`git stash push`、甚至 commit message 含 `push` 都会被拦），改用无 `push` 的 `git stash`/`git stash pop`，或把 message 里的 `push` 换成中文。改动完成即 commit 再继续，防并发会话覆盖。
 
 > **诊断纪律**：排查前端渲染/时序问题时，不要向源码加 `console.log` 临时日志——vite 编译失败后 dev server 会继续服务旧 bundle，误导排查。改用 e2e DOM 断言、页面 `console` 捕获或全局标记验证；临时改动后先确认 `vue-tsc`/build 干净再诊断。
 
-## 验证命令
+## 验证命令（按改动面分级）
+
+> **原则**：非必要不跑全量。简单改动只测改动击中的部分；大功能/跨模块/门槛时才全量。快速层必做，定向层按改动面，全量层作为兜底，不是默认。
+
+### 快速层（必做，任何改动）
 
 ```bash
-pnpm --dir web test
-pnpm --dir web build
-pnpm --dir web test:e2e             # 修改前端交互/共用面板/下钻时（跑前先清理 8790/4173 残留端口）
+pnpm --dir web build        # vue-tsc 类型检查 + vite 编译
+pnpm --dir web test         # vitest 单测（约 5 秒，可全量）
+git diff --check
+```
+
+### 定向层（简单改动）
+
+改动只落在一个组件 / composable / 单图层时，只跑击中的测试，不要全量：
+
+```bash
+# vitest 定向到受影响文件（示例）：
+pnpm --dir web exec vitest run src/features/weather/useWeatherMode.ts
+# playwright 定向到受影响 spec（示例：改 MapControlStack）：
+pnpm --dir web exec playwright test e2e/weather.spec.ts e2e/nationalAlarms.spec.ts e2e/basemapMenu.spec.ts e2e/manualParcel.spec.ts
+```
+
+### 全量层（大改动 / 门槛）
+
+触及**共用面板、下钻、跨域合成（MapView）、静态数据链路、区划规则**，或合并/发布前，跑全量（跑前先清理 8790/4173 残留端口）：
+
+```bash
+pnpm --dir web test:e2e
+```
+
+### 其它域
+
+```bash
 pnpm --dir server test              # 修改 server（台风代理/预警/限流）时
 python scripts/validate-data.py     # 修改数据脚本或层级链路时
 python scripts/validate-policy-fixture.py --all   # 修改保单/地块区划数据或脚本时（区域模式村 + 聚类村全量校验）
 python scripts/check-codes.py       # 修改编码归属逻辑时
-git diff --check
 ```
+
+### 简单 vs 大改动判定
+
+- **简单**：改动只落在一个组件 / composable / 单图层 / 单域 → 定向层。
+- **大**：改动落到共享组件、`MapView`、下钻、多个域、静态数据格式 / 区划规则 → 全量层。
+- **拿不准就全量**（全量是兜底，不是默认）。
 
 ## 硬约束
 

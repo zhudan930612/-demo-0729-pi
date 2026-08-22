@@ -1,10 +1,10 @@
 <template>
   <div ref="controlStackRef" class="ctrl-stack">
-    <div class="tool-entry">
+    <div class="tool-entry" @mouseenter="openWeatherMenu" @mouseleave="scheduleCloseMenus">
       <button
         ref="weatherButtonRef" type="button" class="icon-btn weather-btn" :class="{ active: weatherMenuOpen }"
-        :disabled="weatherEntryDisabled" :title="weatherTip" :aria-label="weatherTip"
-        aria-haspopup="true" :aria-expanded="weatherMenuOpen" aria-controls="weather-tool-menu" @click="toggleWeatherMenu"
+        :disabled="weatherEntryDisabled" :aria-label="weatherTip"
+        aria-haspopup="true" :aria-expanded="weatherMenuOpen" aria-controls="weather-tool-menu" @click="focusWeatherMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18.5h10a3.5 3.5 0 1 0-.78-6.91A5.25 5.25 0 0 0 5.61 13.2 2.7 2.7 0 0 0 6.5 18.5Z"/><path d="M8 5.5v-2M4.1 7.1 2.7 5.7M11.9 7.1l1.4-1.4"/></svg>
         <span class="icon-tip" role="tooltip">{{ weatherTip }}</span>
@@ -19,10 +19,10 @@
     </div>
 
     <!-- 风险评估入口 -->
-    <div class="tool-entry">
+    <div class="tool-entry" @mouseenter="openLodgingMenu" @mouseleave="scheduleCloseMenus" @focusin="openLodgingMenu">
       <button
         type="button" class="icon-btn lodging-btn" :class="{ active: lodgingMenuOpen || lodgingAssessmentActive }"
-        :disabled="lodgingEntryDisabled" :title="lodgingTip" :aria-label="lodgingTip"
+        :disabled="lodgingEntryDisabled" :aria-label="lodgingTip"
         aria-haspopup="true" :aria-expanded="lodgingMenuOpen" aria-controls="lodging-tool-menu" @click="toggleLodgingMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><circle cx="12" cy="12" r="2"/></svg>
@@ -54,18 +54,18 @@
     <button
       type="button" class="icon-btn typhoon-btn" :class="{ active: disasterActive }"
       :disabled="disasterEntryDisabled || disasterActive"
-      :title="typhoonTip" :aria-label="typhoonTip"
+      :aria-label="typhoonTip"
       @click="emit('open-typhoon')"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.1"/><path d="M12 3.5c3.7 0 6.8 2.6 7.5 6.1-1.4-1-3.1-1.5-4.7-1.1"/><path d="M20.5 12c0 3.7-2.6 6.8-6.1 7.5 1-1.4 1.5-3.1 1.1-4.7"/><path d="M12 20.5c-3.7 0-6.8-2.6-7.5-6.1 1.4 1 3.1 1.5 4.7 1.1"/><path d="M3.5 12c0-3.7 2.6-6.8 6.1-7.5-1 1.4-1.5 3.1-1.1 4.7"/></svg>
       <span class="icon-tip" role="tooltip">{{ typhoonTip }}</span>
     </button>
 
-    <div v-if="parcelToolsVisible" class="tool-entry">
+    <div v-if="parcelToolsVisible" class="tool-entry" @mouseenter="openParcelMenu" @mouseleave="scheduleCloseMenus">
       <button
         type="button" class="icon-btn parcel-tool-btn" :class="{ active: parcelMenuOpen }"
-        :disabled="parcelToolsDisabled" :title="parcelTip" :aria-label="parcelTip"
-        aria-haspopup="true" :aria-expanded="parcelMenuOpen" aria-controls="parcel-tool-menu" @click="toggleParcelMenu"
+        :disabled="parcelToolsDisabled" :aria-label="parcelTip"
+        aria-haspopup="true" :aria-expanded="parcelMenuOpen" aria-controls="parcel-tool-menu" @click="focusParcelMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 5 7-2 5 5-2 10-8 2-2-8Z"/><path d="M17 13h4M19 11v4"/></svg>
         <span class="icon-tip" role="tooltip">{{ parcelTip }}</span>
@@ -78,11 +78,11 @@
       </Transition>
     </div>
 
-    <div class="tool-entry basemap-entry" @mouseenter="openBasemapMenu" @mouseleave="closeBasemapMenu" @focusin="openBasemapMenu">
+    <div class="tool-entry basemap-entry" @mouseenter="openBasemapMenu" @mouseleave="scheduleCloseMenus" @focusin="openBasemapMenu">
       <button
         type="button" class="icon-btn layer-btn" :class="{ active: basemapMenuOpen }"
         :aria-label="basemapLabel"
-        aria-haspopup="true" :aria-expanded="basemapMenuOpen" aria-controls="basemap-tool-menu"
+        aria-haspopup="true" :aria-expanded="basemapMenuOpen" aria-controls="basemap-tool-menu" @click="openBasemapMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="icon-tip" role="tooltip">选择底图</span>
       </button>
@@ -101,10 +101,10 @@
     <button v-if="parcelVisible" type="button" class="icon-btn parcel-btn" :class="{ off: !parcelOn }" :disabled="mode !== 'idle'" :aria-label="parcelOn ? '关闭地块图层' : '打开地块图层'" @click="emit('toggle-parcels')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 4 7-1 3 6-2 11-8 1z"/><path d="m10 3 8 2 3 6-4 9-6-1"/><path d="m13 9 8 2"/><path d="m4 14 8-2"/></svg><span class="icon-tip" role="tooltip">{{ parcelOn ? '关闭地块图层' : '打开地块图层' }}</span>
     </button>
-    <div v-if="parcelVisualModeVisible" class="tool-entry">
+    <div v-if="parcelVisualModeVisible" class="tool-entry" @mouseenter="openLayerMenu" @mouseleave="scheduleCloseMenus" @focusin="openLayerMenu">
       <button
         type="button" class="icon-btn layer-btn" :class="{ active: layerMenuOpen }"
-        :aria-label="layerTip" aria-haspopup="true" :aria-expanded="layerMenuOpen" aria-controls="layer-tool-menu" @click="toggleLayerMenu"
+        :aria-label="layerTip" aria-haspopup="true" :aria-expanded="layerMenuOpen" aria-controls="layer-tool-menu" @click="openLayerMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span class="icon-tip" role="tooltip">{{ layerTip }}</span>
       </button>
@@ -141,26 +141,27 @@ const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'�
 const lodgingTip=computed(()=>props.lodgingAssessmentActive?'风险评估模式已开启':props.lodgingEntryReason?props.lodgingEntryReason:'水稻倒伏评估')
 const basemapLabel=computed(()=>({img:'底图：卫星',vec:'底图：矢量',osm:'底图：OSM 标准',topo:'底图：OSM 地貌'})[props.basemap])
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
+let closeHoverTimer:ReturnType<typeof setTimeout>|undefined
+function cancelScheduledClose(){if(closeHoverTimer){clearTimeout(closeHoverTimer);closeHoverTimer=undefined}}
+function scheduleCloseMenus(){if(closeHoverTimer)clearTimeout(closeHoverTimer);closeHoverTimer=setTimeout(closeMenus,180)}
 function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false}
-function openBasemapMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=true;lodgingMenuOpen.value=false}
-function closeBasemapMenu(){basemapMenuOpen.value=false}
-function chooseBasemap(type:BasemapKey){closeBasemapMenu();emit('switch-basemap',type)}
-function toggleParcelMenu(){if(props.parcelToolsDisabled)return;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=!parcelMenuOpen.value;if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
-function toggleWeatherMenu(){if(props.weatherEntryDisabled)return;parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=!weatherMenuOpen.value;if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
-function toggleLayerMenu(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=!layerMenuOpen.value}
+function openWeatherMenu(){if(props.weatherEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=true}
+function focusWeatherMenu(){openWeatherMenu();if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
+function openLodgingMenu(){if(props.lodgingEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=true}
+function openParcelMenu(){if(props.parcelToolsDisabled)return;cancelScheduledClose();weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=true}
+function focusParcelMenu(){openParcelMenu();if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
+function openLayerMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=true}
+function openBasemapMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;lodgingMenuOpen.value=false;basemapMenuOpen.value=true}
+function chooseBasemap(type:BasemapKey){closeMenus();emit('switch-basemap',type)}
 function chooseParcelMode(mode:'manual'|'filter'){parcelMenuOpen.value=false;if(mode==='manual')emit('start-manual');else emit('start-filter')}
 function chooseWeatherModule(module:WeatherModule){weatherMenuOpen.value=false;if(props.weatherModules.includes(module)){emit('close-weather',module);return}emit('open-weather',module)}
 function chooseVisualMode(mode:ParcelVisualMode){layerMenuOpen.value=false;emit('set-visual-mode',mode)}
 function toggleLodgingMenu(){
   if(props.lodgingEntryDisabled)return
-  // 如果已在评估模式，点击图标直接退出
-  if(props.lodgingAssessmentActive){
-    lodgingMenuOpen.value=false
-    emit('exit-lodging-assessment')
-    return
-  }
-  // 否则打开菜单
-  parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=!lodgingMenuOpen.value
+  // 评估模式下点击图标直接退出；否则打开/收起菜单
+  if(props.lodgingAssessmentActive){closeMenus();emit('exit-lodging-assessment');return}
+  if(lodgingMenuOpen.value){closeMenus();return}
+  openLodgingMenu()
 }
 function chooseLodgingAssessment(_type:'rice'){lodgingMenuOpen.value=false;emit('enter-lodging-assessment')}
 function exitLodgingAssessment(){lodgingMenuOpen.value=false;emit('exit-lodging-assessment')}
@@ -173,7 +174,7 @@ onBeforeUnmount(()=>{document.removeEventListener('pointerdown',closeOnOutside);
 </script>
 
 <style scoped>
-.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active,.lodging-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);width:max-content;min-width:110px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translate(6px,-50%)}
+.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active,.lodging-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-entry .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);width:max-content;min-width:110px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translate(6px,-50%)}
 .menu-divider{height:1px;margin:4px 8px;background:#e2e8f0}
 .menu-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;gap:8px}
 .toggle-label{font-size:12px;color:#475569;font-weight:500}
