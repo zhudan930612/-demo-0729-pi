@@ -108,6 +108,36 @@
       @refresh="refreshPrecipitation"
     />
 
+    <!-- 农情监测：右上角 tab 面板 + 底部居中多日期浮窗 -->
+    <AgriMonitoringPanel
+      v-if="agriMonitoringStore.isOpen"
+      @close="exitAgriMonitoring"
+      @select-tab="setAgriTab"
+      @select-village="handleAgriSelectVillage"
+      @select-child="handleAgriSelectChild"
+      @locate-task="locateAgriTask"
+      @close-task="clearAgriTaskLocation"
+    />
+    <div v-if="agriMonitoringStore.isOpen && agriMonitoringStore.visible" class="agri-legend" aria-label="长势 5 级图例">
+      <span v-for="lv in agriLegend" :key="lv.key" class="agri-legend-item"><i class="agri-legend-swatch" :style="{ background: lv.color }"></i>{{ lv.label }}</span>
+    </div>
+    <AgriDateControl
+      v-if="agriMonitoringStore.isOpen"
+      :phase="agriMonitoringStore.phase"
+      :dates="agriMonitoringStore.dates"
+      :selected-date="agriMonitoringStore.selectedDate"
+      :playing="agriMonitoringStore.playing"
+      :opacity="agriMonitoringStore.opacity"
+      :error-message="agriMonitoringStore.errorMessage"
+      :visible="agriMonitoringStore.visible"
+      @close="exitAgriMonitoring"
+      @select-date="selectAgriDate"
+      @toggle-play="toggleAgriPlay"
+      @set-opacity="setAgriOpacity"
+      @toggle-visible="toggleAgriVisible"
+      @refresh="agriMode.refresh"
+    />
+
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
     <ParcelEditToolbar
       v-if="store.current.level === 'village' && parcelMode !== 'idle'"
@@ -233,6 +263,7 @@
       :lodging-entry-reason="lodgingMode.entryReason.value"
       :lodging-assessment-active="lodgingMode.isActive.value"
       :lodging-demo-mode="lodgingMode.isDemoMode.value"
+      :agri-monitoring-active="agriMonitoringStore.isOpen"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
@@ -247,6 +278,8 @@
       @enter-lodging-assessment="lodgingMode.enterAssessmentMode()"
       @exit-lodging-assessment="lodgingMode.exitAssessmentMode()"
       @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
+      @open-agri-monitoring="enterAgriMonitoring"
+      @exit-agri-monitoring="exitAgriMonitoring"
     />
   </div>
 </template>
@@ -286,6 +319,11 @@ import { usePrecipitationStore } from '../stores/precipitation'
 import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import { useLodgingAssessmentMode } from '../features/lodging/useLodgingAssessmentMode'
+import { useAgriMonitoringMode } from '../features/agri-monitoring/useAgriMonitoringMode'
+import { useAgriMonitoringStore } from '../stores/agriMonitoring'
+import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS } from '../features/agri-monitoring/agriMonitoringTypes'
+import AgriMonitoringPanel from './agri-monitoring/AgriMonitoringPanel.vue'
+import AgriDateControl from './agri-monitoring/AgriDateControl.vue'
 import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
 import LodgingParcelDrawer from './lodging/LodgingParcelDrawer.vue'
 import AppToast from './ui/AppToast.vue'
@@ -297,6 +335,7 @@ import {
   childrenUrl,
   NEXT_LEVEL,
   LEVEL_WEIGHT,
+  type Level,
 } from '../stores/drilldown'
 import { createBasemaps, type Basemaps, type BasemapKey } from '../api/tianditu'
 import { switchBasemap as applyBasemapSwitch } from '../map/basemapSwitcher'
@@ -542,10 +581,54 @@ const lodgingMode = useLodgingAssessmentMode({
   },
 })
 
-// 模式互斥：当其他模式激活时，自动退出评估模式
+// 农情监测模式（演示模式入口）
+const agriMonitoringStore = useAgriMonitoringStore()
+const agriMode = useAgriMonitoringMode({
+  store,
+  disasterActive,
+  anyWeatherActive: () => anyWeatherActive.value,
+  hasUnsavedParcelWork: () => parcelHasUnsavedWork(),
+  exits: {
+    typhoon: (restoreView) => typhoonMode.exitTyphoonMode(restoreView),
+    weather: () => weatherMode.exitWeatherMode(),
+    nationalAlarms: () => weatherMode.exitNationalAlarms(),
+    precipitation: () => precipitationMode.exitPrecipitationMode(),
+    lodging: () => lodgingMode.exitAssessmentMode(),
+  },
+  resetToProvince: () => store.resetToProvince(),
+  render: () => render(),
+  showNotice,
+})
+const {
+  selectDate: selectAgriDate,
+  togglePlay: toggleAgriPlay,
+  setOpacity: setAgriOpacity,
+  toggleVisible: toggleAgriVisible,
+  setTab: setAgriTab,
+  drillToVillage: drillAgriToVillage,
+  locateTask: locateAgriTask,
+  clearTaskLocation: clearAgriTaskLocation,
+} = agriMode
+
+const agriLegend = GROWTH_LEVELS.map((lv) => ({ key: lv, label: LEVEL_LABELS[lv], color: `rgb(${LEVEL_COLORS[lv].join(',')})` }))
+
+function enterAgriMonitoring() { void agriMode.enter() }
+function exitAgriMonitoring() { agriMode.exit() }
+function handleAgriSelectVillage(code: string) {
+  agriMonitoringStore.openVillageDetail(code)
+  drillAgriToVillage(code)
+}
+function handleAgriSelectChild(row: { code: string; name: string; geometry: unknown; level: string }) {
+  void store.drill({ level: row.level as Level, code: row.code, name: row.name, geometry: row.geometry as Feature['geometry'] })
+}
+
+// 模式互斥：当其他模式激活时，自动退出评估/农情监测模式
 watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen], ([weather, typhoon, precip]) => {
   if (lodgingMode.isActive.value && (weather || typhoon || precip)) {
     lodgingMode.exitAssessmentMode()
+  }
+  if (agriMonitoringStore.isOpen && (weather || typhoon || precip)) {
+    agriMode.exit()
   }
 })
 
@@ -1009,6 +1092,7 @@ onMounted(async () => {
   precipitationMode.init(map)
   typhoonMode.init(map)
   lodgingMode.init(map)
+  agriMode.init(map)
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {
@@ -1048,6 +1132,7 @@ onBeforeUnmount(() => {
   typhoonMode.destroy()
   weatherMode.destroy()
   precipitationMode.destroy()
+  agriMode.destroy()
   parcelWorkbench.destroy()
   navigationController?.destroy()
   map?.remove()

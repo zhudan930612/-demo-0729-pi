@@ -1,5 +1,33 @@
 <template>
   <div ref="controlStackRef" class="ctrl-stack">
+    <!-- 演示模式入口（顶层）：农情监测 / 受灾预警 / 受灾评估 -->
+    <div class="tool-entry" @mouseenter="openDemoMenu" @mouseleave="scheduleCloseMenus" @focusin="openDemoMenu">
+      <button
+        type="button" class="icon-btn demo-btn" :class="{ active: demoMenuOpen || agriMonitoringActive }"
+        :aria-label="demoTip" aria-haspopup="true" :aria-expanded="demoMenuOpen" aria-controls="demo-tool-menu" @click="openDemoMenu"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h20M4 3v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V3M9 12v3a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-3M12 3v8"/></svg>
+        <span class="icon-tip" role="tooltip">{{ demoTip }}</span>
+      </button>
+      <Transition name="tool-menu">
+        <div v-if="demoMenuOpen" id="demo-tool-menu" class="tool-menu" aria-label="选择演示模式">
+          <button type="button" class="menu-action" :class="{ selected: agriMonitoringActive }" :title="agriMonitoringActive ? '退出农情监测' : '进入农情监测'" @click="chooseDemo('agri')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V10"/><path d="M6 14c-1.5 0-3-1.5-3-3.5S5 6 8 6c1.5 0 3 .8 4 2 1-1.2 2.5-2 4-2 3 0 5 2.5 5 4.5S19.5 14 18 14"/></svg>
+            <span>农情监测</span>
+          </button>
+          <button type="button" class="menu-action" disabled title="即将上线">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3.5 7.4v5.2c0 4.5 3.2 7.4 8.5 8.9 5.3-1.5 8.5-4.4 8.5-8.9V7.4L12 3Z"/></svg>
+            <span>受灾预警 <small style="color:#94a3b8">(即将上线)</small></span>
+          </button>
+          <button type="button" class="menu-action" disabled title="即将上线">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/></svg>
+            <span>受灾评估 <small style="color:#94a3b8">(即将上线)</small></span>
+          </button>
+          <button v-if="agriMonitoringActive" type="button" class="menu-action" @click="emit('exit-agri-monitoring')"><span>✕ 退出农情监测</span></button>
+        </div>
+      </Transition>
+    </div>
+
     <div class="tool-entry" @mouseenter="openWeatherMenu" @mouseleave="scheduleCloseMenus">
       <button
         ref="weatherButtonRef" type="button" class="icon-btn weather-btn" :class="{ active: weatherMenuOpen }"
@@ -129,25 +157,28 @@ import type { ParcelMode } from '../../features/parcels/parcelTypes'
 import type { ParcelVisualMode } from '../../features/parcels/parcelVisualMode'
 import type { BasemapKey } from '../../api/tianditu'
 type WeatherModule = 'alerts' | 'current' | 'precipitation'
-const props = defineProps<{ basemap:BasemapKey; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean }>()
-const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[] }>()
+const props = defineProps<{ basemap:BasemapKey; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean; agriMonitoringActive:boolean }>()
+const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[]; 'open-agri-monitoring':[]; 'exit-agri-monitoring':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
-const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false),lodgingMenuOpen=ref(false)
+const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false),lodgingMenuOpen=ref(false),demoMenuOpen=ref(false)
 const typhoonTip=computed(()=>props.disasterActive?'灾害查看模式已开启':props.disasterEntryDisabled?'请先保存或取消当前未完成操作':'查看台风')
 const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModules.map((module)=>module==='alerts'?'气象预警':module==='precipitation'?'降雨量':'实时天气').join('、')}，点击菜单项可退出`:props.weatherEntryReason)
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'种植':props.parcelVisualMode==='insurance'?'保险':'地块';return`地图图层：${label}`})
 const lodgingTip=computed(()=>props.lodgingAssessmentActive?'风险评估模式已开启':props.lodgingEntryReason?props.lodgingEntryReason:'水稻倒伏评估')
+const demoTip=computed(()=>props.agriMonitoringActive?'演示模式已开启':'演示模式')
 const basemapLabel=computed(()=>({img:'底图：卫星',vec:'底图：矢量',osm:'底图：OSM 标准',topo:'底图：OSM 地貌'})[props.basemap])
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
 let closeHoverTimer:ReturnType<typeof setTimeout>|undefined
 function cancelScheduledClose(){if(closeHoverTimer){clearTimeout(closeHoverTimer);closeHoverTimer=undefined}}
 function scheduleCloseMenus(){if(closeHoverTimer)clearTimeout(closeHoverTimer);closeHoverTimer=setTimeout(closeMenus,180)}
-function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false}
-function openWeatherMenu(){if(props.weatherEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;weatherMenuOpen.value=true}
+function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=false}
+function openDemoMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=true}
+function chooseDemo(_type:'agri'){demoMenuOpen.value=false;emit('open-agri-monitoring')}
+function openWeatherMenu(){if(props.weatherEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=false;weatherMenuOpen.value=true}
 function focusWeatherMenu(){openWeatherMenu();if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
-function openLodgingMenu(){if(props.lodgingEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=true}
+function openLodgingMenu(){if(props.lodgingEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;demoMenuOpen.value=false;lodgingMenuOpen.value=true}
 function openParcelMenu(){if(props.parcelToolsDisabled)return;cancelScheduledClose();weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;parcelMenuOpen.value=true}
 function focusParcelMenu(){openParcelMenu();if(parcelMenuOpen.value)void nextTick(()=>firstParcelActionRef.value?.focus())}
 function openLayerMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;layerMenuOpen.value=true}
@@ -166,15 +197,15 @@ function toggleLodgingMenu(){
 function chooseLodgingAssessment(_type:'rice'){lodgingMenuOpen.value=false;emit('enter-lodging-assessment')}
 function exitLodgingAssessment(){lodgingMenuOpen.value=false;emit('exit-lodging-assessment')}
 function toggleLodgingDemoMode(){emit('toggle-lodging-demo-mode')}
-function closeOnOutside(event:PointerEvent){if((parcelMenuOpen.value||weatherMenuOpen.value||layerMenuOpen.value||basemapMenuOpen.value||lodgingMenuOpen.value)&&!controlStackRef.value?.contains(event.target as Node))closeMenus()}
-function onKeydown(event:KeyboardEvent){if(event.key!=='Escape'||(!parcelMenuOpen.value&&!weatherMenuOpen.value&&!layerMenuOpen.value&&!basemapMenuOpen.value&&!lodgingMenuOpen.value))return;event.preventDefault();event.stopImmediatePropagation();closeMenus()}
+function closeOnOutside(event:PointerEvent){if((parcelMenuOpen.value||weatherMenuOpen.value||layerMenuOpen.value||basemapMenuOpen.value||lodgingMenuOpen.value||demoMenuOpen.value)&&!controlStackRef.value?.contains(event.target as Node))closeMenus()}
+function onKeydown(event:KeyboardEvent){if(event.key!=='Escape'||(!parcelMenuOpen.value&&!weatherMenuOpen.value&&!layerMenuOpen.value&&!basemapMenuOpen.value&&!lodgingMenuOpen.value&&!demoMenuOpen.value))return;event.preventDefault();event.stopImmediatePropagation();closeMenus()}
 watch(()=>[props.parcelToolsVisible,props.parcelToolsDisabled,props.weatherEntryDisabled,props.parcelVisualModeVisible] as const,()=>{if(!props.parcelToolsVisible||props.parcelToolsDisabled)parcelMenuOpen.value=false;if(props.weatherEntryDisabled)weatherMenuOpen.value=false;if(!props.parcelVisualModeVisible)layerMenuOpen.value=false})
 document.addEventListener('pointerdown',closeOnOutside);window.addEventListener('keydown',onKeydown,true)
 onBeforeUnmount(()=>{document.removeEventListener('pointerdown',closeOnOutside);window.removeEventListener('keydown',onKeydown,true)})
 </script>
 
 <style scoped>
-.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active,.lodging-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-entry .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);width:max-content;min-width:110px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translate(6px,-50%)}
+.ctrl-stack,.zoom-stack{position:absolute;right:10px;z-index:1000;display:flex;flex-direction:column;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.96);box-shadow:0 6px 20px rgba(15,23,42,.18),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.ctrl-stack{bottom:116px}.zoom-stack{bottom:24px}.icon-btn{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:7px;background:transparent;color:#475569;cursor:pointer;transition:background-color 160ms,color 160ms,box-shadow 160ms}.tool-entry,.ctrl-stack>*+*,.zoom-stack .icon-btn+.icon-btn{position:relative}.ctrl-stack>*+*::before,.zoom-stack .icon-btn+.icon-btn::before{content:'';position:absolute;top:-1px;left:7px;right:7px;height:1px;background:#e2e8f0}.icon-btn svg{width:18px;height:18px}.icon-btn:hover:not(:disabled){background:#e2e8f0;color:#0f172a}.icon-btn:focus-visible,.menu-action:focus-visible{outline:3px solid rgba(37,99,235,.28);outline-offset:2px}.icon-btn:disabled{cursor:not-allowed;color:#94a3b8}.icon-btn:disabled svg{opacity:.38}.icon-btn.off{color:#94a3b8}.parcel-btn:not(.off){background:#eff6ff;color:#2563eb}.layer-btn.active{background:#dbeafe;color:#1d4ed8}.parcel-tool-btn.active,.typhoon-btn.active,.weather-btn.active,.lodging-btn.active,.demo-btn.active{background:#dbeafe;color:#1d4ed8}.icon-tip{position:absolute;right:calc(100% + 10px);top:50%;z-index:2;padding:5px 8px;border-radius:6px;background:#0f172a;box-shadow:0 4px 12px rgba(15,23,42,.24);color:#fff;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap;opacity:0;pointer-events:none;transform:translate(4px,-50%);transition:opacity 120ms,transform 160ms}.icon-btn:hover .icon-tip,.icon-btn:focus-visible .icon-tip,.icon-btn:disabled:hover .icon-tip{opacity:1;transform:translate(0,-50%)}.active .icon-tip{display:none}.tool-entry .icon-tip{display:none}.tool-menu{position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);width:max-content;min-width:110px;display:grid;gap:2px;padding:4px;border:1px solid rgba(148,163,184,.34);border-radius:10px;background:rgba(248,250,252,.98);box-shadow:0 8px 24px rgba(15,23,42,.2),0 1px 2px rgba(15,23,42,.12);backdrop-filter:blur(8px)}.menu-action{height:36px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:600;cursor:pointer}.menu-action>svg{width:17px;height:17px;flex:none}.menu-action:hover:not(:disabled),.menu-action.selected{background:#eff6ff;color:#1d4ed8}.menu-action.selected{box-shadow:inset 3px 0 #2563eb}.menu-action:disabled{cursor:not-allowed;color:#94a3b8;opacity:.68}.tool-menu-enter-active{transition:opacity 140ms,transform 180ms}.tool-menu-leave-active{transition:opacity 100ms,transform 120ms}.tool-menu-enter-from,.tool-menu-leave-to{opacity:0;transform:translate(6px,-50%)}
 .menu-divider{height:1px;margin:4px 8px;background:#e2e8f0}
 .menu-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;gap:8px}
 .toggle-label{font-size:12px;color:#475569;font-weight:500}

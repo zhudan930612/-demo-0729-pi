@@ -187,3 +187,13 @@
   pointer-events: auto;
   overflow: hidden;
 }
+/* 农情监测 长势 5 级图例（与降水热力图靠图例区分） */
+.agri-legend {
+  position: absolute; left: 10px; bottom: 60px; z-index: 1000;
+  display: flex; gap: 6px; align-items: center;
+  padding: 5px 8px; border: 1px solid rgba(148,163,184,0.34); border-radius: 8px;
+  background: rgba(248,250,252,0.96); box-shadow: 0 4px 14px rgba(15,23,42,0.16);
+  font-size: 10px; color: #475569;
+}
+.agri-legend-item { display: flex; align-items: center; gap: 3px; }
+.agri-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
