@@ -197,3 +197,10 @@
 }
 .agri-legend-item { display: flex; align-items: center; gap: 3px; }
 .agri-legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+/* 任务定位图标（divIcon 内 pin） */
+.agri-loc-marker { background: transparent; border: none; }
+.agri-loc-pin {
+  width: 16px; height: 16px; border-radius: 50% 50% 50% 0;
+  background: #dc2626; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(15,23,42,0.4);
+  transform: rotate(-45deg); margin: 2px;
+}

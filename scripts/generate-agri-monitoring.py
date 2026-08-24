@@ -498,10 +498,13 @@ def compute_policy_growth(village_code, layers, lon_centers, lat_centers) -> lis
             ratios = {lv: round(level_area[lv] / total, 4) for lv in LEVELS}
         else:
             ratios = {lv: 0 for lv in LEVELS}
+        insured_name = party_names.get(str(policy.get("insuredPartyId", "")), "")
+        if not insured_name:
+            insured_name = "集体投保（团单）" if str(policy.get("insuredMode", "")) == "insured_roster" else "个人投保"
         rows.append({
             "policyId": pid,
             "policyNo": str(policy.get("policyNo", pid)),
-            "insuredName": party_names.get(str(policy.get("insuredPartyId", "")), ""),
+            "insuredName": insured_name,
             "insuredPartyId": str(policy.get("insuredPartyId", "")),
             "insuredAreaMu": round(total, 2),
             "levels": ratios,

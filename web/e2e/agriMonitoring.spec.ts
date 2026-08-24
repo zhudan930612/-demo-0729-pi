@@ -162,6 +162,9 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   // R4-5：点击某村 → 异常详情（村名 + 5档占比 + 一键转任务，无判断依据区块）
   await rows.nth(1).click()
   await expect(page.locator('.agri-anomaly .anomaly-detail')).toBeVisible()
+  // R4-3：点选后地图定位到该村视角（面包屑 = 龙江村）
+  await page.waitForTimeout(1500)
+  await expect(page.locator('.crumb.active')).toHaveText('龙江村')
   await expect(page.locator('.agri-anomaly .anomaly-detail .detail-title')).toHaveText('龙江村')
   await expect(page.locator('.agri-anomaly .anomaly-detail .detail-band .band-seg')).toHaveCount(5)
   await expect(page.locator('.agri-anomaly .anomaly-detail')).not.toContainText('判断依据')
@@ -184,11 +187,13 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   await expect(page.locator('.agri-tasks .task-detail')).toContainText('备注')
   await expect(page.locator('.agri-tasks .task-detail')).toContainText('定位到地图')
   await expect(page.locator('.agri-tasks .task-detail .ev-thumb').first()).toBeVisible()
-  // R5-4：定位到地图 → 显示定位（无报错）
+  // R5-4：定位到地图 → 地图居中并显示定位图标
   await page.locator('.agri-tasks .locate-btn').click()
+  await expect(page.locator('.agri-loc-marker')).toBeVisible()
   // R5-5：退出任务详情 → 定位图标移除
   await page.locator('.agri-tasks .task-detail .back-btn').click()
   await expect(page.locator('.agri-tasks .task-detail')).toHaveCount(0)
+  await expect(page.locator('.agri-loc-marker')).toHaveCount(0)
   // R5-7：查看全部任务浮窗
   await page.locator('.agri-tasks .view-all').click()
   await expect(page.locator('.agri-tasks .all-panel')).toBeVisible()

@@ -84,6 +84,7 @@
 import { computed, ref } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
+import { tasksForRegion } from '../../features/agri-monitoring/agriMonitoringData'
 import type { AgriTask, TaskStatus } from '../../features/agri-monitoring/agriMonitoringTypes'
 
 const emit = defineEmits<{ 'locate-task': [location: { lon: number; lat: number; name: string }]; 'close-task': [] }>()
@@ -104,23 +105,7 @@ const visibleTask = computed<AgriTask | null>(() => {
 const statusKey = (s: TaskStatus) => (s === '待下发' ? 'pending' : s === '待领取' ? 'claim' : s === '进行中' ? 'doing' : 'done')
 
 // 不同层级查看相应层级任务（R5-6）
-const filteredTasks = computed(() => {
-  const region = regionOf(currentLevel.value, currentCode.value)
-  return allTasks.value.filter((t) => {
-    const v = agri.villages?.find((vv) => vv.code === t.villageCode)
-    if (!v) return false
-    if (currentLevel.value === 'village') return v.code === region
-    if (currentLevel.value === 'township') return v.townshipCode === region
-    if (currentLevel.value === 'county') return v.countyCode === region
-    if (currentLevel.value === 'city') return v.cityCode === region
-    return true // province：全部
-  })
-})
-
-function regionOf(level: string, code: string): string {
-  if (level === 'village') return code
-  return code
-}
+const filteredTasks = computed(() => tasksForRegion(allTasks.value, agri.villages, currentLevel.value, currentCode.value))
 
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }

@@ -50,7 +50,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
   const store = useAgriMonitoringStore()
   let map: L.Map | null = null
   let layer: AgriLayerController | null = null
-  let marker: L.CircleMarker | null = null
+  let marker: L.Marker | null = null
 
   async function loadAll() {
     const generation = store.generation
@@ -189,8 +189,13 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     const latlng: [number, number] = [location.lat, location.lon]
     map.flyTo(latlng, Math.max(map.getZoom(), 15), { duration: 0.8 })
     if (marker) marker.remove()
-    marker = L.circleMarker(latlng, {
-      radius: 8, color: '#dc2626', weight: 2, fillColor: '#fca5a5', fillOpacity: 0.8,
+    marker = L.marker(latlng, {
+      icon: L.divIcon({
+        className: 'agri-loc-marker',
+        html: '<div class="agri-loc-pin"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      }),
     }).addTo(map)
   }
 
