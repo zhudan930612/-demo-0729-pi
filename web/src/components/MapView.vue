@@ -623,11 +623,11 @@ function handleAgriSelectChild(row: { code: string; name: string; geometry: unkn
 }
 
 // 模式互斥：当其他模式激活时，自动退出评估/农情监测模式
-watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen], ([weather, typhoon, precip]) => {
-  if (lodgingMode.isActive.value && (weather || typhoon || precip)) {
+watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen, () => lodgingMode.isActive.value], ([weather, typhoon, precip, lodging]) => {
+  if (lodgingMode.isActive.value && (weather || typhoon || precip) && !agriMonitoringStore.isOpen) {
     lodgingMode.exitAssessmentMode()
   }
-  if (agriMonitoringStore.isOpen && (weather || typhoon || precip)) {
+  if (agriMonitoringStore.isOpen && (weather || typhoon || precip || lodging)) {
     agriMode.exit()
   }
 })
@@ -1132,6 +1132,7 @@ onBeforeUnmount(() => {
   typhoonMode.destroy()
   weatherMode.destroy()
   precipitationMode.destroy()
+  if (agriMonitoringStore.isOpen) agriMode.exit()
   agriMode.destroy()
   parcelWorkbench.destroy()
   navigationController?.destroy()

@@ -31,6 +31,7 @@ export function buildAgriGrid(raster: NdviRaster, dateIndex: number): ValueGrid 
 /** 双线性插值（NaN 感知：四邻居均 NaN 返回 NaN=透明；否则用可用邻居加权）。 */
 export function interpolateAgri(grid: ValueGrid, lat: number, lon: number): number {
   const { lats, lons, values } = grid
+  if (lats.length === 0 || lons.length === 0) return NaN
   if (lat < lats[0] || lat > lats[lats.length - 1] || lon < lons[0] || lon > lons[lons.length - 1]) return NaN
   let i = 0; let j = 0
   while (i < lats.length - 2 && lats[i + 1] <= lat) i++

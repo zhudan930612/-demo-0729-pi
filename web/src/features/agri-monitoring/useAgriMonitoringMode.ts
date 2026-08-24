@@ -2,7 +2,6 @@ import type { Ref } from 'vue'
 import L from 'leaflet'
 import type { FeatureCollection, Geometry } from 'geojson'
 import type { useDrilldownStore, Crumb, Level } from '../../stores/drilldown'
-import { childrenUrl } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { createAgriLayerController, type AgriLayerController } from '../../map/agriMonitoringLayerController'
 import {
@@ -39,7 +38,7 @@ export interface AgriMonitoringMode {
   setOpacity(value: number): void
   toggleVisible(): void
   setTab(tab: 'overview' | 'anomaly' | 'tasks'): void
-  drillToVillage(code: string): void
+  drillToVillage(code: string): Promise<void>
   createTaskFromAnomaly(village: VillageGrowth): AgriTask | null
   locateTask(location: { lon: number; lat: number; name: string }): void
   clearTaskLocation(): void
@@ -139,13 +138,12 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     if (current.level === 'village' && current.code === village.code) return
     const countyCode = village.countyCode
     const cityCode = village.cityCode
-    const townshipFile = townshipFileOf(village.code)
-    const townshipCode = townshipFile ? (townshipFile.split('/').pop() ?? '').replace(/\.geojson$/, '') : village.townshipCode
+    const townshipCode = village.townshipCode
     const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
     const chain: Array<{ level: Level; code: string; url: string | null }> = [
-      { level: 'city', code: cityCode, url: childrenUrl({ level: 'province', code: '330000', name: '浙江省' }) ?? `/data/boundary/city/330000.geojson` },
+      { level: 'city', code: cityCode, url: `/data/boundary/city/330000.geojson` },
       { level: 'county', code: countyCode, url: `/data/boundary/county/${cityCode}.geojson` },
-      { level: 'township', code: townshipCode, url: townshipFile },
+      { level: 'township', code: townshipCode, url: `/data/boundary/township/${countyCode}.geojson` },
     ]
     for (const step of chain) {
       if (!step.url) continue
@@ -170,9 +168,9 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     } catch { return null }
   }
 
-  function drillToVillage(code: string) {
+  async function drillToVillage(code: string) {
     const village = store.villages?.find((v) => v.code === code)
-    if (village) void drillToVillageInner(village)
+    if (village) await drillToVillageInner(village)
   }
 
   /** 一键转任务：初始待领取；去重；进入任务列表 tab。 */
