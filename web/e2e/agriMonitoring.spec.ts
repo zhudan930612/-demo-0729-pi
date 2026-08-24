@@ -194,6 +194,32 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   await expect(page.locator('.agri-tasks .all-panel')).toBeVisible()
 })
 
+test('R3 下钻到村级：概况随层级刷新 + 村级保单列表（R3-4/R3-5/R3-6）', async ({ page }) => {
+  await installFixtures(page)
+  await enterAgri(page)
+  // 逐级点概览子级：省 → 绍兴市 → 上虞区 → 章镇镇 → 龙江村
+  await page.locator('.agri-overview .child-row').first().click() // 绍兴市
+  await expect(page.locator('.crumb.active')).toHaveText('绍兴市')
+  await expect(page.locator('.agri-overview .ov-title')).toHaveText('绍兴市')
+  await page.locator('.agri-overview .child-row').first().click() // 上虞区
+  await expect(page.locator('.crumb.active')).toHaveText('上虞区')
+  await page.waitForTimeout(1200)
+  await page.locator('.agri-overview .child-row').first().click() // 章镇镇
+  await expect(page.locator('.crumb.active')).toHaveText('章镇镇')
+  await page.waitForTimeout(1200)
+  // 章镇镇子级 = 村列表，点龙江村（有保单数据）
+  await page.locator('.agri-overview .child-row:has-text("龙江村")').click()
+  await expect(page.locator('.crumb.active')).toHaveText('龙江村')
+  await page.waitForTimeout(1000)
+  // R3-4：村级面板显示保单维度列表（保单号 + 投保人 + 承保面积 + 5 档占比）
+  await expect(page.locator('.agri-overview .policy-row')).toHaveCount(1)
+  await expect(page.locator('.agri-overview .policy-row').first()).toContainText('3306041020142025000001')
+  await expect(page.locator('.agri-overview .policy-row').first()).toContainText('王大户')
+  await expect(page.locator('.agri-overview .policy-row').first().locator('.level-cell')).toHaveCount(5)
+  // R3-5：下钻到村级时地图聚焦该村（面包屑=龙江村，面板标题=龙江村）
+  await expect(page.locator('.agri-overview .ov-title')).toHaveText('龙江村')
+})
+
 test('R7 模式互斥：进入农情监测退出其他模式 / 退出清除农情状态', async ({ page }) => {
   await installFixtures(page)
   await enterAgri(page)
