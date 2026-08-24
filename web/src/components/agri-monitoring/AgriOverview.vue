@@ -30,10 +30,13 @@
       </div>
       <div v-else>
         <div v-if="childRows.length === 0" class="empty">暂无下一级区划数据</div>
-        <button v-for="row in childRows" :key="row.code" type="button" class="child-row" @click="emit('select-child', { code: row.code, name: row.name, geometry: row.geometry, level: row.level })">
+        <button v-for="row in childRows" :key="row.code" type="button" class="child-row" :class="{ 'no-data': !row.levels }" @click="emit('select-child', { code: row.code, name: row.name, geometry: row.geometry, level: row.level })">
           <span class="child-name">{{ row.name }}</span>
-          <div class="child-levels">
-            <div v-for="lv in levels" :key="lv" class="level-cell" :style="segStyle(lv)">{{ row.levels ? pct(row.levels[lv]) : '—' }}</div>
+          <div class="child-levels" :class="{ 'no-data': !row.levels }">
+            <template v-if="row.levels">
+              <div v-for="lv in levels" :key="lv" class="level-cell" :style="segStyle(lv)">{{ pct(row.levels[lv]) }}%</div>
+            </template>
+            <span v-else class="child-nodata">—</span>
           </div>
           <span class="child-area">{{ row.area > 0 ? fmtArea(row.area) : '—' }}</span>
         </button>
@@ -156,8 +159,12 @@ void loadChildren()
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .child-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 4px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: #334155; }
 .child-row:hover { background: #eef2f7; }
+.child-row.no-data { cursor: default; }
+.child-row.no-data:hover { background: transparent; }
 .child-name { width: 76px; flex: none; font-weight: 600; text-align: left; }
 .child-levels { flex: 1; display: flex; gap: 1px; }
+.child-levels.no-data { color: #cbd5e1; align-items: center; }
+.child-nodata { font-size: 11px; color: #cbd5e1; }
 .level-cell { flex: 1; height: 12px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #fff; overflow: hidden; }
 .child-area { width: 52px; flex: none; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; }
 .policy-row { padding: 5px 4px; border-bottom: 1px solid rgba(148,163,184,0.12); }
