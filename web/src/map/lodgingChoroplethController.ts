@@ -30,17 +30,17 @@ function ensureStyle(): void {
 
 // ========== 连续值受损率 → 颜色 ==========
 
-/** 绿色（轻度） */
-const COLOR_LIGHT = 'rgba(34, 197, 94, 0.45)'
-const STROKE_LIGHT = '#16a34a'
+/** 绿色（轻度）—— 高饱和 */
+const COLOR_LIGHT = 'rgba(16, 185, 129, 0.55)'
+const STROKE_LIGHT = '#0df46a'
 
-/** 黄色（中度） */
-const COLOR_MEDIUM = 'rgba(234, 179, 8, 0.5)'
-const STROKE_MEDIUM = '#ca8a04'
+/** 黄色（中度）—— 亮黄偏橙，最醒目 */
+const COLOR_MEDIUM = 'rgba(245, 158, 11, 0.6)'
+const STROKE_MEDIUM = '#d97706'
 
-/** 红色（重度） */
-const COLOR_HEAVY = 'rgba(239, 68, 68, 0.55)'
-const STROKE_HEAVY = '#dc2626'
+/** 红色（重度）—— 鲜艳红 */
+const COLOR_HEAVY = 'rgba(239, 68, 68, 0.6)'
+const STROKE_HEAVY = '#b91c1c'
 
 /** 根据连续值受损率返回填充颜色 */
 export function fillColorForRate(damageRate: number): string {
@@ -131,8 +131,8 @@ export function createChoroplethLayerController(
           fillColor,
           fillOpacity: fillColor === 'transparent' ? 0 : 1,
           color: strokeColor,
-          weight: 1.5,
-          opacity: strokeColor === 'transparent' ? 0 : 0.8,
+          weight: 2,
+          opacity: strokeColor === 'transparent' ? 0 : 1,
           className: 'lodging-choropleth-feature',
         },
         onEachFeature: (_feat, lyr) => {
@@ -144,6 +144,21 @@ export function createChoroplethLayerController(
             `<b>${entry.name}</b><br/>受损率 ${rateDisplay}%（${rateText}）`,
             { sticky: true, direction: 'auto' }
           )
+          // 悬停高亮：明显加粗描边 + 提亮填充
+          lyr.on('mouseover', () => {
+            ;(lyr as L.Path).setStyle({
+              weight: 4,
+              fillOpacity: 1,
+              opacity: 1,
+            })
+          })
+          lyr.on('mouseout', () => {
+            ;(lyr as L.Path).setStyle({
+              weight: 2,
+              fillOpacity: 1,
+              opacity: 1,
+            })
+          })
           // 点击回调
           lyr.on('click', (e) => {
             L.DomEvent.stopPropagation(e)
