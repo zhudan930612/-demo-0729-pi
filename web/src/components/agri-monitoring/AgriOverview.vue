@@ -179,7 +179,13 @@ const policyRows = computed<PolicyRow[]>(() => {
   if (agri.raster && store.current.geometry) {
     groups = aggregateRegionGrouped(agri.raster, agri.selectedDate, store.current.geometry as never, farmerCount + 1)
   }
-  const weight = (k: number) => 0.7 + (hashCode(`${code}.w.${k}`) % 60) / 100
+  // 实保规律：多数小、少数大（右偏）——按序号右偏(k大权重大) + 扰动
+  const weight = (k: number) => {
+    const i = farmerCount <= 1 ? 0 : k / (farmerCount - 1)
+    const skew = Math.pow(i, 1.7) // 0..1 右偏
+    const noise = ((hashCode(`${code}.n.${k}`) % 45) - 22) / 100 // ±0.22
+    return 0.25 + skew * 2.4 + noise
+  }
   const bigWeights = Array.from({ length: farmerCount }, (_, k) => weight(k))
   const bigSum = bigWeights.reduce((s, w) => s + w, 0)
   const bigAreas = bigWeights.map((w) => Math.max(1, Math.round(((total - rosterArea) * w) / bigSum)))
