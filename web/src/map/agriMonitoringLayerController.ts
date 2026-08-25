@@ -194,6 +194,11 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
   const tileRings = activeClipRings ? ringsIntersectTile(activeClipRings, west, south, east, north) : null
+  // 裁剪区域存在但该瓦片与裁剪环集无交集 → 瓦片完全在区域外 → 透明（不漏出区域外的省级热力图）
+  if (activeClipRings && (!tileRings || tileRings.length === 0)) {
+    ctx.clearRect(0, 0, tileSizeX, tileSizeY)
+    return
+  }
   const proj = tileRings && tileRings.length ? boundaryProjected(tileRings, map, coords.z) : null
   if (proj && proj.length > 0) {
     ctx.save()
