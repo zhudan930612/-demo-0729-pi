@@ -61,7 +61,7 @@ import { computed, ref, watch } from 'vue'
 import { useDrilldownStore, childrenUrl, NEXT_LEVEL } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { GROWTH_LEVELS, LEVEL_COLORS, LEVEL_LABELS, type GrowthLevel } from '../../features/agri-monitoring/agriMonitoringTypes'
-import { aggregateRegion, splitTownshipArea, type RegionAggregate } from '../../features/agri-monitoring/agriRegionAggregate'
+import { aggregateRegion, aggregateRegionGrouped, splitTownshipArea, type RegionAggregate } from '../../features/agri-monitoring/agriRegionAggregate'
 import { fetchJSON } from '../../api/data'
 
 const emit = defineEmits<{ 'select-child': [row: { code: string; name: string; geometry: unknown; level: string }] }>()
@@ -163,24 +163,57 @@ const policyRows = computed<PolicyRow[]>(() => {
       .map((r) => ({ policyNo: r.policyNo, policyType: (r.insuredMode === 'insured_roster' ? '团单' : '大户') as '大户' | '团单', insuredName: r.insuredName, insuredAreaMu: r.insuredAreaMu, levels: r.levels }))
       .sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
   }
-  // 非参保村：on-demand 造 4-6 条演示保单（面积=村承保面积拆分，5级=村占比；前 3 条大户、后 2 条团单）
+  // 非参保村：on-demand 造 demo 保单 —— 1 条团单(首位户等N户) + 3-6 条大户(确定性名)；保单号=村码+年份+序号
   const vd = villageOndemand.value
   if (!vd) return []
-  const pieces = 5
-  const area = vd.insuredAreaMu / pieces
-  const names = ['沈伟良', '周建华', '陈立新', '王小明', '李秀芬', '张伟']
-  const demo: PolicyRow[] = Array.from({ length: pieces }, (_, k) => ({
-    policyNo: `${currentCode.value.slice(0, 6)}${currentCode.value.slice(-2)}${k + 1}02`,
-    policyType: (k < 3 ? '大户' : '团单') as '大户' | '团单',
-    insuredName: k < 3 ? names[k % names.length] : `${currentCode.value.slice(-2)}村股份经济合作社`,
-    insuredAreaMu: Math.round(area),
-    levels: vd.levels,
-  }))
+  const code = currentCode.value
+  const farmerCount = 3 + (hashCode(code) % 4) // 3-6 条大户
+  const total = vd.insuredAreaMu
+  const rosterArea = Math.round(total * 0.35) // 团单约占 35%
+  const year = '2025'
+  const seq = (n: number) => String(n).padStart(5, '0')
+  const names = demoFarmerNames(code, farmerCount + 1) // +1：团单首位户与大户口径分开
+  // 按村栅格子区域分组采样：每保单一个真实子区域分布（自然、不重复）+ 多变面积权重
+  let groups: Array<{ levels: Record<GrowthLevel, number>; farmArea: number }> | null = null
+  if (agri.raster && store.current.geometry) {
+    groups = aggregateRegionGrouped(agri.raster, agri.selectedDate, store.current.geometry as never, farmerCount + 1)
+  }
+  const weight = (k: number) => 0.7 + (hashCode(`${code}.w.${k}`) % 60) / 100
+  const bigWeights = Array.from({ length: farmerCount }, (_, k) => weight(k))
+  const bigSum = bigWeights.reduce((s, w) => s + w, 0)
+  const bigAreas = bigWeights.map((w) => Math.max(1, Math.round(((total - rosterArea) * w) / bigSum)))
+  const bigTotal = bigAreas.reduce((s, a) => s + a, 0)
+  if (bigAreas.length) bigAreas[bigAreas.length - 1] += total - rosterArea - bigTotal // 校准总和
+  const demo: PolicyRow[] = [{
+    policyNo: `${code}${year}${seq(1)}`, policyType: '团单',
+    insuredName: `${names[0]}等${Math.max(1, vd.householdCount)}户种植户`,
+    insuredAreaMu: rosterArea, levels: groups?.[0]?.levels ?? vd.levels,
+  }]
+  for (let k = 0; k < farmerCount; k++) {
+    demo.push({ policyNo: `${code}${year}${seq(k + 2)}`, policyType: '大户', insuredName: names[k + 1]!, insuredAreaMu: bigAreas[k]!, levels: groups?.[k + 1]?.levels ?? vd.levels })
+  }
   return demo.sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
 })
 function sortByGrowth(l: Record<GrowthLevel, number>): number {
   // 极差/较差权重高 → 值小（排在前面）
   return -(l.veryPoor * 4) - (l.poor * 3) - (l.normal * 2) + l.good + l.excellent * 2
+}
+// 确定性生成农户名（按村码+序号，避免与参保村/龙江村重复、各村不同）
+function hashCode(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+const DEMO_SURNAMES = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '周', '吴', '徐', '孙', '朱', '马', '胡', '郭', '林', '何', '高', '罗']
+const DEMO_GIVEN = ['建国', '志强', '秀兰', '桂英', '建华', '永福', '春梅', '德明', '国庆', '淑芬', '爱军', '丽华', '洪波', '玉珍', '国栋', '美玲', '俊杰', '桂芳', '世明', '桂香']
+function demoFarmerNames(code: string, count: number): string[] {
+  const out: string[] = []
+  for (let k = 0; k < count; k++) {
+    const surname = DEMO_SURNAMES[hashCode(`${code}.${k}.s`) % DEMO_SURNAMES.length]!
+    const given = DEMO_GIVEN[hashCode(`${code}.${k}.g`) % DEMO_GIVEN.length]!
+    out.push(surname + given)
+  }
+  return out
 }
 
 // 下一级区划列表（省→市→县→镇；镇→村）
