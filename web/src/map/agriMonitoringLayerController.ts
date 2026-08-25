@@ -3,6 +3,20 @@ import type { NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes
 import { ndviRGB } from '../features/agri-monitoring/agriMonitoringTypes'
 import { ensurePrecipBoundary } from './precipitationLayerController'
 
+/** 颜色查找表：NDVI 0..1 → RGB(24bit，alpha=255)，避免逐像素 5 档颜色扫描（性能关键）。 */
+const NDVI_LUT_SIZE = 256
+let ndviLut: Uint32Array | null = null
+function getNdviLut(): Uint32Array {
+  if (ndviLut) return ndviLut
+  const lut = new Uint32Array(NDVI_LUT_SIZE)
+  for (let i = 0; i < NDVI_LUT_SIZE; i++) {
+    const rgb = ndviRGB(i / (NDVI_LUT_SIZE - 1), 1)
+    if (rgb) lut[i] = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
+  }
+  ndviLut = lut
+  return lut
+}
+
 export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 430 } } as const
 
 
@@ -51,7 +65,8 @@ export function interpolateAgri(grid: ValueGrid, lat: number, lon: number): numb
 export class AgriGridLayer extends L.GridLayer {
   declare options: { grid: ValueGrid | null; opacity: number; pane: string }
   constructor(options: Partial<L.GridLayerOptions & { grid: ValueGrid | null }>) {
-    super({ tileSize: 256, opacity: 1, fadeAnimation: false, ...options } as L.GridLayerOptions)
+    // updateWhenZooming:false —— 缩放动画期间只做缩放变换不重算瓦片，消除逐帧卡顿；动画结束一次重算
+    super({ tileSize: 256, opacity: 1, fadeAnimation: false, updateWhenZooming: false, ...options } as L.GridLayerOptions)
     this.options.grid = options.grid ?? null
   }
 
@@ -157,10 +172,9 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
       const lng = west + (east - west) * (tx + 0.5) / renderSize
       const v = interpolateAgri(grid, lat, lng)
       if (Number.isNaN(v)) continue
-      const rgb = ndviRGB(v, 1)
-      if (!rgb) continue
+      const c = getNdviLut()[Math.max(0, Math.min(NDVI_LUT_SIZE - 1, Math.round(v * (NDVI_LUT_SIZE - 1))))]
       const o = (ty * renderSize + tx) * 4
-      d[o] = rgb[0]; d[o + 1] = rgb[1]; d[o + 2] = rgb[2]; d[o + 3] = rgb[3]
+      d[o] = (c >> 16) & 255; d[o + 1] = (c >> 8) & 255; d[o + 2] = c & 255; d[o + 3] = 255
     }
   }
   octx.putImageData(img, 0, 0)
