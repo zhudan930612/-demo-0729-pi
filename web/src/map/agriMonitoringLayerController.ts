@@ -1,7 +1,6 @@
 import L from 'leaflet'
 import type { NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes'
 import { ndviRGB } from '../features/agri-monitoring/agriMonitoringTypes'
-import { ensurePrecipBoundary } from './precipitationLayerController'
 
 /** 颜色查找表：NDVI 0..1 → RGB(24bit，alpha=255)，避免逐像素 5 档颜色扫描（性能关键）。 */
 const NDVI_LUT_SIZE = 256
@@ -41,11 +40,13 @@ export function interpolateAgri(grid: ValueGrid, lat: number, lon: number): numb
   const { lats, lons, values } = grid
   if (lats.length === 0 || lons.length === 0) return NaN
   if (lat < lats[0] || lat > lats[lats.length - 1] || lon < lons[0] || lon > lons[lons.length - 1]) return NaN
-  let i = 0; let j = 0
-  while (i < lats.length - 2 && lats[i + 1] <= lat) i++
-  while (j < lons.length - 2 && lons[j + 1] <= lon) j++
-  const latFrac = lats[i + 1] === lats[i] ? 0 : (lat - lats[i]) / (lats[i + 1] - lats[i])
-  const lonFrac = lons[j + 1] === lons[j] ? 0 : (lon - lons[j]) / (lons[j + 1] - lons[j])
+  // O(1) 索引：直接按网格间距求行/列（避免逐像素 while 线性搜索造成的 O(n) 卡顿）
+  const latStep = lats[1] - lats[0]
+  const lonStep = lons[1] - lons[0]
+  let i = Math.max(0, Math.min(lats.length - 2, Math.floor((lat - lats[0]) / latStep)))
+  let j = Math.max(0, Math.min(lons.length - 2, Math.floor((lon - lons[0]) / lonStep)))
+  const latFrac = latStep === 0 ? 0 : (lat - lats[i]) / latStep
+  const lonFrac = lonStep === 0 ? 0 : (lon - lons[j]) / lonStep
   const v00 = values[i][j]; const v10 = values[i + 1][j]; const v01 = values[i][j + 1]; const v11 = values[i + 1][j + 1]
   // 加权平均（跳过 NaN，避免边界侵蚀）
   let sum = 0; let weight = 0
@@ -115,11 +116,11 @@ export class AgriGridLayer extends L.GridLayer {
   } as unknown as () => void
 }
 
-/** 裁剪投影缓存（per-zoom，region 变化时清空） */
+/** 裁剪投影缓存（per-zoom，region 变化时清空）
+ *  省界不在此裁剪——ndvi.json 生成时已把省外掩膜成 0(无数据)，热力图天然省外透明；
+ *  这里只做【区域裁剪】(city/county 等，1-2 环，便宜)。null=省视角(无需裁剪)。 */
 const boundaryProjCache = new Map<number, Array<Array<[number, number]>>>()
-let activeClipRings: Array<Array<[number, number]>> | null = null  // 当前下钻区域 rings（null=省界）
-let agriBoundaryRings: Array<Array<[number, number]>> | null = null
-let agriBoundaryPromise: Promise<Array<Array<[number, number]>>> | null = null
+let activeClipRings: Array<Array<[number, number]>> | null = null  // 当前下钻区域 rings（null=省视角）
 
 function boundaryProjected(rings: Array<Array<[number, number]>> | null, map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
   if (!rings) return null
@@ -181,7 +182,7 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   ctx.imageSmoothingEnabled = true  // 放大 off→tile 用高质量平滑（连续渐变，一次性）
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
-  const proj = boundaryProjected(activeClipRings ?? agriBoundaryRings, map, coords.z)
+  const proj = activeClipRings ? boundaryProjected(activeClipRings, map, coords.z) : null
   if (proj && proj.length > 0) {
     ctx.save()
     try {
@@ -241,11 +242,6 @@ export function createAgriLayerController(): AgriLayerController {
       layer.addTo(target)
       layer.setOpacityValue(currentOpacity)
       if (!visible) layer.setOpacityValue(0)
-      // 异步省界：加载完成后重绘（应用裁剪）
-      if (!agriBoundaryPromise) {
-        agriBoundaryPromise = ensurePrecipBoundary().then((rings) => { agriBoundaryRings = rings; return rings })
-      }
-      void agriBoundaryPromise.then(() => { if (layer && grid) layer.setData(grid) })
     },
     setRaster(next) {
       raster = next
