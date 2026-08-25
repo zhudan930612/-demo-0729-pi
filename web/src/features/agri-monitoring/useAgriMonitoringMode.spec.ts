@@ -10,7 +10,7 @@ vi.mock('leaflet', () => ({
 }))
 vi.mock('../../map/agriMonitoringLayerController', () => ({
   createAgriLayerController: vi.fn(() => ({
-    mount: vi.fn(), setRaster: vi.fn(), setDate: vi.fn(), setOpacity: vi.fn(),
+    mount: vi.fn(), setRaster: vi.fn(), setDate: vi.fn(), setClip: vi.fn(), setOpacity: vi.fn(),
     setVisible: vi.fn(), redraw: vi.fn(), destroy: vi.fn(),
   })),
 }))

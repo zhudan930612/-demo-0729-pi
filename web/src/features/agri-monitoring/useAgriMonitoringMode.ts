@@ -1,3 +1,4 @@
+import { watch } from 'vue'
 import type { Ref } from 'vue'
 import L from 'leaflet'
 import type { FeatureCollection, Geometry } from 'geojson'
@@ -80,6 +81,8 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     store.open()
     layer = layer ?? createAgriLayerController()
     layer.mount(map!)
+    // 热力图裁剪跟随当前下钻区域（进入默认省界）
+    layer.setClip(currentClipRings())
     // 进入默认最近一期，热力图开
     store.visible = true
     // 省级视角 + 渲染
@@ -120,6 +123,29 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
   }
 
   function setTab(tab: 'overview' | 'anomaly' | 'tasks') { store.setTab(tab) }
+
+  /** GeoJSON geometry → rings（[lon,lat] 数组），用于热力图裁剪。 */
+  function geometryToRings(geometry: Geometry | null | undefined): Array<Array<[number, number]>> | null {
+    if (!geometry) return null
+    const rings: Array<Array<[number, number]>> = []
+    const addPoly = (coords: number[][][]) => {
+      for (const ring of coords) {
+        const arr = ring.map((p) => [p[0], p[1]] as [number, number])
+        if (arr.length >= 3) rings.push(arr)
+      }
+    }
+    if (geometry.type === 'Polygon') addPoly(geometry.coordinates as number[][][])
+    else if (geometry.type === 'MultiPolygon') for (const poly of geometry.coordinates as number[][][][]) addPoly(poly)
+    return rings.length ? rings : null
+  }
+
+  /** 当前下钻区域的裁剪 rings（省/市/县/镇/村；省 base 无 geometry → null=省界）。 */
+  function currentClipRings(): Array<Array<[number, number]>> | null {
+    return geometryToRings(ctx.store.current.geometry)
+  }
+
+  // 下钻区域变化 → 热力图裁剪跟随（只显示当前区域的热力图）
+  watch(() => ctx.store.current, () => { layer?.setClip(currentClipRings()) }, { immediate: true })
 
   function refresh() { store.phase = 'loading'; void loadAll() }
 

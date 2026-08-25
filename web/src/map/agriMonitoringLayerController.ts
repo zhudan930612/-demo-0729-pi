@@ -1,6 +1,6 @@
 import L from 'leaflet'
 import type { NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes'
-import { ndviColor } from '../features/agri-monitoring/agriMonitoringTypes'
+import { ndviRGB } from '../features/agri-monitoring/agriMonitoringTypes'
 import { ensurePrecipBoundary } from './precipitationLayerController'
 
 export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 430 } } as const
@@ -100,16 +100,17 @@ export class AgriGridLayer extends L.GridLayer {
   } as unknown as () => void
 }
 
-/** 省界投影缓存（per-zoom） */
+/** 裁剪投影缓存（per-zoom，region 变化时清空） */
 const boundaryProjCache = new Map<number, Array<Array<[number, number]>>>()
+let activeClipRings: Array<Array<[number, number]>> | null = null  // 当前下钻区域 rings（null=省界）
 let agriBoundaryRings: Array<Array<[number, number]>> | null = null
 let agriBoundaryPromise: Promise<Array<Array<[number, number]>>> | null = null
 
-function boundaryProjected(map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
-  if (!agriBoundaryRings) return null
+function boundaryProjected(rings: Array<Array<[number, number]>> | null, map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
+  if (!rings) return null
   let proj = boundaryProjCache.get(zoom)
   if (!proj) {
-    proj = agriBoundaryRings
+    proj = rings
       .map((ring) => ring.map(([lon, lat]) => { const p = map.project([lat, lon], zoom); return [p.x, p.y] as [number, number] }))
       .filter((ring) => ring.length >= 3)
     boundaryProjCache.set(zoom, proj)
@@ -137,25 +138,36 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   const southEast = map.unproject([(coords.x + 1) * tileSizeX, (coords.y + 1) * tileSizeY], coords.z)
   const north = northWest.lat; const south = southEast.lat
   const west = northWest.lng; const east = southEast.lng
+  // 自适应渲染分辨率：按本瓦片覆盖的栅格格数，避免全 256×256 逐像素导致缩放卡顿
+  const lonStep = (grid.lons[1] - grid.lons[0]) || 0.003
+  const latStep = (grid.lats[1] - grid.lats[0]) || 0.003
+  const colsInTile = Math.max(2, Math.ceil((east - west) / lonStep))
+  const rowsInTile = Math.max(2, Math.ceil((north - south) / latStep))
+  const renderSize = Math.max(24, Math.min(tileSizeX, Math.round(Math.max(colsInTile, rowsInTile))))
   const off = document.createElement('canvas')
-  off.width = tileSizeX; off.height = tileSizeY  // 全瓦片分辨率
+  off.width = renderSize; off.height = renderSize
   const octx = off.getContext('2d')
   if (!octx) return
-  // 逐像素最近采样 + 上色
-  for (let ty = 0; ty < tileSizeY; ty++) {
-    const lat = north - (north - south) * (ty + 0.5) / tileSizeY
-    for (let tx = 0; tx < tileSizeX; tx++) {
-      const lng = west + (east - west) * (tx + 0.5) / tileSizeX
-      const v = nearestAgri(grid, lat, lng)
-      const fill = Number.isFinite(v) ? ndviColor(v, 1) : null
-      if (!fill) continue
-      octx.fillStyle = fill
-      octx.fillRect(tx, ty, 1, 1)
+  // ImageData 逐像素双线性插值（连续色斑）+ 一次 putImageData（高效）
+  const img = octx.createImageData(renderSize, renderSize)
+  const d = img.data
+  for (let ty = 0; ty < renderSize; ty++) {
+    const lat = north - (north - south) * (ty + 0.5) / renderSize
+    for (let tx = 0; tx < renderSize; tx++) {
+      const lng = west + (east - west) * (tx + 0.5) / renderSize
+      const v = interpolateAgri(grid, lat, lng)
+      if (Number.isNaN(v)) continue
+      const rgb = ndviRGB(v, 1)
+      if (!rgb) continue
+      const o = (ty * renderSize + tx) * 4
+      d[o] = rgb[0]; d[o + 1] = rgb[1]; d[o + 2] = rgb[2]; d[o + 3] = rgb[3]
     }
   }
-  ctx.imageSmoothingEnabled = false  // 关闭平滑放大，避免模糊
+  octx.putImageData(img, 0, 0)
+  ctx.imageSmoothingEnabled = true  // 放大 off→tile 用高质量平滑（连续渐变，一次性）
+  ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
-  const proj = boundaryProjected(map, coords.z)
+  const proj = boundaryProjected(activeClipRings ?? agriBoundaryRings, map, coords.z)
   if (proj && proj.length > 0) {
     ctx.save()
     try {
@@ -179,6 +191,7 @@ export interface AgriLayerController {
   mount(map: L.Map): void
   setRaster(raster: NdviRaster | null): void
   setDate(index: number): void
+  setClip(rings: Array<Array<[number, number]>> | null): void
   setOpacity(opacity: number): void
   setVisible(visible: boolean): void
   redraw(): void
@@ -228,6 +241,11 @@ export function createAgriLayerController(): AgriLayerController {
     setDate(index) {
       currentDate = index
       rebuildGrid()
+    },
+    setClip(rings) {
+      activeClipRings = rings
+      boundaryProjCache.clear() // 区域变化 → 清投影缓存
+      layer?.redraw()
     },
     setOpacity(next) {
       currentOpacity = Math.min(1, Math.max(0, next))

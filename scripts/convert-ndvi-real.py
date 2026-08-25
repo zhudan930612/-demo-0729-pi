@@ -19,7 +19,7 @@ REPO = Path(__file__).resolve().parent.parent
 RAW = REPO / "web/public/data/agri/gee-raw"
 OUT = REPO / "web/public/data/agri"
 PROV_GEO = REPO / "web/public/data/boundary/province.geojson"
-CELL = 0.003
+CELL = 0.002244  # 约224m（GEE GeoTIFF 原生分辨率，最细真实数据）
 DATES = ["2025-06-15", "2025-07-15", "2025-08-15", "2025-09-20"]
 
 

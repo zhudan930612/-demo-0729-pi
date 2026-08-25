@@ -33,8 +33,9 @@ const COLOR_STOPS: ReadonlyArray<readonly [number, readonly [number, number, num
   [0.85, LEVEL_COLORS.excellent],
 ]
 
-/** NDVI 连续值 → 5 级颜色（档位色锚点间平滑插值；NaN/越界返回 null=透明） */
-export function ndviColor(value: number, alpha: number): string | null {
+/** NDVI 连续值 → 5 级颜色（档位色锚点间平滑插值；NaN/越界返回 null=透明）。
+ *  高效 RGB 输出（供 ImageData 逐像素写入），avoid 字符串拼接。 */
+export function ndviRGB(value: number, alpha: number): readonly [number, number, number, number] | null {
   if (!Number.isFinite(value) || alpha <= 0) return null
   let stop = COLOR_STOPS[0]
   let idx = 0
@@ -52,7 +53,13 @@ export function ndviColor(value: number, alpha: number): string | null {
   } else {
     ;[r, g, b] = stop[1]
   }
-  return `rgba(${r},${g},${b},${Math.min(1, Math.max(0, alpha)).toFixed(3)})`
+  return [r, g, b, Math.round(Math.min(1, Math.max(0, alpha)) * 255)]
+}
+
+export function ndviColor(value: number, alpha: number): string | null {
+  const rgb = ndviRGB(value, alpha)
+  if (!rgb) return null
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(rgb[3] / 255).toFixed(3)})`
 }
 
 export function growthLevelOf(value: number): GrowthLevel {
