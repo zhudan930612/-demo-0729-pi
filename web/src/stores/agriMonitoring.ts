@@ -122,7 +122,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
     },
     setTaskLocation(loc: { lon: number; lat: number; name: string } | null) { this.taskLocation = loc },
     /** 一键转任务：生成初始「待领取」任务；同村已转则去重返回 null */
-    createTaskFromAnomaly(village: VillageGrowth): AgriTask | null {
+    createTaskFromAnomaly(village: { code: string; name: string; anomalyRatio: number; centroid?: { lon: number; lat: number } | null }): AgriTask | null {
       if (this.convertedVillageCodes.includes(village.code)) return null
       const seq = this.allTasks.length + 1
       const task: AgriTask = {
@@ -145,6 +145,11 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
       // 去重记录
       this.convertedVillageCodes = [...this.convertedVillageCodes, village.code]
       return task
+    },
+    /** 撤销一键转：移除任务 + 去重记录（防误按）。 */
+    cancelConvertVillage(code: string) {
+      this.convertedVillageCodes = this.convertedVillageCodes.filter((c) => c !== code)
+      this.generatedTasks = this.generatedTasks.filter((t) => t.villageCode !== code)
     },
     close() {
       this.stopPlay()

@@ -16,7 +16,7 @@
         <AgriOverview @select-child="(row) => emit('select-child', row)" />
       </template>
       <template v-else-if="activeTab === 'anomaly'">
-        <AgriAnomaly @select-village="(code) => emit('select-village', code)" />
+        <AgriAnomaly />
       </template>
       <template v-else-if="activeTab === 'tasks'">
         <AgriTasks @locate-task="(loc) => emit('locate-task', loc)" @close-task="emit('close-task')" />
