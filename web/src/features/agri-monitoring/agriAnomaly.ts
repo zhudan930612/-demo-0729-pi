@@ -51,10 +51,12 @@ export function buildTownshipAnomalies(
     if (curRatio <= ANOMALY_THRESHOLD) continue
     const countyCode = code.slice(0, 6)
     const cityCode = code.slice(0, 4) + '00'
+    // 县名缺失（已合并旧县如 330103/330104）回落为市名，避免显示编码
+    const cityName = current[cityCode]?.name ?? cityCode
     out.push({
       code, name: agg.name,
-      cityCode, cityName: current[cityCode]?.name ?? cityCode,
-      countyCode, countyName: current[countyCode]?.name ?? countyCode,
+      cityCode, cityName,
+      countyCode, countyName: current[countyCode]?.name ?? cityName,
       anomalyRatio: curRatio,
       consecutivePeriods: consecutiveAnomalyPeriods(ratios, selectedDate),
       isAnomaly: true,

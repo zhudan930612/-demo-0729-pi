@@ -122,7 +122,7 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 </script>
 
 <style scoped>
-.agri-anomaly { font-size: 12px; }
+.agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 4px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .region-group-head { font-size: 10px; font-weight: 700; color: #1d4ed8; margin: 8px 0 3px; padding: 2px 6px; border-radius: 4px; background: #eff6ff; }
