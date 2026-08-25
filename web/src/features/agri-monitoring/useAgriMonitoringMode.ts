@@ -40,6 +40,7 @@ export interface AgriMonitoringMode {
   toggleVisible(): void
   setTab(tab: 'overview' | 'anomaly' | 'tasks'): void
   drillToVillage(code: string): Promise<void>
+  drillToTownship(t: { code: string; name: string; cityCode: string; countyCode: string }): Promise<void>
   createTaskFromAnomaly(village: VillageGrowth): AgriTask | null
   locateTask(location: { lon: number; lat: number; name: string }): void
   clearTaskLocation(): void
@@ -228,6 +229,23 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     if (village) await drillToVillageInner(village)
   }
 
+  /** 异常top 点乡镇 → 地图同步下钻到该乡镇。 */
+  async function drillToTownship(t: { code: string; name: string; cityCode: string; countyCode: string }) {
+    const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
+    const chain: Array<{ level: Level; code: string; url: string | null }> = [
+      { level: 'city', code: t.cityCode, url: `/data/boundary/city/330000.geojson` },
+      { level: 'county', code: t.countyCode, url: `/data/boundary/county/${t.cityCode}.geojson` },
+      { level: 'township', code: t.code, url: `/data/boundary/township/${t.countyCode}.geojson` },
+    ]
+    for (const step of chain) {
+      if (!step.url) continue
+      const feature = await findBoundaryFeature(step.url, step.code)
+      if (!feature) continue
+      crumbs.push({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
+    }
+    await ctx.store.navigateTo(crumbs)
+  }
+
   /** 一键转任务：初始待领取；去重；进入任务列表 tab。 */
   function createTaskFromAnomaly(village: VillageGrowth): AgriTask | null {
     const task = store.createTaskFromAnomaly(village)
@@ -270,6 +288,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     toggleVisible,
     setTab,
     drillToVillage,
+    drillToTownship,
     createTaskFromAnomaly,
     locateTask,
     clearTaskLocation,

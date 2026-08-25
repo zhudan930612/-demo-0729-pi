@@ -11,8 +11,8 @@
       <div v-for="v in villageRows" :key="v.code" class="anomaly-village">
         <div class="av-head">
           <span class="av-name">{{ v.name }}</span>
-          <span v-if="v.consecutivePeriods >= 3" class="strategy-badge convert">建议转任务</span>
-          <span v-else class="strategy-badge observe">建议待观察</span>
+          <span v-if="v.consecutivePeriods >= 3" class="strategy-badge convert">AI建议：转任务</span>
+          <span v-else class="strategy-badge observe">AI建议：待观察</span>
           <span class="av-period">连续{{ v.consecutivePeriods }}期异常</span>
         </div>
         <div class="av-bar">
@@ -34,8 +34,7 @@
         <div class="region-group-head">{{ g.cityName }} · {{ g.countyName }}</div>
         <button v-for="t in g.townships" :key="t.code" type="button" class="anomaly-row" @click="selectTownship(t)">
           <span class="row-name">{{ t.name }}</span>
-          <span v-if="t.consecutivePeriods >= 3" class="strategy-badge convert">连续{{ t.consecutivePeriods }}期 → 转任务</span>
-          <span v-else class="strategy-badge observe">连续{{ t.consecutivePeriods }}期 → 待观察</span>
+          <span class="strategy-badge neutral">连续{{ t.consecutivePeriods }}期异常</span>
           <div class="row-bar">
             <div class="row-bar-fill" :style="{ width: pct(t.anomalyRatio) + '%' }"></div>
           </div>
@@ -56,6 +55,7 @@ import {
 } from '../../features/agri-monitoring/agriAnomaly'
 import { fetchJSON } from '../../api/data'
 
+const emit = defineEmits<{ 'drill-township': [t: { code: string; name: string; cityCode: string; countyCode: string }] }>()
 const agri = useAgriMonitoringStore()
 const pct = (v: number) => Math.round((v ?? 0) * 100)
 const converted = computed(() => agri.convertedSet)
@@ -110,6 +110,7 @@ async function loadVillageAnomalies(t: TownshipAnomaly) {
 
 function selectTownship(t: TownshipAnomaly) {
   selectedTownship.value = t
+  emit('drill-township', { code: t.code, name: t.name, cityCode: t.cityCode, countyCode: t.countyCode })
   void loadVillageAnomalies(t)
 }
 watch(() => agri.selectedDate, () => { if (selectedTownship.value) void loadVillageAnomalies(selectedTownship.value) })
@@ -135,6 +136,7 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 .strategy-badge { flex: none; font-size: 9px; padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
 .strategy-badge.convert { background: #fee2e2; color: #b91c1c; }
 .strategy-badge.observe { background: #e0f2fe; color: #0369a1; }
+.strategy-badge.neutral { background: #f1f5f9; color: #475569; }
 .anomaly-detail .detail-header { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .back-btn { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: #2563eb; font-size: 16px; cursor: pointer; }
 .back-btn:hover { background: #eef2f7; }

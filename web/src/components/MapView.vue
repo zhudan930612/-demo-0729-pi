@@ -114,6 +114,7 @@
       @close="exitAgriMonitoring"
       @select-tab="setAgriTab"
       @select-village="handleAgriSelectVillage"
+      @drill-township="drillAgriToTownship"
       @select-child="handleAgriSelectChild"
       @locate-task="locateAgriTask"
       @close-task="clearAgriTaskLocation"
@@ -603,6 +604,7 @@ const {
   setOpacity: setAgriOpacity,
   setTab: setAgriTab,
   drillToVillage: drillAgriToVillage,
+  drillToTownship: drillAgriToTownship,
   locateTask: locateAgriTask,
   clearTaskLocation: clearAgriTaskLocation,
 } = agriMode

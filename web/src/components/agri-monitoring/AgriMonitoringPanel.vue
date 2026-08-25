@@ -16,7 +16,7 @@
         <AgriOverview @select-child="(row) => emit('select-child', row)" />
       </template>
       <template v-else-if="activeTab === 'anomaly'">
-        <AgriAnomaly />
+        <AgriAnomaly @drill-township="(t) => emit('drill-township', t)" />
       </template>
       <template v-else-if="activeTab === 'tasks'">
         <AgriTasks @locate-task="(loc) => emit('locate-task', loc)" @close-task="emit('close-task')" />
@@ -37,6 +37,7 @@ const emit = defineEmits<{
   close: []
   'select-tab': [tab: AgriTab]
   'select-village': [code: string]
+  'drill-township': [t: { code: string; name: string; cityCode: string; countyCode: string }]
   'select-child': [row: { code: string; name: string; geometry: unknown; level: string }]
   'locate-task': [location: { lon: number; lat: number; name: string }]
   'close-task': []
