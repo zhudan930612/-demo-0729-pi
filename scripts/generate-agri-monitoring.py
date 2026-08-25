@@ -241,6 +241,17 @@ def point_in_polygons_mask(polys, lons, lats):
     return mask
 
 
+def _smooth_noise(shape, seed, sigma):
+    """高斯平滑随机场（种子确定、标准化 NaN 除外）：无偏、有机，用于村级尺度长势马赛克。"""
+    from scipy.ndimage import gaussian_filter
+    rng = np.random.default_rng(seed)
+    field = rng.normal(size=shape)
+    field = gaussian_filter(field, sigma=sigma, mode="reflect")
+    # 归一化（均 0 方 1），避免幅度随分辨率漂移
+    field = (field - field.mean()) / (field.std() + 1e-9)
+    return field
+
+
 def np_point_in_ring(rlons, rlats, lons, lats):
     inside = np.zeros(lons.shape, dtype=bool)
     j = len(rlons) - 1
@@ -298,10 +309,14 @@ def build_ndvi_field(villages: dict, province_geom):
             base = rng.gauss(0.63, 0.055)
             village_baseline[code] = min(0.74, max(0.52, base))
 
-    # ---------- 省背景场（非参保区域：正常/较好为主，含少量较好-极好斑块，空间有起伏） ----------
-    seed = stable_seed("province-bg")
-    bg_noise = _hash_noise(LON_GRID / 3.0, LAT_GRID / 3.0, seed, octaves=2)
-    bg_base = 0.57 + bg_noise * 0.22
+    # ---------- 全省背景场：村级尺度多色块马赛克（非参保区模拟村级长势） ----------
+    # 监测最小单位=村级；每个村级区域有独立长势基准（跨多个档位），村内百米级栅格仍有 5 级变化。
+    # 村级尺度基准（σ≈4 格 ≈2.6km）：不同村级区域落入不同档位 → 多色块交错（无偏，避免大片同色）
+    village_base_noise = _smooth_noise((ROWS, COLS), stable_seed("village-base"), 4)
+    # 村内变化（σ≈1.5 格 ≈1km）：每个村级斑块内部仍有 5 级色块变化（非均匀）
+    intra_noise = _smooth_noise((ROWS, COLS), stable_seed("village-intra"), 1.5)
+    # 基准：以正常/较好为主（自然），较差/极差与极好为少量区域
+    bg_base = 0.62 + village_base_noise * 0.11 + intra_noise * 0.045
 
     n_dates = len(DATES)
 
@@ -349,7 +364,7 @@ def build_ndvi_field(villages: dict, province_geom):
     # ---------- 组装多日期层 ----------
     layers = []
     for d in range(n_dates):
-        layer = bg_base + season_vals[d] * 0.12
+        layer = bg_base + season_vals[d] * 0.055
         layer = layer.copy()
         for code, fc in village_cells.items():
             sub = layer[fc["ri0"]:fc["ri1"] + 1, fc["ci0"]:fc["ci1"] + 1]
