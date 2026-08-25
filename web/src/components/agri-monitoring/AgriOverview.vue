@@ -61,6 +61,7 @@ import { computed, ref, watch } from 'vue'
 import { useDrilldownStore, childrenUrl, NEXT_LEVEL } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { GROWTH_LEVELS, LEVEL_COLORS, LEVEL_LABELS, type GrowthLevel } from '../../features/agri-monitoring/agriMonitoringTypes'
+import { aggregateRegion, splitTownshipArea, type RegionAggregate } from '../../features/agri-monitoring/agriRegionAggregate'
 import { fetchJSON } from '../../api/data'
 
 const emit = defineEmits<{ 'select-child': [row: { code: string; name: string; geometry: unknown; level: string }] }>()
@@ -155,17 +156,36 @@ async function loadChildren() {
     render = (fc.features ?? []).map((f) => ({ code: String(f.properties?.code ?? ''), name: String(f.properties?.name ?? ''), geometry: f.geometry }))
   } catch { render = [] }
   const nextLevel = NEXT_LEVEL[crumb.level]
-  const rows: ChildRow[] = render.map((c) => {
-    let area = 0; let lev: Record<GrowthLevel, number> | null = null
-    if (nextLevel === 'village') {
-      const v = agri.villages?.find((vv) => vv.code === c.code)
-      if (v && v.data) { area = v.insuredAreaMu; lev = v.levels }
-    } else {
+  let rows: ChildRow[] = []
+  if (nextLevel === 'village') {
+    // 村级 on-demand：非参保村用已载栅格按村几何聚合 5级占比 + 村之和=镇拆分承保面积；参保村用真实
+    const raster = agri.raster
+    const dateIdx = agri.selectedDate
+    const townshipArea = agri.levels?.[crumb.code]?.insuredAreaMu ?? 0
+    const aggBy = new Map<string, RegionAggregate>()
+    for (const c of render) {
+      if (raster && c.geometry) {
+        const a = aggregateRegion(raster, dateIdx, c.geometry as { type: string; coordinates: unknown })
+        if (a) aggBy.set(c.code, a)
+      }
+    }
+    const farmAreas = [...aggBy.entries()].map(([code, a]) => ({ code, farmArea: a.farmArea }))
+    const splitMap = new Map(splitTownshipArea(townshipArea, farmAreas).map((s) => [s.code, s.area]))
+    rows = render.map((c) => {
+      const real = agri.villages?.find((vv) => vv.code === c.code)
+      if (real && real.data) return { code: c.code, name: c.name, area: real.insuredAreaMu, levels: real.levels, geometry: c.geometry, level: nextLevel ?? '' }
+      const a = aggBy.get(c.code)
+      if (!a) return { code: c.code, name: c.name, area: 0, levels: null, geometry: c.geometry, level: nextLevel ?? '' }
+      return { code: c.code, name: c.name, area: splitMap.get(c.code) ?? 0, levels: a.levels, geometry: c.geometry, level: nextLevel ?? '' }
+    })
+  } else {
+    rows = render.map((c) => {
+      let area = 0; let lev: Record<GrowthLevel, number> | null = null
       const agg = agri.levels?.[c.code]
       if (agg && agg.data) { area = agg.insuredAreaMu; lev = agg.levels }
-    }
-    return { code: c.code, name: c.name, area, levels: lev, geometry: c.geometry, level: nextLevel ?? '' }
-  })
+      return { code: c.code, name: c.name, area, levels: lev, geometry: c.geometry, level: nextLevel ?? '' }
+    })
+  }
   rows.sort((a, b) => b.area - a.area)
   childRows.value = rows
 }
