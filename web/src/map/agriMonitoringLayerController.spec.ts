@@ -10,7 +10,7 @@ vi.mock('leaflet', () => ({
   },
 }))
 
-import { buildAgriGrid, interpolateAgri } from './agriMonitoringLayerController'
+import { buildAgriGrid, interpolateAgri, nearestAgri } from './agriMonitoringLayerController'
 import type { NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes'
 
 function makeRaster(): NdviRaster {
@@ -46,5 +46,13 @@ describe('agriMonitoringLayerController · 值网格重建/插值', () => {
     const grid = buildAgriGrid(raster, 0)
     // 首格中心 (30.003,120.003) 值 0.30
     expect(interpolateAgri(grid, 30.003, 120.003)).toBeCloseTo(0.30, 1)
+  })
+
+  it('nearestAgri：取最近栅格格值（清晰色块），无数据/越界返回 NaN', () => {
+    const grid = buildAgriGrid(makeRaster(), 0)
+    // 首格中心 → 0.30（最近格）
+    expect(nearestAgri(grid, 30.003, 120.003)).toBeCloseTo(0.30, 2)
+    // 越界 → NaN
+    expect(Number.isNaN(nearestAgri(grid, 25, 115))).toBe(true)
   })
 })

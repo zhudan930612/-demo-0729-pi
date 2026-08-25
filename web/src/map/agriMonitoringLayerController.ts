@@ -5,8 +5,6 @@ import { ensurePrecipBoundary } from './precipitationLayerController'
 
 export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 430 } } as const
 
-/** 瓦片渲染分辨率 */
-const RENDER_SIZE = 64
 
 interface ValueGrid { lats: number[]; lons: number[]; values: number[][] } // values：NaN=无数据（透明）
 
@@ -119,7 +117,17 @@ function boundaryProjected(map: L.Map, zoom: number): Array<Array<[number, numbe
   return proj
 }
 
-/** 瓦片渲染：低分辨率采样 + 插值 → 高质量平滑放大；省界 clip（evenodd 处理洞与岛屿）。 */
+/** 最近栅格采样：返回距 (lat,lon) 最近的栅格格值；无数据/越界返回 NaN。 */
+export function nearestAgri(grid: ValueGrid, lat: number, lon: number): number {
+  const { lats, lons, values } = grid
+  if (lats.length === 0 || lons.length === 0 || lat < lats[0] || lat > lats[lats.length - 1] || lon < lons[0] || lon > lons[lons.length - 1]) return NaN
+  const i = Math.max(0, Math.min(lats.length - 1, Math.round((lat - lats[0]) / (lats[1] - lats[0]))))
+  const j = Math.max(0, Math.min(lons.length - 1, Math.round((lon - lons[0]) / (lons[1] - lons[0]))))
+  const v = values[i]?.[j]
+  return Number.isFinite(v) ? v : NaN
+}
+
+/** 瓦片渲染：全分辨率 + 最近栅格采样（清晰百米级色块，无平滑放大模糊）；省界 clip。 */
 function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGrid | null, map: L.Map): void {
   const ctx = tile.getContext('2d')
   if (!ctx) return
@@ -130,31 +138,22 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   const north = northWest.lat; const south = southEast.lat
   const west = northWest.lng; const east = southEast.lng
   const off = document.createElement('canvas')
-  off.width = RENDER_SIZE; off.height = RENDER_SIZE
+  off.width = tileSizeX; off.height = tileSizeY  // 全瓦片分辨率
   const octx = off.getContext('2d')
   if (!octx) return
-  // 先采样到离屏
-  const sampled = new Array<number>(RENDER_SIZE * RENDER_SIZE)
-  for (let ty = 0; ty < RENDER_SIZE; ty++) {
-    const lat = north - (north - south) * (ty + 0.5) / RENDER_SIZE
-    for (let tx = 0; tx < RENDER_SIZE; tx++) {
-      const lng = west + (east - west) * (tx + 0.5) / RENDER_SIZE
-      const value = interpolateAgri(grid, lat, lng)
-      sampled[ty * RENDER_SIZE + tx] = value
-    }
-  }
-  // 上色
-  for (let ty = 0; ty < RENDER_SIZE; ty++) {
-    for (let tx = 0; tx < RENDER_SIZE; tx++) {
-      const v = sampled[ty * RENDER_SIZE + tx]
+  // 逐像素最近采样 + 上色
+  for (let ty = 0; ty < tileSizeY; ty++) {
+    const lat = north - (north - south) * (ty + 0.5) / tileSizeY
+    for (let tx = 0; tx < tileSizeX; tx++) {
+      const lng = west + (east - west) * (tx + 0.5) / tileSizeX
+      const v = nearestAgri(grid, lat, lng)
       const fill = Number.isFinite(v) ? ndviColor(v, 1) : null
       if (!fill) continue
       octx.fillStyle = fill
       octx.fillRect(tx, ty, 1, 1)
     }
   }
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
+  ctx.imageSmoothingEnabled = false  // 关闭平滑放大，避免模糊
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
   const proj = boundaryProjected(map, coords.z)
   if (proj && proj.length > 0) {
