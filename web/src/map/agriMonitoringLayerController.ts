@@ -119,21 +119,79 @@ export class AgriGridLayer extends L.GridLayer {
 /** 裁剪投影缓存（per-zoom，region 变化时清空）
  *  省界不在此裁剪——ndvi.json 生成时已把省外掩膜成 0(无数据)，热力图天然省外透明；
  *  这里只做【区域裁剪】(city/county 等，1-2 环，便宜)。null=省视角(无需裁剪)。 */
-let activeClipRings: Array<Array<[number, number]>> | null = null  // 当前下钻区域 rings（null=省视角）
+// 裁剪环索引：预计算每环 bbox + 空间网格，查询时只取瓦片附近网格的环（村级上千田块环时 O(近邻)，非 O(n) 逐瓦片）
+interface ClipIndex {
+  rings: Array<Array<[number, number]>>
+  bboxes: Array<[number, number, number, number]>  // [minLon, minLat, maxLon, maxLat]
+  cells: Map<number, number[]>
+  minLon: number; minLat: number; cellSize: number; cols: number; rows: number
+}
 
-/** 只保留与瓦片经纬度范围相交的环（村级田块裁剪时每瓦片只需附近田块，避免整村上千环全绘）。 */
-function ringsIntersectTile(rings: Array<Array<[number, number]>>, west: number, south: number, east: number, north: number): Array<Array<[number, number]>> {
-  const m = 0.02
-  return rings.filter((ring) => {
-    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity
+let clipIndex: ClipIndex | null = null  // 当前裁剪环索引（null=省视角）
+
+function buildClipIndex(rings: Array<Array<[number, number]>>): ClipIndex {
+  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity
+  const bboxes: Array<[number, number, number, number]> = []
+  for (const ring of rings) {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity
     for (const [lon, lat] of ring) {
-      if (lon < minLon) minLon = lon
-      if (lon > maxLon) maxLon = lon
-      if (lat < minLat) minLat = lat
-      if (lat > maxLat) maxLat = lat
+      if (lon < a) a = lon
+      if (lon > c) c = lon
+      if (lat < b) b = lat
+      if (lat > d) d = lat
     }
-    return minLon <= east + m && maxLon >= west - m && minLat <= north + m && maxLat >= south - m
-  })
+    bboxes.push([a, b, c, d])
+    if (a < minLon) minLon = a
+    if (b < minLat) minLat = b
+    if (c > maxLon) maxLon = c
+    if (d > maxLat) maxLat = d
+  }
+  const cellSize = 0.01  // ~1km
+  const cols = Math.max(1, Math.ceil((maxLon - minLon) / cellSize))
+  const rows = Math.max(1, Math.ceil((maxLat - minLat) / cellSize))
+  const cells = new Map<number, number[]>()
+  for (let i = 0; i < rings.length; i++) {
+    const [a, b, c, d] = bboxes[i]!
+    const c0 = Math.max(0, Math.floor((a - minLon) / cellSize))
+    const c1 = Math.min(cols - 1, Math.floor((c - minLon) / cellSize))
+    const r0 = Math.max(0, Math.floor((b - minLat) / cellSize))
+    const r1 = Math.min(rows - 1, Math.floor((d - minLat) / cellSize))
+    for (let r = r0; r <= r1; r++) {
+      for (let col = c0; col <= c1; col++) {
+        const k = r * cols + col
+        const arr = cells.get(k) || []
+        arr.push(i)
+        cells.set(k, arr)
+      }
+    }
+  }
+  return { rings, bboxes, cells, minLon, minLat, cellSize, cols, rows }
+}
+
+function queryClipIndex(index: ClipIndex, west: number, south: number, east: number, north: number): Array<Array<[number, number]>> {
+  const { rings, bboxes, cells, minLon, minLat, cellSize, cols, rows } = index
+  const m = 0.02
+  const c0 = Math.max(0, Math.floor((west - minLon) / cellSize))
+  const c1 = Math.min(cols - 1, Math.floor((east - minLon) / cellSize))
+  const r0 = Math.max(0, Math.floor((south - minLat) / cellSize))
+  const r1 = Math.min(rows - 1, Math.floor((north - minLat) / cellSize))
+  const seen = new Set<number>()
+  const out: Array<Array<[number, number]>> = []
+  for (let r = r0; r <= r1; r++) {
+    for (let col = c0; col <= c1; col++) {
+      const arr = cells.get(r * cols + col)
+      if (!arr) continue
+      for (const i of arr) {
+        if (seen.has(i)) continue
+        const [a, b, c, d] = bboxes[i]!
+        if (a <= east + m && c >= west - m && b <= north + m && d >= south - m) {
+          seen.add(i)
+          out.push(rings[i]!)
+        }
+      }
+    }
+  }
+  return out
 }
 
 function boundaryProjected(rings: Array<Array<[number, number]>> | null, map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
@@ -193,9 +251,9 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   ctx.imageSmoothingEnabled = true  // 放大 off→tile 用高质量平滑（连续渐变，一次性）
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
-  const tileRings = activeClipRings ? ringsIntersectTile(activeClipRings, west, south, east, north) : null
+  const tileRings = clipIndex ? queryClipIndex(clipIndex, west, south, east, north) : null
   // 裁剪区域存在但该瓦片与裁剪环集无交集 → 瓦片完全在区域外 → 透明（不漏出区域外的省级热力图）
-  if (activeClipRings && (!tileRings || tileRings.length === 0)) {
+  if (clipIndex && (!tileRings || tileRings.length === 0)) {
     ctx.clearRect(0, 0, tileSizeX, tileSizeY)
     return
   }
@@ -270,7 +328,7 @@ export function createAgriLayerController(): AgriLayerController {
       rebuildGrid()
     },
     setClip(rings) {
-      activeClipRings = rings
+      clipIndex = rings && rings.length ? buildClipIndex(rings) : null
       layer?.redraw()
     },
     setOpacity(next) {
