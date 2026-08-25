@@ -25,10 +25,13 @@ vi.mock('./agriMonitoringData', () => {
   const raster = { originLon: 120, originLat: 30, stepLon: 0.01, stepLat: 0.01, cols: 1, rows: 1, dates: ['2026-06-01', '2026-07-27'], layers: [[60], [65]] }
   return {
     loadAgriRaster: vi.fn(async () => raster),
-    loadAgriVillages: vi.fn(async () => []),
-    loadAgriLevels: vi.fn(async () => ({ byCode: {} })),
-    loadAgriTasks: vi.fn(async () => []),
-    loadAgriPolicyGrowth: vi.fn(async () => []),
+    loadAgriBusiness: vi.fn(async () => ({
+      dates: ['2026-06-01', '2026-07-27'],
+      villages: [[], []],
+      levels: [{ byCode: {} }, { byCode: {} }],
+      policyGrowth: [{}, {}],
+      tasks: [[], []],
+    })),
   }
 })
 
@@ -109,7 +112,7 @@ describe('useAgriMonitoringMode · 模式互斥', () => {
     // 预置村（drillToVillage 依赖 store.villages 找村）
     const store = useAgriMonitoringStore()
     store.open()
-    store.receive(store.generation, { villages: [{ code: '330604102014', name: '龙江村', centroid: { lon: 120, lat: 30, name: '龙江村' }, insuredAreaMu: 10, householdCount: 1, policyCount: 1, levels: { veryPoor: 0, poor: 0, normal: 1, good: 0, excellent: 0 }, anomalyRatio: 0, isAnomaly: false, countyCode: '330604', cityCode: '330600', townshipCode: '330604104000', data: true }] })
+    store.receive(store.generation, { villagesByDate: [[{ code: '330604102014', name: '龙江村', centroid: { lon: 120, lat: 30, name: '龙江村' }, insuredAreaMu: 10, householdCount: 1, policyCount: 1, levels: { veryPoor: 0, poor: 0, normal: 1, good: 0, excellent: 0 }, anomalyRatio: 0, isAnomaly: false, countyCode: '330604', cityCode: '330600', townshipCode: '330604104000', data: true }]] })
     ctx.store = { current: { level: 'province', code: '330000', name: '浙江省' }, navigateTo } as never
     const mode = useAgriMonitoringMode(ctx)
     expect(store.villages).toHaveLength(1)

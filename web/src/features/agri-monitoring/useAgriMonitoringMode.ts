@@ -6,7 +6,7 @@ import type { useDrilldownStore, Crumb, Level } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { createAgriLayerController, type AgriLayerController } from '../../map/agriMonitoringLayerController'
 import {
-  loadAgriRaster, loadAgriVillages, loadAgriLevels, loadAgriTasks, loadAgriPolicyGrowth,
+  loadAgriRaster, loadAgriBusiness,
 } from './agriMonitoringData'
 import type { VillageGrowth, AgriTask } from './agriMonitoringTypes'
 import { townshipFileOf } from '../village-risk/villageRiskData'
@@ -55,14 +55,16 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
   async function loadAll() {
     const generation = store.generation
     try {
-      const [raster, villages, levels, tasks] = await Promise.all([
-        loadAgriRaster(), loadAgriVillages(), loadAgriLevels(), loadAgriTasks(),
+      const [raster, business] = await Promise.all([
+        loadAgriRaster(), loadAgriBusiness(),
       ])
-      const pgEntries = await Promise.all(villages.map((v) =>
-        loadAgriPolicyGrowth(v.code).then((rows) => [v.code, rows] as const).catch(() => [v.code, []] as const),
-      ))
-      const policyGrowth = Object.fromEntries(pgEntries)
-      const done = store.receive(generation, { raster, villages, levels: levels.byCode, tasks, policyGrowth })
+      const done = store.receive(generation, {
+        raster,
+        villagesByDate: business.villages,
+        levelsByDate: business.levels.map((l) => l.byCode),
+        tasksByDate: business.tasks,
+        policyByDate: business.policyGrowth,
+      })
       if (!done) return
       layer?.setRaster(raster)
       layer?.setDate(store.selectedDate)

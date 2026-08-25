@@ -66,12 +66,15 @@ async function installFixtures(page: Page) {
     if (p === '/data/villages/330604104000.geojson') return route.fulfill({ json: makeVillages() })
     if (p === '/data/rs.json') return route.fulfill({ status: 404, body: '' })
     if (p === '/data/agri/ndvi.json') return route.fulfill({ json: ndviData })
-    if (p === '/data/agri/villages.json') return route.fulfill({ json: villageData })
-    if (p === '/data/agri/levels.json') return route.fulfill({ json: levelData })
-    if (p === '/data/agri/tasks.json') return route.fulfill({ json: tasksData })
-    if (p.startsWith('/data/agri/policy-growth-')) {
-      const code = p.replace('/data/agri/policy-growth-', '').replace('.json', '')
-      return route.fulfill({ json: pgData[code as keyof typeof pgData] ?? [] })
+    if (p === '/data/agri/agri-business.json') {
+      // 按每期预计算的业务聚合（villages/levels/policyGrowth/tasks），前端按选中日期取用
+      return route.fulfill({ json: {
+        dates: ['2026-06-01', '2026-07-27'],
+        villages: [villageData, villageData],
+        levels: [levelData, levelData],
+        policyGrowth: [pgData, pgData],
+        tasks: [tasksData, tasksData],
+      } })
     }
     if (p.startsWith('/data/agri/evidence/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG_1PX })
     if (url.hostname.endsWith('tianditu.gov.cn')) return route.fulfill({ status: 204, body: '' })

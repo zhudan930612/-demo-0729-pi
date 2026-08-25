@@ -22,9 +22,13 @@ export function tasksForRegion(
 export const AGRI_DIR = '/data/agri'
 
 export const loadAgriRaster = () => fetchJSON<NdviRaster>(`${AGRI_DIR}/ndvi.json`)
-export const loadAgriVillages = () => fetchJSON<VillageGrowth[]>(`${AGRI_DIR}/villages.json`)
-export const loadAgriLevels = () =>
-  fetchJSON<{ byCode: Record<string, LevelAggregate> }>(`${AGRI_DIR}/levels.json`)
-export const loadAgriTasks = () => fetchJSON<AgriTask[]>(`${AGRI_DIR}/tasks.json`)
-export const loadAgriPolicyGrowth = (villageCode: string) =>
-  fetchJSON<PolicyGrowthRow[]>(`${AGRI_DIR}/policy-growth-${villageCode}.json`)
+
+/** 按日期预计算的业务聚合（村庄/层级/保单多期/任务多期），前端按选中日期取用。 */
+export interface AgriBusiness {
+  dates: string[]
+  villages: VillageGrowth[][]
+  levels: Array<{ byCode: Record<string, LevelAggregate> }>
+  policyGrowth: Record<string, PolicyGrowthRow[]>[]
+  tasks: AgriTask[][]
+}
+export const loadAgriBusiness = () => fetchJSON<AgriBusiness>(`${AGRI_DIR}/agri-business.json`)

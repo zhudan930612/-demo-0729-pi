@@ -7,21 +7,21 @@ export const AGRI_DEFAULT_OPACITY = 0.55 // 半透明：露出底图(省级天�
 
 export interface AgriSnapshot {
   raster: NdviRaster | null
-  villages: VillageGrowth[] | null
-  levels: Record<string, LevelAggregate> | null
-  tasks: AgriTask[]
-  policyGrowth: Record<string, PolicyGrowthRow[]>
+  villagesByDate: VillageGrowth[][] | null
+  levelsByDate: Record<string, LevelAggregate>[] | null
+  tasksByDate: AgriTask[][]
+  policyByDate: Record<string, PolicyGrowthRow[]>[]
 }
 
 export const useAgriMonitoringStore = defineStore('agriMonitoring', {
   state: () => ({
     phase: 'closed' as AgriPhase,
     raster: null as NdviRaster | null,
-    villages: null as VillageGrowth[] | null,
-    levels: null as Record<string, LevelAggregate> | null,
-    tasks: [] as AgriTask[],
+    villagesByDate: null as VillageGrowth[][] | null,
+    levelsByDate: null as Record<string, LevelAggregate>[] | null,
+    tasksByDate: [] as AgriTask[][],
+    policyByDate: [] as Record<string, PolicyGrowthRow[]>[],
     generatedTasks: [] as AgriTask[],
-    policyGrowth: {} as Record<string, PolicyGrowthRow[]>,
     selectedDate: 0,
     playing: false,
     opacity: AGRI_DEFAULT_OPACITY,
@@ -46,7 +46,12 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
     dates: (s) => s.raster?.dates ?? [],
     currentDateLabel: (s) => s.raster?.dates[s.selectedDate] ?? '',
     isReady: (s) => s.phase === 'ready' && s.raster !== null,
-    allTasks: (s) => [...s.tasks, ...s.generatedTasks],
+    // 聚合跟随选中日期：村庄/层级/保单/任务按当前 heatmap 日期取用
+    villages: (s) => s.villagesByDate?.[s.selectedDate] ?? null,
+    levels: (s) => s.levelsByDate?.[s.selectedDate] ?? null,
+    policyGrowth: (s) => s.policyByDate?.[s.selectedDate] ?? {},
+    tasks: (s) => s.tasksByDate?.[s.selectedDate] ?? [],
+    allTasks: (s) => [...(s.tasksByDate?.[s.selectedDate] ?? []), ...s.generatedTasks],
     convertedSet: (s) => new Set(s.convertedVillageCodes),
   },
   actions: {
@@ -66,10 +71,10 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
         this.dateCount = snapshot.raster.dates.length
         this.selectedDate = Math.max(0, snapshot.raster.dates.length - 1) // 最近一期
       }
-      if (snapshot.villages) this.villages = snapshot.villages
-      if (snapshot.levels) this.levels = snapshot.levels
-      if (snapshot.tasks) this.tasks = snapshot.tasks
-      if (snapshot.policyGrowth) this.policyGrowth = snapshot.policyGrowth
+      if (snapshot.villagesByDate) this.villagesByDate = snapshot.villagesByDate
+      if (snapshot.levelsByDate) this.levelsByDate = snapshot.levelsByDate
+      if (snapshot.tasksByDate) this.tasksByDate = snapshot.tasksByDate
+      if (snapshot.policyByDate) this.policyByDate = snapshot.policyByDate
       this.playing = false
       this.phase = 'ready'
       this.errorMessage = ''
