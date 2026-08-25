@@ -1,7 +1,6 @@
 import L from 'leaflet'
 import type { NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes'
 import { ndviColor } from '../features/agri-monitoring/agriMonitoringTypes'
-import { ndviValue } from '../features/agri-monitoring/agriMonitoringData'
 import { ensurePrecipBoundary } from './precipitationLayerController'
 
 export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 430 } } as const
@@ -11,20 +10,17 @@ const RENDER_SIZE = 64
 
 interface ValueGrid { lats: number[]; lons: number[]; values: number[][] } // values：NaN=无数据（透明）
 
-/** 由稀疏点阵重建规整值网格（缺失格为 NaN）。 */
+/** 由结构化栅格（origin+step+cols/rows，lat 升序）重建规整值网格（缺失/无数据格为 NaN）。 */
 export function buildAgriGrid(raster: NdviRaster, dateIndex: number): ValueGrid {
-  const latSet = new Set<number>(); const lonSet = new Set<number>()
-  for (const p of raster.grid) { latSet.add(p.lat); lonSet.add(p.lon) }
-  const lats = [...latSet].sort((a, b) => a - b)
-  const lons = [...lonSet].sort((a, b) => a - b)
-  const li = new Map(lats.map((l, i) => [l, i]))
-  const lj = new Map(lons.map((l, i) => [l, i]))
-  const values = lats.map(() => new Array<number>(lons.length).fill(NaN))
-  for (const p of raster.grid) {
-    const ri = li.get(p.lat); const ci = lj.get(p.lon)
-    if (ri === undefined || ci === undefined) continue
-    values[ri][ci] = ndviValue(p.values[dateIndex] ?? 0)
-  }
+  const { cols, rows, layer } = { cols: raster.cols, rows: raster.rows, layer: raster.layers[dateIndex] }
+  const lons = new Array<number>(cols)
+  for (let c = 0; c < cols; c++) lons[c] = raster.originLon + (c + 0.5) * raster.stepLon
+  const lats = new Array<number>(rows)
+  for (let r = 0; r < rows; r++) lats[r] = raster.originLat + (r + 0.5) * raster.stepLat
+  const values = lats.map((_lat, r) => lons.map((_lon, c) => {
+    const v = layer ? layer[r * cols + c] : 0
+    return v ? v / 100 : NaN // 0=无数据 → NaN（透明）
+  }))
   return { lats, lons, values }
 }
 

@@ -28,6 +28,3 @@ export const loadAgriLevels = () =>
 export const loadAgriTasks = () => fetchJSON<AgriTask[]>(`${AGRI_DIR}/tasks.json`)
 export const loadAgriPolicyGrowth = (villageCode: string) =>
   fetchJSON<PolicyGrowthRow[]>(`${AGRI_DIR}/policy-growth-${villageCode}.json`)
-
-/** NDVI 值（×100 整数）→ 浮点 NDVI */
-export const ndviValue = (v: number): number => v / 100

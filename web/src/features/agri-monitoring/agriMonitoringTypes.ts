@@ -63,9 +63,17 @@ export function growthLevelOf(value: number): GrowthLevel {
   return 'excellent'
 }
 
-// ---------- 数据模型 ----------
-export interface NdviGridPoint { lat: number; lon: number; values: number[] } // values 为 NDVI×100 整数
-export interface NdviRaster { dates: string[]; grid: NdviGridPoint[] }
+// ---------- 数据模型（结构化紧凑栅格：左下角 origin，lat 升序，0=无数据/透明） ----------
+export interface NdviRaster {
+  originLon: number
+  originLat: number
+  stepLon: number
+  stepLat: number
+  cols: number
+  rows: number
+  dates: string[]
+  layers: number[][] // [dateIndex][cellIndex] NDVI×100 整数，0=无数据（云/海/省外/非植被）
+}
 
 export interface VillageGrowth {
   code: string; name: string

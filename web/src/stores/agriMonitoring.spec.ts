@@ -4,7 +4,7 @@ import { useAgriMonitoringStore } from './agriMonitoring'
 import type { VillageGrowth, NdviRaster } from '../features/agri-monitoring/agriMonitoringTypes'
 
 function makeRaster(dates: string[]): NdviRaster {
-  return { dates, grid: [{ lat: 30, lon: 120, values: dates.map(() => 60) }] }
+  return { originLon: 120, originLat: 30, stepLon: 0.01, stepLat: 0.01, cols: 1, rows: 1, dates, layers: [dates.map(() => 60)] }
 }
 
 const village: VillageGrowth = {

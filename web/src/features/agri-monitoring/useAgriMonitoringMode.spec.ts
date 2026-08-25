@@ -22,7 +22,7 @@ import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
 const mockFetch = vi.mocked(fetchJSON)
 vi.mock('./agriMonitoringData', () => {
-  const raster = { dates: ['2026-06-01', '2026-07-27'], grid: [{ lat: 30, lon: 120, values: [60, 65] }] }
+  const raster = { originLon: 120, originLat: 30, stepLon: 0.01, stepLat: 0.01, cols: 1, rows: 1, dates: ['2026-06-01', '2026-07-27'], layers: [[60], [65]] }
   return {
     loadAgriRaster: vi.fn(async () => raster),
     loadAgriVillages: vi.fn(async () => []),
@@ -90,7 +90,7 @@ describe('useAgriMonitoringMode · 模式互斥', () => {
     const { ctx } = makeCtx()
     const mode = useAgriMonitoringMode(ctx)
     await mode.enter()
-    store.receive(store.generation, { raster: { dates: ['2026-06-01'], grid: [] } })
+    store.receive(store.generation, { raster: { originLon: 120, originLat: 30, stepLon: 0.01, stepLat: 0.01, cols: 1, rows: 1, dates: ['2026-06-01'], layers: [[]] } })
     await mode.exit()
     expect(store.isOpen).toBe(false)
     expect(store.phase).toBe('closed')
