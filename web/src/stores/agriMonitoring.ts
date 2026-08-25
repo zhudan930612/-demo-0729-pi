@@ -3,7 +3,7 @@ import type { AgriTask, AgriTab, NdviRaster, VillageGrowth, LevelAggregate, Poli
 
 export type AgriPhase = 'closed' | 'loading' | 'ready' | 'error'
 export const AGRI_PLAY_INTERVAL_MS = 1400
-export const AGRI_DEFAULT_OPACITY = 0.55 // 半透明：露出底图(省级天地图卫星/村级吉林一号影像)，卫星影像与长势覆盖层叠加
+export const AGRI_DEFAULT_OPACITY = 1 // 可见度默认 100%（不透明）；用户可经可见度滑块调低露出底图
 
 export interface AgriSnapshot {
   raster: NdviRaster | null
