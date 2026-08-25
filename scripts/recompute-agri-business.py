@@ -101,9 +101,22 @@ def policy_growth_for_date(village_code, di):
         insured_mode = str(policy.get("insuredMode", ""))
         insured_pid = str(policy.get("insuredPartyId", ""))
         insured = party_names.get(insured_pid, "")
-        # 有地块 → 真实投保人名；无地块 → 团单用村集体/合作社名，大户用占位农户名
         if not insured:
-            insured = G.insurer_name_for(insured_mode, village_code, pid, party_names)
+            if insured_mode == "insured_roster":
+                # 有地块团单：{首位户名}等{N}户种植户（与实际地块/投保农户一致）
+                lid = str(policy.get("enrollmentListId", ""))
+                ids = []
+                for e in fixture.get("enrollmentItems", []):
+                    iid = str(e.get("insuredPartyId", ""))
+                    if iid and iid not in ids:
+                        ids.append(iid)
+                if ids:
+                    first = party_names.get(ids[0], "") or "农户"
+                    insured = f"{first}等{len(ids)}户种植户"
+                else:
+                    insured = G.insurer_name_for(insured_mode, village_code, pid, party_names)
+            else:
+                insured = G.insurer_name_for(insured_mode, village_code, pid, party_names)
         rows.append({"policyId": pid, "policyNo": str(policy.get("policyNo", pid)), "insuredMode": insured_mode,
                      "insuredName": insured, "insuredPartyId": insured_pid, "insuredAreaMu": round(tot, 2),
                      "levels": ratios, "premiumRate": str(policy.get("premiumRate", ""))})
