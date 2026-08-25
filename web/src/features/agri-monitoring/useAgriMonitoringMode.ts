@@ -82,7 +82,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     layer = layer ?? createAgriLayerController()
     layer.mount(map!)
     // 热力图裁剪跟随当前下钻区域（进入默认省界）
-    layer.setClip(currentClipRings())
+    void setCurrentClip()
     // 进入默认最近一期，热力图开
     store.visible = true
     // 省级视角 + 渲染
@@ -144,8 +144,32 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     return geometryToRings(ctx.store.current.geometry)
   }
 
-  // 下钻区域变化 → 热力图裁剪跟随（只显示当前区域的热力图）
-  watch(() => ctx.store.current, () => { layer?.setClip(currentClipRings()) }, { immediate: true })
+  /** 村级：加载本村 AI 地块(田块) as 裁剪 rings（热力图按田块裁剪，田块内保留渐变）。 */
+  async function loadVillageFieldRings(code: string): Promise<Array<Array<[number, number]>> | null> {
+    try {
+      const fc = await fetchJSON<{ features?: Array<{ geometry?: Geometry | null }> }>(`/data/parcels/${code}.geojson`)
+      const rings: Array<Array<[number, number]>> = []
+      for (const f of fc.features ?? []) {
+        const r = geometryToRings(f.geometry ?? null)
+        if (r) rings.push(...r)
+      }
+      return rings.length ? rings : null
+    } catch { return null }
+  }
+
+  /** 设当前裁剪：村级=田块裁剪（渐变覆盖，田块内渐变），其余=下钻区域。 */
+  async function setCurrentClip(): Promise<void> {
+    const current = ctx.store.current
+    let rings = currentClipRings()
+    if (current.level === 'village') {
+      const fieldRings = await loadVillageFieldRings(current.code)
+      if (fieldRings) rings = fieldRings
+    }
+    layer?.setClip(rings)
+  }
+
+  // 下钻区域变化 → 热力图裁剪跟随（村级用田块裁剪，其余用下钻区域）
+  watch(() => ctx.store.current, () => { void setCurrentClip() }, { immediate: true })
 
   function refresh() { store.phase = 'loading'; void loadAll() }
 

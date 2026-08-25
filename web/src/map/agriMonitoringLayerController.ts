@@ -119,19 +119,30 @@ export class AgriGridLayer extends L.GridLayer {
 /** 裁剪投影缓存（per-zoom，region 变化时清空）
  *  省界不在此裁剪——ndvi.json 生成时已把省外掩膜成 0(无数据)，热力图天然省外透明；
  *  这里只做【区域裁剪】(city/county 等，1-2 环，便宜)。null=省视角(无需裁剪)。 */
-const boundaryProjCache = new Map<number, Array<Array<[number, number]>>>()
 let activeClipRings: Array<Array<[number, number]>> | null = null  // 当前下钻区域 rings（null=省视角）
 
+/** 只保留与瓦片经纬度范围相交的环（村级田块裁剪时每瓦片只需附近田块，避免整村上千环全绘）。 */
+function ringsIntersectTile(rings: Array<Array<[number, number]>>, west: number, south: number, east: number, north: number): Array<Array<[number, number]>> {
+  const m = 0.02
+  return rings.filter((ring) => {
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity
+    for (const [lon, lat] of ring) {
+      if (lon < minLon) minLon = lon
+      if (lon > maxLon) maxLon = lon
+      if (lat < minLat) minLat = lat
+      if (lat > maxLat) maxLat = lat
+    }
+    return minLon <= east + m && maxLon >= west - m && minLat <= north + m && maxLat >= south - m
+  })
+}
+
 function boundaryProjected(rings: Array<Array<[number, number]>> | null, map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
-  if (!rings) return null
-  let proj = boundaryProjCache.get(zoom)
-  if (!proj) {
-    proj = rings
-      .map((ring) => ring.map(([lon, lat]) => { const p = map.project([lat, lon], zoom); return [p.x, p.y] as [number, number] }))
-      .filter((ring) => ring.length >= 3)
-    boundaryProjCache.set(zoom, proj)
-  }
-  return proj
+  if (!rings || rings.length === 0) return null
+  // 环数少，直接投影（每次新鲜计算，避免 per-zoom 缓存对村级逐瓦片过滤后的环集失效）
+  const proj = rings
+    .map((ring) => ring.map(([lon, lat]) => { const p = map.project([lat, lon], zoom); return [p.x, p.y] as [number, number] }))
+    .filter((ring) => ring.length >= 3)
+  return proj.length ? proj : null
 }
 
 /** 最近栅格采样：返回距 (lat,lon) 最近的栅格格值；无数据/越界返回 NaN。 */
@@ -182,7 +193,8 @@ function renderAgriTile(tile: HTMLCanvasElement, coords: L.Coords, grid: ValueGr
   ctx.imageSmoothingEnabled = true  // 放大 off→tile 用高质量平滑（连续渐变，一次性）
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX; const originY = coords.y * tileSizeY
-  const proj = activeClipRings ? boundaryProjected(activeClipRings, map, coords.z) : null
+  const tileRings = activeClipRings ? ringsIntersectTile(activeClipRings, west, south, east, north) : null
+  const proj = tileRings && tileRings.length ? boundaryProjected(tileRings, map, coords.z) : null
   if (proj && proj.length > 0) {
     ctx.save()
     try {
@@ -254,7 +266,6 @@ export function createAgriLayerController(): AgriLayerController {
     },
     setClip(rings) {
       activeClipRings = rings
-      boundaryProjCache.clear() // 区域变化 → 清投影缓存
       layer?.redraw()
     },
     setOpacity(next) {
