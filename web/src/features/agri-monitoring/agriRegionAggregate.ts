@@ -17,7 +17,7 @@ function pointInPolygon(lon: number, lat: number, poly: number[][][]): boolean {
   for (let h = 1; h < poly.length; h++) if (pointInRing(lon, lat, poly[h]!)) return false
   return true
 }
-function pointInGeometry(lon: number, lat: number, geom: { type: string; coordinates: unknown }): boolean {
+export function pointInGeometry(lon: number, lat: number, geom: { type: string; coordinates: unknown }): boolean {
   if (geom.type === 'Polygon') return pointInPolygon(lon, lat, geom.coordinates as number[][][])
   if (geom.type === 'MultiPolygon') {
     for (const p of geom.coordinates as number[][][][]) if (pointInPolygon(lon, lat, p)) return true
@@ -33,11 +33,16 @@ export interface RegionAggregate {
 /** 村级 on-demand：用已载栅格按几何聚合 5级占比 + 农田面积。 */
 export function aggregateRegion(raster: NdviRaster, dateIndex: number, geom: { type: string; coordinates: unknown }): RegionAggregate | null {
   const { originLon, originLat, stepLon, stepLat, cols, rows, layers } = raster
-  const flat = (geom.coordinates as unknown[]).flat(4) as number[][]
+  // 收集所有环（每个环 = 一组 [lon,lat]），不 over-flatten
+  const rings: number[][][] = []
+  if (geom.type === 'Polygon') rings.push(...(geom.coordinates as number[][][]))
+  else if (geom.type === 'MultiPolygon') for (const poly of geom.coordinates as number[][][][]) rings.push(...poly)
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity
-  for (const [lon, lat] of flat) {
-    if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon
-    if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat
+  for (const ring of rings) {
+    for (const [lon, lat] of ring) {
+      if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon
+      if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat
+    }
   }
   const ci0 = Math.max(0, Math.ceil((minLon - originLon) / stepLon))
   const ci1 = Math.min(cols - 1, Math.floor((maxLon - originLon) / stepLon))
@@ -54,7 +59,8 @@ export function aggregateRegion(raster: NdviRaster, dateIndex: number, geom: { t
       if (!pointInGeometry(lon, lat, geom)) continue
       const v = layer[ri * cols + ci] ?? 0
       if (!v || v <= 0) continue
-      counts[growthLevelOf(v / 100)]!
+      const lv = growthLevelOf(v / 100)
+      counts[lv] = counts[lv]! + 1
       if (v >= 40) farmCells++
     }
   }
