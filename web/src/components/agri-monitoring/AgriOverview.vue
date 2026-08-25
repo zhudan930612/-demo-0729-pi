@@ -86,8 +86,19 @@ function bandStyle(lv: GrowthLevel) {
 }
 
 // 当前层级聚合（省/市/县/镇 from byCode；村 from villages）
-// 非参保村 on-demand 暂存数据（村概况 + 演示保单用）
-const villageOndemand = computed(() => agri.onDemandVillages?.[currentCode.value] ?? null)
+// 非参保村 on-demand 暂存数据（村概况 + 演示保单用）；未暂存(直接下钻/面包屑/异常进入)则现场用村几何+栅格算
+const villageOndemand = computed(() => {
+  const cached = agri.onDemandVillages?.[currentCode.value]
+  if (cached) return cached
+  if (!isVillage.value) return null
+  const real = agri.villages?.find((vv) => vv.code === currentCode.value)
+  if (real && real.data) return null // 参保村用真实
+  if (!agri.raster || !store.current.geometry) return null
+  const a = aggregateRegion(agri.raster, agri.selectedDate, store.current.geometry as never)
+  if (!a) return null
+  const area = Math.round(a.farmArea * 0.08) // 无拆分上下文 → 用 farmArea×8% 估算
+  return { code: currentCode.value, levels: a.levels, insuredAreaMu: area, householdCount: Math.max(1, Math.round(area / 10)) }
+})
 const currentArea = computed(() => {
   if (isVillage.value) {
     const v = agri.villages?.find((vv) => vv.code === currentCode.value)
