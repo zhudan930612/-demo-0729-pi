@@ -494,6 +494,28 @@ def compute_village_growth(villages, layers, lon_centers, lat_centers) -> dict:
     return result
 
 
+# ---------------------------------------------------------------------------
+# 保单投保人名（无地块保单造名：团单用村集体/合作社名，大户用占位人名）
+# ---------------------------------------------------------------------------
+
+# 无地块大户：从常用农户姓名池按村码确定性取名（避免每次重跑变化）
+_SURNAMES = ["王", "李", "张", "刘", "陈", "杨", "黄", "赵", "周", "吴", "徐", "孙", "朱", "马", "胡", "郭", "林", "何", "高", "罗"]
+_GIVEN = ["建国", "志强", "秀兰", "桂英", "建华", "永福", "春梅", "德明", "国庆", "淑芬", "爱军", "丽华", "洪波", "玉珍", "国栋", "美玲", "俊杰", "桂芳", "世明", "桂香"]
+
+def _pick(salt: str, pool: list[str]) -> str:
+    idx = int(hashlib.md5(salt.encode("utf-8")).hexdigest(), 16) % len(pool)
+    return pool[idx]
+
+def insurer_name_for(insured_mode: str, village_code: str, policy_id: str, party_names: dict) -> str:
+    """无地块保单的投保人名：团单→村集体/合作社名，大户→占位农户人名。"""
+    if insured_mode == "insured_roster":
+        return party_names.get("party-roster", "集体投保（团单）")
+    # 单险种（大户）无地块：按村码+保单号确定性取一个农户名
+    surname = _pick(f"s.{village_code}.{policy_id}", _SURNAMES)
+    given = _pick(f"g.{village_code}.{policy_id}", _GIVEN)
+    return surname + given
+
+
 def compute_policy_growth(village_code, layers, lon_centers, lat_centers) -> list:
     fixture = load_policy_fixture(village_code)
     if not fixture:
@@ -513,14 +535,18 @@ def compute_policy_growth(village_code, layers, lon_centers, lat_centers) -> lis
             ratios = {lv: round(level_area[lv] / total, 4) for lv in LEVELS}
         else:
             ratios = {lv: 0 for lv in LEVELS}
-        insured_name = party_names.get(str(policy.get("insuredPartyId", "")), "")
+        insured_mode = str(policy.get("insuredMode", ""))
+        insured_pid = str(policy.get("insuredPartyId", ""))
+        insured_name = party_names.get(insured_pid, "")
+        # 有地块 → 真实投保人名；无地块 → 团单用村集体/合作社名，大户用占位农户名
         if not insured_name:
-            insured_name = "集体投保（团单）" if str(policy.get("insuredMode", "")) == "insured_roster" else "个人投保"
+            insured_name = insurer_name_for(insured_mode, village_code, pid, party_names)
         rows.append({
             "policyId": pid,
             "policyNo": str(policy.get("policyNo", pid)),
+            "insuredMode": insured_mode,
             "insuredName": insured_name,
-            "insuredPartyId": str(policy.get("insuredPartyId", "")),
+            "insuredPartyId": insured_pid,
             "insuredAreaMu": round(total, 2),
             "levels": ratios,
             "premiumRate": str(policy.get("premiumRate", "")),

@@ -1,12 +1,11 @@
 <template>
   <div class="agri-tasks">
-    <div class="tasks-head">
-      <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
-      <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
-    </div>
-
     <!-- 列表 -->
     <div v-if="!visibleTask" class="task-list">
+      <div class="tasks-head">
+        <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
+        <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
+      </div>
       <div v-if="filteredTasks.length === 0" class="empty">暂无任务</div>
       <button v-for="t in filteredTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
         <span class="task-name">{{ t.name }}</span>
@@ -20,40 +19,50 @@
     <!-- 详情卡片 -->
     <div v-else class="task-detail">
       <div class="detail-header">
-        <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeTask">‹</button>
-        <div class="detail-title-col">
-          <span class="detail-title">{{ visibleTask.name }}</span>
-          <span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span>
+        <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeTask"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span class="detail-title">{{ visibleTask.name }}</span>
+      </div>
+
+      <div class="detail-group">
+        <div class="group-label">基础信息</div>
+        <div class="detail-meta">
+          <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
+          <div class="meta-row"><span class="meta-label">类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
+          <div class="meta-row"><span class="meta-label">所在村</span><span class="meta-value">{{ visibleTask.villageName }}</span></div>
+          <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
+          <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ visibleTask.executor ? `${visibleTask.executor.name}（${visibleTask.executor.role}）` : '未分配' }}</span></div>
         </div>
       </div>
-      <div class="detail-meta">
-        <div class="meta-row"><span class="meta-label">类型</span><span>{{ visibleTask.typeName }}</span></div>
-        <div class="meta-row"><span class="meta-label">所在村</span><span>{{ visibleTask.villageName }}</span></div>
-        <div class="meta-row"><span class="meta-label">创建时间</span><span>{{ visibleTask.createdAt }}</span></div>
-        <div class="meta-row"><span class="meta-label">执行人</span><span>{{ visibleTask.executor ? `${visibleTask.executor.name}（${visibleTask.executor.role}）` : '未分配' }}</span></div>
-      </div>
-      <div class="detail-sec"><div class="sec-label">备注</div><div class="sec-body">{{ visibleTask.remark || '无' }}</div></div>
-      <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ visibleTask.sopAction }}</div></div>
-      <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ visibleTask.requirement }}</div></div>
-      <div class="detail-sec">
-        <div class="sec-label">任务定位</div>
-        <div class="sec-body loc-row">
-          <span>{{ visibleTask.location.name }}（{{ visibleTask.location.lon.toFixed(4) }}, {{ visibleTask.location.lat.toFixed(4) }}）</span>
-          <button type="button" class="locate-btn" @click="emit('locate-task', visibleTask.location)">定位到地图</button>
+
+      <div class="detail-group">
+        <div class="group-label">处置说明</div>
+        <div class="detail-sec"><div class="sec-label">备注</div><div class="sec-body">{{ visibleTask.remark || '无' }}</div></div>
+        <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ visibleTask.sopAction }}</div></div>
+        <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ visibleTask.requirement }}</div></div>
+        <div class="detail-sec">
+          <div class="sec-label">任务定位</div>
+          <div class="sec-body loc-row">
+            <span class="loc-text"><span class="loc-name">{{ visibleTask.location.name }}</span><span class="loc-coord">{{ visibleTask.location.lon.toFixed(4) }}, {{ visibleTask.location.lat.toFixed(4) }}</span></span>
+            <button type="button" class="locate-btn" @click="emit('locate-task', visibleTask.location)">定位到地图</button>
+          </div>
         </div>
       </div>
-      <div class="detail-sec">
-        <div class="sec-label">取证时间</div>
-        <div class="sec-body">{{ visibleTask.evidence.length > 0 ? visibleTask.evidence[0].time : '—' }}</div>
-      </div>
-      <div class="detail-sec">
-        <div class="sec-label">证据</div>
-        <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无证据</div>
-        <div v-else class="ev-grid">
-          <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
-            <img :src="e.url" alt="证据缩略图" />
-            <span class="ev-time">{{ e.time }}</span>
-          </button>
+
+      <div class="detail-group">
+        <div class="group-label">取证</div>
+        <div class="detail-sec">
+          <div class="sec-label">取证时间</div>
+          <div class="sec-body">{{ visibleTask.evidence.length > 0 ? visibleTask.evidence[0].time : '—' }}</div>
+        </div>
+        <div class="detail-sec">
+          <div class="sec-label">证据</div>
+          <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无证据</div>
+          <div v-else class="ev-grid">
+            <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
+              <img :src="e.url" alt="证据缩略图" />
+              <span class="ev-time">{{ e.time }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -114,13 +123,15 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 </script>
 
 <style scoped>
-.agri-tasks { font-size: 12px; }
+.agri-tasks { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .list-caption { font-size: 10px; color: #475569; }
 .view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .view-all:hover { background: #eef2f7; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
-.task-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; width: 100%; padding: 6px 4px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; color: #334155; text-align: left; }
+/* 任务列表：内容滚动容器 */
+.task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.task-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; width: 100%; padding: 7px 4px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; color: #334155; text-align: left; }
 .task-row:hover { background: #eef2f7; }
 .task-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-type { color: #64748b; font-size: 10px; }
@@ -131,23 +142,35 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .st-done { background: #dcfce7; color: #166534; }
 .task-village { color: #64748b; font-size: 11px; }
 .task-time { color: #94a3b8; font-size: 10px; font-variant-numeric: tabular-nums; }
-.task-detail .detail-header { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
-.back-btn { width: 22px; height: 22px; border: 0; border-radius: 5px; background: transparent; color: #2563eb; font-size: 16px; cursor: pointer; }
-.detail-title-col { display: flex; align-items: center; gap: 6px; }
-.detail-title { font-size: 14px; font-weight: 600; color: #0f172a; }
-.detail-meta { margin-bottom: 6px; }
-.meta-row { display: flex; gap: 8px; padding: 2px 0; font-size: 11px; color: #334155; }
-.meta-label { width: 56px; flex: none; color: #94a3b8; }
-.detail-sec { margin-bottom: 6px; }
-.sec-label { font-size: 10px; color: #94a3b8; margin-bottom: 2px; }
-.sec-body { font-size: 11px; color: #334155; line-height: 1.4; }
-.loc-row { display: flex; align-items: center; gap: 8px; }
-.locate-btn { padding: 3px 8px; border: 0; border-radius: 5px; background: #2563eb; color: #fff; font-size: 11px; cursor: pointer; }
+/* 详情卡片：内容滚动容器，避免证据被面板底部截断 */
+.task-detail { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.task-detail .detail-header { display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 0 0 10px; border-bottom: 1px solid rgba(148,163,184,0.2); margin-bottom: 10px; }
+.back-btn { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #2563eb; cursor: pointer; }
+.back-btn:hover { background: #eff6ff; color: #1d4ed8; }
+.back-btn svg { width: 18px; height: 18px; }
+.detail-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 详情分组：设计系统 Detail Sections（白色信息块 + 蓝色 kicker 分区标题 + 标签/值两列） */
+.detail-group { padding: 10px 12px; border-radius: 10px; background: #f8fafc; margin-bottom: 8px; }
+.detail-group:last-child { margin-bottom: 0; }
+.group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 8px; letter-spacing: 0.02em; }
+.detail-meta { display: flex; flex-direction: column; gap: 8px; }
+.meta-row { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #334155; }
+.meta-label { width: 52px; flex: none; color: #64748b; }
+.meta-value { flex: 1; color: #0f172a; overflow-wrap: anywhere; }
+.detail-sec { margin-bottom: 10px; }
+.detail-sec:last-child { margin-bottom: 0; }
+.sec-label { font-size: 11px; color: #64748b; margin-bottom: 3px; }
+.sec-body { font-size: 12px; color: #334155; line-height: 1.55; }
+.loc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.loc-name { font-weight: 600; color: #0f172a; }
+.loc-coord { font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
+.locate-btn { flex: none; padding: 4px 10px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 12px; cursor: pointer; }
 .locate-btn:hover { background: #1d4ed8; }
-.ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-.ev-thumb { position: relative; border: 0; padding: 0; border-radius: 4px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
-.ev-thumb img { width: 100%; height: 56px; object-fit: cover; display: block; }
-.ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 8px; color: #fff; background: rgba(0,0,0,0.55); padding: 1px 2px; }
+.ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
+.ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
+.ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
 .all-overlay, .lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
 .all-panel { width: min(440px, calc(100% - 20px)); max-height: 70vh; background: #fff; border-radius: 10px; box-shadow: 0 12px 30px rgba(15,23,42,0.25); display: flex; flex-direction: column; overflow: hidden; }
 .all-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; }

@@ -96,7 +96,7 @@ export interface LevelAggregate {
 }
 
 export interface PolicyGrowthRow {
-  policyId: string; policyNo: string; insuredName: string; insuredPartyId: string
+  policyId: string; policyNo: string; insuredMode: string; insuredName: string; insuredPartyId: string
   insuredAreaMu: number; levels: Record<GrowthLevel, number>; premiumRate: string
 }
 

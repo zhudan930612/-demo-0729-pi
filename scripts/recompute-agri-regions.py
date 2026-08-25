@@ -184,6 +184,58 @@ def build_levels_by_date():
     return levels_by_date
 
 
+def compute_villages(agg_fn, levels_by_date, existing):
+    """全部村：非参保村(无地块) 5级占比(真实NDVI) + A1村承保面积(=镇承保面积×村NDVI/镇NDVI) + 4-6条演示保单；参保村保留真实。"""
+    import glob
+    # 参保村真实(每期) from existing villages
+    real_vill = existing.get("villages", [])
+    real_by_date = [{v["code"]: v for v in dv} for dv in real_vill]
+    villages_by_date = [dict(rb) for rb in real_by_date]  # 先放参保村
+    policy_by_date = [dict(p) for p in existing.get("policyGrowth", [])]  # 先放参保村保单
+    # 逐镇村 geojson
+    for vf in glob.glob(str(REPO / "web/public/data/villages" / "*.geojson")):
+        twp = Path(vf).stem
+        fc = json.load(open(vf, encoding="utf-8"))
+        vinfos = []
+        for f in fc.get("features", []):
+            try:
+                geom = shape(f["geometry"])
+                a = agg_fn(geom)
+                if a is None:
+                    continue
+                code = str(f["properties"]["code"]); name = str(f["properties"]["name"])
+                vinfos.append((code, name, a))
+            except Exception:
+                continue
+        if not vinfos:
+            continue
+        twp_ndvi = sum(a["farmAreaMu"] for _, _, a in vinfos)
+        # 镇级地块码(参保村已在 existing private) 跳过；其余非参保村算
+        for code, name, a in vinfos:
+            if any(code in rb for rb in real_by_date):
+                continue  # 参保村用真实
+            for di in range(len(DATES)):
+                twp_area = levels_by_date[di].get(twp, {}).get("insuredAreaMu", 0)
+                share = (a["farmAreaMu"] / twp_ndvi) if twp_ndvi > 0 else 0
+                area = round(twp_area * share, 2)
+                hh = max(1, int(area / PER_HOUSEHOLD_MU))
+                villages_by_date[di][code] = {
+                    "code": code, "name": name, "centroid": None,
+                    "insuredAreaMu": area, "householdCount": hh, "policyCount": 5,
+                    "levels": a["levels"][di], "anomalyRatio": round(a["levels"][di]["veryPoor"] + a["levels"][di]["poor"], 4),
+                    "isAnomaly": False, "countyCode": code[:6], "cityCode": code[:4] + "00",
+                    "townshipCode": twp, "data": True,
+                }
+    villages_out = [[villages_by_date[di].get(v["code"], {**v, "data": True}) for v in existing.get("villages", [])[di]] for di in range(len(DATES))]
+    # 把非参保村也并入每期 villages 列表
+    for di in range(len(DATES)):
+        insured_codes = set(v["code"] for v in villages_out[di])
+        for code, v in villages_by_date[di].items():
+            if code not in insured_codes:
+                villages_out[di].append(v)
+    return villages_out, policy_by_date
+
+
 def main():
     levels_by_date = build_levels_by_date()
     # 省(330000) 承保面积/户数 = 各市之和（确保 省 > 市，层级连贯）；5级占比保留真实13村
@@ -211,6 +263,7 @@ def main():
     existing = json.load(open(AGRI / "agri-business.json", encoding="utf-8")) if (AGRI / "agri-business.json").exists() else {}
     # levels: 每期 {byCode}
     existing["levels"] = [{"byCode": levels_by_date[di]} for di in range(len(DATES))]
+    # 村级数据（非参保村）改由前端 on-demand 按需计算（避免 33K 村大文件/重响应式），此处不预计算
     existing.setdefault("dates", DATES)
     with open(AGRI / "agri-business.json", "w", encoding="utf-8") as f:
         json.dump(existing, f, ensure_ascii=False, separators=(",", ":"))

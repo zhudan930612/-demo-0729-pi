@@ -73,7 +73,7 @@ const closeLabel = computed(() => '退出农情监测')
 .close-button:hover { background: rgba(255,255,255,0.16); color: #fff; }
 .close-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .close-button svg { width: 15px; height: 15px; }
-.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow: auto; overflow-x: hidden; background: #fff; }
+.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
 .panel-loading, .panel-error { padding: 12px; text-align: center; color: #64748b; font-size: 11px; }
 .panel-error { color: #b91c1c; }
 @media (max-width: 560px) { .agri-panel { width: calc(100% - 12px); right: 6px; } }

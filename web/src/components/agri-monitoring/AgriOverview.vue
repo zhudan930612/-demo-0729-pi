@@ -28,7 +28,7 @@
       <div v-if="isVillage">
         <div v-if="policyRows.length === 0" class="empty">该村暂无保单数据</div>
         <div v-for="row in policyRows" :key="row.policyNo" class="policy-row">
-          <div class="policy-head"><span class="policy-party">{{ row.insuredName }}</span><span class="policy-area">{{ fmtArea(row.insuredAreaMu) }} 亩</span></div>
+          <div class="policy-head"><span class="policy-type-chip" :class="policyTypeClass(row.policyType)">{{ row.policyType }}</span><span class="policy-party">{{ row.insuredName }}</span><span class="policy-area">{{ fmtArea(row.insuredAreaMu) }} 亩</span></div>
           <div class="policy-meta"><span class="policy-no">保单 {{ row.policyNo }}</span></div>
           <div class="policy-levels" @mouseenter="showTip(row.levels, $event)" @mouseleave="hideTip">
             <div v-for="lv in levels" :key="lv" class="level-cell" :class="{ absent: !(row.levels[lv] > 0) }" :style="segCellStyle(lv, row.levels[lv])"></div>
@@ -144,6 +144,7 @@ function segStyle(lv: GrowthLevel) {
   const [r, g, b] = LEVEL_COLORS[lv]
   return { background: `rgb(${r},${g},${b})` }
 }
+const policyTypeClass = (t: '大户' | '团单') => (t === '团单' ? 'group' : 'large')
 function segColor(lv: GrowthLevel) {
   return segStyle(lv).background
 }
@@ -153,16 +154,16 @@ function segCellStyle(lv: GrowthLevel, v: number) {
 }
 
 // 村级保单列表（按长势排序：极差→极好，异常置顶）
-interface PolicyRow { policyNo: string; insuredName: string; insuredAreaMu: number; levels: Record<GrowthLevel, number> }
+interface PolicyRow { policyNo: string; policyType: '大户' | '团单'; insuredName: string; insuredAreaMu: number; levels: Record<GrowthLevel, number> }
 const policyRows = computed<PolicyRow[]>(() => {
   if (!isVillage.value) return []
   const rows = agri.policyGrowth[currentCode.value] ?? []
   if (rows.length) {
     return [...rows]
-      .map((r) => ({ policyNo: r.policyNo, insuredName: r.insuredName, insuredAreaMu: r.insuredAreaMu, levels: r.levels }))
+      .map((r) => ({ policyNo: r.policyNo, policyType: (r.insuredMode === 'insured_roster' ? '团单' : '大户') as '大户' | '团单', insuredName: r.insuredName, insuredAreaMu: r.insuredAreaMu, levels: r.levels }))
       .sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
   }
-  // 非参保村：on-demand 造 4-6 条演示保单（面积=村承保面积拆分，5级=村占比）
+  // 非参保村：on-demand 造 4-6 条演示保单（面积=村承保面积拆分，5级=村占比；前 3 条大户、后 2 条团单）
   const vd = villageOndemand.value
   if (!vd) return []
   const pieces = 5
@@ -170,7 +171,8 @@ const policyRows = computed<PolicyRow[]>(() => {
   const names = ['沈伟良', '周建华', '陈立新', '王小明', '李秀芬', '张伟']
   const demo: PolicyRow[] = Array.from({ length: pieces }, (_, k) => ({
     policyNo: `${currentCode.value.slice(0, 6)}${currentCode.value.slice(-2)}${k + 1}02`,
-    insuredName: names[k % names.length],
+    policyType: (k < 3 ? '大户' : '团单') as '大户' | '团单',
+    insuredName: k < 3 ? names[k % names.length] : `${currentCode.value.slice(-2)}村股份经济合作社`,
     insuredAreaMu: Math.round(area),
     levels: vd.levels,
   }))
@@ -277,12 +279,15 @@ void loadChildren()
 .child-nodata { font-size: 11px; color: #cbd5e1; }
 .child-area { width: 76px; flex: none; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* 村级保单行：投保人为主体，保单号降为次级标识，面积为右值 */
-.policy-row { padding: 7px 4px; border-bottom: 1px solid rgba(148,163,184,0.12); }
+.policy-row { padding: 10px 4px; border-bottom: 1px solid rgba(148,163,184,0.14); }
 .policy-row:last-child { border-bottom: 0; }
-.policy-head { display: flex; align-items: center; gap: 10px; }
-.policy-party { font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.policy-area { margin-left: auto; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.policy-meta { margin: 0; }
+.policy-head { display: flex; align-items: center; gap: 8px; }
+.policy-type-chip { flex: none; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; line-height: 1.6; }
+.policy-type-chip.large { background: #dcfce7; color: #166534; }
+.policy-type-chip.group { background: #ede9fe; color: #6d28d9; }
+.policy-party { flex: 1; min-width: 0; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.policy-area { flex: none; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.policy-meta { margin: 5px 0 7px; }
 .policy-no { display: block; font-size: 10px; color: #94a3b8; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .policy-levels { display: flex; gap: 2px; position: relative; }
 .policy-levels .level-cell { height: 12px; }

@@ -98,11 +98,14 @@ def policy_growth_for_date(village_code, di):
         sub = {"coverage_list": [c for c in pol["coverage_list"] if c["policyId"] == pid]}
         la, tot = parcel_level_area(sub, parcels, di)
         ratios = {lv: round(la[lv] / tot, 4) for lv in G.LEVELS} if tot > 0 else {lv: 0 for lv in G.LEVELS}
-        insured = party_names.get(str(policy.get("insuredPartyId", "")), "")
+        insured_mode = str(policy.get("insuredMode", ""))
+        insured_pid = str(policy.get("insuredPartyId", ""))
+        insured = party_names.get(insured_pid, "")
+        # 有地块 → 真实投保人名；无地块 → 团单用村集体/合作社名，大户用占位农户名
         if not insured:
-            insured = "集体投保（团单）" if str(policy.get("insuredMode", "")) == "insured_roster" else "个人投保"
-        rows.append({"policyId": pid, "policyNo": str(policy.get("policyNo", pid)), "insuredName": insured,
-                     "insuredPartyId": str(policy.get("insuredPartyId", "")), "insuredAreaMu": round(tot, 2),
+            insured = G.insurer_name_for(insured_mode, village_code, pid, party_names)
+        rows.append({"policyId": pid, "policyNo": str(policy.get("policyNo", pid)), "insuredMode": insured_mode,
+                     "insuredName": insured, "insuredPartyId": insured_pid, "insuredAreaMu": round(tot, 2),
                      "levels": ratios, "premiumRate": str(policy.get("premiumRate", ""))})
     return rows
 
