@@ -2,10 +2,15 @@
   <div class="agri-overview">
     <!-- 顶部当前层级概况 -->
     <section class="ov-summary">
-      <div class="ov-title">{{ currentName }}</div>
+      <div class="ov-title">
+        <button v-if="store.path.length > 1" type="button" class="ov-back" aria-label="返回上一级" title="返回上一级" @click="store.back()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+        </button>
+        {{ currentName }}
+      </div>
       <div class="ov-metrics">
         <div class="metric"><span class="metric-label">承保面积</span><span class="metric-value">{{ fmtArea(currentArea) }}</span></div>
-        <div class="metric"><span class="metric-label">承保户数</span><span class="metric-value">{{ householdCount }}</span></div>
+        <div class="metric"><span class="metric-label">承保户数</span><span class="metric-value">{{ fmtArea(householdCount) }}</span></div>
       </div>
       <div class="ov-band" :class="{ empty: !hasAnyLevel }">
         <div v-for="lv in levels" :key="lv" v-show="villageLevels[lv] > 0" class="band-seg" :style="bandStyle(lv)" :title="`${label(lv)} ${pct(villageLevels[lv])}%`"></div>
@@ -17,8 +22,8 @@
 
     <!-- 非村：下一级区划列表；村：保单列表 -->
     <section class="ov-list">
-      <div v-if="!isVillage" class="list-caption">下辖 {{ nextLevelName }}（按承保面积降序）</div>
-      <div v-else class="list-caption">村内承保保单（按长势排序）</div>
+      <div v-if="!isVillage" class="list-caption">下辖 {{ nextLevelName }}（按承保面积降序）· 单位：亩</div>
+      <div v-else class="list-caption">村内承保保单（按长势排序）· 单位：亩</div>
 
       <div v-if="isVillage">
         <div v-if="policyRows.length === 0" class="empty">该村暂无保单数据</div>
@@ -171,23 +176,29 @@ void loadChildren()
 </script>
 
 <style scoped>
-.agri-overview { font-size: 12px; }
+.agri-overview { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 /* 概况区：层级名为头，metric 为基线对齐的次级数据行，色带为视觉重心 */
-.ov-summary { border-bottom: 1px solid rgba(148,163,184,0.25); padding-bottom: 8px; margin-bottom: 8px; }
-.ov-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.ov-summary { flex: none; border-bottom: 1px solid rgba(148,163,184,0.25); padding-bottom: 8px; }
+.ov-title { font-size: 15px; font-weight: 700; color: #1e3a8a; display: flex; align-items: center; gap: 6px; }
+.ov-back { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #2563eb; cursor: pointer; }
+.ov-back svg { width: 18px; height: 18px; }
+.ov-back:hover { background: #eff6ff; color: #1d4ed8; }
+.ov-back:focus-visible { outline: 2px solid rgba(37, 99, 235, 0.28); outline-offset: 1px; }
 .ov-metrics { display: flex; align-items: baseline; gap: 20px; margin: 6px 0 8px; }
 .metric { display: flex; align-items: baseline; gap: 5px; }
 .metric-label { font-size: 10px; color: #64748b; }
 .metric-value { font-size: 13px; font-weight: 600; color: #0f172a; font-variant-numeric: tabular-nums; }
 .ov-band { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: #e8edf3; }
 .band-seg { min-width: 0; }
-.ov-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 6px 0 2px; }
+.ov-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 6px 0 0; }
 .ov-legend-item { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #475569; white-space: nowrap; }
 .ov-legend-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
-.ov-list .list-caption { font-size: 10px; color: #475569; margin: 8px 0 6px; }
+/* 列表区：可独立滚动（caption 固定，行滚动） */
+.ov-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ov-list .list-caption { font-size: 10px; color: #475569; padding: 8px 2px 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 列表行，非村 / 村级共用同一横向节奏：名称(左) → 占比色带(中) → 面积(右) */
-.child-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: #334155; }
+.child-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 4px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; color: #334155; }
 .child-row:hover { background: #eef2f7; }
 .child-row.no-data { cursor: default; }
 .child-row.no-data:hover { background: transparent; }
@@ -198,14 +209,14 @@ void loadChildren()
 .child-levels { flex: 1; min-width: 0; display: flex; gap: 1px; position: relative; }
 .child-levels.no-data { color: #cbd5e1; align-items: center; }
 .child-nodata { font-size: 11px; color: #cbd5e1; }
-.child-area { width: 60px; flex: none; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; }
+.child-area { width: 76px; flex: none; text-align: right; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* 村级保单行：投保人为主体，保单号降为次级标识，面积为右值 */
-.policy-row { padding: 6px 4px; border-bottom: 1px solid rgba(148,163,184,0.12); }
+.policy-row { padding: 7px 4px; border-bottom: 1px solid rgba(148,163,184,0.12); }
 .policy-row:last-child { border-bottom: 0; }
-.policy-head { display: flex; align-items: baseline; gap: 10px; }
+.policy-head { display: flex; align-items: center; gap: 10px; }
 .policy-party { font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .policy-area { margin-left: auto; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.policy-meta { margin: 1px 0 3px; }
+.policy-meta { margin: 0; }
 .policy-no { display: block; font-size: 10px; color: #94a3b8; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .policy-levels { display: flex; gap: 2px; position: relative; }
 .policy-levels .level-cell { height: 12px; }
