@@ -24,18 +24,13 @@ print('区域(浙江省) 面积(km2)≈', REGION.area().divide(1e6));
 // 若想用仓库里的省界，请在 GEE Assets 上传 web/public/data/boundary/province.geojson 后改为：
 // var REGION = ee.FeatureCollection('projects/你的项目/assets/zhejiang').geometry();
 
-// ---- 1. Sentinel-2 L2A + 云掩膜 ----
-// S2 cloud probability 掩云 + SCL 掩云影，再整除 10000 得反射率。
+// ---- 1. Sentinel-2 L2A + 云掩膜（用 S2_SR 自带的 SCL 波段，避免额外云概率集合的日期/边界匹配失败） ----
+// SCL 分类：3=云影, 8=中概率云, 9=高概率云, 10=薄卷云 -> 掩掉；其余（4=植被,5=非植被,6=水等）保留。
 function maskS2clouds(image) {
-  var cloudProb = ee.ImageCollection("COPERNICUS/S2_CLOUD_PROBABILITY")
-    .filterBounds(image.geometry())
-    .filterDate(image.date(), image.date().advance(1, 'day'))
-    .median();
-  var cloud = cloudProb.select('probability').gt(60);
   var scl = image.select('SCL');
-  var cloudMask = cloud.or(
-    scl.eq(3).or(scl.eq(8)).or(scl.eq(9)).or(scl.eq(10)).or(scl.eq(11))); // 云影/云
-  return image.updateMask(cloudMask.not()).divide(10000);
+  var cloudMask = scl.eq(3).or(scl.eq(8)).or(scl.eq(9)).or(scl.eq(10));
+  // 先掩云，再只保留用于 NDVI 的 B4/B8 并除以 10000（避免把 SCL 分类值也除了）
+  return image.updateMask(cloudMask.not()).select(['B4', 'B8']).divide(10000);
 }
 
 var s2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
