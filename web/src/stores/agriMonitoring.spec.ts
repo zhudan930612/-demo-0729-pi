@@ -27,17 +27,17 @@ describe('useAgriMonitoringStore', () => {
     expect(store.currentDateLabel).toBe('2026-06-15')
   })
 
-  it('播放到最后一期自动停止（R2-7）', () => {
+  it('循环播放：末期后回绕到首期（R2-7）', () => {
     vi.useFakeTimers()
     const store = useAgriMonitoringStore()
     store.open()
     store.receive(store.generation, { raster: makeRaster(['2026-06-01', '2026-06-08', '2026-06-15']) })
     store.selectDate(0)
     store.startPlay()
-    // 推进到最后一期
+    // 0→1→2→0（回绕首期），持续播放
     vi.advanceTimersByTime(1400 * 3)
-    expect(store.selectedDate).toBe(2)
-    expect(store.playing).toBe(false) // 自动停止
+    expect(store.selectedDate).toBe(0)
+    expect(store.playing).toBe(true) // 循环播放
     vi.useRealTimers()
   })
 

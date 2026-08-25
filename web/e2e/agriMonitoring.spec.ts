@@ -121,9 +121,9 @@ test('R1 演示模式入口 + R8 tab 切换 + R2 默认最近一期/开关', asy
   // R2-6/R2-7：日期轴 + 播放
   await expect(page.locator('.agri-date-control .day-node')).toHaveCount(2)
   await expect(page.locator('.agri-date-control .play-button')).toBeVisible()
-  // R2-2：热力图开关
-  await page.locator('.agri-date-control button[aria-label="隐藏长势热力图"]').click()
-  await expect(page.locator('.agri-date-control button[aria-label="显示长势热力图"]')).toBeVisible()
+  // R2-2：热力图开关已移除（显/隐按钮不再提供），确认无该按钮
+  await expect(page.locator('.agri-date-control button[aria-label="隐藏长势热力图"]')).toHaveCount(0)
+  await expect(page.locator('.agri-date-control button[aria-label="显示长势热力图"]')).toHaveCount(0)
   // R7-2：退出清除面板与日期控制（后续退出测试）
 })
 
