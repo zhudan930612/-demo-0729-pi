@@ -197,6 +197,15 @@ def main():
             hh_sum = sum(rb[c]["householdCount"] for c in city_codes if c in rb)
             prov["insuredAreaMu"] = round(area_sum, 2)
             prov["householdCount"] = hh_sum
+            # 省5级占比 = 各市承保面积加权聚合 → 保证省市一致（省极差不因真实13村口径而漏掉市级极差）
+            lv_sum = {lv: 0.0 for lv in G.LEVELS}
+            for c in city_codes:
+                if c in rb:
+                    a = rb[c]["insuredAreaMu"]
+                    for lv in G.LEVELS:
+                        lv_sum[lv] += rb[c]["levels"].get(lv, 0) * a
+            if area_sum > 0:
+                prov["levels"] = {lv: round(lv_sum[lv] / area_sum, 4) for lv in G.LEVELS}
     payload = {"dates": DATES, "byCode": levels_by_date}
     # 读现有 agri-business.json（保留 villages/policyGrowth/tasks），替换 levels
     existing = json.load(open(AGRI / "agri-business.json", encoding="utf-8")) if (AGRI / "agri-business.json").exists() else {}
