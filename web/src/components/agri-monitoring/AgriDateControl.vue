@@ -6,9 +6,6 @@
         <div class="opacity-inline">
           <input id="agri-opacity" type="range" min="0" max="100" :value="Math.round(opacity * 100)" :style="opacityTrackStyle" aria-label="色斑可见度" title="色斑可见度" @input="onOpacity" />
         </div>
-        <button type="button" class="icon-button" :class="{ off: !visible }" :title="visible ? '隐藏长势热力图' : '显示长势热力图'" :aria-label="visible ? '隐藏长势热力图' : '显示长势热力图'" @click="emit('toggle-visible')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><line v-if="!visible" x1="4" y1="4" x2="20" y2="20"/></svg>
-        </button>
         <button type="button" class="icon-button" :disabled="phase === 'loading'" title="刷新农情数据" aria-label="刷新农情数据" @click="emit('refresh')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" /></svg>
         </button>
@@ -59,9 +56,8 @@ const props = defineProps<{
   playing: boolean
   opacity: number
   errorMessage: string
-  visible: boolean
 }>()
-const emit = defineEmits<{ close: []; 'select-date': [index: number]; 'toggle-play': []; 'set-opacity': [value: number]; 'toggle-visible': []; refresh: [] }>()
+const emit = defineEmits<{ close: []; 'select-date': [index: number]; 'toggle-play': []; 'set-opacity': [value: number]; refresh: [] }>()
 
 const ready = computed(() => props.phase === 'ready' && props.dates.length > 0)
 const days = computed(() => props.dates)

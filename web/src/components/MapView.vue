@@ -129,12 +129,10 @@
       :playing="agriMonitoringStore.playing"
       :opacity="agriMonitoringStore.opacity"
       :error-message="agriMonitoringStore.errorMessage"
-      :visible="agriMonitoringStore.visible"
       @close="exitAgriMonitoring"
       @select-date="selectAgriDate"
       @toggle-play="toggleAgriPlay"
       @set-opacity="setAgriOpacity"
-      @toggle-visible="toggleAgriVisible"
       @refresh="agriMode.refresh"
     />
 
@@ -603,7 +601,6 @@ const {
   selectDate: selectAgriDate,
   togglePlay: toggleAgriPlay,
   setOpacity: setAgriOpacity,
-  toggleVisible: toggleAgriVisible,
   setTab: setAgriTab,
   drillToVillage: drillAgriToVillage,
   locateTask: locateAgriTask,

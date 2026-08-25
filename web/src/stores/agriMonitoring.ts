@@ -99,11 +99,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
       if (this.playing || count <= 0) return
       this.playing = true
       this.timer = setInterval(() => {
-        if (this.selectedDate >= count - 1) {
-          this.stopPlay() // 播放到最后一期自动停止
-          return
-        }
-        this.selectedDate += 1
+        this.selectedDate = (this.selectedDate + 1) % count // 循环播放（一期→末期→回退到首期）
       }, AGRI_PLAY_INTERVAL_MS)
     },
     stopPlay() {

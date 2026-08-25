@@ -114,6 +114,9 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     else store.startPlay()
   }
 
+  // 日期变化（手动切期或播放循环）→ 热力图跟随
+  watch(() => store.selectedDate, (date) => { layer?.setDate(date) })
+
   function setOpacity(value: number) {
     store.setOpacity(value)
     layer?.setOpacity(value)
