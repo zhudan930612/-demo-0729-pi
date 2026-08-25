@@ -111,7 +111,8 @@ const householdCount = computed(() => {
   if (isVillage.value) {
     const v = agri.villages?.find((vv) => vv.code === currentCode.value)
     if (v && v.data) return v.householdCount ?? 0
-    return villageOndemand.value?.householdCount ?? 0
+    // 非参保村：承保户数 = 大户数 + 团单户数（同龙江村口径：3大户+302团单户=305）
+    return (villageOndemand.value?.householdCount ?? 0) + demoPolicyCount(currentCode.value)
   }
   return agri.levels?.[currentCode.value]?.householdCount ?? 0
 })
@@ -167,7 +168,7 @@ const policyRows = computed<PolicyRow[]>(() => {
   const vd = villageOndemand.value
   if (!vd) return []
   const code = currentCode.value
-  const farmerCount = 3 + (hashCode(code) % 4) // 3-6 条大户
+  const farmerCount = demoPolicyCount(code) // 3-6 条大户
   const total = vd.insuredAreaMu
   const rosterArea = Math.round(total * 0.35) // 团单约占 35%
   const year = '2025'
@@ -206,6 +207,9 @@ function hashCode(s: string): number {
 }
 const DEMO_SURNAMES = ['王', '李', '张', '刘', '陈', '杨', '黄', '赵', '周', '吴', '徐', '孙', '朱', '马', '胡', '郭', '林', '何', '高', '罗']
 const DEMO_GIVEN = ['建国', '志强', '秀兰', '桂英', '建华', '永福', '春梅', '德明', '国庆', '淑芬', '爱军', '丽华', '洪波', '玉珍', '国栋', '美玲', '俊杰', '桂芳', '世明', '桂香']
+function demoPolicyCount(code: string): number {
+  return 3 + (hashCode(code) % 4) // 3-6 条大户
+}
 function demoFarmerNames(code: string, count: number): string[] {
   const out: string[] = []
   for (let k = 0; k < count; k++) {
