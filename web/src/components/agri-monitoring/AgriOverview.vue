@@ -86,16 +86,30 @@ function bandStyle(lv: GrowthLevel) {
 }
 
 // 当前层级聚合（省/市/县/镇 from byCode；村 from villages）
+// 非参保村 on-demand 暂存数据（村概况 + 演示保单用）
+const villageOndemand = computed(() => agri.onDemandVillages?.[currentCode.value] ?? null)
 const currentArea = computed(() => {
-  if (isVillage.value) return agri.villages?.find((v) => v.code === currentCode.value)?.insuredAreaMu ?? 0
+  if (isVillage.value) {
+    const v = agri.villages?.find((vv) => vv.code === currentCode.value)
+    if (v && v.data) return v.insuredAreaMu ?? 0
+    return villageOndemand.value?.insuredAreaMu ?? 0
+  }
   return agri.levels?.[currentCode.value]?.insuredAreaMu ?? 0
 })
 const householdCount = computed(() => {
-  if (isVillage.value) return agri.villages?.find((v) => v.code === currentCode.value)?.householdCount ?? 0
+  if (isVillage.value) {
+    const v = agri.villages?.find((vv) => vv.code === currentCode.value)
+    if (v && v.data) return v.householdCount ?? 0
+    return villageOndemand.value?.householdCount ?? 0
+  }
   return agri.levels?.[currentCode.value]?.householdCount ?? 0
 })
 const villageLevels = computed<Record<GrowthLevel, number>>(() => {
-  if (isVillage.value) return agri.villages?.find((v) => v.code === currentCode.value)?.levels ?? zeroLevels()
+  if (isVillage.value) {
+    const v = agri.villages?.find((vv) => vv.code === currentCode.value)
+    if (v && v.data) return v.levels ?? zeroLevels()
+    return villageOndemand.value?.levels ?? zeroLevels()
+  }
   return agri.levels?.[currentCode.value]?.levels ?? zeroLevels()
 })
 
@@ -132,9 +146,24 @@ interface PolicyRow { policyNo: string; insuredName: string; insuredAreaMu: numb
 const policyRows = computed<PolicyRow[]>(() => {
   if (!isVillage.value) return []
   const rows = agri.policyGrowth[currentCode.value] ?? []
-  return [...rows]
-    .map((r) => ({ policyNo: r.policyNo, insuredName: r.insuredName, insuredAreaMu: r.insuredAreaMu, levels: r.levels }))
-    .sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
+  if (rows.length) {
+    return [...rows]
+      .map((r) => ({ policyNo: r.policyNo, insuredName: r.insuredName, insuredAreaMu: r.insuredAreaMu, levels: r.levels }))
+      .sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
+  }
+  // 非参保村：on-demand 造 4-6 条演示保单（面积=村承保面积拆分，5级=村占比）
+  const vd = villageOndemand.value
+  if (!vd) return []
+  const pieces = 5
+  const area = vd.insuredAreaMu / pieces
+  const names = ['沈伟良', '周建华', '陈立新', '王小明', '李秀芬', '张伟']
+  const demo: PolicyRow[] = Array.from({ length: pieces }, (_, k) => ({
+    policyNo: `${currentCode.value.slice(0, 6)}${currentCode.value.slice(-2)}${k + 1}02`,
+    insuredName: names[k % names.length],
+    insuredAreaMu: Math.round(area),
+    levels: vd.levels,
+  }))
+  return demo.sort((a, b) => sortByGrowth(a.levels) - sortByGrowth(b.levels))
 })
 function sortByGrowth(l: Record<GrowthLevel, number>): number {
   // 极差/较差权重高 → 值小（排在前面）
@@ -178,6 +207,12 @@ async function loadChildren() {
       if (!a) return { code: c.code, name: c.name, area: 0, levels: null, geometry: c.geometry, level: nextLevel ?? '' }
       return { code: c.code, name: c.name, area: splitMap.get(c.code) ?? 0, levels: a.levels, geometry: c.geometry, level: nextLevel ?? '' }
     })
+    // 暂存非参保村 on-demand（村概况 + 村内承保保单(演示)用）
+    const om: Record<string, { code: string; levels: Record<string, number>; insuredAreaMu: number; householdCount: number }> = {}
+    for (const row of rows) {
+      if (row.levels) om[row.code] = { code: row.code, levels: row.levels, insuredAreaMu: row.area, householdCount: Math.max(1, Math.round(row.area / 10)) }
+    }
+    agri.onDemandVillages = Object.keys(om).length ? om : null
   } else {
     rows = render.map((c) => {
       let area = 0; let lev: Record<GrowthLevel, number> | null = null

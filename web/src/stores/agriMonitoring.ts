@@ -19,6 +19,8 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
     raster: null as NdviRaster | null,
     villagesByDate: null as VillageGrowth[][] | null,
     levelsByDate: null as Record<string, LevelAggregate>[] | null,
+    // 非参保村 on-demand：loadChildren 进镇时按村几何聚合暂存（村概况/演示保单用），离开/重置清空
+    onDemandVillages: null as Record<string, { code: string; levels: Record<string, number>; insuredAreaMu: number; householdCount: number }> | null,
     tasksByDate: [] as AgriTask[][],
     policyByDate: [] as Record<string, PolicyGrowthRow[]>[],
     generatedTasks: [] as AgriTask[],
