@@ -66,13 +66,12 @@ windows.forEach(function (win) {
 });
 print('已创建', windows.length, '个导出任务（Google Drive 文件夹 zhejiang_ndvi）。');
 
-// ---- 预览图层（跑完可看地图上 NDVI 效果） ----
+// ---- 预览图层（可选，小范围采样避免内存超限；不需要可整段删除） ----
 var vis = { min: 0.1, max: 0.85, palette: ['#991b1b', '#ea580c', '#facc15', '#22c55e', '#107a57'] };
-Map.centerObject(REGION, 7);
+Map.centerObject(ee.Geometry.Rectangle([120.5, 29.3, 121.2, 30.2]), 9); // 只看小块避免内存超限
 Map.addLayer(
   s2.filterDate('2025-09-01', '2025-09-30')
     .map(function (i) { return i.normalizedDifference(['B8', 'B4']).toFloat(); })
-    .reduce(ee.Reducer.median()).rename('NDVI')
-    .updateMask(ee.Image(1).gt(0)),
-  vis, 'NDVI 预览(9月)'
+    .reduce(ee.Reducer.median()).rename('NDVI'),
+  vis, 'NDVI 预览(9月/小块)'
 );
