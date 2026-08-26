@@ -7,7 +7,7 @@
         <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
       </div>
       <div class="status-filter" aria-label="任务状态筛选">
-        <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="{ active: statusFilter === s }" @click="statusFilter = s">{{ s }}</button>
+        <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
       </div>
       <div v-if="listTasks.length === 0" class="empty">暂无任务</div>
       <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
@@ -121,6 +121,7 @@ const statusKey = (s: TaskStatus) => (s === '待下发' ? 'pending' : s === '待
 // 状态筛选
 const statusFilter = ref<string>('全部')
 const statusFilters = ['全部', ...TASK_STATUSES]
+const sfKey = (s: string) => (s === '全部' ? 'all' : statusKey(s as TaskStatus))
 // 与异常监测一致：非村层级显示全部村任务，进入某村显示该村任务；再按状态筛
 const filteredTasks = computed(() => {
   let tasks = allTasks.value
@@ -144,9 +145,19 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .view-all:hover { background: #eef2f7; }
 .status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
-.sf-item { border: 1px solid rgba(148,163,184,0.3); border-radius: 999px; background: #fff; color: #64748b; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease; }
-.sf-item:hover { border-color: #94a3b8; color: #334155; }
-.sf-item.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
+.sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
+/* 与状态标签颜色对应 */
+.sf-all { background: #e2e8f0; color: #475569; opacity: 0.75; }
+.sf-all.active { opacity: 1; }
+.sf-pending { background: #dbeafe; color: #1d4ed8; opacity: 0.6; }
+.sf-pending.active { opacity: 1; }
+.sf-claim { background: #ffedd5; color: #c2410c; opacity: 0.6; }
+.sf-claim.active { opacity: 1; }
+.sf-doing { background: #fef9c3; color: #a16207; opacity: 0.6; }
+.sf-doing.active { opacity: 1; }
+.sf-done { background: #dcfce7; color: #166534; opacity: 0.6; }
+.sf-done.active { opacity: 1; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
