@@ -2,7 +2,7 @@
   <div class="agri-anomaly">
     <div class="list-caption">异常村（最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务）</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
-    <div v-for="v in rows" :key="v.code" class="anomaly-village">
+    <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
       <div class="av-head">
         <span class="av-name">{{ v.name }}</span>
         <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert">待处理</span>
@@ -14,8 +14,8 @@
         <div class="detail-band">
           <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
         </div>
-        <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click="createTask(v)">一键转</button>
-        <button v-else type="button" class="cancel-btn" @click="cancelConvert(v.code)">取消</button>
+        <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click.stop="createTask(v)">派发任务</button>
+        <button v-else type="button" class="cancel-btn" @click.stop="cancelConvert(v.code)">取消</button>
       </div>
     </div>
   </div>
@@ -27,11 +27,13 @@ import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { GROWTH_LEVELS, LEVEL_COLORS, LEVEL_LABELS, type GrowthLevel } from '../../features/agri-monitoring/agriMonitoringTypes'
 import { villageAnomaly, type VillageAnomaly } from '../../features/agri-monitoring/agriAnomaly'
 
+const emit = defineEmits<{ 'select-village': [code: string] }>()
 const agri = useAgriMonitoringStore()
 const levels = GROWTH_LEVELS
 const pct = (v: number) => Math.round((v ?? 0) * 100)
 const label = (lv: GrowthLevel) => LEVEL_LABELS[lv]
 const converted = computed(() => agri.convertedSet)
+function drillToVillage(v: VillageAnomaly) { emit('select-village', v.code) }
 
 // 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
 const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
@@ -76,7 +78,8 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 .agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
-.anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); }
+.anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
+.anomaly-village:hover { background: #f8fafc; }
 .av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .av-name { font-weight: 650; color: #0f172a; font-size: 14px; }
 .av-head .av-pct { margin-left: auto; font-size: 12px; font-weight: 600; color: #b45309; font-variant-numeric: tabular-nums; }

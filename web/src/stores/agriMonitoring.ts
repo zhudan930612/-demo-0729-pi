@@ -136,7 +136,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
         status: '待领取',
         createdAt: '2026-07-27',
         executor: null,
-        remark: `一键转任务：${village.name}长势异常，极差+较差承保面积占比约 ${(village.anomalyRatio * 100).toFixed(0)}%，需核查。`,
+        remark: `派发任务：${village.name}长势异常，极差+较差承保面积占比约 ${(village.anomalyRatio * 100).toFixed(0)}%，需核查。`,
         sopAction: '携带遥感图斑定位异常地块，核实作物长势与承保面积是否一致、是否存在明显减产。',
         requirement: '到场核实并拍照留痕，48 小时内反馈核查结论。',
         location: { name: village.name, lon: village.centroid?.lon ?? 0, lat: village.centroid?.lat ?? 0 },
