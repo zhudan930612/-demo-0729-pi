@@ -221,30 +221,35 @@ const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * page
 // 动态每页条数：按列表容器高度算填满（行高不变，不固定10条/页）
 const drawerListEl = ref<HTMLElement | null>(null)
 let drawerRO: ResizeObserver | null = null
+function currentDrawerList(): HTMLElement | null {
+  return document.querySelector('.task-drawer .task-drawer-list') ?? document.querySelector('.task-drawer .task-drawer-cards')
+}
 function computePageSize() {
   const el = drawerListEl.value
   if (!el) return
-  const row = el.querySelector<HTMLElement>('tbody tr')
+  const row = el.querySelector<HTMLElement>('tbody tr, .drawer-card')
   if (!row) return
   const rowH = row.getBoundingClientRect().height
+  if (!rowH || !Number.isFinite(rowH)) return  // 行未渲染，跳过避免 NaN
   const headH = el.querySelector('thead')?.getBoundingClientRect().height ?? 0
   const avail = el.getBoundingClientRect().height - headH
-  pageSize.value = Math.max(2, Math.floor(avail / rowH))
-  if (page.value > totalPages.value) page.value = totalPages.value
+  const n = Math.floor(avail / rowH)
+  if (Number.isFinite(n) && n >= 2) { pageSize.value = n; if (page.value > totalPages.value) page.value = totalPages.value }
 }
 function setupDrawerRO() {
   drawerRO?.disconnect(); drawerRO = null
   drawerListEl.value = null
   nextTick(() => {
-    const el = document.querySelector('.task-drawer .task-drawer-list')
+    const el = currentDrawerList()
     if (!el) return
-    drawerListEl.value = el as HTMLElement
+    drawerListEl.value = el
     computePageSize()
     drawerRO = new ResizeObserver(() => computePageSize())
     drawerRO.observe(el)
   })
 }
 watch(showAll, (v) => { if (v) setupDrawerRO() }, { immediate: true })
+
 onUnmounted(() => drawerRO?.disconnect())
 watch(query, () => { page.value = 1 })
 watch(drawerStatus, () => { page.value = 1 })  // 状态切换返回第1页
@@ -255,6 +260,7 @@ const drawerTaskId = ref<string | null>(null)
 const drawerTask = computed<AgriTask | null>(() => drawerTaskId.value ? allTasks.value.find((t) => t.id === drawerTaskId.value) ?? null : null)
 function selectFromDrawer(id: string) { drawerTaskId.value = id }
 function closeDrawerDetail() { drawerTaskId.value = null }
+watch(drawerTaskId, () => { if (showAll.value) setupDrawerRO() })  // 列表↔分栏切换时重测
 
 const visibleTask = computed<AgriTask | null>(() => {
   if (!agri.openTaskId) return null
