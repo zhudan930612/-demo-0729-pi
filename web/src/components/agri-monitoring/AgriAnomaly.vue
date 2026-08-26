@@ -7,7 +7,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
         </span>
       </div>
-      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">{{ batchDispatched ? '取消派发' : '一键派发' }}</button>
+      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">{{ batchDispatched ? '一键取消' : '一键派发' }}</button>
     </div>
     <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
@@ -24,7 +24,7 @@
           <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
         </div>
         <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click.stop="createTask(v)">派发任务</button>
-        <button v-else type="button" class="cancel-btn" @click.stop="cancelConvert(v.code)">取消</button>
+        <button v-else type="button" class="cancel-btn" @click.stop="cancelConvert(v.code)">取消任务</button>
       </div>
     </div>
   </div>
