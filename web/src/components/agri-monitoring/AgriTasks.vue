@@ -292,12 +292,12 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.task-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 13px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
+.task-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 18px 10px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
 .task-row:hover { background: #f8fafc; }
-.task-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.task-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .task-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
-.task-name { font-weight: 600; font-size: 13px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task-meta { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-name { font-weight: 600; font-size: 14px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-meta { font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .st-pending { background: #dbeafe; color: #1d4ed8; }
 .st-claim { background: #ffedd5; color: #c2410c; }
