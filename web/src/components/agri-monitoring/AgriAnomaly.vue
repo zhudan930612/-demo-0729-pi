@@ -33,11 +33,12 @@ const pct = (v: number) => Math.round((v ?? 0) * 100)
 const label = (lv: GrowthLevel) => LEVEL_LABELS[lv]
 const converted = computed(() => agri.convertedSet)
 
-// 13 参保村中当前日期异常的村（按连续异常期数给 AI 建议）
+// 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
 const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
-  const dateIdx = agri.selectedDate
+  const dateIdx = (agri.villagesByDate?.length ?? 1) - 1 // 最近一期
+  const lastVillages = agri.villagesByDate?.[dateIdx] ?? []
   const out: Array<VillageAnomaly & { code: string }> = []
-  for (const v of agri.villages ?? []) {
+  for (const v of lastVillages) {
     if (!v.isAnomaly) continue
     const levelsPerDate = (agri.villagesByDate ?? []).map((dv) => dv.find((x) => x.code === v.code)?.levels)
     const va = villageAnomaly(v.code, v.name, levelsPerDate, dateIdx)
