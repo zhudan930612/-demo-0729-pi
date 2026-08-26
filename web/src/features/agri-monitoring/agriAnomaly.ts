@@ -1,6 +1,6 @@
 import type { GrowthLevel, LevelAggregate } from './agriMonitoringTypes'
 
-export const ANOMALY_THRESHOLD = 0.10 // 最近一期 极差+较差占比 > 10% 为异常（只看最近一期）
+export const ANOMALY_THRESHOLD = 0.035 // 最近一期 极差+较差占比 > 3.5% 为异常（只看最近一期，5 个异常村：新南/龙江/新三联/清潭/大钱）
 export const CONVERT_THRESHOLD = 0.15 // 最近一期 极差+较差占比 ≥ 15% → AI建议转任务
 
 export function anomalyRatioOf(levels: Record<GrowthLevel, number> | undefined): number {
