@@ -19,7 +19,7 @@
         <AgriAnomaly @select-village="(code) => emit('select-village', code)" />
       </template>
       <template v-else-if="activeTab === 'tasks'">
-        <AgriTasks @locate-task="(loc) => emit('locate-task', loc)" @close-task="emit('close-task')" />
+        <AgriTasks @locate-task="(code) => emit('locate-task', code)" @close-task="emit('close-task')" />
       </template>
     </div>
   </aside>
@@ -38,7 +38,7 @@ const emit = defineEmits<{
   'select-tab': [tab: AgriTab]
   'select-village': [code: string]
   'select-child': [row: { code: string; name: string; geometry: unknown; level: string }]
-  'locate-task': [location: { lon: number; lat: number; name: string }]
+  'locate-task': [code: string]
   'close-task': []
 }>()
 

@@ -47,7 +47,9 @@
           <div class="sec-label">任务定位</div>
           <div class="sec-body loc-row">
             <span class="loc-text"><span class="loc-name">{{ visibleTask.location.name }}</span><span class="loc-coord">{{ visibleTask.location.lon.toFixed(4) }}, {{ visibleTask.location.lat.toFixed(4) }}</span></span>
-            <button type="button" class="locate-btn" @click="emit('locate-task', visibleTask.location)">定位到地图</button>
+            <button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', visibleTask.villageCode)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -101,7 +103,7 @@ import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
 import { TASK_STATUSES, type AgriTask, type TaskStatus } from '../../features/agri-monitoring/agriMonitoringTypes'
 
-const emit = defineEmits<{ 'locate-task': [location: { lon: number; lat: number; name: string }]; 'close-task': [] }>()
+const emit = defineEmits<{ 'locate-task': [code: string]; 'close-task': [] }>()
 const store = useDrilldownStore()
 const agri = useAgriMonitoringStore()
 const showAll = ref(false)
@@ -196,8 +198,9 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
 .loc-coord { font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
-.locate-btn { flex: none; padding: 4px 10px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 12px; cursor: pointer; }
-.locate-btn:hover { background: #1d4ed8; }
+.locate-icon { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: #eff6ff; color: #2563eb; cursor: pointer; }
+.locate-icon svg { width: 15px; height: 15px; }
+.locate-icon:hover { background: #dbeafe; color: #1d4ed8; }
 .ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
 .ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
