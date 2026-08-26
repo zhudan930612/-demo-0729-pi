@@ -48,20 +48,17 @@
       </div>
 
       <div class="detail-group">
-        <div class="group-label">取证</div>
+        <div class="group-label">影像资料</div>
         <div class="detail-sec">
-          <div class="sec-label">取证时间</div>
+          <div class="sec-label">提交时间</div>
           <div class="sec-body">{{ visibleTask.evidence.length > 0 ? visibleTask.evidence[0].time : '—' }}</div>
         </div>
-        <div class="detail-sec">
-          <div class="sec-label">证据</div>
-          <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无证据</div>
-          <div v-else class="ev-grid">
-            <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
-              <img :src="e.url" alt="证据缩略图" />
-              <span class="ev-time">{{ e.time }}</span>
-            </button>
-          </div>
+        <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无影像</div>
+        <div v-else class="ev-grid">
+          <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
+            <img :src="e.url" alt="影像缩略图" />
+            <span class="ev-time">{{ e.time }}</span>
+          </button>
         </div>
       </div>
     </div>
