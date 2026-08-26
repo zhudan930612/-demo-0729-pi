@@ -10,10 +10,10 @@
         <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%</span>
       </div>
       <div class="ai-text">{{ aiAdvice(v) }}</div>
-      <div class="detail-band">
-        <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
-      </div>
-      <div class="av-foot">
+      <div class="av-row">
+        <div class="detail-band">
+          <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
+        </div>
         <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click="createTask(v)">一键转</button>
         <button v-else type="button" class="cancel-btn" @click="cancelConvert(v.code)">取消</button>
       </div>
@@ -47,9 +47,12 @@ const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
   return out.sort((a, b) => b.anomalyRatio - a.anomalyRatio)
 })
 
+// 弱化色带：将 5 级色与白色混合成淡色调（异常top 聚焦 AI 建议，色带退为辅助）
 function bandStyle(lv: GrowthLevel, ratio: number) {
-  const [r, b, g] = LEVEL_COLORS[lv]
-  return { background: `rgb(${r},${b},${g})`, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
+  const [r, g, b] = LEVEL_COLORS[lv]
+  const m = 0.62 // 混入白的比例（越淡越弱化）
+  const pale = `rgb(${Math.round(r + (255 - r) * m)},${Math.round(g + (255 - g) * m)},${Math.round(b + (255 - b) * m)})`
+  return { background: pale, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
 }
 // 强化 AI 建议：说明当前异常是什么 + 建议如何做
 function aiAdvice(v: VillageAnomaly): string {
@@ -73,22 +76,19 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 .agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
-.anomaly-village { padding: 12px 6px; border-bottom: 1px solid rgba(148,163,184,0.14); }
-.av-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.av-name { font-weight: 600; color: #0f172a; font-size: 13px; }
-.av-head .av-pct { margin-left: auto; }
-.ai-text { font-size: 11px; color: #475569; line-height: 1.5; margin-bottom: 7px; }
-.detail-band { margin-bottom: 7px; }
-.strategy-badge { flex: none; font-size: 9px; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
-.strategy-badge.convert { background: #fee2e2; color: #b91c1c; }
-.strategy-badge.observe { background: #e0f2fe; color: #0369a1; }
-.av-period { font-size: 9px; color: #94a3b8; margin-left: auto; }
-.detail-band { display: flex; height: 16px; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
-.band-seg { display: flex; align-items: center; justify-content: center; min-width: 0; font-size: 9px; color: #fff; text-shadow: 0 0 1px rgba(0,0,0,0.5); }
-.av-foot { display: flex; align-items: center; gap: 8px; }
-.av-pct { font-weight: 700; color: #b91c1c; font-size: 11px; }
-.convert-btn { margin-left: auto; padding: 2px 8px; border: 0; border-radius: 6px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; }
+.anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); }
+.av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.av-name { font-weight: 650; color: #0f172a; font-size: 14px; }
+.av-head .av-pct { margin-left: auto; font-size: 12px; font-weight: 600; color: #b45309; font-variant-numeric: tabular-nums; }
+.ai-text { font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.strategy-badge { flex: none; font-size: 10px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
+.strategy-badge.convert { background: #fde8e8; color: #b91c1c; }
+.strategy-badge.observe { background: #e6f1fb; color: #0369a1; }
+.av-row { display: flex; align-items: center; gap: 12px; }
+.detail-band { flex: 1; min-width: 0; display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: rgba(148,163,184,0.14); }
+.band-seg { min-width: 0; }
+.convert-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
 .convert-btn:hover { background: #b91c1c; }
-.cancel-btn { margin-left: auto; padding: 2px 8px; border: 1px solid #94a3b8; border-radius: 6px; background: #fff; color: #475569; font-size: 11px; cursor: pointer; }
+.cancel-btn { flex: none; padding: 4px 12px; border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: #475569; font-size: 12px; cursor: pointer; }
 .cancel-btn:hover { background: #f1f5f9; }
 </style>
