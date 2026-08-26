@@ -213,6 +213,7 @@ const filteredAll = computed(() => {
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize)))
 const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 watch(query, () => { page.value = 1 })
+watch(drawerStatus, () => { page.value = 1 })  // 状态切换返回第1页
 function statusCount(s: string) { return allTasks.value.filter((t) => t.status === s).length }
 
 // 全部任务抽屉：点击任务 → 左右分栏（左卡片列表 + 右详情）
