@@ -271,18 +271,29 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     }).addTo(map)
   }
 
-  /** 任务定位：下钻到对应村 + 在村级地图显示定位标识（村中心点）。 */
+  /** 任务定位：下钻到对应村 + 在村级地图随机某块地块上显示定位标识。 */
   async function locateToVillage(code: string) {
     const village = store.villages?.find((v) => v.code === code)
     if (!village) return
     await drillToVillageInner(village)
     if (!map) return
-    const loc = { lon: village.centroid?.lon ?? 0, lat: village.centroid?.lat ?? 0, name: village.name }
+    let lon = village.centroid?.lon ?? 0, lat = village.centroid?.lat ?? 0
+    try {
+      const fc = await fetchJSON<{ features?: Array<{ geometry?: { coordinates?: unknown } }> }>(`/data/parcels/${code}.geojson`)
+      const feats = fc.features ?? []
+      if (feats.length) {
+        const f = feats[(Math.random() * feats.length) | 0]!  // 随机一块地块
+        const coords = (f.geometry?.coordinates as unknown[] ?? []).flat(Infinity) as number[]
+        if (coords.length >= 2) { lon = coords[0]!; lat = coords[1]! }
+      }
+    } catch { /* 无地块用村中心 */ }
+    const loc = { lon, lat, name: village.name }
     store.setTaskLocation(loc)
     if (marker) marker.remove()
-    marker = L.marker([loc.lat, loc.lon], {
+    marker = L.marker([lat, lon], {
       icon: L.divIcon({ className: 'agri-loc-marker', html: '<div class="agri-loc-pin"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }),
     }).addTo(map)
+    map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 0.8 })
   }
 
   function clearTaskLocation() {
