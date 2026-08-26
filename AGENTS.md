@@ -12,7 +12,7 @@
 - `PRODUCT.md`：稳定的产品定位、能力边界和术语。
 - `DESIGN.md`：地图工作台的视觉令牌与组件模式。
 - `docs/README.md`：项目文档总入口；从这里进入现役需求或历史归档。
-- `web/src/`：Vue/Leaflet 前端；`web/src/components/MapView.vue` 负责装配（地图核心 + 跨域协调），`web/src/map/`、`web/src/features/`、`web/src/stores/` 持有地图和业务逻辑；台风/天气/降水/地块四个域各有一个 `useXxxMode` 装配 composable（`web/src/features/<域>/useXxxMode.ts`），新增域装配逻辑放对应 composable，不堆回 MapView。
+- `web/src/`：Vue/Leaflet 前端；`web/src/components/MapView.vue` 负责装配（地图核心 + 跨域协调），`web/src/map/`、`web/src/features/`、`web/src/stores/` 持有地图和业务逻辑；`web/src/features/<域>/` 每个业务域一个目录，装配 composable 以 `useXxxMode.ts`（台风/天气/降水/农情监测/倒伏评估）或 `useParcelWorkbench.ts`（地块）命名，数据/选择器类域（气象预警/保单/村级风险）无装配 composable；新增域装配逻辑放对应 composable，不堆回 MapView。
 - `server/`：APIHz 台风代理、资源保护、脱敏探针和测试。
 - `scripts/`：边界、影像、地块预处理与数据链路检查。
 
@@ -34,10 +34,10 @@
 3. 改地图装配时沿用 `web/src/map/`、`web/src/features/` 和视图组件的现有职责，避免把逻辑重新堆回 `MapView.vue`。
 4. 改静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 和前端加载路径。
 5. 按改动范围运行下面的验证命令，并记录实际结果；未运行时不要宣称完成。
-6. 复杂跨模块工作先建立版本化专项计划；仓库当前没有统一计划目录，新增入口时同步 `docs/README.md`。
+6. 复杂跨模块工作先建立版本化专项计划；统一实施计划目录 `docs/plans/`，新增入口时同步 `docs/README.md`。
 7. **数据口径/空间形态类需求（地块归属/分组/布局/造数等，用户可见产物形态由数据决定）**：必须执行 dev-flow 的**形态预检**（编码前先给用户看可目视形态样例/图，确认业务形态再编码）与**产物目视预检**（编码后先给用户目视预检产物，形态不符先回需求变更，再进自动化验收）；纯自动化验收无法替代形态确认。
 8. **简单改动走快路径**：改动只落在单个组件 / composable / 单图层时，先定位目标组件 → 确认改动范围（如「只改触发交互、不改二级交互」）→ 直接改。勿为简单 UI 改动考古 `DESIGN.md`/需求文档/历史 e2e；验证按「验证命令」分级，简单改动走定向层（build + 单测 + 定向 e2e），非必要不全量。
-9. **git 中间态纪律**：测基线/回退用 git（先 commit 或 `git stash`），不用 `git checkout --` 覆盖工作区（会丢未提交改动）；不在仓库/工作区生成临时备份文件（如 `_backup_*.vue`）。本仓库 `.git/hooks/` 只有 git-lfs 差量钩子，**不拦截命令或参数中的 `push` 字样**（`git push`、`git stash push`、commit message 含 `push` 均可正常执行）。真正约束推送的是远端 main 分支保护：合并 main 需 1 个 code-owner 审批（仓库 owner 因 `enforce_admins=false` 可 bypass 直推，但不留审批记录）；禁强推（`allow_force_pushes=false`）。改动完成即 commit（不 push）再继续，防并发会话覆盖。
+9. **git 中间态纪律**：测基线/回退用 git（先 commit 或 `git stash`），不用 `git checkout --` 覆盖工作区（会丢未提交改动）；不在仓库/工作区生成临时备份文件（如 `_backup_*.vue`）。合并 main 需 1 个 code-owner 审批，禁强推；改动完成即 commit（不 push）再继续，防并发会话覆盖。
 
 > **诊断纪律**：排查前端渲染/时序问题时，不要向源码加 `console.log` 临时日志——vite 编译失败后 dev server 会继续服务旧 bundle，误导排查。改用 e2e DOM 断言、页面 `console` 捕获或全局标记验证；临时改动后先确认 `vue-tsc`/build 干净再诊断。
 
