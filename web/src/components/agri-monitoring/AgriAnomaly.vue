@@ -1,8 +1,11 @@
 <template>
   <div class="agri-anomaly">
     <div class="anomaly-header">
-      <div class="list-caption">异常村（最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务）</div>
-      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">一键派发全部</button>
+      <span class="rule-info" @mouseenter="tipOpen = true" @mouseleave="tipOpen = false" aria-label="异常判定规则">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <span v-if="tipOpen" class="rule-tooltip">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</span>
+      </span>
+      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">一键派发</button>
     </div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
@@ -25,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 import { GROWTH_LEVELS, LEVEL_COLORS, LEVEL_LABELS, type GrowthLevel } from '../../features/agri-monitoring/agriMonitoringTypes'
 import { villageAnomaly, type VillageAnomaly } from '../../features/agri-monitoring/agriAnomaly'
@@ -36,6 +39,7 @@ const levels = GROWTH_LEVELS
 const pct = (v: number) => Math.round((v ?? 0) * 100)
 const label = (lv: GrowthLevel) => LEVEL_LABELS[lv]
 const converted = computed(() => agri.convertedSet)
+const tipOpen = ref(false)
 function drillToVillage(v: VillageAnomaly) { emit('select-village', v.code) }
 
 // 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
@@ -89,7 +93,9 @@ function batchDispatch() {
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.anomaly-header .list-caption { margin-bottom: 0; }
+.rule-info { position: relative; display: inline-flex; align-items: center; color: #64748b; cursor: help; }
+.rule-info svg { width: 15px; height: 15px; }
+.rule-tooltip { position: absolute; left: 0; bottom: calc(100% + 7px); width: 230px; padding: 8px 10px; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 11px; line-height: 1.55; box-shadow: 0 6px 18px rgba(15,23,42,0.26); z-index: 10; }
 .batch-btn { flex: none; padding: 3px 10px; border: 1px solid #dc2626; border-radius: 6px; background: #fff; color: #b91c1c; font-size: 11px; font-weight: 600; cursor: pointer; }
 .batch-btn:hover { background: #dc2626; color: #fff; }
 .anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
