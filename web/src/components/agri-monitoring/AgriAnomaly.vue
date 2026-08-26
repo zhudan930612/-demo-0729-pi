@@ -1,12 +1,15 @@
 <template>
   <div class="agri-anomaly">
     <div class="anomaly-header">
-      <span class="rule-info" @mouseenter="tipOpen = true" @mouseleave="tipOpen = false" aria-label="异常判定规则">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
-        <span v-if="tipOpen" class="rule-tooltip">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</span>
-      </span>
-      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">一键派发</button>
+      <div class="anomaly-title">
+        <span class="list-caption">异常村</span>
+        <span class="rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="异常判定规则">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        </span>
+      </div>
+      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">{{ batchDispatched ? '取消派发' : '一键派发' }}</button>
     </div>
+    <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
       <div class="av-head">
@@ -39,7 +42,17 @@ const levels = GROWTH_LEVELS
 const pct = (v: number) => Math.round((v ?? 0) * 100)
 const label = (lv: GrowthLevel) => LEVEL_LABELS[lv]
 const converted = computed(() => agri.convertedSet)
-const tipOpen = ref(false)
+// 规则提示（复用 cell-tooltip 已有样式）
+const ruleTip = ref<{ top: number; left: number } | null>(null)
+function showRuleTip(e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  ruleTip.value = { top: rect.bottom + 6, left: rect.left + rect.width / 2 }
+}
+function hideRuleTip() { ruleTip.value = null }
+const tipStyle = computed(() => {
+  if (!ruleTip.value) return {}
+  return { left: `${ruleTip.value.left}px`, top: `${Math.max(0, ruleTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
 function drillToVillage(v: VillageAnomaly) { emit('select-village', v.code) }
 
 // 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
@@ -79,11 +92,16 @@ function createTask(v: VillageAnomaly) {
   agri.createTaskFromAnomaly(v)
 }
 function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
-// 一键派发全部：批量把未派发的异常村转成任务
+// 一键派发（切换）：批量把未派发异常村转任务；再点「取消派发」撤销全部
 const dispatchableCount = computed(() => rows.value.filter((v) => !converted.value.has(v.code)).length)
+const batchDispatched = ref(false)
 function batchDispatch() {
-  for (const v of rows.value) {
-    if (!converted.value.has(v.code)) agri.createTaskFromAnomaly(v)
+  if (batchDispatched.value) {
+    for (const v of rows.value) agri.cancelConvertVillage(v.code)
+    batchDispatched.value = false
+  } else {
+    for (const v of rows.value) agri.createTaskFromAnomaly(v)
+    batchDispatched.value = true
   }
 }
 </script>
@@ -93,11 +111,14 @@ function batchDispatch() {
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.rule-info { position: relative; display: inline-flex; align-items: center; color: #64748b; cursor: help; }
-.rule-info svg { width: 15px; height: 15px; }
-.rule-tooltip { position: absolute; left: 0; bottom: calc(100% + 7px); width: 230px; padding: 8px 10px; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 11px; line-height: 1.55; box-shadow: 0 6px 18px rgba(15,23,42,0.26); z-index: 10; }
-.batch-btn { flex: none; padding: 3px 10px; border: 1px solid #dc2626; border-radius: 6px; background: #fff; color: #b91c1c; font-size: 11px; font-weight: 600; cursor: pointer; }
-.batch-btn:hover { background: #dc2626; color: #fff; }
+.anomaly-title { display: flex; align-items: center; gap: 5px; }
+.anomaly-title .list-caption { margin-bottom: 0; color: #475569; font-size: 10px; font-weight: 700; }
+.rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
+.rule-info svg { width: 14px; height: 14px; }
+.rule-info:hover { color: #475569; }
+.cell-tooltip { position: fixed; z-index: 1030; pointer-events: none; padding: 5px 9px; border: 1px solid rgba(148,163,184,0.4); border-radius: 6px; background: #fff; box-shadow: 0 3px 10px rgba(15,23,42,0.18); color: #334155; font-size: 11px; white-space: nowrap; }
+.batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.batch-btn:hover { background: #b91c1c; }
 .anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
 .anomaly-village:hover { background: #f8fafc; }
 .av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -111,8 +132,8 @@ function batchDispatch() {
 .av-row { display: flex; align-items: center; gap: 12px; }
 .detail-band { flex: 1; min-width: 0; display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: rgba(148,163,184,0.14); }
 .band-seg { min-width: 0; }
-.convert-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
-.convert-btn:hover { background: #b91c1c; }
+.convert-btn { flex: none; padding: 4px 12px; border: 1px solid #dc2626; border-radius: 7px; background: #fff; color: #b91c1c; font-size: 12px; font-weight: 600; cursor: pointer; }
+.convert-btn:hover { background: #dc2626; color: #fff; }
 .cancel-btn { flex: none; padding: 4px 12px; border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: #475569; font-size: 12px; cursor: pointer; }
 .cancel-btn:hover { background: #f1f5f9; }
 </style>
