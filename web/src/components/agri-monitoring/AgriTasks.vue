@@ -124,18 +124,18 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 
 <style scoped>
 .agri-tasks { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-.tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.list-caption { font-size: 10px; color: #475569; }
+.tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .view-all:hover { background: #eef2f7; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.task-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; width: 100%; padding: 7px 4px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; color: #334155; text-align: left; }
-.task-row:hover { background: #eef2f7; }
-.task-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task-type { color: #64748b; font-size: 10px; }
-.task-status { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; }
+.task-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; width: 100%; padding: 14px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
+.task-row:hover { background: #f8fafc; }
+.task-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-type { color: #64748b; font-size: 11px; }
+.task-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .st-pending { background: #dbeafe; color: #1d4ed8; }
 .st-claim { background: #ffedd5; color: #c2410c; }
 .st-doing { background: #fef9c3; color: #a16207; }

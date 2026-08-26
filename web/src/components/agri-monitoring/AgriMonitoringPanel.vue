@@ -45,7 +45,7 @@ const emit = defineEmits<{
 const agri = useAgriMonitoringStore()
 const tabs: Array<{ key: AgriTab; label: string }> = [
   { key: 'overview', label: '农情概况' },
-  { key: 'anomaly', label: '异常top' },
+  { key: 'anomaly', label: '异常监测' },
   { key: 'tasks', label: '任务列表' },
 ]
 const activeTab = computed(() => agri.activeTab)
