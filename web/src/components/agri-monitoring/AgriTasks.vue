@@ -6,8 +6,8 @@
         <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
         <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
       </div>
-      <div v-if="filteredTasks.length === 0" class="empty">暂无任务</div>
-      <button v-for="t in filteredTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
+      <div v-if="listTasks.length === 0" class="empty">暂无任务</div>
+      <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
         <span class="task-name">{{ t.name }}</span>
         <span class="task-type">{{ t.typeName }}</span>
         <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
@@ -67,20 +67,21 @@
       </div>
     </div>
 
-    <!-- 查看全部任务浮窗 -->
-    <div v-if="showAll" class="all-overlay" @click.self="showAll = false">
-      <div class="all-panel">
-        <div class="all-head"><span>全部任务</span><button type="button" class="close-btn" aria-label="关闭" @click="showAll = false">✕</button></div>
-        <div class="all-list">
-          <div v-if="allTasks.length === 0" class="empty">暂无任务</div>
-          <button v-for="t in allTasks" :key="t.id" type="button" class="all-row" @click="selectFromAll(t.id)">
-            <span class="task-name">{{ t.name }}</span>
-            <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
-            <span class="task-village">{{ t.villageName }}</span>
-          </button>
-        </div>
+    <!-- 查看全部任务：分户清单抽屉样式 -->
+    <aside v-if="showAll" class="task-drawer" aria-label="全部任务">
+      <header class="task-drawer-header">
+        <div><span class="task-drawer-eyebrow">任务清单</span><h2 class="task-drawer-title">全部任务</h2></div>
+        <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
+      </header>
+      <div class="task-drawer-list">
+        <div v-if="allTasks.length === 0" class="empty">暂无任务</div>
+        <button v-for="t in allTasks" :key="t.id" type="button" class="all-row" @click="selectFromAll(t.id)">
+          <span class="task-name">{{ t.name }}</span>
+          <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+          <span class="task-village">{{ t.villageName }}</span>
+        </button>
       </div>
-    </div>
+    </aside>
 
     <!-- 大图浮窗 -->
     <div v-if="lightbox" class="lightbox-overlay" @click.self="lightbox = null">
@@ -120,6 +121,8 @@ const filteredTasks = computed(() => {
   }
   return allTasks.value
 })
+// 列表只显示最近 10 条
+const listTasks = computed(() => filteredTasks.value.slice(0, 10))
 
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }
@@ -176,13 +179,17 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
 .ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
 .ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
-.all-overlay, .lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
-.all-panel { width: min(440px, calc(100% - 20px)); max-height: 70vh; background: #fff; border-radius: 10px; box-shadow: 0 12px 30px rgba(15,23,42,0.25); display: flex; flex-direction: column; overflow: hidden; }
-.all-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; }
-.close-btn { border: 0; background: transparent; color: #64748b; cursor: pointer; font-size: 14px; }
-.all-list { overflow: auto; padding: 4px; }
-.all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 7px 8px; border: 0; background: transparent; cursor: pointer; text-align: left; }
-.all-row:hover { background: #eef2f7; }
+/* 查看全部任务：分户清单抽屉样式（右侧固定抽屉） */
+.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 88vw); z-index: 1150; display: flex; flex-direction: column; background: #fff; box-shadow: -8px 0 28px rgba(15,23,42,0.2); }
+.task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
+.task-drawer-eyebrow { display: block; font-size: 11px; color: #2563eb; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 2px; }
+.task-drawer-title { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0; }
+.task-drawer-close { border: 0; background: transparent; color: #64748b; font-size: 20px; cursor: pointer; line-height: 1; }
+.task-drawer-close:hover { color: #0f172a; }
+.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
+.all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; text-align: left; }
+.all-row:hover { background: #f8fafc; }
+.lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
 .lightbox { position: relative; }
 .lightbox img { max-width: 80vw; max-height: 80vh; border-radius: 8px; }
 .lb-time { display: block; text-align: center; color: #fff; margin-top: 6px; }

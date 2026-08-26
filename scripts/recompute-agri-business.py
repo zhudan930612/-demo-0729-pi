@@ -123,6 +123,37 @@ def policy_growth_for_date(village_code, di):
     return rows
 
 
+def demo_tasks(villages):
+    """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
+    items = list(villages.items())
+    spec = [
+        ("task-demo-1", "核查异常长势", "poor_growth", "待下发", 0, "三分场水稻长势异常，需到场核实"),
+        ("task-demo-2", "农作培训", "training", "已完成", 1, "水稻绿色防控技术培训"),
+        ("task-demo-3", "督导施肥", "fertilization", "进行中", 2, "追肥作业督导与记录"),
+        ("task-demo-4", "政策宣导", "policy_advocacy", "待下发", 3, "政策性农业保险政策宣导"),
+        ("task-demo-5", "现场查勘", "site_survey", "进行中", 4, "受灾地块现场查勘定损"),
+        ("task-demo-6", "重点对象跟进", "key_followup", "待领取", 5, "种植大户承保跟进"),
+        ("task-demo-7", "核查异常长势", "poor_growth", "待领取", 6, "旱情地块长势复核"),
+        ("task-demo-8", "农作培训", "training", "已完成", 7, "村级协保员业务培训"),
+        ("task-demo-9", "现场查勘", "site_survey", "已完成", 0, "新增承保地块现场查勘"),
+        ("task-demo-10", "政策宣导", "policy_advocacy", "已完成", 1, "育秧补贴政策宣导"),
+    ]
+    rows = []
+    for tid, name, typ, status, vidx, remark in spec:
+        code, vmeta = items[vidx % len(items)]
+        vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
+        rows.append({
+            "id": tid, "name": name, "type": typ, "typeName": name, "status": status,
+            "villageCode": code, "villageName": vname, "createdAt": "2026-07-27",
+            "executor": {"name": "李四", "role": "协保员"} if status in ("进行中", "已完成") else None,
+            "remark": remark, "sopAction": "到场核实并拍照留痕，核对长势/承保面积。",
+            "requirement": "48 小时内反馈核查结论。",
+            "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
+            "evidence": [],
+        })
+    return rows
+
+
 def main():
     villages = G.load_village_boundaries()
     manifest = G.load_manifest()
@@ -139,7 +170,7 @@ def main():
         ])
         all_levels.append(G.build_level_aggregation(vg, manifest))
         all_policy.append({code: policy_growth_for_date(code, di) for code, _ in G.INSURED_VILLAGES})
-        all_tasks.append(G.generate_tasks(villages, vg))
+        all_tasks.append(G.generate_tasks(villages, vg) + demo_tasks(villages))
     payload = {"dates": DATES, "villages": all_villages, "levels": all_levels,
                "policyGrowth": all_policy, "tasks": all_tasks}
     with open(AGRI / "agri-business.json", "w", encoding="utf-8") as f:
