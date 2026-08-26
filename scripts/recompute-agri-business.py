@@ -161,24 +161,95 @@ def linked_policy(village_code):
     return {"policyNo": str(p.get("policyNo", "")), "insuredName": insured or "集体投保"}
 
 
-def demo_tasks(villages):
-    """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
+NEED_POLICY = {"poor_growth", "fertilization", "site_survey", "key_followup"}  # 需关联保单的任务类型
+PLACEHOLDER_IMG = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='160'%3E%3Crect width='240' height='160' fill='%23a7f3d0'/%3E%3Crect x='24' y='24' width='90' height='60' fill='%2334d399'/%3E%3Crect x='130' y='60' width='86' height='70' fill='%2310b981'/%3E%3C/svg%3E"
+
+
+def remark_for(type_name, name):
+    return f"{name}：{type_name}事项，需跟进。"
+
+
+def batch_tasks(villages, start_no, count):
+    """批量生成任务（参照现有任务结构），各状态/各类型都有；现有 10 个不变。"""
+    from datetime import datetime, timedelta
     items = list(villages.items())
-    spec = [
-        # (id, 具体标题name, 类别typeName, type, status, 村索引, 日期, 备注)
-        ("task-demo-1", "三分场水稻长势异常核查", "核查异常长势", "poor_growth", "待下发", 0, "2026-08-03", "三分场水稻长势异常，需到场核实"),
-        ("task-demo-2", "水稻绿色防控技术培训", "农作培训", "training", "已完成", 1, "2026-07-30", "水稻绿色防控技术培训"),
-        ("task-demo-3", "早稻追肥作业督导", "督导施肥", "fertilization", "进行中", 2, "2026-07-28", "追肥作业督导与记录"),
-        ("task-demo-4", "政策性农险政策宣导", "政策宣导", "policy_advocacy", "待下发", 3, "2026-07-26", "政策性农业保险政策宣导"),
-        ("task-demo-5", "受灾地块现场查勘定损", "现场查勘", "site_survey", "进行中", 4, "2026-07-24", "受灾地块现场查勘定损"),
-        ("task-demo-6", "种植大户承保跟进", "重点对象跟进", "key_followup", "待领取", 5, "2026-07-22", "种植大户承保跟进"),
-        ("task-demo-7", "旱情地块长势复核", "核查异常长势", "poor_growth", "待领取", 6, "2026-07-20", "旱情地块长势复核"),
-        ("task-demo-8", "村级协保员业务培训", "农作培训", "training", "已完成", 7, "2026-07-18", "村级协保员业务培训"),
-        ("task-demo-9", "新增承保地块查勘", "现场查勘", "site_survey", "已完成", 0, "2026-07-16", "新增承保地块现场查勘"),
-        ("task-demo-10", "育秧补贴政策宣导", "政策宣导", "policy_advocacy", "已完成", 1, "2026-07-14", "育秧补贴政策宣导"),
+    types = [
+        ("核查异常长势", "poor_growth", ["三分场水稻长势异常核查", "旱情地块长势复核", "苗期长势偏弱核查", "分蘖期长势异常核查"]),
+        ("农作培训", "training", ["水稻绿色防控技术培训", "村级协保员业务培训", "新型经营主体技术培训"]),
+        ("督导施肥", "fertilization", ["早稻追肥作业督导", "水稻穗肥施用督导", "无人机施肥作业督导"]),
+        ("政策宣导", "policy_advocacy", ["政策性农险政策宣导", "育秧补贴政策宣导", "惠农政策进村宣导"]),
+        ("现场查勘", "site_survey", ["受灾地块现场查勘定损", "新增承保地块查勘", "台风灾后现场查勘"]),
+        ("重点对象跟进", "key_followup", ["种植大户承保跟进", "合作社续保跟进", "重点农户回访"]),
+    ]
+    statuses = ["待下发", "待领取", "进行中", "已完成"]
+    executors = [
+        {"name": "胡强", "role": "村级协保员"}, {"name": "陈志远", "role": "乡级协保员"}, {"name": "王芳", "role": "村级协保员"},
+        {"name": "刘建华", "role": "乡级协保员"}, {"name": "张国强", "role": "村级协保员"}, {"name": "赵丽华", "role": "乡级协保员"},
+        {"name": "李建国", "role": "村级协保员"}, {"name": "周晓梅", "role": "乡级协保员"},
     ]
     rows = []
-    for tid, name, type_name, typ, status, vidx, date, remark in spec:
+    for i in range(count):
+        code, vmeta = items[i % len(items)]
+        vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
+        type_name, typ, names = types[i % len(types)]
+        name = names[(i // 6) % len(names)]
+        status = statuses[i % len(statuses)]
+        created_at = f"2026-08-{1 + (i % 26):02d} {8 + (i % 8):02d}:{(i * 7) % 60:02d}"
+        ex = executors[i % len(executors)] if status in ("进行中", "已完成") else None
+        pol = linked_policy(code) if typ in NEED_POLICY else {"policyNo": "", "insuredName": ""}
+        ev = []
+        if status == "已完成":
+            try:
+                base = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
+                submit = (base + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                ev = [{"url": PLACEHOLDER_IMG, "time": submit}, {"url": PLACEHOLDER_IMG, "time": submit}]
+            except Exception:
+                ev = [{"url": PLACEHOLDER_IMG, "time": created_at}]
+        rows.append({
+            "id": f"task-demo-{start_no + i}", "name": name, "type": typ, "typeName": type_name, "status": status,
+            "villageCode": code, "villageName": vname, "createdAt": created_at,
+            "executor": ex, "remark": remark_for(type_name, name), "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
+            "requirement": REQUIREMENT_BY_TYPE.get(typ, "48 小时内反馈。"),
+            "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
+            "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
+            "evidence": ev,
+        })
+    return rows
+
+
+def evidence_for(status, created_at, placeholder_url):
+    """已完成任务：影像资料提交时间 = 创建时间 + 3 小时（不得早于创建时间）。"""
+    if status != "已完成":
+        return []
+    from datetime import datetime, timedelta
+    try:
+        base = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
+        submit = (base + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+        return [{"url": placeholder_url, "time": submit}, {"url": placeholder_url, "time": submit}]
+    except Exception:
+        return [{"url": placeholder_url, "time": created_at}]
+
+
+def demo_tasks(villages):
+    """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
+    from datetime import datetime, timedelta
+    PLACEHOLDER_IMG = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='160'%3E%3Crect width='240' height='160' fill='%23a7f3d0'/%3E%3Crect x='24' y='24' width='90' height='60' fill='%2334d399'/%3E%3Crect x='130' y='60' width='86' height='70' fill='%2310b981'/%3E%3C/svg%3E"
+    items = list(villages.items())
+    spec = [
+        # (id, 具体标题name, 类别typeName, type, status, 村索引, 创建时间, 备注)
+        ("task-demo-1", "三分场水稻长势异常核查", "核查异常长势", "poor_growth", "待下发", 0, "2026-08-03 09:30", "三分场水稻长势异常，需到场核实"),
+        ("task-demo-2", "水稻绿色防控技术培训", "农作培训", "training", "已完成", 1, "2026-07-30 10:15", "水稻绿色防控技术培训"),
+        ("task-demo-3", "早稻追肥作业督导", "督导施肥", "fertilization", "进行中", 2, "2026-07-28 08:40", "追肥作业督导与记录"),
+        ("task-demo-4", "政策性农险政策宣导", "政策宣导", "policy_advocacy", "待下发", 3, "2026-07-26 14:05", "政策性农业保险政策宣导"),
+        ("task-demo-5", "受灾地块现场查勘定损", "现场查勘", "site_survey", "进行中", 4, "2026-07-24 09:50", "受灾地块现场查勘定损"),
+        ("task-demo-6", "种植大户承保跟进", "重点对象跟进", "key_followup", "待领取", 5, "2026-07-22 11:30", "种植大户承保跟进"),
+        ("task-demo-7", "旱情地块长势复核", "核查异常长势", "poor_growth", "待领取", 6, "2026-07-20 15:20", "旱情地块长势复核"),
+        ("task-demo-8", "村级协保员业务培训", "农作培训", "training", "已完成", 7, "2026-07-18 09:00", "村级协保员业务培训"),
+        ("task-demo-9", "新增承保地块查勘", "现场查勘", "site_survey", "已完成", 0, "2026-07-16 10:25", "新增承保地块现场查勘"),
+        ("task-demo-10", "育秧补贴政策宣导", "政策宣导", "policy_advocacy", "已完成", 1, "2026-07-14 13:40", "育秧补贴政策宣导"),
+    ]
+    rows = []
+    for tid, name, type_name, typ, status, vidx, created_at, remark in spec:
         code, vmeta = items[vidx % len(items)]
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
         # 仅 异常核查/督导施肥/现场查勘(定损)/重点对象跟进 类任务需关联保单，其余不关联
@@ -192,13 +263,13 @@ def demo_tasks(villages):
         ex = executors[abs(int(tid.rsplit('-', 1)[-1])) % len(executors)] if status in ("进行中", "已完成") else None
         rows.append({
             "id": tid, "name": name, "type": typ, "typeName": type_name, "status": status,
-            "villageCode": code, "villageName": vname, "createdAt": date,
+            "villageCode": code, "villageName": vname, "createdAt": created_at,
             "executor": ex,
             "remark": remark, "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
             "requirement": REQUIREMENT_BY_TYPE.get(typ, "48 小时内反馈。"),
             "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
-            "evidence": [],
+            "evidence": evidence_for(status, created_at, PLACEHOLDER_IMG),
         })
     return rows
 
@@ -219,7 +290,7 @@ def main():
         ])
         all_levels.append(G.build_level_aggregation(vg, manifest))
         all_policy.append({code: policy_growth_for_date(code, di) for code, _ in G.INSURED_VILLAGES})
-        tasks_of_date = G.generate_tasks(villages, vg) + demo_tasks(villages)
+        tasks_of_date = G.generate_tasks(villages, vg) + demo_tasks(villages) + batch_tasks(villages, 11, 46)
         for idx, t in enumerate(tasks_of_date):
             t["taskNo"] = f"RW-2026-{idx + 1:04d}"  # 任务编号
         all_tasks.append(tasks_of_date)
