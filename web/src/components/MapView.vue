@@ -115,7 +115,7 @@
       @select-tab="setAgriTab"
       @select-village="handleAgriSelectVillage"
       @select-child="handleAgriSelectChild"
-      @locate-task="(code) => locateAgriToVillage(code)"
+      @locate-task="(code, seed) => locateAgriToVillage(code, seed)"
       @close-task="clearAgriTaskLocation"
     />
     <div v-if="agriMonitoringStore.isOpen && agriMonitoringStore.visible" class="agri-legend" aria-label="长势 5 级图例">

@@ -43,7 +43,7 @@ export interface AgriMonitoringMode {
   drillToTownship(t: { code: string; name: string; cityCode: string; countyCode: string }): Promise<void>
   createTaskFromAnomaly(village: VillageGrowth): AgriTask | null
   locateTask(location: { lon: number; lat: number; name: string }): void
-  locateToVillage(code: string): Promise<void>
+  locateToVillage(code: string, seed: string): Promise<void>
   clearTaskLocation(): void
   refresh(): void
 }
@@ -271,8 +271,14 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     }).addTo(map)
   }
 
-  /** 任务定位：下钻到对应村 + 在村级地图随机某块地块上显示定位标识。 */
-  async function locateToVillage(code: string) {
+  let locatedSeed: string | null = null
+  /** 任务定位：下钻到对应村 + 在村级地图某块地块上显示定位标识；同任务位置固定，再次点击隐藏。 */
+  async function locateToVillage(code: string, seed: string) {
+    // 再次点击同一个任务 → 隐藏定位标识
+    if (marker && locatedSeed === seed) {
+      marker.remove(); marker = null; locatedSeed = null; store.setTaskLocation(null)
+      return
+    }
     const village = store.villages?.find((v) => v.code === code)
     if (!village) return
     await drillToVillageInner(village)
@@ -282,7 +288,8 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
       const fc = await fetchJSON<{ features?: Array<{ geometry?: { coordinates?: unknown } }> }>(`/data/parcels/${code}.geojson`)
       const feats = fc.features ?? []
       if (feats.length) {
-        const f = feats[(Math.random() * feats.length) | 0]!  // 随机一块地块
+        let h = 0; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) | 0  // 确定性：同任务固定地块
+        const f = feats[Math.abs(h) % feats.length]!
         const coords = (f.geometry?.coordinates as unknown[] ?? []).flat(Infinity) as number[]
         if (coords.length >= 2) { lon = coords[0]!; lat = coords[1]! }
       }
@@ -293,6 +300,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     marker = L.marker([lat, lon], {
       icon: L.divIcon({ className: 'agri-loc-marker', html: '<div class="agri-loc-pin"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }),
     }).addTo(map)
+    locatedSeed = seed
     map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 0.8 })
   }
 
