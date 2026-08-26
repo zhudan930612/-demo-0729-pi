@@ -123,6 +123,16 @@ def policy_growth_for_date(village_code, di):
     return rows
 
 
+# 各类任务的执行要求（按类型）；同一任务类型一致
+REQUIREMENT_BY_TYPE = {
+    "poor_growth": "48 小时内到场核查并提交结论；异常地块拍照留痕，备注减产程度与承保面积。",
+    "training": "按计划完成培训并留存签到与影像；参训农户覆盖率 ≥ 90%。",
+    "fertilization": "如实记录施肥作业（时间/面积/投入品）；异常情况及时上报。",
+    "policy_advocacy": "完成宣导并留存影像；确保农户知晓保障/补贴政策，收集意见反馈。",
+    "site_survey": "查勘后 48 小时内提交查勘记录与影像材料，明确损失程度。",
+    "key_followup": "更新重点对象台账，反馈承保/续保意向；异常诉求及时上报。",
+}
+
 # 各类任务的 SOP（分点、具体）；同一任务类型 SOP 一致
 SOP_BY_TYPE = {
     "poor_growth": "1. 携带遥感图斑定位异常地块；\n2. 现场核对作物长势、受害程度与承保面积；\n3. 拍照留痕（田块全景+近景）并记录坐标；\n4. 询问农户减产情况，核实是否与承保一致；\n5. 48 小时内反馈核查结论。",
@@ -185,7 +195,7 @@ def demo_tasks(villages):
             "villageCode": code, "villageName": vname, "createdAt": date,
             "executor": ex,
             "remark": remark, "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
-            "requirement": "48 小时内反馈核查结论。",
+            "requirement": REQUIREMENT_BY_TYPE.get(typ, "48 小时内反馈。"),
             "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
             "evidence": [],
