@@ -93,7 +93,7 @@
 import { computed, ref } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
-import { tasksForRegion } from '../../features/agri-monitoring/agriMonitoringData'
+
 import type { AgriTask, TaskStatus } from '../../features/agri-monitoring/agriMonitoringTypes'
 
 const emit = defineEmits<{ 'locate-task': [location: { lon: number; lat: number; name: string }]; 'close-task': [] }>()
@@ -113,8 +113,13 @@ const visibleTask = computed<AgriTask | null>(() => {
 
 const statusKey = (s: TaskStatus) => (s === '待下发' ? 'pending' : s === '待领取' ? 'claim' : s === '进行中' ? 'doing' : 'done')
 
-// 不同层级查看相应层级任务（R5-6）
-const filteredTasks = computed(() => tasksForRegion(allTasks.value, agri.villages, currentLevel.value, currentCode.value))
+// 与异常监测一致：非村层级显示全部村任务，进入某村显示该村任务
+const filteredTasks = computed(() => {
+  if (currentLevel.value === 'village') {
+    return allTasks.value.filter((t) => t.villageCode === currentCode.value)
+  }
+  return allTasks.value
+})
 
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }
