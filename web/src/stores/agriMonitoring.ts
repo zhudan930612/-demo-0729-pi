@@ -33,6 +33,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
     generation: 0,
     isOpen: false,
     // 异常详情（村级）打开村码
+    taskDrawerOpen: false as boolean, // 全部任务抽屉打开时隐藏长势监测·时序区
     villageDetailCode: null as string | null,
     // 任务详情打开的任务 id
     openTaskId: null as string | null,

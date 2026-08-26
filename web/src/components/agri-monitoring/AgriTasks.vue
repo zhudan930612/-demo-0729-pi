@@ -64,6 +64,7 @@
     </div>
 
     <!-- 全部任务：分户清单抽屉样式 -->
+    <Teleport to="body">
     <Transition name="side-drawer">
     <aside v-if="showAll" class="task-drawer" aria-label="全部任务">
       <header class="task-drawer-header">
@@ -71,13 +72,11 @@
         <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
       </header>
 
-      <!-- 统计摘要：始终显示（布局不变） -->
+      <!-- 统计概况：可点击作为列表筛选 -->
       <section class="task-drawer-summary">
-        <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
-        <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
-        <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
-        <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
-        <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
+        <button v-for="s in drawerStati" :key="s" type="button" class="ds-item" :class="[`ds-${sfKey(s)}`, { active: drawerStatus === s }]" @click="drawerStatus = s">
+          <span>{{ s }}</span><strong>{{ s === '总任务' ? allTasks.length : statusCount(s) }}</strong>
+        </button>
       </section>
 
       <!-- 左右分栏：左卡片列表 + 右详情 -->
@@ -85,8 +84,7 @@
         <section class="task-drawer-list-pane">
           <div class="task-drawer-tools">
             <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
-            <span>总任务 {{ allTasks.length }}</span>
-          </div>
+              </div>
           <div class="task-drawer-cards">
             <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
             <button v-for="t in pageItems" :key="t.id" type="button" class="drawer-card" :class="{ active: drawerTaskId === t.id }" @click="selectFromDrawer(t.id)">
@@ -146,8 +144,7 @@
       <template v-else>
         <div class="task-drawer-tools">
           <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
-          <span>总任务 {{ allTasks.length }}</span>
-        </div>
+          </div>
         <div class="task-drawer-list">
           <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
           <table>
@@ -173,6 +170,7 @@
       </template>
     </aside>
     </Transition>
+    </Teleport>
 
     <!-- 大图浮窗 -->
     <div v-if="lightbox" class="lightbox-overlay" @click.self="lightbox = null">
@@ -192,6 +190,7 @@ const emit = defineEmits<{ 'locate-task': [code: string, seed: string]; 'close-t
 const store = useDrilldownStore()
 const agri = useAgriMonitoringStore()
 const showAll = ref(false)
+watch(showAll, (v) => { agri.taskDrawerOpen = v })  // 抽屉打开时隐藏长势监测·时序区
 const lightbox = ref<{ url: string; time: string } | null>(null)
 
 const allTasks = computed(() => agri.allTasks)
@@ -202,10 +201,14 @@ const currentCode = computed(() => store.current.code)
 const query = ref('')
 const page = ref(1)
 const pageSize = 10
+const drawerStatus = ref<string>('总任务')  // 顶部统计概况筛选
+const drawerStati = ['总任务', '待下发', '待领取', '进行中', '已完成']
 const filteredAll = computed(() => {
+  let tasks = allTasks.value
+  if (drawerStatus.value !== '总任务') tasks = tasks.filter((t) => t.status === drawerStatus.value)
   const v = query.value.toLowerCase()
-  if (!v) return allTasks.value
-  return allTasks.value.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(v)))
+  if (v) tasks = tasks.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(v)))
+  return tasks
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize)))
 const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * pageSize, page.value * pageSize))
@@ -320,9 +323,17 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
 .task-drawer-close:hover { background: #cbd5e1; }
 .task-drawer-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #e2e8f0; }
-.task-drawer-summary > div { padding: 12px 16px; background: #fff; }
-.task-drawer-summary span { display: block; color: #64748b; font-size: 11px; }
-.task-drawer-summary strong { display: block; margin-top: 4px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.ds-item { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 16px; background: #fff; border: 0; cursor: pointer; text-align: left; transition: background 0.12s ease; }
+.ds-item.active { background: #eff6ff; }
+.ds-item:hover { background: #f1f5f9; }
+.ds-item span { font-size: 11px; }
+.ds-item strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+/* 概况文字颜色与状态对应 */
+.ds-item.ds-all span { color: #64748b; } .ds-item.ds-all strong { color: #0f172a; }
+.ds-item.ds-pending span { color: #1d4ed8; } .ds-item.ds-pending strong { color: #1d4ed8; }
+.ds-item.ds-claim span { color: #c2410c; } .ds-item.ds-claim strong { color: #c2410c; }
+.ds-item.ds-doing span { color: #a16207; } .ds-item.ds-doing strong { color: #a16207; }
+.ds-item.ds-done span { color: #166534; } .ds-item.ds-done strong { color: #166534; }
 .task-drawer-tools { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 18px; }
 .task-drawer-tools input { min-width: 0; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; width: 280px; }
 .task-drawer-tools span { color: #64748b; font-size: 12px; }

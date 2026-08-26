@@ -122,7 +122,7 @@
       <span v-for="lv in agriLegend" :key="lv.key" class="agri-legend-item"><i class="agri-legend-swatch" :style="{ background: lv.color }"></i>{{ lv.label }}</span>
     </div>
     <AgriDateControl
-      v-if="agriMonitoringStore.isOpen"
+      v-if="agriMonitoringStore.isOpen && !agriMonitoringStore.taskDrawerOpen"
       :phase="agriMonitoringStore.phase"
       :dates="agriMonitoringStore.dates"
       :selected-date="agriMonitoringStore.selectedDate"
