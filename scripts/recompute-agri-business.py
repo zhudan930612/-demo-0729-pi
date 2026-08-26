@@ -181,7 +181,15 @@ def batch_tasks(villages, start_no, count):
         ("现场查勘", "site_survey", ["受灾地块现场查勘定损", "新增承保地块查勘", "台风灾后现场查勘"]),
         ("重点对象跟进", "key_followup", ["种植大户承保跟进", "合作社续保跟进", "重点农户回访"]),
     ]
-    statuses = ["待下发", "待领取", "进行中", "已完成"]
+    # 类型状态偏好：核查异常长势/现场查勘 多已完成；农作培训/政策宣导 少已完成
+    STATUS_PREF = {
+        "poor_growth": ["已完成", "已完成", "待领取", "已完成", "进行中", "已完成"],
+        "site_survey": ["已完成", "已完成", "进行中", "已完成", "待领取"],
+        "fertilization": ["进行中", "待下发", "待领取", "已完成"],
+        "key_followup": ["待领取", "进行中", "待下发", "已完成"],
+        "training": ["待下发", "进行中", "待领取", "已完成", "待下发"],
+        "policy_advocacy": ["待下发", "待领取", "进行中", "已完成", "待下发"],
+    }
     executors = [
         {"name": "胡强", "role": "村级协保员"}, {"name": "陈志远", "role": "乡级协保员"}, {"name": "王芳", "role": "村级协保员"},
         {"name": "刘建华", "role": "乡级协保员"}, {"name": "张国强", "role": "村级协保员"}, {"name": "赵丽华", "role": "乡级协保员"},
@@ -193,7 +201,7 @@ def batch_tasks(villages, start_no, count):
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
         type_name, typ, names = types[i % len(types)]
         name = names[(i // 6) % len(names)]
-        status = statuses[i % len(statuses)]
+        status = STATUS_PREF[typ][(i // 6) % len(STATUS_PREF[typ])]
         created_at = f"2026-08-{1 + (i % 26):02d} {8 + (i % 8):02d}:{(i * 7) % 60:02d}"
         ex = executors[i % len(executors)] if status in ("进行中", "已完成") else None
         pol = linked_policy(code) if typ in NEED_POLICY else {"policyNo": "", "insuredName": ""}
@@ -238,13 +246,13 @@ def demo_tasks(villages):
     spec = [
         # (id, 具体标题name, 类别typeName, type, status, 村索引, 创建时间, 备注)
         ("task-demo-1", "三分场水稻长势异常核查", "核查异常长势", "poor_growth", "待下发", 0, "2026-08-03 09:30", "三分场水稻长势异常，需到场核实"),
-        ("task-demo-2", "水稻绿色防控技术培训", "农作培训", "training", "已完成", 1, "2026-07-30 10:15", "水稻绿色防控技术培训"),
+        ("task-demo-2", "三分场水稻长势复核", "核查异常长势", "poor_growth", "已完成", 1, "2026-07-30 10:15", "三分场水稻长势复核"),
         ("task-demo-3", "早稻追肥作业督导", "督导施肥", "fertilization", "进行中", 2, "2026-07-28 08:40", "追肥作业督导与记录"),
         ("task-demo-4", "政策性农险政策宣导", "政策宣导", "policy_advocacy", "待下发", 3, "2026-07-26 14:05", "政策性农业保险政策宣导"),
         ("task-demo-5", "受灾地块现场查勘定损", "现场查勘", "site_survey", "进行中", 4, "2026-07-24 09:50", "受灾地块现场查勘定损"),
         ("task-demo-6", "种植大户承保跟进", "重点对象跟进", "key_followup", "待领取", 5, "2026-07-22 11:30", "种植大户承保跟进"),
         ("task-demo-7", "旱情地块长势复核", "核查异常长势", "poor_growth", "待领取", 6, "2026-07-20 15:20", "旱情地块长势复核"),
-        ("task-demo-8", "村级协保员业务培训", "农作培训", "training", "已完成", 7, "2026-07-18 09:00", "村级协保员业务培训"),
+        ("task-demo-8", "台风灾后田块查勘", "现场查勘", "site_survey", "已完成", 7, "2026-07-18 09:00", "台风灾后田块查勘"),
         ("task-demo-9", "新增承保地块查勘", "现场查勘", "site_survey", "已完成", 0, "2026-07-16 10:25", "新增承保地块现场查勘"),
         ("task-demo-10", "育秧补贴政策宣导", "政策宣导", "policy_advocacy", "已完成", 1, "2026-07-14 13:40", "育秧补贴政策宣导"),
     ]
