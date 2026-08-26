@@ -4,6 +4,7 @@
     <div v-if="!visibleTask" class="task-list">
       <div class="tasks-head">
         <span class="list-caption">任务列表</span>
+        <button type="button" class="view-top" @click="showAll = true">全部任务</button>
       </div>
       <div class="status-filter" aria-label="任务状态筛选">
         <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
@@ -184,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
@@ -204,7 +205,7 @@ const currentCode = computed(() => store.current.code)
 // 全部任务抽屉：搜索/分页/状态统计
 const query = ref('')
 const page = ref(1)
-const pageSize = 10
+const pageSize = ref(10)
 const drawerStatus = ref<string>('总任务')  // 顶部统计概况筛选
 const drawerStati = ['总任务', '待下发', '待领取', '进行中', '已完成']
 const filteredAll = computed(() => {
@@ -214,8 +215,37 @@ const filteredAll = computed(() => {
   if (v) tasks = tasks.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(v)))
   return tasks
 })
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize)))
-const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize.value)))
+const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+
+// 动态每页条数：按列表容器高度算填满（行高不变，不固定10条/页）
+const drawerListEl = ref<HTMLElement | null>(null)
+let drawerRO: ResizeObserver | null = null
+function computePageSize() {
+  const el = drawerListEl.value
+  if (!el) return
+  const row = el.querySelector<HTMLElement>('tbody tr')
+  if (!row) return
+  const rowH = row.getBoundingClientRect().height
+  const headH = el.querySelector('thead')?.getBoundingClientRect().height ?? 0
+  const avail = el.getBoundingClientRect().height - headH
+  pageSize.value = Math.max(2, Math.floor(avail / rowH))
+  if (page.value > totalPages.value) page.value = totalPages.value
+}
+function setupDrawerRO() {
+  drawerRO?.disconnect(); drawerRO = null
+  drawerListEl.value = null
+  nextTick(() => {
+    const el = document.querySelector('.task-drawer .task-drawer-list')
+    if (!el) return
+    drawerListEl.value = el as HTMLElement
+    computePageSize()
+    drawerRO = new ResizeObserver(() => computePageSize())
+    drawerRO.observe(el)
+  })
+}
+watch(showAll, (v) => { if (v) setupDrawerRO() }, { immediate: true })
+onUnmounted(() => drawerRO?.disconnect())
 watch(query, () => { page.value = 1 })
 watch(drawerStatus, () => { page.value = 1 })  // 状态切换返回第1页
 function statusCount(s: string) { return allTasks.value.filter((t) => t.status === s).length }
@@ -271,6 +301,8 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 <style scoped>
 .agri-tasks { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.view-top { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 650; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.view-top:hover { background: #dbeafe; }
 .list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
 .view-all-bottom:hover { background: #eef2f7; }
