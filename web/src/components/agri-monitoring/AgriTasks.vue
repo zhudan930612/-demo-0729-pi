@@ -55,9 +55,8 @@
         </div>
         <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无影像</div>
         <div v-else class="ev-grid">
-          <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
+          <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e, visibleTask.evidence)">
             <img :src="e.url" alt="影像缩略图" />
-            <span class="ev-time">{{ e.time }}</span>
           </button>
         </div>
       </div>
@@ -133,7 +132,7 @@
               </div>
               <div v-if="drawerTask.evidence.length === 0" class="sec-body">暂无影像</div>
               <div v-else class="ev-grid">
-                <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)"><img :src="e.url" alt="影像缩略图" /><span class="ev-time">{{ e.time }}</span></button>
+                <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e, drawerTask.evidence)"><img :src="e.url" alt="影像缩略图" /></button>
               </div>
             </div>
           </div>
@@ -172,15 +171,20 @@
     </Transition>
     </Teleport>
 
-    <!-- 大图浮窗 -->
-    <div v-if="lightbox" class="lightbox-overlay" @click.self="lightbox = null">
-      <div class="lightbox"><img :src="lightbox.url" alt="证据大图" /><span class="lb-time">{{ lightbox.time }}</span><button type="button" class="close-btn" @click="lightbox = null">✕</button></div>
+    <!-- 大图浮窗：支持左右切换 ← → -->
+    <Teleport to="body">
+    <div v-if="lightbox" class="lightbox-overlay" @click.self="closeLightbox">
+      <div class="lightbox">
+        <img :src="lightbox.images[lightbox.index]!.url" alt="证据大图" />
+        <span class="lb-count">{{ lightbox.index + 1 }} / {{ lightbox.images.length }}</span>
+      </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
@@ -191,7 +195,7 @@ const store = useDrilldownStore()
 const agri = useAgriMonitoringStore()
 const showAll = ref(false)
 watch(showAll, (v) => { agri.taskDrawerOpen = v })  // 抽屉打开时隐藏长势监测·时序区
-const lightbox = ref<{ url: string; time: string } | null>(null)
+const lightbox = ref<{ images: { url: string; time: string }[]; index: number } | null>(null)
 
 const allTasks = computed(() => agri.allTasks)
 const currentLevel = computed(() => store.current.level)
@@ -246,7 +250,22 @@ const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.creat
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }
 
-function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
+function openLightbox(e: { url: string; time: string }, src?: { url: string; time: string }[]) {
+  const images = src ?? (visibleTask.value?.evidence ?? [])
+  const idx = images.findIndex((ev) => ev.url === e.url)
+  lightbox.value = { images, index: idx >= 0 ? idx : 0 }
+}
+function closeLightbox() { lightbox.value = null }
+function lbPrev() { if (!lightbox.value) return; const n = lightbox.value.images.length; lightbox.value = { ...lightbox.value, index: (lightbox.value.index - 1 + n) % n } }
+function lbNext() { if (!lightbox.value) return; const n = lightbox.value.images.length; lightbox.value = { ...lightbox.value, index: (lightbox.value.index + 1) % n } }
+function onLbKey(e: KeyboardEvent) {
+  if (!lightbox.value) return
+  if (e.key === 'ArrowLeft') lbPrev()
+  else if (e.key === 'ArrowRight') lbNext()
+  else if (e.key === 'Escape') closeLightbox()
+}
+onMounted(() => window.addEventListener('keydown', onLbKey))
+onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 </script>
 
 <style scoped>
@@ -366,9 +385,15 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
 .task-drawer-pagination span { color: #64748b; font-size: 12px; }
-.lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
-.lightbox { position: relative; }
-.lightbox img { max-width: 80vw; max-height: 80vh; border-radius: 8px; }
+.lightbox-overlay { position: fixed; inset: 0; z-index: 1300; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; }
+.lightbox { position: relative; display: flex; align-items: center; }
+.lightbox img { max-width: 78vw; max-height: 82vh; border-radius: 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.45); }
+.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.88); color: #0f172a; font-size: 24px; cursor: pointer; display: grid; place-items: center; }
+.lb-nav:hover { background: #fff; }
+.lb-prev { left: -54px; }
+.lb-next { right: -54px; }
+.lb-count { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 12px; background: rgba(15,23,42,0.55); padding: 3px 8px; border-radius: 999px; }
+.lb-time { position: absolute; bottom: -28px; left: 50%; transform: translateX(-50%); color: #e2e8f0; font-size: 12px; background: rgba(15,23,42,0.55); padding: 3px 8px; border-radius: 999px; }
 .lb-time { display: block; text-align: center; color: #fff; margin-top: 6px; }
 .lightbox .close-btn { position: absolute; top: -26px; right: 0; color: #fff; background: rgba(0,0,0,0.5); border-radius: 4px; font-size: 12px; padding: 2px 6px; }
 </style>
