@@ -101,7 +101,7 @@ python scripts/check-codes.py       # 修改编码归属逻辑时
 ## 当前缺口
 
 - 尚无独立全仓架构文档；当前架构以源码为准，历史实施决策见 `docs/archive/`，长期架构决策见 `docs/adr/`。
-- 尚无统一版本化执行计划目录和 CI；验证依赖本地命令。
+- 尚无 CI；验证依赖本地命令。统一实施计划目录见 `docs/plans/`。
 - `scripts/` 尚无统一锁定的 Python 依赖文件；新增依赖时同步 `README.md`。
 
 ## 不应写在这里
