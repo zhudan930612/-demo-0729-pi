@@ -4,7 +4,7 @@
     <div v-if="!visibleTask" class="task-list">
       <div class="tasks-head">
         <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
-        <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
+        <button type="button" class="view-all" @click="showAll = !showAll">全部任务</button>
       </div>
       <div class="status-filter" aria-label="任务状态筛选">
         <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
@@ -63,7 +63,8 @@
       </div>
     </div>
 
-    <!-- 查看全部任务：分户清单抽屉样式 -->
+    <!-- 全部任务：分户清单抽屉样式 -->
+    <Transition name="side-drawer">
     <aside v-if="showAll" class="task-drawer" aria-label="全部任务">
       <header class="task-drawer-header">
         <div><span class="task-drawer-eyebrow">任务清单</span><h2 class="task-drawer-title">全部任务</h2></div>
@@ -78,6 +79,7 @@
         </button>
       </div>
     </aside>
+    </Transition>
 
     <!-- 大图浮窗 -->
     <div v-if="lightbox" class="lightbox-overlay" @click.self="lightbox = null">
@@ -197,14 +199,14 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
 .ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
 .ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
-/* 查看全部任务：分户清单抽屉样式（右侧固定抽屉） */
-.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(430px, 88vw); z-index: 1150; display: flex; flex-direction: column; background: #fff; box-shadow: -8px 0 28px rgba(15,23,42,0.2); }
-.task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
-.task-drawer-eyebrow { display: block; font-size: 11px; color: #2563eb; font-weight: 600; letter-spacing: 0.02em; margin-bottom: 2px; }
-.task-drawer-title { font-size: 17px; font-weight: 700; color: #0f172a; margin: 0; }
-.task-drawer-close { border: 0; background: transparent; color: #64748b; font-size: 20px; cursor: pointer; line-height: 1; }
+/* 全部任务：与分户清单抽屉一致的右侧圆角抽屉 */
+.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1050; width: min(440px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); will-change: transform; }
+.task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid rgba(148,163,184,0.2); }
+.task-drawer-eyebrow { display: block; font-size: 11px; color: #2563eb; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+.task-drawer-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0; }
+.task-drawer-close { border: 0; background: transparent; color: #64748b; font-size: 22px; cursor: pointer; line-height: 1; padding: 2px; }
 .task-drawer-close:hover { color: #0f172a; }
-.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
+.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 8px; }
 .all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; text-align: left; }
 .all-row:hover { background: #f8fafc; }
 .lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
