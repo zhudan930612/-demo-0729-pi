@@ -127,25 +127,25 @@ def demo_tasks(villages):
     """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
     items = list(villages.items())
     spec = [
-        # (id, 具体标题name, 类别typeName, type, status, 村索引, 备注)
-        ("task-demo-1", "三分场水稻长势异常核查", "核查异常长势", "poor_growth", "待下发", 0, "三分场水稻长势异常，需到场核实"),
-        ("task-demo-2", "水稻绿色防控技术培训", "农作培训", "training", "已完成", 1, "水稻绿色防控技术培训"),
-        ("task-demo-3", "早稻追肥作业督导", "督导施肥", "fertilization", "进行中", 2, "追肥作业督导与记录"),
-        ("task-demo-4", "政策性农险政策宣导", "政策宣导", "policy_advocacy", "待下发", 3, "政策性农业保险政策宣导"),
-        ("task-demo-5", "受灾地块现场查勘定损", "现场查勘", "site_survey", "进行中", 4, "受灾地块现场查勘定损"),
-        ("task-demo-6", "种植大户承保跟进", "重点对象跟进", "key_followup", "待领取", 5, "种植大户承保跟进"),
-        ("task-demo-7", "旱情地块长势复核", "核查异常长势", "poor_growth", "待领取", 6, "旱情地块长势复核"),
-        ("task-demo-8", "村级协保员业务培训", "农作培训", "training", "已完成", 7, "村级协保员业务培训"),
-        ("task-demo-9", "新增承保地块查勘", "现场查勘", "site_survey", "已完成", 0, "新增承保地块现场查勘"),
-        ("task-demo-10", "育秧补贴政策宣导", "政策宣导", "policy_advocacy", "已完成", 1, "育秧补贴政策宣导"),
+        # (id, 具体标题name, 类别typeName, type, status, 村索引, 日期, 备注)
+        ("task-demo-1", "三分场水稻长势异常核查", "核查异常长势", "poor_growth", "待下发", 0, "2026-08-03", "三分场水稻长势异常，需到场核实"),
+        ("task-demo-2", "水稻绿色防控技术培训", "农作培训", "training", "已完成", 1, "2026-07-30", "水稻绿色防控技术培训"),
+        ("task-demo-3", "早稻追肥作业督导", "督导施肥", "fertilization", "进行中", 2, "2026-07-28", "追肥作业督导与记录"),
+        ("task-demo-4", "政策性农险政策宣导", "政策宣导", "policy_advocacy", "待下发", 3, "2026-07-26", "政策性农业保险政策宣导"),
+        ("task-demo-5", "受灾地块现场查勘定损", "现场查勘", "site_survey", "进行中", 4, "2026-07-24", "受灾地块现场查勘定损"),
+        ("task-demo-6", "种植大户承保跟进", "重点对象跟进", "key_followup", "待领取", 5, "2026-07-22", "种植大户承保跟进"),
+        ("task-demo-7", "旱情地块长势复核", "核查异常长势", "poor_growth", "待领取", 6, "2026-07-20", "旱情地块长势复核"),
+        ("task-demo-8", "村级协保员业务培训", "农作培训", "training", "已完成", 7, "2026-07-18", "村级协保员业务培训"),
+        ("task-demo-9", "新增承保地块查勘", "现场查勘", "site_survey", "已完成", 0, "2026-07-16", "新增承保地块现场查勘"),
+        ("task-demo-10", "育秧补贴政策宣导", "政策宣导", "policy_advocacy", "已完成", 1, "2026-07-14", "育秧补贴政策宣导"),
     ]
     rows = []
-    for tid, name, type_name, typ, status, vidx, remark in spec:
+    for tid, name, type_name, typ, status, vidx, date, remark in spec:
         code, vmeta = items[vidx % len(items)]
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
         rows.append({
             "id": tid, "name": name, "type": typ, "typeName": type_name, "status": status,
-            "villageCode": code, "villageName": vname, "createdAt": "2026-07-27",
+            "villageCode": code, "villageName": vname, "createdAt": date,
             "executor": {"name": "李四", "role": "协保员"} if status in ("进行中", "已完成") else None,
             "remark": remark, "sopAction": "到场核实并拍照留痕，核对长势/承保面积。",
             "requirement": "48 小时内反馈核查结论。",

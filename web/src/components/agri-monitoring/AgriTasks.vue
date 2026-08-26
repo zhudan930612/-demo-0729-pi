@@ -6,6 +6,9 @@
         <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
         <button type="button" class="view-all" @click="showAll = !showAll">查看全部任务</button>
       </div>
+      <div class="status-filter" aria-label="任务状态筛选">
+        <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="{ active: statusFilter === s }" @click="statusFilter = s">{{ s }}</button>
+      </div>
       <div v-if="listTasks.length === 0" class="empty">暂无任务</div>
       <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
         <span class="task-main">
@@ -96,7 +99,7 @@ import { computed, ref } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
-import type { AgriTask, TaskStatus } from '../../features/agri-monitoring/agriMonitoringTypes'
+import { TASK_STATUSES, type AgriTask, type TaskStatus } from '../../features/agri-monitoring/agriMonitoringTypes'
 
 const emit = defineEmits<{ 'locate-task': [location: { lon: number; lat: number; name: string }]; 'close-task': [] }>()
 const store = useDrilldownStore()
@@ -115,15 +118,18 @@ const visibleTask = computed<AgriTask | null>(() => {
 
 const statusKey = (s: TaskStatus) => (s === '待下发' ? 'pending' : s === '待领取' ? 'claim' : s === '进行中' ? 'doing' : 'done')
 
-// 与异常监测一致：非村层级显示全部村任务，进入某村显示该村任务
+// 状态筛选
+const statusFilter = ref<string>('全部')
+const statusFilters = ['全部', ...TASK_STATUSES]
+// 与异常监测一致：非村层级显示全部村任务，进入某村显示该村任务；再按状态筛
 const filteredTasks = computed(() => {
-  if (currentLevel.value === 'village') {
-    return allTasks.value.filter((t) => t.villageCode === currentCode.value)
-  }
-  return allTasks.value
+  let tasks = allTasks.value
+  if (currentLevel.value === 'village') tasks = tasks.filter((t) => t.villageCode === currentCode.value)
+  if (statusFilter.value !== '全部') tasks = tasks.filter((t) => t.status === statusFilter.value)
+  return tasks
 })
-// 列表只显示最近 10 条
-const listTasks = computed(() => filteredTasks.value.slice(0, 10))
+// 按日期倒序 + 只显示最近 10 条
+const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10))
 
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }
@@ -137,6 +143,10 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .view-all:hover { background: #eef2f7; }
+.status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.sf-item { border: 1px solid rgba(148,163,184,0.3); border-radius: 999px; background: #fff; color: #64748b; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease; }
+.sf-item:hover { border-color: #94a3b8; color: #334155; }
+.sf-item.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
