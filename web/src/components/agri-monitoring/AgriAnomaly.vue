@@ -7,7 +7,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
         </span>
       </div>
-      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">{{ batchDispatched ? '一键取消' : '一键派发' }}</button>
+      <button v-if="rows.length && (dispatchableCount > 0 || dispatchedCount > 0)" type="button" class="batch-btn" @click="batchDispatch">{{ dispatchedCount > 0 ? '一键取消' : '一键派发' }}</button>
     </div>
     <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
@@ -92,16 +92,14 @@ function createTask(v: VillageAnomaly) {
   agri.createTaskFromAnomaly(v)
 }
 function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
-// 一键派发（切换）：批量把未派发异常村转任务；再点「取消派发」撤销全部
+// 一键派发/一键取消（批量）：有可派发显示「一键派发」，有已派发显示「一键取消」
 const dispatchableCount = computed(() => rows.value.filter((v) => !converted.value.has(v.code)).length)
-const batchDispatched = ref(false)
+const dispatchedCount = computed(() => rows.value.filter((v) => converted.value.has(v.code)).length)
 function batchDispatch() {
-  if (batchDispatched.value) {
+  if (dispatchedCount.value > 0) {
     for (const v of rows.value) agri.cancelConvertVillage(v.code)
-    batchDispatched.value = false
   } else {
     for (const v of rows.value) agri.createTaskFromAnomaly(v)
-    batchDispatched.value = true
   }
 }
 </script>
