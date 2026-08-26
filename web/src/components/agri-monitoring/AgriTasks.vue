@@ -70,14 +70,30 @@
         <div><span class="task-drawer-eyebrow">任务清单</span><h2 class="task-drawer-title">全部任务</h2></div>
         <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
       </header>
+      <section class="task-drawer-summary">
+        <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
+        <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
+        <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
+        <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
+        <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
+      </section>
+      <div class="task-drawer-tools">
+        <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
+        <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+      </div>
       <div class="task-drawer-list">
-        <div v-if="allTasks.length === 0" class="empty">暂无任务</div>
-        <button v-for="t in allTasks" :key="t.id" type="button" class="all-row" @click="selectFromAll(t.id)">
+        <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
+        <button v-for="t in pageItems" :key="t.id" type="button" class="all-row" @click="selectFromAll(t.id)">
           <span class="task-name">{{ t.name }}</span>
           <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
           <span class="task-village">{{ t.villageName }}</span>
         </button>
       </div>
+      <footer class="task-drawer-pagination">
+        <button :disabled="page === 1" @click="page--">上一页</button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button :disabled="page === totalPages" @click="page++">下一页</button>
+      </footer>
     </aside>
     </Transition>
 
@@ -89,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useDrilldownStore } from '../../stores/drilldown'
 import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
 
@@ -104,6 +120,20 @@ const lightbox = ref<{ url: string; time: string } | null>(null)
 const allTasks = computed(() => agri.allTasks)
 const currentLevel = computed(() => store.current.level)
 const currentCode = computed(() => store.current.code)
+
+// 全部任务抽屉：搜索/分页/状态统计
+const query = ref('')
+const page = ref(1)
+const pageSize = 10
+const filteredAll = computed(() => {
+  const v = query.value.toLowerCase()
+  if (!v) return allTasks.value
+  return allTasks.value.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(v)))
+})
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAll.value.length / pageSize)))
+const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+watch(query, () => { page.value = 1 })
+function statusCount(s: string) { return allTasks.value.filter((t) => t.status === s).length }
 
 const visibleTask = computed<AgriTask | null>(() => {
   if (!agri.openTaskId) return null
@@ -206,9 +236,20 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-title { margin: 4px 0 0; overflow-wrap: anywhere; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .task-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
 .task-drawer-close:hover { background: #cbd5e1; }
+.task-drawer-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #e2e8f0; }
+.task-drawer-summary > div { padding: 12px 16px; background: #fff; }
+.task-drawer-summary span { display: block; color: #64748b; font-size: 11px; }
+.task-drawer-summary strong { display: block; margin-top: 4px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.task-drawer-tools { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 18px; }
+.task-drawer-tools input { min-width: 0; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; width: 280px; }
+.task-drawer-tools span { color: #64748b; font-size: 12px; }
 .task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
 .all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid #e2e8f0; background: transparent; cursor: pointer; text-align: left; font-size: 12px; }
 .all-row:hover { background: #ecfeff; }
+.task-drawer-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+.task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
+.task-drawer-pagination span { color: #64748b; font-size: 12px; }
 .lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
 .lightbox { position: relative; }
 .lightbox img { max-width: 80vw; max-height: 80vh; border-radius: 8px; }
