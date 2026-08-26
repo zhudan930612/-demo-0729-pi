@@ -180,22 +180,22 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .back-btn { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #2563eb; cursor: pointer; }
 .back-btn:hover { background: #eff6ff; color: #1d4ed8; }
 .back-btn svg { width: 18px; height: 18px; }
-.detail-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.detail-status { flex: none; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.detail-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 /* 任务摘要（备注）：顶部醒目块 */
-.detail-summary { padding: 12px 14px; border-radius: 10px; background: #eff6ff; border-left: 3px solid #2563eb; font-size: 13px; color: #1e3a8a; line-height: 1.65; margin-bottom: 14px; }
+.detail-summary { padding: 10px 12px; border-radius: 8px; background: #eff6ff; border-left: 3px solid #2563eb; font-size: 12px; color: #1e3a8a; line-height: 1.6; margin-bottom: 12px; }
 /* 详情分组：设计系统 Detail Sections（白色信息块 + 蓝色 kicker 分区标题 + 标签/值两列） */
-.detail-group { padding: 14px; border-radius: 10px; background: #f8fafc; margin-bottom: 12px; }
+.detail-group { padding: 12px; border-radius: 10px; background: #f8fafc; margin-bottom: 10px; }
 .detail-group:last-child { margin-bottom: 0; }
-.group-label { font-size: 12px; font-weight: 600; color: #2563eb; margin-bottom: 10px; letter-spacing: 0.02em; }
-.detail-meta { display: flex; flex-direction: column; gap: 10px; }
-.meta-row { display: flex; align-items: baseline; gap: 14px; font-size: 13px; color: #334155; }
-.meta-label { width: 64px; flex: none; color: #64748b; }
+.group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 8px; letter-spacing: 0.02em; }
+.detail-meta { display: flex; flex-direction: column; gap: 8px; }
+.meta-row { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #334155; }
+.meta-label { width: 60px; flex: none; color: #64748b; }
 .meta-value { flex: 1; color: #0f172a; overflow-wrap: anywhere; }
-.detail-sec { margin-bottom: 14px; }
+.detail-sec { margin-bottom: 12px; }
 .detail-sec:last-child { margin-bottom: 0; }
-.sec-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-.sec-body { font-size: 13px; color: #334155; line-height: 1.65; }
+.sec-label { font-size: 11px; color: #64748b; margin-bottom: 3px; }
+.sec-body { font-size: 12px; color: #334155; line-height: 1.6; }
 .loc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
