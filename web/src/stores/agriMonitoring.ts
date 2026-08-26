@@ -52,8 +52,9 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
     villages: (s) => s.villagesByDate?.[s.selectedDate] ?? null,
     levels: (s) => s.levelsByDate?.[s.selectedDate] ?? null,
     policyGrowth: (s) => s.policyByDate?.[s.selectedDate] ?? {},
-    tasks: (s) => s.tasksByDate?.[s.selectedDate] ?? [],
-    allTasks: (s) => [...(s.tasksByDate?.[s.selectedDate] ?? []), ...s.generatedTasks],
+    // 任务固定显示最近一期（与异常top一致，不随日期选择变化）
+    tasks: (s) => s.tasksByDate?.[s.tasksByDate.length - 1] ?? [],
+    allTasks: (s) => [...(s.tasksByDate?.[s.tasksByDate.length - 1] ?? []), ...s.generatedTasks],
     convertedSet: (s) => new Set(s.convertedVillageCodes),
   },
   actions: {
