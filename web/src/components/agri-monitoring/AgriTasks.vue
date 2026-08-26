@@ -144,7 +144,7 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .view-all:hover { background: #eef2f7; }
-.status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; padding-left: 4px; }
 .sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
 .sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
 /* 与状态标签颜色对应 */
