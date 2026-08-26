@@ -83,11 +83,20 @@
       </div>
       <div class="task-drawer-list">
         <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
-        <button v-for="t in pageItems" :key="t.id" type="button" class="all-row" @click="selectFromAll(t.id)">
-          <span class="task-name">{{ t.name }}</span>
-          <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
-          <span class="task-village">{{ t.villageName }}</span>
-        </button>
+        <table>
+          <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
+          <tbody>
+            <tr v-for="(t, idx) in pageItems" :key="t.id" @click="selectFromAll(t.id)">
+              <td>{{ (page - 1) * pageSize + idx + 1 }}</td>
+              <td class="t-no">{{ t.taskNo }}</td>
+              <td class="t-name">{{ t.name }}</td>
+              <td>{{ t.typeName }}</td>
+              <td><span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span></td>
+              <td>{{ t.villageName }}</td>
+              <td class="t-time">{{ t.createdAt }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       <footer class="task-drawer-pagination">
         <button :disabled="page === 1" @click="page--">上一页</button>
@@ -243,9 +252,14 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-tools { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 18px; }
 .task-drawer-tools input { min-width: 0; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; width: 280px; }
 .task-drawer-tools span { color: #64748b; font-size: 12px; }
-.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
-.all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid #e2e8f0; background: transparent; cursor: pointer; text-align: left; font-size: 12px; }
-.all-row:hover { background: #ecfeff; }
+.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.task-drawer-list table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; white-space: nowrap; }
+.task-drawer-list th, .task-drawer-list td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+.task-drawer-list tbody tr { cursor: pointer; }
+.task-drawer-list tbody tr:hover { background: #ecfeff; }
+.task-drawer-list .t-no { color: #94a3b8; font-variant-numeric: tabular-nums; }
+.task-drawer-list .t-name { font-weight: 600; color: #0f172a; }
+.task-drawer-list .t-time { color: #64748b; font-variant-numeric: tabular-nums; }
 .task-drawer-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
 .task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
