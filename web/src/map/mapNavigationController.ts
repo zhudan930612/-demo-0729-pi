@@ -25,7 +25,10 @@ export function createMapNavigationController(map: L.Map) {
     outlineLayer?.remove()
     outlineLayer = null
     if (!crumb.geometry) return
-    outlineLayer = L.geoJSON(toFeature(crumb.geometry), { style, interactive: false }).addTo(map)
+    // 区域轮廓在热力图(430)之上、注记(450)之下
+    const outlinePane = map.getPane('agriOutlinePane') ?? map.createPane('agriOutlinePane')
+    outlinePane.style.zIndex = '440'
+    outlineLayer = L.geoJSON(toFeature(crumb.geometry), { style, interactive: false, pane: 'agriOutlinePane' }).addTo(map)
   }
 
   function renderChildren(options: ChildLayerOptions) {

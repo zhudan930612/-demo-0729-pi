@@ -63,6 +63,12 @@ export function createParcelLayerController(
   let parcelAreaLabelLayer: L.LayerGroup | null = null
   let visible = false
 
+  // 地块边界在热力图(430)之上、天地图注记(450)之下；标签更上层
+  const boundaryPane = map.getPane('agriParcelPane') ?? map.createPane('agriParcelPane')
+  boundaryPane.style.zIndex = '440'
+  const labelPane = map.getPane('parcelLabelPane') ?? map.createPane('parcelLabelPane')
+  labelPane.style.zIndex = '445'
+
   function editStyle(id: ParcelId | null): L.PathOptions {
     const state = getState()
     if (!id) return PARCEL_EDIT_STYLE
@@ -207,6 +213,7 @@ export function createParcelLayerController(
     if (visibleAiFeatures.length) {
       const collection: FeatureCollection = { type: 'FeatureCollection', features: visibleAiFeatures }
       parcelLayer = L.geoJSON(collection, {
+        pane: 'agriParcelPane',
         interactive: state.parcelOn && (state.mode === 'idle' || state.mode === 'filter'),
         bubblingMouseEvents: false,
         style: (feature) => {

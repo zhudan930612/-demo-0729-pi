@@ -1,0 +1,155 @@
+<template>
+  <div class="agri-anomaly">
+    <div class="anomaly-header">
+      <div class="anomaly-title">
+        <span class="list-caption">异常村</span>
+        <span class="rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="异常判定规则">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        </span>
+      </div>
+      <button v-if="rows.length && (dispatchableCount > 0 || dispatchedCount > 0)" type="button" class="batch-btn" @click="batchDispatch">{{ dispatchedCount > 0 ? '一键取消' : '一键派发' }}</button>
+    </div>
+    <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</div>
+    <div v-if="bandTip" class="cell-tooltip" :style="bandTipStyle">
+      <span v-for="lv in levels" :key="lv" class="cell-tooltip-item"><i class="cell-tooltip-swatch" :style="{ background: segColor(lv) }"></i>{{ label(lv) }} {{ pct(bandTip.levels[lv]) }}%</span>
+    </div>
+    <div v-if="rows.length === 0" class="empty">暂无异常村</div>
+    <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
+      <div class="av-head">
+        <span class="av-name">{{ v.name }}</span>
+        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert">待处理</span>
+        <span v-else class="strategy-badge observe">待观察</span>
+        <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%</span>
+      </div>
+      <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(v) }}</span></div>
+      <div class="av-row">
+        <div class="detail-band" @mouseenter="showBandTip(v.levels, $event)" @mouseleave="hideBandTip">
+          <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)"></div>
+        </div>
+        <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click.stop="createTask(v)">派发任务</button>
+        <button v-else type="button" class="cancel-btn" @click.stop="cancelConvert(v.code)">取消任务</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useAgriMonitoringStore } from '../../stores/agriMonitoring'
+import { GROWTH_LEVELS, LEVEL_COLORS, LEVEL_LABELS, type GrowthLevel } from '../../features/agri-monitoring/agriMonitoringTypes'
+import { villageAnomaly, type VillageAnomaly } from '../../features/agri-monitoring/agriAnomaly'
+
+const emit = defineEmits<{ 'select-village': [code: string] }>()
+const agri = useAgriMonitoringStore()
+const levels = GROWTH_LEVELS
+const pct = (v: number) => Math.round((v ?? 0) * 100)
+const label = (lv: GrowthLevel) => LEVEL_LABELS[lv]
+const converted = computed(() => agri.convertedSet)
+// 规则提示（复用 cell-tooltip 已有样式）
+const ruleTip = ref<{ top: number; left: number } | null>(null)
+function showRuleTip(e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  ruleTip.value = { top: rect.bottom + 6, left: rect.left + rect.width / 2 }
+}
+function hideRuleTip() { ruleTip.value = null }
+const tipStyle = computed(() => {
+  if (!ruleTip.value) return {}
+  return { left: `${ruleTip.value.left}px`, top: `${Math.max(0, ruleTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
+// 色带悬停提示（同农情概况 cell-tooltip：色块+数值）
+const bandTip = ref<{ levels: Record<GrowthLevel, number>; top: number; left: number } | null>(null)
+function showBandTip(levels: Record<GrowthLevel, number>, e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  bandTip.value = { levels, top: rect.bottom + 4, left: rect.left + rect.width / 2 }
+}
+function hideBandTip() { bandTip.value = null }
+const bandTipStyle = computed(() => {
+  if (!bandTip.value) return {}
+  return { left: `${bandTip.value.left}px`, top: `${Math.max(0, bandTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
+function segColor(lv: GrowthLevel) {
+  const [r, g, b] = LEVEL_COLORS[lv]
+  return `rgb(${r},${g},${b})`
+}
+function drillToVillage(v: VillageAnomaly) { emit('select-village', v.code) }
+
+// 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
+const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
+  const dateIdx = (agri.villagesByDate?.length ?? 1) - 1 // 最近一期
+  const lastVillages = agri.villagesByDate?.[dateIdx] ?? []
+  const out: Array<VillageAnomaly & { code: string }> = []
+  for (const v of lastVillages) {
+    const levelsPerDate = (agri.villagesByDate ?? []).map((dv) => dv.find((x) => x.code === v.code)?.levels)
+    const va = villageAnomaly(v.code, v.name, levelsPerDate, dateIdx)
+    if (!va.isAnomaly) continue // 用前端阈值(>10%)判定，非数据旧阈值
+    out.push({ ...va, code: v.code })
+  }
+  return out.sort((a, b) => b.anomalyRatio - a.anomalyRatio)
+})
+
+// 色带：与农情概况一致（原色 + 每段悬停显示数值）
+function bandStyle(lv: GrowthLevel, ratio: number) {
+  const [r, g, b] = LEVEL_COLORS[lv]
+  return { background: `rgb(${r},${g},${b})`, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
+}
+// 强化 AI 建议：说明当前异常是什么 + 建议如何做
+function aiAdvice(v: VillageAnomaly): string {
+  const p = pct(v.anomalyRatio)
+  if (v.anomalyRatio >= 0.15) {
+    return `近一期极差+较差达 ${p}%，长势异常偏重。建议：转派核查任务，到场核实作物长势、减产程度与承保面积是否一致。`
+  }
+  if (v.anomalyRatio >= 0.10) {
+    return `近一期极差+较差为 ${p}%，长势偏低且初现异常。建议：继续观察，跟踪下期长势是否持续下滑。`
+  }
+  return `近一期极差+较差为 ${p}%，长势偏低但尚轻。建议：列入重点关注，随下期影像复核。`
+}
+// 派发单个异常村不跳转任务列表（仅生成任务 + 行按钮变「取消」）
+function createTask(v: VillageAnomaly) {
+  agri.createTaskFromAnomaly(v)
+}
+function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
+// 一键派发/一键取消（批量）：有可派发显示「一键派发」，有已派发显示「一键取消」
+const dispatchableCount = computed(() => rows.value.filter((v) => !converted.value.has(v.code)).length)
+const dispatchedCount = computed(() => rows.value.filter((v) => converted.value.has(v.code)).length)
+function batchDispatch() {
+  if (dispatchedCount.value > 0) {
+    for (const v of rows.value) agri.cancelConvertVillage(v.code)
+  } else {
+    for (const v of rows.value) agri.createTaskFromAnomaly(v)
+  }
+}
+</script>
+
+<style scoped>
+.agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
+.list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
+.empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
+.anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.anomaly-title { display: flex; align-items: center; gap: 5px; }
+.anomaly-title .list-caption { margin-bottom: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
+.rule-info svg { width: 14px; height: 14px; }
+.rule-info:hover { color: #475569; }
+.cell-tooltip { position: fixed; z-index: 1030; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid rgba(148,163,184,0.4); border-radius: 6px; background: #fff; box-shadow: 0 3px 10px rgba(15,23,42,0.18); color: #334155; font-size: 11px; white-space: nowrap; }
+.cell-tooltip-item { display: flex; align-items: center; gap: 3px; }
+.cell-tooltip-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.batch-btn:hover { background: #b91c1c; }
+.anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
+.anomaly-village:hover { background: #f8fafc; }
+.av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.av-name { font-weight: 650; color: #0f172a; font-size: 14px; }
+.av-head .av-pct { margin-left: auto; font-size: 12px; font-weight: 600; color: #b45309; font-variant-numeric: tabular-nums; }
+.ai-text { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.ai-chip { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: #6366f1; border-radius: 4px; padding: 1px 5px; line-height: 1.5; margin-top: 1px; }
+.strategy-badge { flex: none; font-size: 10px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
+.strategy-badge.convert { background: #fde8e8; color: #b91c1c; }
+.strategy-badge.observe { background: #e6f1fb; color: #0369a1; }
+.av-row { display: flex; align-items: center; gap: 12px; }
+.detail-band { flex: 1; min-width: 0; display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: rgba(148,163,184,0.14); }
+.band-seg { min-width: 0; }
+.convert-btn { flex: none; padding: 4px 12px; border: 1px solid #dc2626; border-radius: 7px; background: #fff; color: #b91c1c; font-size: 12px; font-weight: 600; cursor: pointer; }
+.convert-btn:hover { background: #dc2626; color: #fff; }
+.cancel-btn { flex: none; padding: 4px 12px; border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: #475569; font-size: 12px; cursor: pointer; }
+.cancel-btn:hover { background: #f1f5f9; }
+</style>

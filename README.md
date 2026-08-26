@@ -232,6 +232,20 @@ pnpm --dir web dev
 
 私有 `weather/index-v2.json` 只保存五级父子关系、最终边界文件引用和每个可信行政面在“自身 + 完整父链 + 浙江省界”共同交集内的代表点，不复制几何。服务端必须同时读取私有索引与其引用的最终 GeoJSON，并用完整父链面几何做授权校验；索引或边界缺失、损坏、几何无效、行政代码重复/名称冲突、代表点越出自身或任一父级时应拒绝加载，不能用包围盒降级放行。已确认的源数据错码/错归属只能通过受版本控制的 `scripts/data/weather-village-corrections-v1.json` 修正：规则记录源文件签名、记录序号、伴随源的 `objectid`、旧值、新值/丢弃动作、理由和公开来源；生成器仅在所有签名与旧值精确匹配时应用，源数据漂移或规则未命中均 fail closed。当前规则将凤凰村修正为统计用区划码 `330182108264`，丢弃错误归入三都镇的湖岑畈村重复记录，并将更楼街道湖岑畈村由源旧码 `330182003009` 修正为连续多期区划目录代码 `330182003206`；仓库已提交数据中没有旧码引用。四级边界源中的已确认乡镇错标同样必须经 `scripts/data/weather-township-corrections-v1.json` 的 ZIP/成员签名和要素旧值精确匹配修正；当前规则只丢弃误标为东阳市 `330783005000` 的“赤溪街道”小面，保留该代码的江北街道和兰溪市 `330781005000` 的赤溪街道。村界源还混有末三位为 `000` 的乡镇本级/围垦面记录；生成器按 12 位统计用区划代码结构排除这些非村级记录并输出计数，避免其冒充村节点。其余经源签名、行政代码结构和现役四级边界父链交叉核验确认的错归属记录同样写入版本化修正规则；无法可靠归属的省界外/海岛杂面 fail closed 丢弃。无村面文件的 38 个乡镇由 `scripts/data/weather-missing-villages-allowlist-v1.json` 精确约束，集合漂移即拒绝生成。不得绕过规则文件在脚本中增加静默特殊判断。前端边界位于未提交的 `web/public/data/`；天气代理只使用未提交的 `.dev-runtime/weather-data/` 私有副本，防止浏览器取得服务端授权索引。浙江预警地图图标固定锚定仓库内受控表 `server/data/government-seats-v1.json`（省、11 市、90 区县经核验政府驻地坐标，记录行政代码、名称、层级、查询名称、坐标、匹配分与生成时间；运行索引默认从 `server/data/` 读取，可用 `GOVERNMENT_SEATS_FILE` 覆盖相对 `server/` 的路径）；运行时不查询天地图或其他地理编码服务，坐标缺失、低于约定匹配分、名称/层级不一致或不在行政面及完整父链内时拒绝加载预警空间索引，不能退回面内代表点、几何中心或包围盒。同一表还可包含 `--full` 生成的乡镇级坐标（1390 条，天地图对乡镇重名地名会返回省外同名点，故匹配分 <60 的乡镇标记为 `unresolved` 不参与定位）；预警运行索引只读取省/市/县子集，其余层级条目忽略。
 
+### 农情监测 NDVI/业务数据重建（gee-raw → 前端业务数据）
+
+`web/public/data/agri/` 下 `ndvi.json` / `agri-business.json` / `levels.json` / `policy-growth-*.json` 为运行产物（gitignore，不入库），由已 LFS 入库的 `gee-raw`（Earth Engine NDVI 原始栅格，4 期 tif）与 `web/src/data/` 保单/种植 fixture 重建：
+
+```bash
+python scripts/convert-ndvi-real.py                # gee-raw(4期tif) → ndvi.json(约38MB结构化栅格)
+python scripts/recompute-agri-business.py          # ndvi + 13参保村fixture → agri-business.json(每期 村/层级/任务/保单)
+python scripts/recompute-agri-regions.py           # 省市县镇补数据 + 省5级加权聚合(≈1935.7万亩)
+python scripts/validate-agri-data.py               # 农情数据链路校验(首项云隙告警为 NDVI 数据本身，非提交问题)
+python scripts/validate-policy-fixture.py --all    # 保单/地块区划数据校验
+```
+
+`gee-raw` 已通过 Git LFS 入库（`git lfs pull` 后取得实体）；`web/src/data/` 的 policy/cultivation/parcel-confirmation fixture 已随仓库提交。拉取后依次运行上述命令即可重建农情监测全部数据。
+
 ## 版权说明
 
 - 锐多宝行政区划数据仅限学术研究/内部验证；本仓库私有环境下已获授权可 LFS 入库，未取得商业授权前不得对外发布
