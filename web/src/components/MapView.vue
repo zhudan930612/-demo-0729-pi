@@ -119,7 +119,7 @@
       @close-task="clearAgriTaskLocation"
     />
     <div v-if="agriMonitoringStore.isOpen && agriMonitoringStore.visible" class="agri-legend" aria-label="长势 5 级图例">
-      <span v-for="lv in agriLegend" :key="lv.key" class="agri-legend-item"><i class="agri-legend-swatch" :style="{ background: lv.color }"></i>{{ lv.label }}</span>
+      <span v-for="lv in agriLegend" :key="lv.key" class="agri-legend-item"><i class="agri-legend-swatch" :style="{ background: lv.color }"></i>{{ lv.label }}<em class="agri-legend-range">{{ lv.range }}</em></span>
     </div>
     <AgriDateControl
       v-if="agriMonitoringStore.isOpen && !agriMonitoringStore.taskDrawerOpen"
@@ -319,7 +319,7 @@ import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import { useLodgingAssessmentMode } from '../features/lodging/useLodgingAssessmentMode'
 import { useAgriMonitoringMode } from '../features/agri-monitoring/useAgriMonitoringMode'
 import { useAgriMonitoringStore } from '../stores/agriMonitoring'
-import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS } from '../features/agri-monitoring/agriMonitoringTypes'
+import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS, LEVEL_THRESHOLDS, type GrowthLevel } from '../features/agri-monitoring/agriMonitoringTypes'
 import AgriMonitoringPanel from './agri-monitoring/AgriMonitoringPanel.vue'
 import AgriDateControl from './agri-monitoring/AgriDateControl.vue'
 import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
@@ -607,7 +607,14 @@ const {
   clearTaskLocation: clearAgriTaskLocation,
 } = agriMode
 
-const agriLegend = GROWTH_LEVELS.map((lv) => ({ key: lv, label: LEVEL_LABELS[lv], color: `rgb(${LEVEL_COLORS[lv].join(',')})` }))
+function agriRange(lv: GrowthLevel): string {
+  const t = LEVEL_THRESHOLDS
+  const idx = GROWTH_LEVELS.indexOf(lv)
+  if (idx === 0) return `0.00–${t[0].toFixed(2)}`
+  if (idx === GROWTH_LEVELS.length - 1) return `≥ ${t[t.length - 1].toFixed(2)}`
+  return `${t[idx - 1].toFixed(2)}–${t[idx].toFixed(2)}`
+}
+const agriLegend = GROWTH_LEVELS.map((lv) => ({ key: lv, label: LEVEL_LABELS[lv], range: agriRange(lv), color: `rgb(${LEVEL_COLORS[lv].join(',')})` }))
 
 function enterAgriMonitoring() { void agriMode.enter() }
 function exitAgriMonitoring() { agriMode.exit() }
