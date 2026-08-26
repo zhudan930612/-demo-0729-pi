@@ -172,10 +172,16 @@ def demo_tasks(villages):
         code, vmeta = items[vidx % len(items)]
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
         pol = linked_policy(code)
+        executors = [
+            {"name": "胡强", "role": "村级协保员"}, {"name": "陈志远", "role": "乡级协保员"}, {"name": "王芳", "role": "村级协保员"},
+            {"name": "刘建华", "role": "乡级协保员"}, {"name": "张国强", "role": "村级协保员"}, {"name": "赵丽华", "role": "乡级协保员"},
+            {"name": "李建国", "role": "村级协保员"}, {"name": "周晓梅", "role": "乡级协保员"},
+        ]
+        ex = executors[abs(int(tid.rsplit('-', 1)[-1])) % len(executors)] if status in ("进行中", "已完成") else None
         rows.append({
             "id": tid, "name": name, "type": typ, "typeName": type_name, "status": status,
             "villageCode": code, "villageName": vname, "createdAt": date,
-            "executor": {"name": "李四", "role": "协保员"} if status in ("进行中", "已完成") else None,
+            "executor": ex,
             "remark": remark, "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
             "requirement": "48 小时内反馈核查结论。",
             "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
