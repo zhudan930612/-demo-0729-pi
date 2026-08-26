@@ -132,9 +132,31 @@ function failedBundle() {
   }
 }
 
+function readJson(request) {
+  return new Promise((resolve) => {
+    const chunks = []
+    request.on('data', (chunk) => chunks.push(chunk))
+    request.on('end', () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))) } catch { resolve(null) }
+    })
+  })
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://127.0.0.1:8790')
   if (url.pathname === '/healthz') return json(response, { ok: true })
+  // 登录门禁：e2e 通过 storageState 预置令牌，restore 校验 /api/auth/session；登录页交互走 login/logout。
+  if (url.pathname === '/api/auth/session') return json(response, { username: 'admin', expiresAt: Date.now() + 60_000 })
+  if (url.pathname === '/api/auth/logout' && request.method === 'POST') { response.writeHead(204, { 'cache-control': 'no-store' }); return response.end() }
+  if (url.pathname === '/api/auth/login' && request.method === 'POST') {
+    return readJson(request).then((body) => {
+      if (!body || body.username !== 'admin' || body.password !== 'admin123') {
+        response.writeHead(401, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+        return response.end(JSON.stringify({ error: { code: 'INVALID_CREDENTIALS', message: '用户名或密码不正确' } }))
+      }
+      return json(response, { token: 'e2e-token', username: 'admin', expiresAt: Date.now() + 60_000 })
+    })
+  }
   if (url.pathname === '/api/weather') {
     const target = url.searchParams.get('target')
     const fixture = url.searchParams.get('fixture')

@@ -20,7 +20,8 @@
     "leaflet": "^1.9.4",
     "pinia": "^4.0.2",
     "qweather-icons": "^1.8.0",
-    "vue": "^3.5.39"
+    "vue": "^3.5.39",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -14,6 +14,7 @@ export default defineConfig({
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    storageState: 'e2e/storageState.json',
   },
   projects: [{ name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
