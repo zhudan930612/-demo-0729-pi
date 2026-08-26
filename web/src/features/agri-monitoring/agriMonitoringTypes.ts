@@ -104,7 +104,7 @@ export type TaskStatus = '待下发' | '待领取' | '进行中' | '已完成'
 export const TASK_STATUSES: TaskStatus[] = ['待下发', '待领取', '进行中', '已完成']
 
 export interface AgriTask {
-  id: string; name: string; type: string; typeName: string
+  id: string; taskNo: string; name: string; type: string; typeName: string
   villageCode: string; villageName: string; status: TaskStatus; createdAt: string
   executor: { name: string; role: string } | null
   remark: string; sopAction: string; requirement: string

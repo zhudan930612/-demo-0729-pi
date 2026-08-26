@@ -7,8 +7,8 @@ const villages: VillageGrowth[] = [
   { code: '330604102011', name: '新南村', centroid: { lon: 120, lat: 30, name: '新南村' }, insuredAreaMu: 100, householdCount: 10, policyCount: 1, levels: { veryPoor: 0, poor: 0, normal: 1, good: 0, excellent: 0 }, anomalyRatio: 0, isAnomaly: false, countyCode: '330604', cityCode: '330600', townshipCode: '330604104000', data: true },
 ]
 const tasks: AgriTask[] = [
-  { id: 't1', name: '龙江村任务', type: 'poor_growth', typeName: '核查异常长势', villageCode: '330604102014', villageName: '龙江村', status: '待领取', createdAt: '2026-06-01', executor: null, remark: '', sopAction: '', requirement: '', location: { name: '龙江村', lon: 0, lat: 0 }, evidence: [] },
-  { id: 't2', name: '新南村任务', type: 'poor_growth', typeName: '核查异常长势', villageCode: '330604102011', villageName: '新南村', status: '待领取', createdAt: '2026-06-01', executor: null, remark: '', sopAction: '', requirement: '', location: { name: '新南村', lon: 0, lat: 0 }, evidence: [] },
+  { id: 't1', taskNo: 'RW-2026-0001', name: '龙江村任务', type: 'poor_growth', typeName: '核查异常长势', villageCode: '330604102014', villageName: '龙江村', status: '待领取', createdAt: '2026-06-01', executor: null, remark: '', sopAction: '', requirement: '', location: { name: '龙江村', lon: 0, lat: 0 }, evidence: [] },
+  { id: 't2', taskNo: 'RW-2026-0002', name: '新南村任务', type: 'poor_growth', typeName: '核查异常长势', villageCode: '330604102011', villageName: '新南村', status: '待领取', createdAt: '2026-06-01', executor: null, remark: '', sopAction: '', requirement: '', location: { name: '新南村', lon: 0, lat: 0 }, evidence: [] },
 ]
 
 describe('tasksForRegion · 不同层级查看相应层级任务（R5-6）', () => {

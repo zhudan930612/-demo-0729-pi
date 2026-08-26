@@ -8,11 +8,12 @@
       </div>
       <div v-if="listTasks.length === 0" class="empty">暂无任务</div>
       <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
-        <span class="task-name">{{ t.name }}</span>
-        <span class="task-type">{{ t.typeName }}</span>
+        <span class="task-no">{{ t.taskNo }}</span>
+        <span class="task-main">
+          <span class="task-name">{{ t.name }}</span>
+          <span class="task-meta">{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+        </span>
         <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
-        <span class="task-village">{{ t.villageName }}</span>
-        <span class="task-time">{{ t.createdAt }}</span>
       </button>
     </div>
 
@@ -139,17 +140,17 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.task-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; width: 100%; padding: 14px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
+.task-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 13px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
 .task-row:hover { background: #f8fafc; }
-.task-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task-type { color: #64748b; font-size: 11px; }
-.task-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.task-no { flex: none; font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.task-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.task-name { font-weight: 600; font-size: 13px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-meta { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .st-pending { background: #dbeafe; color: #1d4ed8; }
 .st-claim { background: #ffedd5; color: #c2410c; }
 .st-doing { background: #fef9c3; color: #a16207; }
 .st-done { background: #dcfce7; color: #166534; }
-.task-village { color: #64748b; font-size: 11px; }
-.task-time { color: #94a3b8; font-size: 10px; font-variant-numeric: tabular-nums; }
 /* 详情卡片：内容滚动容器，避免证据被面板底部截断 */
 .task-detail { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
 .task-detail .detail-header { display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 0 0 10px; border-bottom: 1px solid rgba(148,163,184,0.2); margin-bottom: 10px; }

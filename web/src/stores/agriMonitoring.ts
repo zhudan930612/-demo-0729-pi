@@ -128,6 +128,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
       const seq = this.allTasks.length + 1
       const task: AgriTask = {
         id: `task-gen-${village.code}-${seq}`,
+        taskNo: `RW-2026-${String(seq).padStart(4, '0')}`,
         name: `${village.name}核查异常长势`,
         type: 'poor_growth',
         typeName: '核查异常长势',
