@@ -1,6 +1,9 @@
 <template>
   <div class="agri-anomaly">
-    <div class="list-caption">异常村（最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务）</div>
+    <div class="anomaly-header">
+      <div class="list-caption">异常村（最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务）</div>
+      <button v-if="rows.length && dispatchableCount" type="button" class="batch-btn" @click="batchDispatch">一键派发全部</button>
+    </div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
       <div class="av-head">
@@ -67,17 +70,28 @@ function aiAdvice(v: VillageAnomaly): string {
   }
   return `近一期极差+较差为 ${p}%，长势偏低但尚轻。建议：列入重点关注，随下期影像复核。`
 }
+// 派发单个异常村不跳转任务列表（仅生成任务 + 行按钮变「取消」）
 function createTask(v: VillageAnomaly) {
-  const task = agri.createTaskFromAnomaly(v)
-  if (task) agri.setTab('tasks')
+  agri.createTaskFromAnomaly(v)
 }
 function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
+// 一键派发全部：批量把未派发的异常村转成任务
+const dispatchableCount = computed(() => rows.value.filter((v) => !converted.value.has(v.code)).length)
+function batchDispatch() {
+  for (const v of rows.value) {
+    if (!converted.value.has(v.code)) agri.createTaskFromAnomaly(v)
+  }
+}
 </script>
 
 <style scoped>
 .agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
+.anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.anomaly-header .list-caption { margin-bottom: 0; }
+.batch-btn { flex: none; padding: 3px 10px; border: 1px solid #dc2626; border-radius: 6px; background: #fff; color: #b91c1c; font-size: 11px; font-weight: 600; cursor: pointer; }
+.batch-btn:hover { background: #dc2626; color: #fff; }
 .anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
 .anomaly-village:hover { background: #f8fafc; }
 .av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
