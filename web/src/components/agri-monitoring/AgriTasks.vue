@@ -85,14 +85,16 @@
         <section class="task-drawer-list-pane">
           <div class="task-drawer-tools">
             <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
-            <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+            <span>总任务 {{ allTasks.length }}</span>
           </div>
           <div class="task-drawer-cards">
             <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
             <button v-for="t in pageItems" :key="t.id" type="button" class="drawer-card" :class="{ active: drawerTaskId === t.id }" @click="selectFromDrawer(t.id)">
-              <span class="dc-eyebrow">{{ t.taskNo }}</span>
-              <span class="dc-name">{{ t.name }}</span>
-              <span class="dc-meta">{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+              <span class="dc-main">
+                <span class="dc-eyebrow">{{ t.taskNo }}</span>
+                <span class="dc-name">{{ t.name }}</span>
+                <span class="dc-meta">{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+              </span>
               <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
             </button>
           </div>
@@ -144,7 +146,7 @@
       <template v-else>
         <div class="task-drawer-tools">
           <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
-          <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+          <span>总任务 {{ allTasks.length }}</span>
         </div>
         <div class="task-drawer-list">
           <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
@@ -311,7 +313,7 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
 .ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
 /* 全部任务：与分户清单抽屉一致（右侧圆角模糊抽屉 + roster-header + roster 列表行） */
-.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1060; width: min(920px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); will-change: transform; }
+.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1150; width: min(920px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); will-change: transform; }
 .task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; background: #fff; }
 .task-drawer-eyebrow { display: block; color: #64748b; font-size: 11px; font-weight: 650; }
 .task-drawer-title { margin: 4px 0 0; overflow-wrap: anywhere; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
@@ -336,13 +338,14 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-split { flex: 1 1 auto; min-height: 0; display: flex; }
 .task-drawer-list-pane { flex: 0 0 46%; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; }
 .task-drawer-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
-.drawer-card { display: flex; width: 100%; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; margin-bottom: 8px; transition: background 0.12s ease, border-color 0.12s ease; }
+.drawer-card { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; margin-bottom: 8px; transition: background 0.12s ease, border-color 0.12s ease; }
+.drawer-card .dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .drawer-card.active { border-color: #bfdbfe; background: #eff6ff; }
 .drawer-card:hover { background: #f1f5f9; }
 .drawer-card .dc-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
 .drawer-card .dc-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .drawer-card .dc-meta { font-size: 11px; color: #64748b; }
-.drawer-card .task-status { margin-top: 4px; align-self: flex-start; }
+.drawer-card .task-status { flex: none; }
 .task-drawer-detail-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .task-drawer-detail-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
 .task-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
