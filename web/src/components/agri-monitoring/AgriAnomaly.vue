@@ -69,12 +69,10 @@ const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
   return out.sort((a, b) => b.anomalyRatio - a.anomalyRatio)
 })
 
-// 弱化色带：将 5 级色与白色混合成淡色调（异常top 聚焦 AI 建议，色带退为辅助）
+// 色带：与农情概况一致（原色 + 每段悬停显示数值）
 function bandStyle(lv: GrowthLevel, ratio: number) {
   const [r, g, b] = LEVEL_COLORS[lv]
-  const m = 0.62 // 混入白的比例（越淡越弱化）
-  const pale = `rgb(${Math.round(r + (255 - r) * m)},${Math.round(g + (255 - g) * m)},${Math.round(b + (255 - b) * m)})`
-  return { background: pale, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
+  return { background: `rgb(${r},${g},${b})`, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
 }
 // 强化 AI 建议：说明当前异常是什么 + 建议如何做
 function aiAdvice(v: VillageAnomaly): string {
@@ -110,7 +108,7 @@ function batchDispatch() {
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .anomaly-title { display: flex; align-items: center; gap: 5px; }
-.anomaly-title .list-caption { margin-bottom: 0; color: #475569; font-size: 10px; font-weight: 700; }
+.anomaly-title .list-caption { margin-bottom: 0; color: #475569; font-size: 10px; padding: 8px 2px 6px; }
 .rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
 .rule-info svg { width: 14px; height: 14px; }
 .rule-info:hover { color: #475569; }
