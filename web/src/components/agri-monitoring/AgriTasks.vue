@@ -70,39 +70,103 @@
         <div><span class="task-drawer-eyebrow">任务清单</span><h2 class="task-drawer-title">全部任务</h2></div>
         <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
       </header>
-      <section class="task-drawer-summary">
-        <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
-        <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
-        <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
-        <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
-        <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
-      </section>
-      <div class="task-drawer-tools">
-        <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
-        <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+
+      <!-- 左右分栏：左卡片列表 + 右详情 -->
+      <div v-if="drawerTaskId && drawerTask" class="task-drawer-split">
+        <section class="task-drawer-list-pane">
+          <div class="task-drawer-tools">
+            <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
+            <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+          </div>
+          <div class="task-drawer-cards">
+            <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
+            <button v-for="t in pageItems" :key="t.id" type="button" class="drawer-card" :class="{ active: drawerTaskId === t.id }" @click="selectFromDrawer(t.id)">
+              <span class="dc-eyebrow">{{ t.taskNo }}</span>
+              <span class="dc-name">{{ t.name }}</span>
+              <span class="dc-meta">{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+              <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+            </button>
+          </div>
+          <footer class="task-drawer-pagination">
+            <button :disabled="page === 1" @click="page--">上一页</button>
+            <span>第 {{ page }} / {{ totalPages }} 页</span>
+            <button :disabled="page === totalPages" @click="page++">下一页</button>
+          </footer>
+        </section>
+        <section class="task-drawer-detail-pane">
+          <header class="task-drawer-detail-head">
+            <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeDrawerDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <span class="detail-title">{{ drawerTask.taskNo }}</span>
+          </header>
+          <div class="task-detail-scroll">
+            <div class="detail-group">
+              <div class="group-label">基础信息</div>
+              <div class="detail-meta">
+                <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(drawerTask.status)}`">{{ drawerTask.status }}</span></span></div>
+                <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ drawerTask.typeName }}</span></div>
+                <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ drawerTask.name }}</span></div>
+                <div class="meta-row"><span class="meta-label">关联保单</span><span class="meta-value">{{ drawerTask.policyNo ? `${drawerTask.policyNo} · ${drawerTask.policyInsuredName}` : '—' }}</span></div>
+                <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value">{{ drawerTask.villageName }}<button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', drawerTask.villageCode, drawerTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
+                <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ drawerTask.createdAt }}</span></div>
+                <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ drawerTask.executor ? `${drawerTask.executor.role} · ${drawerTask.executor.name}` : '未分配' }}</span></div>
+              </div>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">处置说明</div>
+              <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ drawerTask.sopAction }}</div></div>
+              <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ drawerTask.requirement }}</div></div>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">影像资料</div>
+              <div class="detail-sec">
+                <div class="sec-label">提交时间</div>
+                <div class="sec-body">{{ drawerTask.evidence.length > 0 ? drawerTask.evidence[0]!.time : '—' }}</div>
+              </div>
+              <div v-if="drawerTask.evidence.length === 0" class="sec-body">暂无影像</div>
+              <div v-else class="ev-grid">
+                <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)"><img :src="e.url" alt="影像缩略图" /><span class="ev-time">{{ e.time }}</span></button>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-      <div class="task-drawer-list">
-        <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
-        <table>
-          <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
-          <tbody>
-            <tr v-for="(t, idx) in pageItems" :key="t.id" @click="selectFromAll(t.id)">
-              <td>{{ (page - 1) * pageSize + idx + 1 }}</td>
-              <td class="t-no">{{ t.taskNo }}</td>
-              <td class="t-name">{{ t.name }}</td>
-              <td>{{ t.typeName }}</td>
-              <td><span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span></td>
-              <td>{{ t.villageName }}</td>
-              <td class="t-time">{{ t.createdAt }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <footer class="task-drawer-pagination">
-        <button :disabled="page === 1" @click="page--">上一页</button>
-        <span>第 {{ page }} / {{ totalPages }} 页</span>
-        <button :disabled="page === totalPages" @click="page++">下一页</button>
-      </footer>
+
+      <!-- 列表态：摘要 + 搜索 + 表格 + 分页 -->
+      <template v-else>
+        <section class="task-drawer-summary">
+          <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
+          <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
+          <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
+          <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
+          <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
+        </section>
+        <div class="task-drawer-tools">
+          <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
+          <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
+        </div>
+        <div class="task-drawer-list">
+          <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
+          <table>
+            <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
+            <tbody>
+              <tr v-for="(t, idx) in pageItems" :key="t.id" @click="selectFromDrawer(t.id)">
+                <td>{{ (page - 1) * pageSize + idx + 1 }}</td>
+                <td class="t-no">{{ t.taskNo }}</td>
+                <td class="t-name">{{ t.name }}</td>
+                <td>{{ t.typeName }}</td>
+                <td><span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span></td>
+                <td>{{ t.villageName }}</td>
+                <td class="t-time">{{ t.createdAt }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <footer class="task-drawer-pagination">
+          <button :disabled="page === 1" @click="page--">上一页</button>
+          <span>第 {{ page }} / {{ totalPages }} 页</span>
+          <button :disabled="page === totalPages" @click="page++">下一页</button>
+        </footer>
+      </template>
     </aside>
     </Transition>
 
@@ -144,6 +208,12 @@ const pageItems = computed(() => filteredAll.value.slice((page.value - 1) * page
 watch(query, () => { page.value = 1 })
 function statusCount(s: string) { return allTasks.value.filter((t) => t.status === s).length }
 
+// 全部任务抽屉：点击任务 → 左右分栏（左卡片列表 + 右详情）
+const drawerTaskId = ref<string | null>(null)
+const drawerTask = computed<AgriTask | null>(() => drawerTaskId.value ? allTasks.value.find((t) => t.id === drawerTaskId.value) ?? null : null)
+function selectFromDrawer(id: string) { drawerTaskId.value = id }
+function closeDrawerDetail() { drawerTaskId.value = null }
+
 const visibleTask = computed<AgriTask | null>(() => {
   if (!agri.openTaskId) return null
   return allTasks.value.find((t) => t.id === agri.openTaskId) ?? null
@@ -167,7 +237,7 @@ const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.creat
 
 function openTask(id: string) { agri.openTask(id) }
 function closeTask() { agri.closeTask(); emit('close-task') }
-function selectFromAll(id: string) { showAll.value = false; openTask(id) }
+
 function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 </script>
 
@@ -260,6 +330,20 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .task-drawer-list .t-no { color: #94a3b8; font-variant-numeric: tabular-nums; }
 .task-drawer-list .t-name { font-weight: 600; color: #0f172a; }
 .task-drawer-list .t-time { color: #64748b; font-variant-numeric: tabular-nums; }
+/* 左右分栏：左卡片列表 + 右详情 */
+.task-drawer-split { flex: 1 1 auto; min-height: 0; display: flex; }
+.task-drawer-list-pane { flex: 0 0 46%; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; }
+.task-drawer-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
+.drawer-card { display: flex; width: 100%; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; margin-bottom: 8px; transition: background 0.12s ease, border-color 0.12s ease; }
+.drawer-card.active { border-color: #bfdbfe; background: #eff6ff; }
+.drawer-card:hover { background: #f1f5f9; }
+.drawer-card .dc-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
+.drawer-card .dc-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.drawer-card .dc-meta { font-size: 11px; color: #64748b; }
+.drawer-card .task-status { margin-top: 4px; align-self: flex-start; }
+.task-drawer-detail-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.task-drawer-detail-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.task-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
 .task-drawer-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
 .task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
