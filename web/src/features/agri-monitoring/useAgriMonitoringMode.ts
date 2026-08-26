@@ -43,6 +43,7 @@ export interface AgriMonitoringMode {
   drillToTownship(t: { code: string; name: string; cityCode: string; countyCode: string }): Promise<void>
   createTaskFromAnomaly(village: VillageGrowth): AgriTask | null
   locateTask(location: { lon: number; lat: number; name: string }): void
+  locateToVillage(code: string): Promise<void>
   clearTaskLocation(): void
   refresh(): void
 }
@@ -270,6 +271,20 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     }).addTo(map)
   }
 
+  /** 任务定位：下钻到对应村 + 在村级地图显示定位标识（村中心点）。 */
+  async function locateToVillage(code: string) {
+    const village = store.villages?.find((v) => v.code === code)
+    if (!village) return
+    await drillToVillageInner(village)
+    if (!map) return
+    const loc = { lon: village.centroid?.lon ?? 0, lat: village.centroid?.lat ?? 0, name: village.name }
+    store.setTaskLocation(loc)
+    if (marker) marker.remove()
+    marker = L.marker([loc.lat, loc.lon], {
+      icon: L.divIcon({ className: 'agri-loc-marker', html: '<div class="agri-loc-pin"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }),
+    }).addTo(map)
+  }
+
   function clearTaskLocation() {
     if (marker) { marker.remove(); marker = null }
     store.setTaskLocation(null)
@@ -291,6 +306,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     drillToTownship,
     createTaskFromAnomaly,
     locateTask,
+    locateToVillage,
     clearTaskLocation,
     refresh,
   }

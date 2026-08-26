@@ -115,7 +115,7 @@
       @select-tab="setAgriTab"
       @select-village="handleAgriSelectVillage"
       @select-child="handleAgriSelectChild"
-      @locate-task="(code) => drillAgriToVillage(code)"
+      @locate-task="(code) => locateAgriToVillage(code)"
       @close-task="clearAgriTaskLocation"
     />
     <div v-if="agriMonitoringStore.isOpen && agriMonitoringStore.visible" class="agri-legend" aria-label="长势 5 级图例">
@@ -603,6 +603,7 @@ const {
   setOpacity: setAgriOpacity,
   setTab: setAgriTab,
   drillToVillage: drillAgriToVillage,
+  locateToVillage: locateAgriToVillage,
   clearTaskLocation: clearAgriTaskLocation,
 } = agriMode
 
