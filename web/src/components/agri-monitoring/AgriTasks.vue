@@ -28,8 +28,6 @@
         <span class="detail-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span>
       </div>
 
-      <div class="detail-summary">{{ visibleTask.remark || '无' }}</div>
-
       <div class="detail-group">
         <div class="group-label">基础信息</div>
         <div class="detail-meta">
@@ -176,26 +174,24 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .st-done { background: #dcfce7; color: #166534; }
 /* 详情卡片：内容滚动容器，避免证据被面板底部截断 */
 .task-detail { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
-.task-detail .detail-header { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; border-bottom: 1px solid rgba(148,163,184,0.2); margin-bottom: 14px; }
+.task-detail .detail-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; padding: 10px 0 12px; background: #fff; border-bottom: 1px solid rgba(148,163,184,0.2); margin-bottom: 14px; }
 .back-btn { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #2563eb; cursor: pointer; }
 .back-btn:hover { background: #eff6ff; color: #1d4ed8; }
 .back-btn svg { width: 18px; height: 18px; }
 .detail-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-/* 任务摘要（备注）：顶部醒目块 */
-.detail-summary { padding: 10px 12px; border-radius: 8px; background: #eff6ff; border-left: 3px solid #2563eb; font-size: 12px; color: #1e3a8a; line-height: 1.6; margin-bottom: 12px; }
-/* 详情分组：设计系统 Detail Sections（白色信息块 + 蓝色 kicker 分区标题 + 标签/值两列） */
-.detail-group { padding: 12px; border-radius: 10px; background: #f8fafc; margin-bottom: 10px; }
+/* 详情分组：白色信息块 + 蓝色 kicker 分区标题 + 标签/值两列 */
+.detail-group { padding: 14px; border-radius: 10px; background: #f8fafc; margin-bottom: 12px; }
 .detail-group:last-child { margin-bottom: 0; }
-.group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 8px; letter-spacing: 0.02em; }
-.detail-meta { display: flex; flex-direction: column; gap: 8px; }
+.group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 12px; letter-spacing: 0.02em; }
+.detail-meta { display: flex; flex-direction: column; gap: 12px; }
 .meta-row { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #334155; }
 .meta-label { width: 60px; flex: none; color: #64748b; }
 .meta-value { flex: 1; color: #0f172a; overflow-wrap: anywhere; }
-.detail-sec { margin-bottom: 12px; }
+.detail-sec { margin-bottom: 16px; }
 .detail-sec:last-child { margin-bottom: 0; }
-.sec-label { font-size: 11px; color: #64748b; margin-bottom: 3px; }
-.sec-body { font-size: 12px; color: #334155; line-height: 1.6; }
+.sec-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
+.sec-body { font-size: 12px; color: #334155; line-height: 1.65; }
 .loc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
