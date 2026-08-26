@@ -10,6 +10,9 @@
       <button v-if="rows.length && (dispatchableCount > 0 || dispatchedCount > 0)" type="button" class="batch-btn" @click="batchDispatch">{{ dispatchedCount > 0 ? '一键取消' : '一键派发' }}</button>
     </div>
     <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务</div>
+    <div v-if="bandTip" class="cell-tooltip" :style="bandTipStyle">
+      <span v-for="lv in levels" :key="lv" class="cell-tooltip-item"><i class="cell-tooltip-swatch" :style="{ background: segColor(lv) }"></i>{{ label(lv) }} {{ pct(bandTip.levels[lv]) }}%</span>
+    </div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village" @click="drillToVillage(v)">
       <div class="av-head">
@@ -20,8 +23,8 @@
       </div>
       <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(v) }}</span></div>
       <div class="av-row">
-        <div class="detail-band">
-          <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
+        <div class="detail-band" @mouseenter="showBandTip(v.levels, $event)" @mouseleave="hideBandTip">
+          <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)"></div>
         </div>
         <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click.stop="createTask(v)">派发任务</button>
         <button v-else type="button" class="cancel-btn" @click.stop="cancelConvert(v.code)">取消任务</button>
@@ -53,6 +56,21 @@ const tipStyle = computed(() => {
   if (!ruleTip.value) return {}
   return { left: `${ruleTip.value.left}px`, top: `${Math.max(0, ruleTip.value.top)}px`, transform: 'translateX(-50%)' }
 })
+// 色带悬停提示（同农情概况 cell-tooltip：色块+数值）
+const bandTip = ref<{ levels: Record<GrowthLevel, number>; top: number; left: number } | null>(null)
+function showBandTip(levels: Record<GrowthLevel, number>, e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  bandTip.value = { levels, top: rect.bottom + 4, left: rect.left + rect.width / 2 }
+}
+function hideBandTip() { bandTip.value = null }
+const bandTipStyle = computed(() => {
+  if (!bandTip.value) return {}
+  return { left: `${bandTip.value.left}px`, top: `${Math.max(0, bandTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
+function segColor(lv: GrowthLevel) {
+  const [r, g, b] = LEVEL_COLORS[lv]
+  return `rgb(${r},${g},${b})`
+}
 function drillToVillage(v: VillageAnomaly) { emit('select-village', v.code) }
 
 // 13 参保村中【最近一期】异常的村（固定最近一期，不随日期选择变化；按连续异常期数给 AI 建议）
@@ -108,11 +126,13 @@ function batchDispatch() {
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 .anomaly-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .anomaly-title { display: flex; align-items: center; gap: 5px; }
-.anomaly-title .list-caption { margin-bottom: 0; color: #475569; font-size: 10px; padding: 8px 2px 6px; }
+.anomaly-title .list-caption { margin-bottom: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
 .rule-info svg { width: 14px; height: 14px; }
 .rule-info:hover { color: #475569; }
-.cell-tooltip { position: fixed; z-index: 1030; pointer-events: none; padding: 5px 9px; border: 1px solid rgba(148,163,184,0.4); border-radius: 6px; background: #fff; box-shadow: 0 3px 10px rgba(15,23,42,0.18); color: #334155; font-size: 11px; white-space: nowrap; }
+.cell-tooltip { position: fixed; z-index: 1030; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid rgba(148,163,184,0.4); border-radius: 6px; background: #fff; box-shadow: 0 3px 10px rgba(15,23,42,0.18); color: #334155; font-size: 11px; white-space: nowrap; }
+.cell-tooltip-item { display: flex; align-items: center; gap: 3px; }
+.cell-tooltip-swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #dc2626; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
 .batch-btn:hover { background: #b91c1c; }
 .anomaly-village { padding: 15px 9px; border-bottom: 1px solid rgba(148,163,184,0.13); cursor: pointer; transition: background 0.12s ease; }
