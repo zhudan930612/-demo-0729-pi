@@ -174,21 +174,21 @@ def batch_tasks(villages, start_no, count):
     from datetime import datetime, timedelta
     items = list(villages.items())
     types = [
-        ("核查异常长势", "poor_growth", ["三分场水稻长势异常核查", "旱情地块长势复核", "苗期长势偏弱核查", "分蘖期长势异常核查"]),
-        ("农作培训", "training", ["水稻绿色防控技术培训", "村级协保员业务培训", "新型经营主体技术培训"]),
-        ("督导施肥", "fertilization", ["早稻追肥作业督导", "水稻穗肥施用督导", "无人机施肥作业督导"]),
-        ("政策宣导", "policy_advocacy", ["政策性农险政策宣导", "育秧补贴政策宣导", "惠农政策进村宣导"]),
-        ("现场查勘", "site_survey", ["受灾地块现场查勘定损", "新增承保地块查勘", "台风灾后现场查勘"]),
-        ("重点对象跟进", "key_followup", ["种植大户承保跟进", "合作社续保跟进", "重点农户回访"]),
+        ("核查异常长势", "poor_growth", ["三分场水稻长势异常核查", "旱情地块长势复核", "苗期分蘖长势偏弱核查", "抽穗期长势异常复核", "灌浆期长势下滑核查", "病虫危害田块核查", "肥害田块长势复核", "低温冷害田块核查", "积水田块长势复核", "倒伏田块长势核查"]),
+        ("农作培训", "training", ["水稻绿色防控技术培训", "村级协保员业务培训", "新型经营主体技术培训", "无人机植保操作培训", "水稻育秧技术培训", "农药安全使用培训", "田间管理巡回培训", "秸秆综合利用培训", "惠农政策宣讲培训", "防灾减灾知识培训"]),
+        ("督导施肥", "fertilization", ["早稻追肥作业督导", "水稻穗肥施用督导", "无人机施肥作业督导", "测土配方施肥督导", "基肥施用质量督导", "返青肥施用督导", "叶面肥喷施督导", "缓释肥施用量核查", "有机肥替代督导", "施肥机具作业检查"]),
+        ("政策宣导", "policy_advocacy", ["政策性农险政策宣导", "育秧补贴政策宣导", "惠农政策进村宣导", "水稻保险投保宣导", "高标准农田政策宣导", "农机购置补贴宣导", "耕地地力保护补贴宣导", "水稻最低收购价宣导", "社会化服务补贴宣导", "防灾减灾政策宣导"]),
+        ("现场查勘", "site_survey", ["受灾地块现场查勘定损", "新增承保地块查勘", "台风灾后现场查勘", "暴雨内涝田块查勘", "洪涝受灾田块定损", "病害爆发田块查勘", "虫害受灾田块查勘", "风灾倒伏田块查勘", "冰雹灾害田块查勘", "干旱受灾田块查勘"]),
+        ("重点对象跟进", "key_followup", ["种植大户承保跟进", "合作社续保跟进", "重点农户回访", "新型经营主体联系", "家庭农场走访", "脱贫户帮扶跟进", "种粮大户台账更新", "涉农企业对接", "风险户回访", "示范户培育跟进"]),
     ]
     # 类型状态偏好：核查异常长势/现场查勘 多已完成；农作培训/政策宣导 少已完成
     STATUS_PREF = {
-        "poor_growth": ["已完成", "待领取", "进行中", "待下发", "已完成", "待领取"],
-        "site_survey": ["已完成", "进行中", "待领取", "待下发", "进行中", "待下发"],
-        "fertilization": ["进行中", "待下发", "待领取", "已完成", "待下发", "待领取"],
-        "key_followup": ["待领取", "进行中", "待下发", "已完成", "进行中", "待下发"],
-        "training": ["待下发", "进行中", "待领取", "进行中", "待下发", "待领取"],
-        "policy_advocacy": ["待下发", "待领取", "进行中", "待下发", "待领取", "进行中"],
+        "poor_growth": ["已完成", "进行中", "待领取", "待下发", "已完成", "待领取", "进行中", "已完成", "待下发", "待领取"],
+        "site_survey": ["已完成", "待下发", "进行中", "已完成", "待领取", "已完成", "待下发", "进行中", "已完成", "待领取"],
+        "fertilization": ["待下发", "进行中", "待领取", "已完成", "待下发", "进行中", "待领取", "进行中", "已完成", "待下发"],
+        "key_followup": ["待领取", "进行中", "待下发", "已完成", "待领取", "进行中", "待下发", "已完成", "待领取", "进行中"],
+        "training": ["待下发", "进行中", "待领取", "进行中", "待下发", "待领取", "已完成", "进行中", "待下发", "待领取"],
+        "policy_advocacy": ["待下发", "待领取", "进行中", "待下发", "待领取", "进行中", "已完成", "待下发", "待领取", "进行中"],
     }
     executors = [
         {"name": "胡强", "role": "村级协保员"}, {"name": "陈志远", "role": "乡级协保员"}, {"name": "王芳", "role": "村级协保员"},
@@ -221,12 +221,13 @@ EVIDENCE_IMAGES = [f"/data/agri/evidence/img_{i:03d}.jpg" for i in range(1, 41)]
 _EV_COUNTER = [0]
 
 def evidence_for(status, created_at):
-    """已完成任务：影像资料 = 4 张真实图片（按序分配）+ 提交时间 = 创建 + 3 小时。"""
+    """已完成任务：影像资料 = 4 张真实图片（按序、超40张循环复用）+ 提交时间 = 创建 + 3 小时。"""
     if status != "已完成":
         return []
     from datetime import datetime, timedelta
-    start = _EV_COUNTER[0]
-    imgs = EVIDENCE_IMAGES[start:start + 4]
+    n = len(EVIDENCE_IMAGES)
+    start = _EV_COUNTER[0] % n
+    imgs = [EVIDENCE_IMAGES[(start + j) % n] for j in range(4)]
     _EV_COUNTER[0] = start + 4
     try:
         base = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
@@ -297,7 +298,7 @@ def main():
         all_levels.append(G.build_level_aggregation(vg, manifest))
         all_policy.append({code: policy_growth_for_date(code, di) for code, _ in G.INSURED_VILLAGES})
         _EV_COUNTER[0] = 0  # 每个日期重置，已完成任务图片按序一致
-        tasks_of_date = G.generate_tasks(villages, vg) + demo_tasks(villages) + batch_tasks(villages, 11, 46)
+        tasks_of_date = G.generate_tasks(villages, vg) + demo_tasks(villages) + batch_tasks(villages, 11, 46) + batch_tasks(villages, 57, 52)
         for idx, t in enumerate(tasks_of_date):
             t["taskNo"] = f"RW-2026-{idx + 1:04d}"  # 任务编号
         all_tasks.append(tasks_of_date)
