@@ -177,6 +177,8 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
 
   // 下钻区域变化 → 热力图裁剪跟随
   watch(() => ctx.store.current, () => { void setCurrentClip() }, { immediate: true })
+  // 定位标识只在村级层级显示：地图离开村级 → 清除定位标识
+  watch(() => ctx.store.current?.level, (lv) => { if (lv !== 'village') clearTaskLocation() })
 
   function refresh() { store.phase = 'loading'; void loadAll() }
 
@@ -291,7 +293,16 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
         let h = 0; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) | 0  // 确定性：同任务固定地块
         const f = feats[Math.abs(h) % feats.length]!
         const coords = (f.geometry?.coordinates as unknown[] ?? []).flat(Infinity) as number[]
-        if (coords.length >= 2) { lon = coords[0]!; lat = coords[1]! }
+        // 取地块包围盒中心（清晰的田块内点，而非边界角点）
+        if (coords.length >= 4) {
+          let mnLon = Infinity, mxLon = -Infinity, mnLat = Infinity, mxLat = -Infinity
+          for (let i = 0; i + 1 < coords.length; i += 2) {
+            const lng = coords[i]!, latv = coords[i + 1]!
+            if (lng < mnLon) mnLon = lng; if (lng > mxLon) mxLon = lng
+            if (latv < mnLat) mnLat = latv; if (latv > mxLat) mxLat = latv
+          }
+          if (mnLon < mxLon && mnLat < mxLat) { lon = (mnLon + mxLon) / 2; lat = (mnLat + mxLat) / 2 }
+        }
       }
     } catch { /* 无地块用村中心 */ }
     const loc = { lon, lat, name: village.name }
