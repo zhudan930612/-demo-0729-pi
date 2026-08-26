@@ -5,11 +5,11 @@
     <div v-for="v in rows" :key="v.code" class="anomaly-village">
       <div class="av-head">
         <span class="av-name">{{ v.name }}</span>
-        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert">AI建议：转任务</span>
-        <span v-else class="strategy-badge observe">AI建议：待观察</span>
+        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert">待处理</span>
+        <span v-else class="strategy-badge observe">待观察</span>
         <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%</span>
       </div>
-      <div class="ai-text">{{ aiAdvice(v) }}</div>
+      <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(v) }}</span></div>
       <div class="av-row">
         <div class="detail-band">
           <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
@@ -80,7 +80,8 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 .av-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .av-name { font-weight: 650; color: #0f172a; font-size: 14px; }
 .av-head .av-pct { margin-left: auto; font-size: 12px; font-weight: 600; color: #b45309; font-variant-numeric: tabular-nums; }
-.ai-text { font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.ai-text { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.ai-chip { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: #6366f1; border-radius: 4px; padding: 1px 5px; line-height: 1.5; margin-top: 1px; }
 .strategy-badge { flex: none; font-size: 10px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
 .strategy-badge.convert { background: #fde8e8; color: #b91c1c; }
 .strategy-badge.observe { background: #e6f1fb; color: #0369a1; }
