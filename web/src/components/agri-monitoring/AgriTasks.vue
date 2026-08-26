@@ -3,8 +3,7 @@
     <!-- 列表 -->
     <div v-if="!visibleTask" class="task-list">
       <div class="tasks-head">
-        <span class="list-caption">{{ currentLevel === 'village' ? '本月任务' : '当前区域任务' }}</span>
-        <button type="button" class="view-all" @click="showAll = !showAll">全部任务</button>
+        <span class="list-caption">任务列表</span>
       </div>
       <div class="status-filter" aria-label="任务状态筛选">
         <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
@@ -18,6 +17,7 @@
         </span>
         <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
       </button>
+      <button v-if="listTasks.length" type="button" class="view-all-bottom" @click="showAll = true">查看全部任务</button>
     </div>
 
     <!-- 详情卡片 -->
@@ -253,7 +253,8 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .agri-tasks { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
-.view-all { border: 0; background: transparent; color: #2563eb; font-size: 11px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
+.view-all-bottom:hover { background: #eef2f7; }
 .view-all:hover { background: #eef2f7; }
 .status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; padding-left: 4px; }
 .sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
