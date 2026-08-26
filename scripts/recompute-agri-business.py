@@ -171,7 +171,9 @@ def demo_tasks(villages):
     for tid, name, type_name, typ, status, vidx, date, remark in spec:
         code, vmeta = items[vidx % len(items)]
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
-        pol = linked_policy(code)
+        # 仅 异常核查/督导施肥/现场查勘(定损)/重点对象跟进 类任务需关联保单，其余不关联
+        NEED_POLICY = {"poor_growth", "fertilization", "site_survey", "key_followup"}
+        pol = linked_policy(code) if typ in NEED_POLICY else {"policyNo": "", "insuredName": ""}
         executors = [
             {"name": "胡强", "role": "村级协保员"}, {"name": "陈志远", "role": "乡级协保员"}, {"name": "王芳", "role": "村级协保员"},
             {"name": "刘建华", "role": "乡级协保员"}, {"name": "张国强", "role": "村级协保员"}, {"name": "赵丽华", "role": "乡级协保员"},

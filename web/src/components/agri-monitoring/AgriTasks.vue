@@ -33,7 +33,7 @@
           <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
           <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
           <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ visibleTask.name }}</span></div>
-          <div class="meta-row"><span class="meta-label">关联保单</span><span class="meta-value">{{ visibleTask.policyNo }} · {{ visibleTask.policyInsuredName }}</span></div>
+          <div class="meta-row"><span class="meta-label">关联保单</span><span class="meta-value">{{ visibleTask.policyNo ? `${visibleTask.policyNo} · ${visibleTask.policyInsuredName}` : '—' }}</span></div>
           <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value">{{ visibleTask.villageName }}<button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', visibleTask.villageCode, visibleTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
           <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
           <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ visibleTask.executor ? `${visibleTask.executor.role} · ${visibleTask.executor.name}` : '未分配' }}</span></div>
