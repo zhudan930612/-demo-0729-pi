@@ -33,7 +33,7 @@
           <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
           <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
           <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ visibleTask.name }}</span></div>
-          <div class="meta-row"><span class="meta-label">所在村</span><span class="meta-value">{{ visibleTask.villageName }}</span></div>
+          <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value">{{ visibleTask.villageName }}<button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', visibleTask.villageCode)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
           <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
           <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ visibleTask.executor ? `${visibleTask.executor.name}（${visibleTask.executor.role}）` : '未分配' }}</span></div>
         </div>
@@ -43,15 +43,7 @@
         <div class="group-label">处置说明</div>
         <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ visibleTask.sopAction }}</div></div>
         <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ visibleTask.requirement }}</div></div>
-        <div class="detail-sec">
-          <div class="sec-label">任务定位</div>
-          <div class="sec-body loc-row">
-            <span class="loc-text"><span class="loc-name">{{ visibleTask.location.name }}</span><span class="loc-coord">{{ visibleTask.location.lon.toFixed(4) }}, {{ visibleTask.location.lat.toFixed(4) }}</span></span>
-            <button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', visibleTask.villageCode)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
-            </button>
-          </div>
-        </div>
+
       </div>
 
       <div class="detail-group">
@@ -198,6 +190,8 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
 .loc-coord { font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
+.loc-value { display: inline-flex; align-items: center; gap: 8px; }
+.loc-value .locate-icon { width: 24px; height: 24px; }
 .locate-icon { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: #eff6ff; color: #2563eb; cursor: pointer; }
 .locate-icon svg { width: 15px; height: 15px; }
 .locate-icon:hover { background: #dbeafe; color: #1d4ed8; }
