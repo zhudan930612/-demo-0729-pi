@@ -996,7 +996,8 @@ async function render(noFly = false) {
   }
 }
 
-watch(() => store.path.length, () => {
+// 监视当前区域标识（code+level）：push/pop/替换(navigateTo)任何路径变化都触发再渲染+飞行
+watch(() => `${store.current?.code}:${store.current?.level}`, () => {
   weatherMode.onNavigate()
   const nf = pendingNoFly.value
   pendingNoFly.value = false
