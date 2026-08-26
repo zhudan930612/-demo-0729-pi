@@ -199,16 +199,16 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
 .ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
 .ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
-/* 全部任务：与分户清单抽屉一致的右侧圆角抽屉 */
-.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1050; width: min(440px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); will-change: transform; }
-.task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid rgba(148,163,184,0.2); }
-.task-drawer-eyebrow { display: block; font-size: 11px; color: #2563eb; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-.task-drawer-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0; }
-.task-drawer-close { border: 0; background: transparent; color: #64748b; font-size: 22px; cursor: pointer; line-height: 1; padding: 2px; }
-.task-drawer-close:hover { color: #0f172a; }
-.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 8px; }
-.all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px 8px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.12); background: transparent; cursor: pointer; text-align: left; }
-.all-row:hover { background: #f8fafc; }
+/* 全部任务：与分户清单抽屉一致（右侧圆角模糊抽屉 + roster-header + roster 列表行） */
+.task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1060; width: min(920px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); will-change: transform; }
+.task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.task-drawer-eyebrow { display: block; color: #64748b; font-size: 11px; font-weight: 650; }
+.task-drawer-title { margin: 4px 0 0; overflow-wrap: anywhere; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.task-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
+.task-drawer-close:hover { background: #cbd5e1; }
+.task-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px; }
+.all-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid #e2e8f0; background: transparent; cursor: pointer; text-align: left; font-size: 12px; }
+.all-row:hover { background: #ecfeff; }
 .lightbox-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; }
 .lightbox { position: relative; }
 .lightbox img { max-width: 80vw; max-height: 80vh; border-radius: 8px; }
