@@ -16,7 +16,7 @@ function getNdviLut(): Uint32Array {
   return lut
 }
 
-export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 430 } } as const
+export const AGRI_PANES = { grid: { name: 'agriMonitoringPane', zIndex: 400 } } as const
 
 
 interface ValueGrid { lats: number[]; lons: number[]; values: number[][] } // values：NaN=无数据（透明）
