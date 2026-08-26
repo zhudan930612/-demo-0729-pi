@@ -1,19 +1,19 @@
 <template>
   <div class="agri-anomaly">
-    <div class="list-caption">异常村（极差+较差承保面积占比 &gt; 50%；AI 按连续异常期数建议）</div>
+    <div class="list-caption">异常村（最近一期极差+较差承保面积占比 &gt; 10%；AI 按严重度建议）</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village">
       <div class="av-head">
         <span class="av-name">{{ v.name }}</span>
-        <span v-if="v.consecutivePeriods >= 3" class="strategy-badge convert" :title="`连续${v.consecutivePeriods}期异常，建议转任务`">AI建议：转任务</span>
-        <span v-else class="strategy-badge observe" :title="`当前${v.consecutivePeriods}期异常，建议继续观察`">AI建议：待观察</span>
-        <span class="av-period">连续{{ v.consecutivePeriods }}期异常</span>
+        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert" :title="`最近一期极差+较差 ${pct(v.anomalyRatio)}%，建议转任务`">AI建议：转任务</span>
+        <span v-else class="strategy-badge observe" :title="`最近一期极差+较差 ${pct(v.anomalyRatio)}%，发现异常建议继续观察`">AI建议：待观察</span>
+        <span class="av-period">最近一期极差+较差 {{ pct(v.anomalyRatio) }}%</span>
       </div>
       <div class="detail-band">
         <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
       </div>
       <div class="av-foot">
-        <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%（&gt;50% 为异常）</span>
+        <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%（&gt;10% 为异常，≥15% 建议转任务）</span>
         <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click="createTask(v)">一键转</button>
         <button v-else type="button" class="cancel-btn" @click="cancelConvert(v.code)">取消</button>
       </div>
@@ -39,9 +39,9 @@ const rows = computed<Array<VillageAnomaly & { code: string }>>(() => {
   const lastVillages = agri.villagesByDate?.[dateIdx] ?? []
   const out: Array<VillageAnomaly & { code: string }> = []
   for (const v of lastVillages) {
-    if (!v.isAnomaly) continue
     const levelsPerDate = (agri.villagesByDate ?? []).map((dv) => dv.find((x) => x.code === v.code)?.levels)
     const va = villageAnomaly(v.code, v.name, levelsPerDate, dateIdx)
+    if (!va.isAnomaly) continue // 用前端阈值(>10%)判定，非数据旧阈值
     out.push({ ...va, code: v.code })
   }
   return out.sort((a, b) => b.anomalyRatio - a.anomalyRatio)
