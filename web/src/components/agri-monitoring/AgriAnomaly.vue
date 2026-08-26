@@ -1,19 +1,19 @@
 <template>
   <div class="agri-anomaly">
-    <div class="list-caption">异常村（最近一期极差+较差承保面积占比 &gt; 10%；AI 按严重度建议）</div>
+    <div class="list-caption">异常村（最近一期 极差+较差占比 &gt; 3.5% 为异常；≥15% AI建议转任务）</div>
     <div v-if="rows.length === 0" class="empty">暂无异常村</div>
     <div v-for="v in rows" :key="v.code" class="anomaly-village">
       <div class="av-head">
         <span class="av-name">{{ v.name }}</span>
-        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert" :title="`最近一期极差+较差 ${pct(v.anomalyRatio)}%，建议转任务`">AI建议：转任务</span>
-        <span v-else class="strategy-badge observe" :title="`最近一期极差+较差 ${pct(v.anomalyRatio)}%，发现异常建议继续观察`">AI建议：待观察</span>
-        <span class="av-period">最近一期极差+较差 {{ pct(v.anomalyRatio) }}%</span>
+        <span v-if="v.anomalyRatio >= 0.15" class="strategy-badge convert">AI建议：转任务</span>
+        <span v-else class="strategy-badge observe">AI建议：待观察</span>
+        <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%</span>
       </div>
+      <div class="ai-text">{{ aiAdvice(v) }}</div>
       <div class="detail-band">
         <div v-for="lv in levels" :key="lv" class="band-seg" :style="bandStyle(lv, v.levels[lv] ?? 0)" :title="`${label(lv)} ${pct(v.levels[lv] ?? 0)}%`"></div>
       </div>
       <div class="av-foot">
-        <span class="av-pct">极差+较差 {{ pct(v.anomalyRatio) }}%（&gt;10% 为异常，≥15% 建议转任务）</span>
         <button v-if="!converted.has(v.code)" type="button" class="convert-btn" @click="createTask(v)">一键转</button>
         <button v-else type="button" class="cancel-btn" @click="cancelConvert(v.code)">取消</button>
       </div>
@@ -51,6 +51,17 @@ function bandStyle(lv: GrowthLevel, ratio: number) {
   const [r, b, g] = LEVEL_COLORS[lv]
   return { background: `rgb(${r},${b},${g})`, flex: `0 0 ${Math.max(0, pct(ratio))}%` }
 }
+// 强化 AI 建议：说明当前异常是什么 + 建议如何做
+function aiAdvice(v: VillageAnomaly): string {
+  const p = pct(v.anomalyRatio)
+  if (v.anomalyRatio >= 0.15) {
+    return `近一期极差+较差达 ${p}%，长势异常偏重。建议：转派核查任务，到场核实作物长势、减产程度与承保面积是否一致。`
+  }
+  if (v.anomalyRatio >= 0.10) {
+    return `近一期极差+较差为 ${p}%，长势偏低且初现异常。建议：继续观察，跟踪下期长势是否持续下滑。`
+  }
+  return `近一期极差+较差为 ${p}%，长势偏低但尚轻。建议：列入重点关注，随下期影像复核。`
+}
 function createTask(v: VillageAnomaly) {
   const task = agri.createTaskFromAnomaly(v)
   if (task) agri.setTab('tasks')
@@ -62,9 +73,12 @@ function cancelConvert(code: string) { agri.cancelConvertVillage(code) }
 .agri-anomaly { font-size: 12px; height: 100%; overflow-y: auto; }
 .list-caption { font-size: 10px; color: #475569; margin-bottom: 6px; }
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
-.anomaly-village { padding: 7px 4px; border-bottom: 1px solid rgba(148,163,184,0.12); }
-.av-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.av-name { font-weight: 600; color: #0f172a; }
+.anomaly-village { padding: 12px 6px; border-bottom: 1px solid rgba(148,163,184,0.14); }
+.av-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.av-name { font-weight: 600; color: #0f172a; font-size: 13px; }
+.av-head .av-pct { margin-left: auto; }
+.ai-text { font-size: 11px; color: #475569; line-height: 1.5; margin-bottom: 7px; }
+.detail-band { margin-bottom: 7px; }
 .strategy-badge { flex: none; font-size: 9px; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
 .strategy-badge.convert { background: #fee2e2; color: #b91c1c; }
 .strategy-badge.observe { background: #e0f2fe; color: #0369a1; }
