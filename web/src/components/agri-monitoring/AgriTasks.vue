@@ -71,6 +71,15 @@
         <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
       </header>
 
+      <!-- 统计摘要：始终显示（布局不变） -->
+      <section class="task-drawer-summary">
+        <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
+        <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
+        <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
+        <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
+        <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
+      </section>
+
       <!-- 左右分栏：左卡片列表 + 右详情 -->
       <div v-if="drawerTaskId && drawerTask" class="task-drawer-split">
         <section class="task-drawer-list-pane">
@@ -131,15 +140,8 @@
         </section>
       </div>
 
-      <!-- 列表态：摘要 + 搜索 + 表格 + 分页 -->
+      <!-- 列表态：搜索 + 表格 + 分页 -->
       <template v-else>
-        <section class="task-drawer-summary">
-          <div><span>总任务</span><strong>{{ allTasks.length }}</strong></div>
-          <div><span>待下发</span><strong>{{ statusCount('待下发') }}</strong></div>
-          <div><span>待领取</span><strong>{{ statusCount('待领取') }}</strong></div>
-          <div><span>进行中</span><strong>{{ statusCount('进行中') }}</strong></div>
-          <div><span>已完成</span><strong>{{ statusCount('已完成') }}</strong></div>
-        </section>
         <div class="task-drawer-tools">
           <input v-model.trim="query" type="search" placeholder="搜索任务名称或村" />
           <span>总任务 {{ allTasks.length }} · 当前结果 {{ filteredAll.length }}</span>
