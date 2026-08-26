@@ -302,7 +302,7 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .agri-tasks { font-size: 12px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .view-top { border: 0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; padding: 2px 4px; cursor: pointer; }
-.view-top:hover { color: #1d4ed8; text-decoration: underline; }
+.view-top:hover { color: #1d4ed8; }
 .list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
 .view-all-bottom:hover { background: #eef2f7; }
