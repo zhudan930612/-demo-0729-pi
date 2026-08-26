@@ -24,15 +24,15 @@
     <div v-else class="task-detail">
       <div class="detail-header">
         <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeTask"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
-        <span class="detail-title">{{ visibleTask.name }}</span>
-        <span class="detail-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span>
+        <span class="detail-title">{{ visibleTask.taskNo }}</span>
       </div>
 
       <div class="detail-group">
         <div class="group-label">基础信息</div>
         <div class="detail-meta">
           <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
-          <div class="meta-row"><span class="meta-label">类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
+          <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
+          <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ visibleTask.name }}</span></div>
           <div class="meta-row"><span class="meta-label">所在村</span><span class="meta-value">{{ visibleTask.villageName }}</span></div>
           <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
           <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ visibleTask.executor ? `${visibleTask.executor.name}（${visibleTask.executor.role}）` : '未分配' }}</span></div>
