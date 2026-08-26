@@ -53,8 +53,10 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
+const router = useRouter();
 const auth = useAuthStore();
 const username = ref('');
 const password = ref('');
@@ -131,6 +133,7 @@ async function submit() {
   submitting.value = true;
   try {
     await auth.login(username.value, password.value);
+    await router.push('/');
   } catch {
     // 错误文案已写入 store.errorMessage，交由模板展示。
   } finally {

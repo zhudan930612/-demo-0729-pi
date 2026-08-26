@@ -45,6 +45,15 @@ export const useAuthStore = defineStore('auth', {
         this.status = 'unauthenticated'
       }
     },
+    /** 等待首次会话恢复完成；路由守卫据此拿到已解析的登录态。 */
+    async ensureReady(client: AuthApiClient = authApi) {
+      if (this.status !== 'checking') return
+      try {
+        await this.restore(client)
+      } catch {
+        // restore 内部已处理异常并置为未登录态，这里兜底
+      }
+    },
     async logout(client: AuthApiClient = authApi) {
       const token = this.token
       this.token = null
