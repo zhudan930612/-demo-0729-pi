@@ -123,6 +123,17 @@ def policy_growth_for_date(village_code, di):
     return rows
 
 
+# 各类任务的 SOP（分点、具体）；同一任务类型 SOP 一致
+SOP_BY_TYPE = {
+    "poor_growth": "1. 携带遥感图斑定位异常地块；\n2. 现场核对作物长势、受害程度与承保面积；\n3. 拍照留痕（田块全景+近景）并记录坐标；\n4. 询问农户减产情况，核实是否与承保一致；\n5. 48 小时内反馈核查结论。",
+    "training": "1. 确认培训对象并核对签到名单；\n2. 讲解水稻绿色防控/栽培技术要点；\n3. 现场实操示范并答疑；\n4. 发放培训资料并留存影像记录。",
+    "fertilization": "1. 核对追肥地块与施肥方案；\n2. 现场督导施肥作业（用量/方式）；\n3. 记录施肥时间、面积与投入品；\n4. 拍照留痕并反馈。",
+    "policy_advocacy": "1. 确认宣导对象（农户/村级）；\n2. 讲解政策性农险保障与补贴政策；\n3. 解答农户疑问并收集意见；\n4. 发放宣导资料并留影。",
+    "site_survey": "1. 携带查勘工具与现场底图；\n2. 查明受灾地块范围与程度；\n3. 拍照/测产/记录损失；\n4. 出具查勘记录并反馈。",
+    "key_followup": "1. 确认重点对象（大户/回访名单）；\n2. 了解承保/续保意向与诉求；\n3. 记录跟进情况并更新台账；\n4. 反馈后续承保建议。",
+}
+
+
 def demo_tasks(villages):
     """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
     items = list(villages.items())
@@ -147,7 +158,7 @@ def demo_tasks(villages):
             "id": tid, "name": name, "type": typ, "typeName": type_name, "status": status,
             "villageCode": code, "villageName": vname, "createdAt": date,
             "executor": {"name": "李四", "role": "协保员"} if status in ("进行中", "已完成") else None,
-            "remark": remark, "sopAction": "到场核实并拍照留痕，核对长势/承保面积。",
+            "remark": remark, "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
             "requirement": "48 小时内反馈核查结论。",
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
             "evidence": [],

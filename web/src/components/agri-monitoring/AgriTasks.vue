@@ -191,7 +191,7 @@ function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 .detail-sec { margin-bottom: 16px; }
 .detail-sec:last-child { margin-bottom: 0; }
 .sec-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
-.sec-body { font-size: 12px; color: #334155; line-height: 1.65; }
+.sec-body { font-size: 12px; color: #334155; line-height: 1.65; white-space: pre-line; }
 .loc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
