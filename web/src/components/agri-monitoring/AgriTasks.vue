@@ -360,7 +360,7 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .task-drawer-tools span { color: #64748b; font-size: 12px; }
 .task-drawer-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .task-drawer-list table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; white-space: nowrap; }
-.task-drawer-list th, .task-drawer-list td { padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+.task-drawer-list th, .task-drawer-list td { padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
 .task-drawer-list tbody tr { cursor: pointer; }
 .task-drawer-list tbody tr:hover { background: #ecfeff; }
 .task-drawer-list .t-no { color: #94a3b8; font-variant-numeric: tabular-nums; }
