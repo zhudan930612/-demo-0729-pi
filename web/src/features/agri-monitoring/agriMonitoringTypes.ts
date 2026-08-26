@@ -106,6 +106,7 @@ export const TASK_STATUSES: TaskStatus[] = ['待下发', '待领取', '进行中
 export interface AgriTask {
   id: string; taskNo: string; name: string; type: string; typeName: string
   villageCode: string; villageName: string; status: TaskStatus; createdAt: string
+  policyNo: string; policyInsuredName: string // 关联保单（编号 + 投保人）
   executor: { name: string; role: string } | null
   remark: string; sopAction: string; requirement: string
   location: { name: string; lon: number; lat: number }

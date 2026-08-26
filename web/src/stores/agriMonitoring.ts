@@ -141,6 +141,7 @@ export const useAgriMonitoringStore = defineStore('agriMonitoring', {
         sopAction: '携带遥感图斑定位异常地块，核实作物长势与承保面积是否一致、是否存在明显减产。',
         requirement: '到场核实并拍照留痕，48 小时内反馈核查结论。',
         location: { name: village.name, lon: village.centroid?.lon ?? 0, lat: village.centroid?.lat ?? 0 },
+        policyNo: `POL-${village.code}-001`, policyInsuredName: village.name,
         evidence: [],
       }
       this.generatedTasks.push(task)

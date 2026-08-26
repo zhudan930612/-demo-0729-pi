@@ -134,6 +134,23 @@ SOP_BY_TYPE = {
 }
 
 
+def linked_policy(village_code):
+    """取村内一条保单（编号 + 投保人）作为任务关联保单（理赔可查证据）。"""
+    fx = G.load_policy_fixture(village_code)
+    if not fx:
+        return {"policyNo": "", "insuredName": ""}
+    policies = [p for p in fx.get("policies", []) if p.get("status") == "保障中"]
+    parties = {str(p.get("id", "")): str(p.get("name", "")) for p in fx.get("parties", [])}
+    if not policies:
+        return {"policyNo": "", "insuredName": ""}
+    p = policies[0]
+    pid = str(p.get("insuredPartyId", ""))
+    insured = parties.get(pid, "")
+    if not insured and str(p.get("insuredMode", "")) == "insured_roster":
+        insured = parties.get("party-roster", "集体投保")
+    return {"policyNo": str(p.get("policyNo", "")), "insuredName": insured or "集体投保"}
+
+
 def demo_tasks(villages):
     """额外演示任务：不同状态/类型，用于任务列表展示（异常监测派发之外）。"""
     items = list(villages.items())
@@ -154,12 +171,14 @@ def demo_tasks(villages):
     for tid, name, type_name, typ, status, vidx, date, remark in spec:
         code, vmeta = items[vidx % len(items)]
         vname = vmeta["name"]; centroid = vmeta.get("centroid") or {}
+        pol = linked_policy(code)
         rows.append({
             "id": tid, "name": name, "type": typ, "typeName": type_name, "status": status,
             "villageCode": code, "villageName": vname, "createdAt": date,
             "executor": {"name": "李四", "role": "协保员"} if status in ("进行中", "已完成") else None,
             "remark": remark, "sopAction": SOP_BY_TYPE.get(typ, "到场核实并拍照留痕。"),
             "requirement": "48 小时内反馈核查结论。",
+            "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
             "evidence": [],
         })
