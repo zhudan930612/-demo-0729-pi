@@ -205,14 +205,6 @@ def batch_tasks(villages, start_no, count):
         created_at = f"2026-08-{1 + (i % 26):02d} {8 + (i % 8):02d}:{(i * 7) % 60:02d}"
         ex = executors[i % len(executors)] if status in ("进行中", "已完成") else None
         pol = linked_policy(code) if typ in NEED_POLICY else {"policyNo": "", "insuredName": ""}
-        ev = []
-        if status == "已完成":
-            try:
-                base = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
-                submit = (base + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                ev = [{"url": PLACEHOLDER_IMG, "time": submit}, {"url": PLACEHOLDER_IMG, "time": submit}]
-            except Exception:
-                ev = [{"url": PLACEHOLDER_IMG, "time": created_at}]
         rows.append({
             "id": f"task-demo-{start_no + i}", "name": name, "type": typ, "typeName": type_name, "status": status,
             "villageCode": code, "villageName": vname, "createdAt": created_at,
@@ -220,22 +212,28 @@ def batch_tasks(villages, start_no, count):
             "requirement": REQUIREMENT_BY_TYPE.get(typ, "48 小时内反馈。"),
             "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
-            "evidence": ev,
+            "evidence": evidence_for(status, created_at),
         })
     return rows
 
 
-def evidence_for(status, created_at, placeholder_url):
-    """已完成任务：影像资料提交时间 = 创建时间 + 3 小时（不得早于创建时间）。"""
+EVIDENCE_IMAGES = [f"/data/agri/evidence/img_{i:03d}.jpg" for i in range(1, 41)]  # 40 张已完成任务图片
+_EV_COUNTER = [0]
+
+def evidence_for(status, created_at):
+    """已完成任务：影像资料 = 4 张真实图片（按序分配）+ 提交时间 = 创建 + 3 小时。"""
     if status != "已完成":
         return []
     from datetime import datetime, timedelta
+    start = _EV_COUNTER[0]
+    imgs = EVIDENCE_IMAGES[start:start + 4]
+    _EV_COUNTER[0] = start + 4
     try:
         base = datetime.strptime(created_at, "%Y-%m-%d %H:%M")
         submit = (base + timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-        return [{"url": placeholder_url, "time": submit}, {"url": placeholder_url, "time": submit}]
+        return [{"url": u, "time": submit} for u in imgs]
     except Exception:
-        return [{"url": placeholder_url, "time": created_at}]
+        return [{"url": u, "time": created_at} for u in imgs]
 
 
 def demo_tasks(villages):
@@ -277,7 +275,7 @@ def demo_tasks(villages):
             "requirement": REQUIREMENT_BY_TYPE.get(typ, "48 小时内反馈。"),
             "policyNo": pol["policyNo"], "policyInsuredName": pol["insuredName"],
             "location": {"name": vname, "lon": centroid.get("lon", 0), "lat": centroid.get("lat", 0)},
-            "evidence": evidence_for(status, created_at, PLACEHOLDER_IMG),
+            "evidence": evidence_for(status, created_at),
         })
     return rows
 
@@ -298,6 +296,7 @@ def main():
         ])
         all_levels.append(G.build_level_aggregation(vg, manifest))
         all_policy.append({code: policy_growth_for_date(code, di) for code, _ in G.INSURED_VILLAGES})
+        _EV_COUNTER[0] = 0  # 每个日期重置，已完成任务图片按序一致
         tasks_of_date = G.generate_tasks(villages, vg) + demo_tasks(villages) + batch_tasks(villages, 11, 46)
         for idx, t in enumerate(tasks_of_date):
             t["taskNo"] = f"RW-2026-{idx + 1:04d}"  # 任务编号
