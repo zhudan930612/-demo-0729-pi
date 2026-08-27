@@ -4,7 +4,7 @@ const h = vi.hoisted(() => {
   const markerAddTo = vi.fn()
   const layerGroupClear = vi.fn()
   const layerGroupAdd = vi.fn()
-  const createMarker = vi.fn(() => {
+  const createMarker = vi.fn((_latlng: unknown, _opts: { pane?: string } | undefined) => {
     const marker = { addTo: h.markerAddTo, on: vi.fn(), setZIndexOffset: vi.fn() }
     h.markerAddTo.mockReturnValue(marker)
     return marker

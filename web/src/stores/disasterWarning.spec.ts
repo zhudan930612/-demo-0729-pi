@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDisasterWarningStore } from './disasterWarning'
+import type { DisasterRiskModel } from '../features/disaster-warning/types'
 
 const track = {
   code: 200, no1: '3257931', no2: '2609', namecn: '巴威', type: 'stop',
@@ -18,10 +19,19 @@ const underwriting = {
   schemaVersion: 1, seed: 'x', sumInsuredPerMu: 1250, targetTotalMu: 12000000,
   villages: [{ code: '330382101001', name: '示例村', insuredAreaMu: 100, householdCount: 10, sumInsuredYuan: 125000, source: 'mock' as const }],
 }
-const riskModel = {
+const riskModel: DisasterRiskModel = {
   schemaVersion: 1,
-  riskLevelFromCumRainMm: [{ max: 50, level: 0, name: '无', coefficient: 0.2 }, { min: 50, max: 100, level: 1, name: '低', coefficient: 0.4 }, { min: 100, max: 150, level: 2, name: '中', coefficient: 0.7 }, { min: 150, level: 3, name: '高', coefficient: 1.0 }],
-  lossRateByWarningLevel: [{ level: 1, name: '低', lossRate: 0.03 }, { level: 2, name: '中', lossRate: 0.08 }, { level: 3, name: '高', lossRate: 0.15 }],
+  riskLevelFromCumRainMm: [
+    { max: 50, level: 0 as const, name: '无', coefficient: 0.2 },
+    { min: 50, max: 100, level: 1 as const, name: '低', coefficient: 0.4 },
+    { min: 100, max: 150, level: 2 as const, name: '中', coefficient: 0.7 },
+    { min: 150, level: 3 as const, name: '高', coefficient: 1.0 },
+  ],
+  lossRateByWarningLevel: [
+    { level: 1 as const, name: '低', lossRate: 0.03 },
+    { level: 2 as const, name: '中', lossRate: 0.08 },
+    { level: 3 as const, name: '高', lossRate: 0.15 },
+  ],
   formula: '预估受灾面积 = Σ(预警村承保面积 × 村级风险系数 × 损失率)',
 }
 const snapshot = { track, precip, warnings, underwriting, riskModel }

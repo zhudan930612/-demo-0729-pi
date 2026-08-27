@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import type {
   DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel,
-  DisasterWarningTab, DisasterTask, DisasterTaskStatus, DisasterTaskType, DisasterTaskHistoryEntry,
+  DisasterWarningTab, DisasterTask, DisasterTaskStatus, DisasterTaskType,
 } from '../features/disaster-warning/types'
 
 export type DisasterWarningPhase = 'closed' | 'loading' | 'ready' | 'error'
@@ -211,7 +211,7 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
         const span = Math.max(1, windowEnd - task.createdAtNode)
         const seg1 = task.createdAtNode + Math.floor(span / 3)
         const seg2 = task.createdAtNode + Math.floor((2 * span) / 3)
-        if (nodeIndex >= seg2 && task.status !== '已完成') {
+        if (nodeIndex >= seg2) {
           task.status = '已完成'
           task.history = [...task.history, { time: this.nodeTimeLabel, text: '任务完成（预生成证据挂载）' }]
           task.evidence = [
