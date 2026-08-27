@@ -336,7 +336,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     if (!playback || count <= 0 || !map) return
     // 进入受灾预警才挂载降水/预警图层（不常驻地图）
     precipController?.destroy()
-    precipController = createPrecipitationLayerController()
+    // 受灾预警播放时每帧重绘降水热力图（高频），用较小 renderSize 降低每帧瓦片插值成本；降水模式仍用默认 64
+    precipController = createPrecipitationLayerController({ renderSize: 32 })
     precipController.mount(map)
     warningController?.destroy()
     warningController = createDisasterWarningLayerController({
