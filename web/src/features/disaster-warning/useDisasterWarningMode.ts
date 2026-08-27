@@ -380,8 +380,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   }
 
   // 隔离诊断开关：临时置 true —— 完全隐藏/不加载降雨热力图（只留台风+预警标记+面板），定位卡顿是否来自热力图。
-  // 隔离诊断开关（恢复完整功能）：noPrecip=false 显示降雨热力图；noMarkers=false 显示预警标记（聚合徽标+脉冲点）
-  const noPrecip = false
+  // 诊断开关（用户要求：先移除降雨热力图，只保留台风+面板来排查卡顿；完成排查后再恢复 false）
+  const noPrecip = true
   const noMarkers = false
 
   /** 进入受灾预警时：挂载图层并渲染首帧，但不自动启动播放（R2-3 变更：默认不自动播放，用户点 ▶ 启动）。 */
