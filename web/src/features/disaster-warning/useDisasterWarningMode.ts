@@ -64,6 +64,7 @@ export interface DisasterWarningMode {
 export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWarningMode {
   const store = useDisasterWarningStore()
 
+  let map: L.Map | null = null
   let typhoonController: TyphoonLayerController | null = null
   let precipController: PrecipitationLayerController | null = null
   let warningController: DisasterWarningLayerController | null = null
@@ -333,7 +334,17 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   function startPlayback() {
     const count = store.nodeCount
-    if (!playback || count <= 0) return
+    if (!playback || count <= 0 || !map) return
+    // 进入受灾预警才挂载降水/预警图层（不常驻地图）
+    precipController?.destroy()
+    precipController = createPrecipitationLayerController()
+    precipController.mount(map)
+    warningController?.destroy()
+    warningController = createDisasterWarningLayerController({
+      onBadgeClick: (countyCode) => void selectCounty(countyCode),
+      onVillageClick: (code) => void selectVillage(code),
+    })
+    warningController.mount(map)
     store.setNode(0)
     renderTyphoonLayer(0)
     renderPrecipFrame(0)
@@ -428,6 +439,11 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function exit() {
     playback?.pause()
     store.close()
+    // 移除受灾预警专属图层（不常驻地图，避免与降水模式共用 pane 冲突）
+    precipController?.destroy()
+    precipController = null
+    warningController?.destroy()
+    warningController = null
     if (!ctx.disasterActive.value) {
       void ctx.resetToProvince().then((reset) => { if (reset) void ctx.render() })
     }
@@ -436,6 +452,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function setTab(tab: DisasterWarningTab) { store.setTab(tab) }
 
   function init(target: L.Map) {
+    map = target
     // 台风图层：适配静态轨迹（R2-10）
     const track = store.track
     if (track) typhoonDetail = adaptTyphoonDetail(track)
@@ -462,16 +479,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
         typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'wind', typhoonId, nodeId, grade })
       },
     })
-    // 降水热力图（R2-6）
-    precipController = createPrecipitationLayerController()
-    precipController.mount(target)
-    // 预警标记（R3）
-    warningController = createDisasterWarningLayerController({
-      onBadgeClick: (countyCode) => void selectCounty(countyCode),
-      onVillageClick: (code) => void selectVillage(code),
-    })
-    warningController.mount(target)
-    // 播放控制器（R2-3/R2-4 循环）
+    // 播放控制器（R2-3/R2-4 循环）；降水/预警图层在 startPlayback 时创建并 mount（不常驻地图）
     playback = createDisasterPlaybackController({})
     // 地图空白点击清除钉住的浮窗
     target.getContainer().addEventListener('pointermove', () => {
@@ -484,6 +492,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     typhoonController?.destroy()
     precipController?.destroy()
     warningController?.destroy()
+    map = null
   }
 
   // 层级变化 → 重渲预警层（R3-19/R3-20/R3-22）
