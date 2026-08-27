@@ -177,6 +177,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   /** 台风轨迹 + 当前位置风圈（R2-10~R2-12）：复用 typhoonLayerController，visibleObservationCount 驱动动画 */
   function renderTyphoonLayer(nodeIndex: number) {
+    if (noTyphoon) return
     if (!typhoonController || !typhoonDetail) return
     const count = nodeIndex + 1 // 已播节点数（含当前帧）
     const node = typhoonDetail.observationsAsc[nodeIndex]
@@ -234,10 +235,16 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     if (!warningController || !warnings) return
     const level = ctx.store.current.level
     const code = ctx.store.current.code
-    // R2-3 变更为 1s/步：标记集合在多数相邻节点未变；仅当 节点+层级+区划 都未变时跳过重建
-    const key = `${nodeIndex}|${level}|${code}`
-    if (key === lastWarnedRenderKey) return
-    lastWarnedRenderKey = key
+    // 预警标记集合是否变化（而非 nodeIndex——后者每帧都变，缓存形同虚设）：
+    // 用当前节点中/高预警村的 (code) 串做签名；相邻节点若预警集合不变则跳过重建
+    const node = warnings.nodes.find((n) => n.i === nodeIndex)
+    const midHighCode = node && warnings.villages
+      ? node.w.filter(([_, lvl]) => lvl >= 2).map(([vi]) => warnings.villages[vi]!.code).sort().join(',')
+      : ''
+    const sig = `${level}|${code}|${midHighCode}`
+    if (sig === lastWarnedRenderKey) return
+    lastWarnedRenderKey = sig
+
     const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图（仅列表）
     let filtered = entries
     if (level === 'county') {
@@ -383,6 +390,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   // 诊断开关（用户要求：先移除降雨热力图，只保留台风+面板来排查卡顿；完成排查后再恢复 false）
   const noPrecip = true
   const noMarkers = false
+  // 诊断开关：禁用台风场景渲染（用于确认台风场景每帧全量重建是否卡顿主因）。URL ?notyphoon=1 可临时开启
+  const noTyphoon = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('notyphoon')
 
   /** 进入受灾预警时：挂载图层并渲染首帧，但不自动启动播放（R2-3 变更：默认不自动播放，用户点 ▶ 启动）。 */
   function renderInitialFrame() {
