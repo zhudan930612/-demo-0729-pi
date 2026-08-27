@@ -147,11 +147,20 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   }
 
   // ---- 数据加载 ----
+
+  /** 数据就绪后从静态 track 适配台风详情（init 时 track 未到，必须在 receive 后执行，R2-10~R2-12）。 */
+  function syncTyphoonDetail() {
+    const track = store.track
+    typhoonDetail = track ? adaptTyphoonDetail(track) : null
+  }
+
   async function loadAll() {
     const generation = store.generation
     try {
       const data = await loadDisasterWarningData()
       store.receive(generation, data)
+      // 台风详情依赖 track：init 时数据未到，这里重新适配（R2-10~R2-12 修复）
+      syncTyphoonDetail()
       // 预计算徽标落点（异步，不阻塞播放）
       void loadCountySeats()
     } catch (e) {
@@ -453,9 +462,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   function init(target: L.Map) {
     map = target
-    // 台风图层：适配静态轨迹（R2-10）
-    const track = store.track
-    if (track) typhoonDetail = adaptTyphoonDetail(track)
+    // 台风图层控制器创建时不依赖 track；typhoonDetail 在 loadAll→receive 后由 syncTyphoonDetail 适配（R2-10~R2-12）
     typhoonController = createTyphoonLayerController(target, {
       onNodeEnter: ({ typhoonId, nodeId, containerPoint }) => {
         typhoonPopupState.value = hoverPopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
