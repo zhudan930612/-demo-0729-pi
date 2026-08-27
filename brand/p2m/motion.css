@@ -1,0 +1,54 @@
+/* 农保云「巡田之眸」logo reveal — 共享 1400ms 时钟
+   规则：@keyframes 内 animation-timing-function 必须字面量（var() 会被 Chromium 静默丢弃退化为 linear）；
+   所有动画 fill-mode: both，保证 ?t=<ms> 与 ?static=1 确定性。 */
+
+:root {
+  --p2m-duration: 1400ms;
+  --p2m-ease-draw: cubic-bezier(0.4, 0, 0.2, 1);
+  --p2m-ease-sweep: cubic-bezier(0.45, 0, 0.15, 1);
+  --p2m-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+#logo-root #leaf,
+#logo-root #vein,
+#logo-root #orbit {
+  stroke-dasharray: 1 1.2;
+  stroke-dashoffset: 1.1;
+}
+
+#logo-root #leaf { animation: p2m-leaf var(--p2m-duration) linear both; }
+#logo-root #vein { animation: p2m-vein var(--p2m-duration) linear both; }
+#logo-root #orbit { animation: p2m-orbit var(--p2m-duration) linear both; }
+#logo-root #sat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: p2m-sat var(--p2m-duration) linear both;
+}
+
+@keyframes p2m-leaf {
+  0% { stroke-dashoffset: 1.1; }
+  8% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); } /* --p2m-ease-draw */
+  52% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes p2m-vein {
+  0% { stroke-dashoffset: 1.1; }
+  40% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); } /* --p2m-ease-draw */
+  62% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes p2m-orbit {
+  0% { stroke-dashoffset: 1.1; }
+  58% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1); } /* --p2m-ease-sweep */
+  82% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes p2m-sat {
+  0% { opacity: 0; transform: scale(0); }
+  74% { opacity: 0; transform: scale(0); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); } /* --p2m-ease-pop */
+  88% { opacity: 1; transform: scale(1.18); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); } /* settle */
+  100% { opacity: 1; transform: scale(1); }
+}
