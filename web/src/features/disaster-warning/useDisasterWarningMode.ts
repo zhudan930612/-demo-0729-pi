@@ -3,7 +3,7 @@ import L from 'leaflet'
 import type { useDrilldownStore, Level, Crumb } from '../../stores/drilldown'
 import { useDisasterWarningStore } from '../../stores/disasterWarning'
 import { loadDisasterWarningData } from './disasterWarningRepository'
-import type { DisasterWarningTab } from './types'
+import type { DisasterPrecip, DisasterWarningTab } from './types'
 import { createDisasterPlaybackController, type DisasterPlaybackController } from './disasterPlaybackController'
 import { createPrecipitationLayerController, type PrecipitationLayerController } from '../../map/precipitationLayerController'
 import { createTyphoonLayerController, type TyphoonLayerController } from '../../map/typhoonLayerController'
@@ -186,9 +186,28 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   }
 
   /** 热力图帧：precip.json 每帧适配为 PrecipitationSnapshot（R2-6，复用降水渲染） */
+  // 降水热力图重绘节流：累计雨量单调不减，相邻节点若雨量几乎未变则无需重绘（R2-6 边界：数据缺失/未变时保持上一份，不闪空）
+  let lastPrecipRenderedNode = -1
+  let lastPrecipHash = -1
+
+  function precipFrameHash(precip: DisasterPrecip, nodeIndex: number): number {
+    // 用累计雨量全网格的简单累加校验和作签名（仅 398 个点，O(n) 极廉价）；区分不同雨量场
+    let hash = 0
+    for (const g of precip.grid) {
+      const v = g.cum[nodeIndex] ?? 0
+      hash = (hash * 31 + Math.round(v * 10)) | 0
+    }
+    return hash
+  }
+
   function renderPrecipFrame(nodeIndex: number) {
     const precip = store.precip
     if (!precipController || !precip) return
+    // 累计雨量几乎未变（早期无雨/小雨节点）：跳过重绘，沿用上一份热力图，避免每帧全瓦片重绘
+    const hash = precipFrameHash(precip, nodeIndex)
+    if (nodeIndex !== lastPrecipRenderedNode && hash === lastPrecipHash) return
+    lastPrecipRenderedNode = nodeIndex
+    lastPrecipHash = hash
     const time = precip.nodeTimes[nodeIndex] ?? ''
     const snapshot = {
       grid: precip.grid.map((g) => ({ lat: g.lat, lon: g.lon, values: { d1: g.cum[nodeIndex] ?? 0, d2: g.cum[nodeIndex] ?? 0, d3: g.cum[nodeIndex] ?? 0, d4: g.cum[nodeIndex] ?? 0, d5: g.cum[nodeIndex] ?? 0, d6: g.cum[nodeIndex] ?? 0, d7: g.cum[nodeIndex] ?? 0 } })),

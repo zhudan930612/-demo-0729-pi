@@ -171,6 +171,37 @@ function boundaryProjected(map: L.Map, zoom: number): Array<Array<[number, numbe
   return proj
 }
 
+/** 省界裁剪 Path2D 缓存（per zoom）：边界路径只构建一次，瓦片渲染时 translate+clip 复用，
+ * 避免每块瓦片每帧对 1.5 万顶点逐点 lineTo/closePath（closePath 曾占主线程 11%）。 */
+const boundaryPathCache = new Map<number, Path2D>()
+
+/** 抽取/简化一个环的顶点（等距抽样），大幅减少 Path2D 顶点量，省界裁剪视觉几乎无差。 */
+function sampleRing(ring: Array<[number, number]>, maxPoints: number): Array<[number, number]> {
+  if (ring.length <= maxPoints) return ring
+  const out: Array<[number, number]> = []
+  const step = ring.length / maxPoints
+  for (let i = 0; i < maxPoints; i++) out.push(ring[Math.floor(i * step)]!)
+  // 闭合环：补回首点
+  out.push(out[0]!)
+  return out
+}
+
+/** 构建（并缓存）指定 zoom 的省界裁剪 Path2D（世界像素坐标）。 */
+function boundaryPathFor(map: L.Map, zoom: number): Path2D | null {
+  let path = boundaryPathCache.get(zoom)
+  if (path) return path
+  const proj = boundaryProjected(map, zoom)
+  if (!proj || proj.length === 0) return null
+  path = new Path2D()
+  const PER_RING = 500 // 每环最多保留 500 顶点（15217 → 约 10 万→数千），clip 足够平滑
+  for (const ring of proj) {
+    for (const [x, y] of sampleRing(ring, PER_RING)) path.lineTo(x, y)
+    path.closePath()
+  }
+  boundaryPathCache.set(zoom, path)
+  return path
+}
+
 /** 渲染单个瓦片：64×64 低分辨率渲染（双线性插值 + 阈值渐变带）→ 高质量平滑放大。
  *  用浙江界 clip（evenodd 处理洞与岛屿），界外色斑不绘制，边界平滑抗锯齿。
  *  createTile 与 setData 复用（setData 直接重绘已有 canvas，避免 DOM 重建闪烁）。 */
@@ -203,18 +234,13 @@ function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: Preci
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX, originY = coords.y * tileSizeY
-  const proj = boundaryProjected(map, coords.z)
-  if (proj && proj.length > 0) {
-    // 浙江界 clip（evenodd：外环+洞+岛屿正确），界外色斑不绘制
+  const clipPath = boundaryPathFor(map, coords.z)
+  if (clipPath) {
+    // 省界 clip（evenodd：外环+洞+岛屿正确）：复用缓存的 Path2D，仅 translate 到瓦片局部空间，避免每瓦片重建 1.5 万顶点路径
     ctx.save()
     try {
-      ctx.beginPath()
-      for (const ring of proj) {
-        ctx.moveTo(ring[0][0] - originX, ring[0][1] - originY)
-        for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i][0] - originX, ring[i][1] - originY)
-        ctx.closePath()
-      }
-      ctx.clip('evenodd')
+      ctx.translate(-originX, -originY)
+      ctx.clip(clipPath, 'evenodd')
       ctx.drawImage(off, 0, 0, tileSizeX, tileSizeY)
     } finally {
       ctx.restore()
