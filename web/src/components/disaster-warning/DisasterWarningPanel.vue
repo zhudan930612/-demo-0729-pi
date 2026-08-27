@@ -28,7 +28,6 @@
       <section v-if="activeTab === 'loss'" class="tab-pane loss-pane" data-test="dw-loss-pane">
         <div class="loss-title-row">
           <span class="loss-title">{{ regionName }} · 灾损预估</span>
-          <span class="est-tag">预估</span>
         </div>
         <div v-if="phase === 'ready'" class="loss-subtitle" data-test="dw-loss-title">{{ lossTitle }}</div>
         <div class="loss-metrics">
@@ -508,11 +507,10 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .loss-title-row { display: flex; align-items: center; gap: 6px; }
 .loss-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .loss-subtitle { color: #64748b; font-size: 11px; }
-.est-tag { flex: none; padding: 1px 6px; border-radius: 999px; background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 600; }
-.loss-metrics { display: flex; align-items: baseline; gap: 20px; margin: 6px 0 12px; }
+.loss-metrics { display: flex; align-items: baseline; gap: 20px; margin: 10px 0 14px; }
 .loss-metric { display: flex; align-items: baseline; gap: 5px; }
 .loss-metric-label { color: #64748b; font-size: 10px; white-space: nowrap; }
-.loss-metric-value { font-size: 13px; font-weight: 600; color: #0f172a; font-variant-numeric: tabular-nums; }
+.loss-metric-value { font-size: 18px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.05; }
 .loss-metric-unit { color: #94a3b8; font-size: 10px; white-space: nowrap; }
 .loss-hint { margin: 0; color: #94a3b8; font-size: 11px; }
 .empty-state { padding: 24px 0; text-align: center; color: #94a3b8; font-size: 11px; }
