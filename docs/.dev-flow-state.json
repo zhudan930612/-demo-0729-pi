@@ -4,7 +4,7 @@
   "requirementDoc": "docs/requirements/受灾预警-V1需求.md",
   "acceptanceChecklist": "docs/requirements/受灾预警-V1验收清单.md",
   "branch": "feat/disaster-warning",
-  "phase": "artifact-precheck",
+  "phase": "coding",
   "_phase取值": "form-precheck(形态预检) | coding(编码) | artifact-precheck(产物目视预检) | acceptance(验收) | judging(判断) | quality-review(质量审查) | done(完成) | escalated(升级)",
   "formPrecheck": {
     "status": "user-confirmed",
@@ -44,8 +44,10 @@
       }
     },
     "wave2": {
-      "status": "launching",
-      "tickets": "T4→T5→T6→T7→T8→T9→T10 串行"
+      "status": "running",
+      "runId": "5269d479-d3a2-4f83-8cd4-f30befb242b3",
+      "agent": "w3=T4→T5→T6→T7→T8→T9→T10",
+      "scope": "web/src + web/e2e"
     }
   },
   "iteration": 0,
