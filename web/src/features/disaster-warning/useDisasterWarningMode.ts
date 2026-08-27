@@ -1,9 +1,22 @@
-import type { Ref } from 'vue'
-import type L from 'leaflet'
-import type { useDrilldownStore } from '../../stores/drilldown'
+import { computed, ref, watch, type Ref } from 'vue'
+import L from 'leaflet'
+import type { useDrilldownStore, Level, Crumb } from '../../stores/drilldown'
 import { useDisasterWarningStore } from '../../stores/disasterWarning'
 import { loadDisasterWarningData } from './disasterWarningRepository'
 import type { DisasterWarningTab } from './types'
+import { createDisasterPlaybackController, type DisasterPlaybackController } from './disasterPlaybackController'
+import { createPrecipitationLayerController, type PrecipitationLayerController } from '../../map/precipitationLayerController'
+import { createTyphoonLayerController, type TyphoonLayerController } from '../../map/typhoonLayerController'
+import { createDisasterWarningLayerController, type DisasterWarningLayerController } from '../../map/disasterWarningLayerController'
+import { adaptTyphoonDetail } from '../typhoon/typhoonAdapter'
+import { buildTyphoonHoverViewModel } from '../typhoon/typhoonHoverViewModel'
+import { clearPinnedWindPopupOnMove, hoverPopup, leavePopup, visiblePopupTarget, type TyphoonPopupState } from '../typhoon/typhoonInteractionState'
+import type { TyphoonDetail } from '../typhoon/typhoonTypes'
+import type { FeatureCollection, Geometry } from 'geojson'
+import { fetchJSON } from '../../api/data'
+import { childrenUrl } from '../../stores/drilldown'
+import { warnedVillagesAtNode } from './disasterWarningSelectors'
+import { TASK_TYPES_BY_WARNING_LEVEL } from '../../stores/disasterWarning'
 
 export interface DisasterWarningContext {
   store: ReturnType<typeof useDrilldownStore>
@@ -30,23 +43,370 @@ export interface DisasterWarningMode {
   enter(): Promise<void>
   exit(): void
   setTab(tab: DisasterWarningTab): void
+  /** 迷你浮窗：切换播放/暂停 */
+  togglePlay(): void
+  /** 迷你浮窗：退出受灾预警（R2-5） */
+  closePlayback(): void
+  /** 点击脉冲/卡片 → 进入村级视角（R3-7/R3-10） */
+  selectVillage(code: string): void
+  /** 点击聚合徽标 → 下钻该区县（R3-20） */
+  selectCounty(countyCode: string): void
+  /** 派发任务（R3-15/R5-1）：手工派发单村 */
+  dispatchVillage(code: string): void
+  /** 一键派发待处理村（R3-16） */
+  dispatchAllPending(): void
+  /** 悬停浮窗状态（MapView 渲染 TyphoonHoverPopup 用） */
+  typhoonHoverModel: Ref<ReturnType<typeof buildTyphoonHoverViewModel> | null>
+  typhoonHoverPosition: Ref<{ x: number; y: number }>
 }
 
-/** 受灾预警模式装配（R1~R6 共享装配层；播放/标记/灾损/任务切片挂在此层，不堆回 MapView）。 */
+/** 受灾预警模式装配（R1~R6 共享装配层）：复用台风/降水图层，新增预警图层 + 循环播放。 */
 export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWarningMode {
   const store = useDisasterWarningStore()
 
+  let typhoonController: TyphoonLayerController | null = null
+  let precipController: PrecipitationLayerController | null = null
+  let warningController: DisasterWarningLayerController | null = null
+  let playback: DisasterPlaybackController | null = null
+  let typhoonDetail: TyphoonDetail | null = null
+
+  const typhoonPopupState = ref<TyphoonPopupState>({ hover: null, pinned: null })
+  const typhoonHoverPosition = ref({ x: 0, y: 0 })
+  const typhoonHoverModel = computed(() => {
+    const target = visiblePopupTarget(typhoonPopupState.value)
+    return target && typhoonDetail ? buildTyphoonHoverViewModel({ [typhoonDetail.id]: typhoonDetail }, target) : null
+  })
+
+  // ---- 区县徽标落点（R3-19：政府驻地缺失时用区县边界质心） ----
+  const countySeats = ref<Map<string, [number, number]>>(new Map())
+  let countySeatsLoading: Promise<Map<string, [number, number]>> | null = null
+
+  /** 从 boundary/county/{cityCode}.geojson 计算区县质心（无源数据时兜底）。 */
+  async function loadCountySeats(): Promise<Map<string, [number, number]>> {
+    if (countySeatsLoading) return countySeatsLoading
+    countySeatsLoading = (async () => {
+      const seats = new Map<string, [number, number]>()
+      // 11 个地市的 county 文件，逐一取辖区所有区县质心
+      const cityFiles = ['330100', '330200', '330300', '330400', '330500', '330600', '330700', '330800', '330900', '331000', '331100']
+      const jobs = cityFiles.map(async (cityCode) => {
+        try {
+          const fc = await fetchJSON<FeatureCollection>(`/data/boundary/county/${cityCode}.geojson`)
+          for (const feature of fc.features) {
+            const code = String(feature.properties?.code ?? '')
+            if (!code || !feature.geometry) continue
+            const centroid = polygonCentroid(feature.geometry)
+            if (centroid) seats.set(code, centroid)
+          }
+        } catch { /* 数据缺失：该市无徽标落点 */ }
+      })
+      await Promise.all(jobs)
+      countySeats.value = seats
+      return seats
+    })()
+    return countySeatsLoading
+  }
+
+  function polygonCentroid(geometry: Geometry): [number, number] | null {
+    const rings = geometry.type === 'Polygon'
+      ? geometry.coordinates
+      : geometry.type === 'MultiPolygon'
+        ? geometry.coordinates.flat()
+        : []
+    if (rings.length === 0) return null
+    // 取面积最大环（外环）计算多边形质心
+    let best = rings[0]!
+    let bestArea = -1
+    for (const ring of rings) {
+      const area = Math.abs(ringArea(ring))
+      if (area > bestArea) { bestArea = area; best = ring }
+    }
+    let cx = 0
+    let cy = 0
+    let twiceArea = 0
+    for (let i = 0; i < best.length - 1; i++) {
+      const [x1, y1] = best[i]!
+      const [x2, y2] = best[i + 1]!
+      const cross = x1 * y2 - x2 * y1
+      twiceArea += cross
+      cx += (x1 + x2) * cross
+      cy += (y1 + y2) * cross
+    }
+    if (twiceArea === 0) return null
+    return [cx / (3 * twiceArea), cy / (3 * twiceArea)]
+  }
+
+  function ringArea(ring: number[][]): number {
+    let sum = 0
+    for (let i = 0; i < ring.length - 1; i++) {
+      const [x1, y1] = ring[i]!
+      const [x2, y2] = ring[i + 1]!
+      sum += x1 * y2 - x2 * y1
+    }
+    return sum / 2
+  }
+
+  // ---- 数据加载 ----
   async function loadAll() {
     const generation = store.generation
     try {
       const data = await loadDisasterWarningData()
       store.receive(generation, data)
+      // 预计算徽标落点（异步，不阻塞播放）
+      void loadCountySeats()
     } catch (e) {
       store.fail(generation, e instanceof Error ? e.message : '受灾预警数据加载失败')
-      // R2-18：降雨/轨迹/预警数据任一缺失 → 面板级降级提示
       ctx.showNotice('受灾预警数据加载失败，已按降级模式展示（预警监测空态、灾损预估 0、派发不可用）。', true)
     }
   }
+
+  // ---- 图层渲染 ----
+
+  /** 台风轨迹 + 当前位置风圈（R2-10~R2-12）：复用 typhoonLayerController，visibleObservationCount 驱动动画 */
+  function renderTyphoonLayer(nodeIndex: number) {
+    if (!typhoonController || !typhoonDetail) return
+    const count = nodeIndex + 1 // 已播节点数（含当前帧）
+    const node = typhoonDetail.observationsAsc[nodeIndex]
+    typhoonController.render({
+      realtime: [],
+      historical: [{ detail: typhoonDetail, visibleObservationCount: count }],
+      focusedTyphoonId: typhoonDetail.id,
+      selectedNodeByTyphoon: node ? { [typhoonDetail.id]: node.id } : {},
+    })
+  }
+
+  /** 热力图帧：precip.json 每帧适配为 PrecipitationSnapshot（R2-6，复用降水渲染） */
+  function renderPrecipFrame(nodeIndex: number) {
+    const precip = store.precip
+    if (!precipController || !precip) return
+    const time = precip.nodeTimes[nodeIndex] ?? ''
+    const day = 'd1' as const
+    const snapshot = {
+      grid: precip.grid.map((g) => ({ lat: g.lat, lon: g.lon, values: { d1: g.cum[nodeIndex] ?? 0, d2: g.cum[nodeIndex] ?? 0, d3: g.cum[nodeIndex] ?? 0, d4: g.cum[nodeIndex] ?? 0, d5: g.cum[nodeIndex] ?? 0, d6: g.cum[nodeIndex] ?? 0, d7: g.cum[nodeIndex] ?? 0 } })),
+      days: [time, time, time, time, time, time, time],
+      coveredDays: 7,
+      model: precip.model,
+      updatedAt: time,
+      aggregateFrom: precip.aggregateFrom,
+    }
+    precipController.setSnapshot(snapshot as never)
+    precipController.setDay(day)
+  }
+
+  /** 村级预警图层：按层级过滤后渲染（R3-6/R3-19/R3-22） */
+  function renderWarningLayer(nodeIndex: number) {
+    const warnings = store.warnings
+    if (!warningController || !warnings) return
+    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图（仅列表）
+    const level = ctx.store.current.level
+    let filtered = entries
+    if (level === 'county') {
+      const countyCode = ctx.store.current.code
+      filtered = entries.filter((e) => e.village.countyCode === countyCode)
+    } else if (level === 'township') {
+      const townshipCode = ctx.store.current.code
+      filtered = entries.filter((e) => e.village.townshipCode === townshipCode)
+    } else if (level === 'village') {
+      const code = ctx.store.current.code
+      const current = warnings.villages.find((v) => v.code === code)
+      const currentTownship = current?.townshipCode
+      // R3-22 村级视角：本村 + 同乡镇预警村
+      filtered = entries.filter((e) => e.village.code === code || (currentTownship && e.village.townshipCode === currentTownship))
+    }
+    warningController.render({
+      level,
+      entries: filtered,
+      countySeats: countySeats.value,
+    })
+  }
+
+  // ---- 播放推进（R2-3/R2-4） ----
+
+  function onStep(nodeIndex: number) {
+    store.setNode(nodeIndex)
+    renderTyphoonLayer(nodeIndex)
+    renderPrecipFrame(nodeIndex)
+    renderWarningLayer(nodeIndex)
+    // 任务状态三段流转（R5-6）
+    store.advanceTaskStatuses(nodeIndex)
+    // 自动派发（R5-11）：预警达中风险及以上自动生成
+    if (store.dispatchMode === 'auto') autoDispatch(nodeIndex)
+    // 预警升级/解除联动（R5-2/R5-3/R5-4）
+    syncTaskWarningLinkage(nodeIndex)
+  }
+
+  function onLoopRestart() {
+    // R5-7 循环回起点 = 演示状态全部重置（预警+任务+灾损预估清零）
+    store.resetRound()
+    // 播放回首帧并重渲染
+    const index = 0
+    store.setNode(index)
+    renderTyphoonLayer(index)
+    renderPrecipFrame(index)
+    renderWarningLayer(index)
+  }
+
+  // ---- 预警-任务联动（R5-2/R5-3/R5-4） ----
+
+  function warnedVillageMap(nodeIndex: number): Map<string, number> {
+    const map = new Map<string, number>()
+    for (const entry of warnedVillagesAtNode(store.warnings!, nodeIndex)) {
+      const prev = map.get(entry.village.code)
+      map.set(entry.village.code, Math.max(prev ?? 0, entry.level))
+    }
+    return map
+  }
+
+  /** 升级：新等级对应新任务类型则生成新类型任务（R5-3）；同类型不重复（R5-4）。 */
+  function syncTaskWarningLinkage(nodeIndex: number) {
+    if (!store.warnings || store.phase !== 'ready') return
+    const nodeTime = store.nodeTimeLabel
+    const map = warnedVillageMap(nodeIndex)
+    for (const task of store.tasks) {
+      if (task.released) {
+        // 预警再次触发（R5-4）：标记恢复 + 追加说明
+        if (map.has(task.villageCode)) store.markWarningReTriggered(task.villageCode, nodeTime)
+        continue
+      }
+      const currentLevel = map.get(task.villageCode)
+      if (currentLevel === undefined) {
+        store.releaseTasksForVillage(task.villageCode, nodeTime)
+      } else {
+        store.updateTaskWarningLevel(task.villageCode, currentLevel as 1 | 2 | 3, nodeTime)
+        // 高风险升级 → 补核查类任务（R5-3/R5-8）
+        if (currentLevel >= 3 && task.type === 'prevent' && !store.isDispatched(task.villageCode, 'inspect')) {
+          const village = store.warnings.villages.find((v) => v.code === task.villageCode)
+          if (village) {
+            store.createTask({
+              villageCode: village.code, villageName: village.name, type: 'inspect',
+              nodeIndex, nodeTimeLabel: nodeTime, warningLevel: 3, lon: village.lon, lat: village.lat,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  // ---- 派发（R3-15/R3-16/R5-10/R5-11） ----
+
+  function createTasksForVillage(villageCode: string, nodeIndex: number) {
+    if (!store.warnings) return
+    const entry = warnedVillagesAtNode(store.warnings, nodeIndex).find((e) => e.village.code === villageCode)
+    if (!entry) return
+    const level = entry.level as 1 | 2 | 3
+    const types = TASK_TYPES_BY_WARNING_LEVEL[level]
+    for (const type of types) {
+      store.createTask({
+        villageCode: entry.village.code,
+        villageName: entry.village.name,
+        type,
+        nodeIndex,
+        nodeTimeLabel: store.nodeTimeLabel,
+        warningLevel: level,
+        lon: entry.village.lon,
+        lat: entry.village.lat,
+      })
+    }
+  }
+
+  function dispatchVillage(code: string) {
+    if (store.phase !== 'ready') return
+    createTasksForVillage(code, store.nodeIndex)
+  }
+
+  function dispatchAllPending() {
+    if (store.phase !== 'ready') return
+    const entries = warnedVillagesAtNode(store.warnings!, store.nodeIndex)
+    for (const entry of entries) {
+      if (entry.level >= 2 && !store.isDispatched(entry.village.code)) createTasksForVillage(entry.village.code, store.nodeIndex)
+    }
+  }
+
+  function autoDispatch(nodeIndex: number) {
+    if (store.phase !== 'ready') return
+    const entries = warnedVillagesAtNode(store.warnings!, nodeIndex)
+    for (const entry of entries) {
+      if (entry.level >= 2 && !store.isDispatched(entry.village.code)) createTasksForVillage(entry.village.code, nodeIndex)
+    }
+  }
+
+  // ---- 播放控制 ----
+
+  function startPlayback() {
+    const count = store.nodeCount
+    if (!playback || count <= 0) return
+    store.setNode(0)
+    renderTyphoonLayer(0)
+    renderPrecipFrame(0)
+    renderWarningLayer(0)
+    store.setPlaying(true)
+    playback.start(count, { onStep, onLoopRestart })
+  }
+
+  function togglePlay() {
+    if (!playback || store.phase !== 'ready') return
+    if (playback.isPlaying()) { playback.pause(); store.setPlaying(false) }
+    else { store.setPlaying(true); playback.resume() }
+  }
+
+  function closePlayback() {
+    exit()
+  }
+
+  // ---- 下钻（R3-7/R3-10/R3-20） ----
+
+  async function findBoundaryFeature(url: string, code: string): Promise<{ name: string; geometry: Geometry } | null> {
+    try {
+      const fc = await fetchJSON<FeatureCollection>(url)
+      const feature = fc.features.find((f) => String(f.properties?.code) === code)
+      if (feature?.geometry) return { name: String(feature.properties?.name ?? code), geometry: feature.geometry }
+    } catch { /* 数据缺失 */ }
+    return null
+  }
+
+  async function drillToVillageWithFullPath(village: { code: string; name: string; countyCode: string; townshipCode: string; lon: number; lat: number }) {
+    const current = ctx.store.current
+    if (current.level === 'village' && current.code === village.code) return
+    const cityCode = `${village.countyCode.slice(0, 4)}00`
+    const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
+    const chain: Array<{ level: Level; code: string; url: string }> = [
+      { level: 'city', code: cityCode, url: childrenUrl({ level: 'province', code: '330000', name: '浙江省' })! },
+      { level: 'county', code: village.countyCode, url: `/data/boundary/county/${cityCode}.geojson` },
+      { level: 'township', code: village.townshipCode, url: `/data/boundary/township/${village.countyCode}.geojson` },
+    ]
+    for (const step of chain) {
+      const feature = await findBoundaryFeature(step.url, step.code)
+      if (!feature) break
+      crumbs.push({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
+    }
+    crumbs.push({ level: 'village', code: village.code, name: village.name })
+    await ctx.store.navigateTo(crumbs)
+    // 进入村级视角后重渲预警层（R3-22）
+    renderWarningLayer(store.nodeIndex)
+  }
+
+  async function selectVillage(code: string) {
+    if (!store.warnings) return
+    const village = store.warnings.villages.find((v) => v.code === code)
+    if (!village) return
+    await drillToVillageWithFullPath(village)
+  }
+
+  async function selectCounty(countyCode: string) {
+    const cityCode = `${countyCode.slice(0, 4)}00`
+    const current = ctx.store.current
+    if (current.level === 'county' && current.code === countyCode) return
+    const crumbs: Crumb[] = [{ level: 'province', code: '330000', name: '浙江省' }]
+    const feature = await findBoundaryFeature(childrenUrl({ level: 'province', code: '330000', name: '浙江省' })!, cityCode)
+    const countyFeature = await findBoundaryFeature(`/data/boundary/county/${cityCode}.geojson`, countyCode)
+    if (feature) crumbs.push({ level: 'city', code: cityCode, name: feature.name, geometry: feature.geometry })
+    if (countyFeature) crumbs.push({ level: 'county', code: countyCode, name: countyFeature.name, geometry: countyFeature.geometry })
+    if (crumbs.length < 2) { crumbs.push({ level: 'city', code: cityCode, name: cityCode }) }
+    if (crumbs.length < 3) { crumbs.push({ level: 'county', code: countyCode, name: countyCode }) }
+    await ctx.store.navigateTo(crumbs)
+    renderWarningLayer(store.nodeIndex)
+  }
+
+  // ---- 模式进入/退出 ----
 
   async function enter() {
     if (ctx.hasUnsavedParcelWork()) return
@@ -60,10 +420,13 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     // R1-2：进入后地图切回省级视角
     await ctx.resetToProvince()
     void ctx.render()
-    void loadAll()
+    await loadAll()
+    // 数据就绪后自动开始播放（R2-3 进入即自动播放）
+    if (store.phase === 'ready') startPlayback()
   }
 
   function exit() {
+    playback?.pause()
     store.close()
     if (!ctx.disasterActive.value) {
       void ctx.resetToProvince().then((reset) => { if (reset) void ctx.render() })
@@ -72,8 +435,73 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   function setTab(tab: DisasterWarningTab) { store.setTab(tab) }
 
-  function init(_target: L.Map) { /* 图层由 T4/T5 挂载时使用 */ }
-  function destroy() { /* T4/T5 清理图层 */ }
+  function init(target: L.Map) {
+    // 台风图层：适配静态轨迹（R2-10）
+    const track = store.track
+    if (track) typhoonDetail = adaptTyphoonDetail(track)
+    typhoonController = createTyphoonLayerController(target, {
+      onNodeEnter: ({ typhoonId, nodeId, containerPoint }) => {
+        typhoonPopupState.value = hoverPopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
+        typhoonHoverPosition.value = containerPoint
+      },
+      onNodeLeave: ({ typhoonId, nodeId }) => {
+        typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
+      },
+      onCenterEnter: ({ typhoonId, nodeId, containerPoint }) => {
+        typhoonPopupState.value = hoverPopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
+        typhoonHoverPosition.value = containerPoint
+      },
+      onCenterLeave: ({ typhoonId, nodeId }) => {
+        typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
+      },
+      onWindCircleEnter: ({ typhoonId, nodeId, grade, containerPoint }) => {
+        typhoonPopupState.value = hoverPopup(typhoonPopupState.value, { kind: 'wind', typhoonId, nodeId, grade })
+        typhoonHoverPosition.value = containerPoint
+      },
+      onWindCircleLeave: ({ typhoonId, nodeId, grade }) => {
+        typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'wind', typhoonId, nodeId, grade })
+      },
+    })
+    // 降水热力图（R2-6）
+    precipController = createPrecipitationLayerController()
+    precipController.mount(target)
+    // 预警标记（R3）
+    warningController = createDisasterWarningLayerController({
+      onBadgeClick: (countyCode) => void selectCounty(countyCode),
+      onVillageClick: (code) => void selectVillage(code),
+    })
+    warningController.mount(target)
+    // 播放控制器（R2-3/R2-4 循环）
+    playback = createDisasterPlaybackController({})
+    // 地图空白点击清除钉住的浮窗
+    target.getContainer().addEventListener('pointermove', () => {
+      typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)
+    })
+  }
 
-  return { init, destroy, enter, exit, setTab }
+  function destroy() {
+    playback?.destroy()
+    typhoonController?.destroy()
+    precipController?.destroy()
+    warningController?.destroy()
+  }
+
+  // 层级变化 → 重渲预警层（R3-19/R3-20/R3-22）
+  watch(() => ctx.store.current, () => { renderWarningLayer(store.nodeIndex) }, { deep: true })
+
+  return {
+    init,
+    destroy,
+    enter,
+    exit,
+    setTab,
+    togglePlay,
+    closePlayback,
+    selectVillage,
+    selectCounty,
+    dispatchVillage,
+    dispatchAllPending,
+    typhoonHoverModel,
+    typhoonHoverPosition,
+  }
 }
