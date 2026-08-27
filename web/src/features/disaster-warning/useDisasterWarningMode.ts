@@ -264,7 +264,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function onStep(nodeIndex: number) {
     store.setNode(nodeIndex)
     renderTyphoonLayer(nodeIndex)
-    renderPrecipFrame(nodeIndex)
+    if (!noPrecip) renderPrecipFrame(nodeIndex)
     renderWarningLayer(nodeIndex)
     // 任务状态三段流转（R5-6）
     store.advanceTaskStatuses(nodeIndex)
@@ -281,7 +281,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     const index = 0
     store.setNode(index)
     renderTyphoonLayer(index)
-    renderPrecipFrame(index)
+    if (!noPrecip) renderPrecipFrame(index)
     renderWarningLayer(index)
   }
 
@@ -378,6 +378,9 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     playback.start(count, { onStep, onLoopRestart })
   }
 
+  // 隔离诊断开关：?noprecip 时跳过降雨热力图挂载与每帧渲染（只留台风+预警标记+面板），用于定位卡顿是否来自热力图
+  const noPrecip = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noprecip')
+
   /** 进入受灾预警时：挂载图层并渲染首帧，但不自动启动播放（R2-3 变更：默认不自动播放，用户点 ▶ 启动）。 */
   function renderInitialFrame() {
     const count = store.nodeCount
@@ -385,8 +388,10 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     // 进入受灾预警才挂载降水/预警图层（不常驻地图）
     precipController?.destroy()
     // 受灾预警播放时每帧重绘降水热力图（高频），用较小 renderSize 降低每帧瓦片插值成本；降水模式仍用默认 64
-    precipController = createPrecipitationLayerController({ renderSize: 32 })
-    precipController.mount(map)
+    if (!noPrecip) {
+      precipController = createPrecipitationLayerController({ renderSize: 32 })
+      precipController.mount(map)
+    }
     warningController?.destroy()
     warningController = createDisasterWarningLayerController({
       onBadgeClick: (countyCode) => void selectCounty(countyCode),
@@ -395,7 +400,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     warningController.mount(map)
     store.setNode(0)
     renderTyphoonLayer(0)
-    renderPrecipFrame(0)
+    if (!noPrecip) renderPrecipFrame(0)
     renderWarningLayer(0)
     store.setPlaying(false)
   }
