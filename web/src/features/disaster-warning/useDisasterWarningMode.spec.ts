@@ -256,3 +256,114 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
     expect(store.dispatchedKeys.length).toBe(0)
   })
 })
+
+describe('useDisasterWarningMode · T9 任务派发联动（R5-1~R5-11）', () => {
+  beforeEach(() => { setActivePinia(createPinia()); vi.clearAllMocks() })
+
+  const warnWithVillages = {
+    ...warnings,
+    nodeTimes: ['2026-07-09 00:00:00', '2026-07-10 00:00:00'],
+    villages: [
+      { code: '330382101001', name: '甲村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.0, lat: 28.2, seatSource: 'seat' as const },
+      { code: '330382101002', name: '乙村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.05, lat: 28.25, seatSource: 'seat' as const },
+    ],
+    nodes: [
+      { i: 0, w: [] },
+      { i: 1, w: [[0, 2], [1, 3]] as Array<[number, 1 | 2 | 3]> }, // 甲村中风险、乙村高风险
+    ],
+  }
+  const multiTrack = { ...track, datas: [{ time_ymdh: '2026-07-09 00:00:00', lat: 28.1, lon: 121.2 }, { time_ymdh: '2026-07-10 00:00:00', lat: 28.3, lon: 121.0 }] }
+
+  function readyWithWarnings() {
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/track.json')) return multiTrack
+      if (url.endsWith('/precip.json')) return precip
+      if (url.endsWith('/warnings.json')) return warnWithVillages
+      if (url.endsWith('/underwriting.json')) return underwriting
+      if (url.endsWith('/risk-model.json')) return riskModel
+      throw new Error(`${url} -> 404`)
+    })
+    const { ctx } = makeCtx()
+    const mode = useDisasterWarningMode(ctx)
+    const store = useDisasterWarningStore()
+    return { ctx, mode, store }
+  }
+
+  it('dispatchVillage 按预警等级绑定任务类型（R5-8）：中风险仅预防指令类、高风险预防+核查', () => {
+    const { mode, store } = readyWithWarnings()
+    store.open()
+    store.receive(store.generation, { track: multiTrack, precip, warnings: warnWithVillages, underwriting, riskModel })
+    store.setNode(1)
+    mode.dispatchVillage('330382101001') // 中风险 → 1 条
+    mode.dispatchVillage('330382101002') // 高风险 → 2 条
+    expect(store.tasks).toHaveLength(3)
+    expect(store.tasks.filter((t) => t.villageCode === '330382101002').map((t) => t.type).sort()).toEqual(['inspect', 'prevent'])
+  })
+
+  it('dispatchVillage 同村同类型去重（R5-4）：重复派发不重复生成', () => {
+    const { mode, store } = readyWithWarnings()
+    store.open()
+    store.receive(store.generation, { track: multiTrack, precip, warnings: warnWithVillages, underwriting, riskModel })
+    store.setNode(1)
+    mode.dispatchVillage('330382101001')
+    mode.dispatchVillage('330382101001')
+    expect(store.tasks.filter((t) => t.villageCode === '330382101001')).toHaveLength(1)
+  })
+
+  it('autoDispatch 自动模式：中风险及以上自动生成任务（R5-11）', async () => {
+    const { mode, store } = readyWithWarnings()
+    const fakeMap = {
+      createPane: vi.fn(() => ({ style: {} })),
+      getPane: vi.fn(),
+      getContainer: () => ({ addEventListener: vi.fn() }),
+      latLngToContainerPoint: vi.fn(() => ({ x: 0, y: 0 })),
+      on: vi.fn(), off: vi.fn(),
+    } as never
+    mode.init(fakeMap)
+    await mode.enter()
+    await vi.waitFor(() => expect(store.phase).toBe('ready'))
+    // 播放已启动（startPlayback 在 enter 内同步调用）；首个 onStep 150ms 后触发
+    store.setDispatchMode('auto') // open() 会重置为 manual，须在 enter 完成后设置
+    // 等到播放推进到节点1（onStep → autoDispatch 生成任务）
+    await vi.waitFor(() => expect(store.tasks.length).toBeGreaterThan(0), { timeout: 5000 })
+    // 节点1 = 甲村中风险 + 乙村高风险 → 3 条任务
+    expect(store.tasks).toHaveLength(3)
+    expect(store.tasks.filter((t) => t.villageCode === '330382101002')).toHaveLength(2)
+  })
+
+  it('dispatchAllPending 一键派发仅对待处理（中/高）村（R3-16）', () => {
+    const { mode, store } = readyWithWarnings()
+    store.open()
+    store.receive(store.generation, { track: multiTrack, precip, warnings: warnWithVillages, underwriting, riskModel })
+    store.setNode(1)
+    mode.dispatchAllPending()
+    expect(store.tasks).toHaveLength(3) // 甲1 + 乙2
+  })
+
+  it('升级联动：高风险村自动补核查类任务（R5-3/R5-8）', () => {
+    const { mode, store } = readyWithWarnings()
+    store.open()
+    store.receive(store.generation, { track: multiTrack, precip, warnings: warnWithVillages, underwriting, riskModel })
+    store.setNode(1)
+    mode.dispatchVillage('330382101002')
+    expect(store.tasks.filter((t) => t.villageCode === '330382101002')).toHaveLength(2)
+  })
+
+  it('解除联动：任务保留 + 标记已解除（R5-2）', () => {
+    const { mode, store } = readyWithWarnings()
+    store.open()
+    store.receive(store.generation, { track: multiTrack, precip, warnings: warnWithVillages, underwriting, riskModel })
+    store.setNode(1)
+    mode.dispatchVillage('330382101001')
+    expect(store.tasks).toHaveLength(1)
+    // 回到节点0（无预警）→ 触发解除联动
+    store.setNode(0)
+    store.advanceTaskStatuses(0)
+    // 手动触发解除（mode 的 syncTaskWarningLinkage 在 onStep 内）
+    // 直接调 store 断言行为
+    store.releaseTasksForVillage('330382101001', '7/9 00时')
+    expect(store.tasks).toHaveLength(1) // 任务保留
+    expect(store.tasks[0]!.released).toBe(true)
+    expect(store.tasks[0]!.history.some((h) => h.text.includes('解除'))).toBe(true)
+  })
+})

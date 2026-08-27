@@ -194,6 +194,31 @@
       </Transition>
     </Teleport>
 
+    <!-- 全部任务抽屉（R5-14） -->
+    <Teleport to="body">
+      <Transition name="side-drawer">
+        <aside v-if="taskDrawerOpen" class="dw-drawer" aria-label="全部任务" data-test="dw-task-drawer">
+          <header class="dw-drawer-header">
+            <div><span class="dw-drawer-eyebrow">任务清单</span><h2 class="dw-drawer-title">全部任务</h2></div>
+            <button type="button" class="dw-drawer-close" aria-label="关闭" @click="closeTaskDrawer">×</button>
+          </header>
+          <div class="dw-drawer-tools">
+            <input v-model.trim="taskQuery" type="search" placeholder="搜索任务名称或村" />
+          </div>
+          <div class="dw-drawer-list">
+            <div v-if="filteredAllTasks.length === 0" class="empty-state">暂无任务</div>
+            <button v-for="t in filteredAllTasks" :key="t.id" type="button" class="dw-drawer-card" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
+              <span class="dc-main">
+                <span class="dc-name">{{ t.name }}</span>
+                <span class="dc-meta"><i class="task-level-dot" :style="{ background: t.warningLevel ? levelColor(t.warningLevel) : '#94a3b8' }"></i>{{ t.taskNo }} · {{ t.typeName }} · {{ t.villageName }}{{ t.released ? ' · ⚠ 关联预警已解除' : '' }}</span>
+              </span>
+              <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+            </button>
+          </div>
+        </aside>
+      </Transition>
+    </Teleport>
+
     <!-- 大图浮窗（R6-1） -->
     <Teleport to="body">
       <div v-if="lightbox" class="lightbox-overlay" @click.self="closeLightbox">
@@ -411,6 +436,21 @@ function closeTask() { store.closeTask() }
 const lightbox = ref<{ url: string; time: string } | null>(null)
 function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
 function closeLightbox() { lightbox.value = null }
+
+// 全部任务抽屉（R5-14）
+const taskDrawerOpen = computed(() => store.taskDrawerOpen)
+const taskQuery = ref('')
+const filteredAllTasks = computed(() => {
+  let tasks = store.tasks
+  const q = taskQuery.value.trim().toLowerCase()
+  if (q) tasks = tasks.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(q)))
+  return [...tasks].sort((a, b) => b.createdAtNode - a.createdAtNode)
+})
+function selectFromTaskDrawer(id: string) {
+  store.openTask(id)
+  store.closeTaskDrawer()
+}
+function closeTaskDrawer() { store.closeTaskDrawer() }
 </script>
 
 <style scoped>
