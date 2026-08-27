@@ -229,6 +229,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   let lastWarnedRenderKey = ''
 
   function renderWarningLayer(nodeIndex: number) {
+    if (noMarkers) return
     const warnings = store.warnings
     if (!warningController || !warnings) return
     const level = ctx.store.current.level
@@ -378,8 +379,11 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     playback.start(count, { onStep, onLoopRestart })
   }
 
-  // 隔离诊断开关：?noprecip 时跳过降雨热力图挂载与每帧渲染（只留台风+预警标记+面板），用于定位卡顿是否来自热力图
-  const noPrecip = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('noprecip')
+  // 隔离诊断开关：临时置 true —— 完全隐藏/不加载降雨热力图（只留台风+预警标记+面板），定位卡顿是否来自热力图。
+  // 测试完恢复 false 即恢复完整功能。（不再依赖 URL 参数，原地址刷新即生效）
+  const noPrecip = true
+  // 隔离诊断开关：临时置 true —— 禁用地图上的预警标记（聚合徽标 + 脉冲点），定位卡顿是否来自预警标记渲染。
+  const noMarkers = true
 
   /** 进入受灾预警时：挂载图层并渲染首帧，但不自动启动播放（R2-3 变更：默认不自动播放，用户点 ▶ 启动）。 */
   function renderInitialFrame() {
@@ -393,11 +397,13 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
       precipController.mount(map)
     }
     warningController?.destroy()
-    warningController = createDisasterWarningLayerController({
-      onBadgeClick: (countyCode) => void selectCounty(countyCode),
-      onVillageClick: (code) => void selectVillage(code),
-    })
-    warningController.mount(map)
+    if (!noMarkers) {
+      warningController = createDisasterWarningLayerController({
+        onBadgeClick: (countyCode) => void selectCounty(countyCode),
+        onVillageClick: (code) => void selectVillage(code),
+      })
+      warningController.mount(map)
+    }
     store.setNode(0)
     renderTyphoonLayer(0)
     if (!noPrecip) renderPrecipFrame(0)
