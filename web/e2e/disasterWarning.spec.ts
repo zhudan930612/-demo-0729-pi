@@ -24,20 +24,84 @@ const disasterWarnings = {
   villages: [{ code: '330382101001', name: '示例预警村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.0, lat: 28.2, seatSource: 'centroid' }],
   nodes: [{ i: 0, w: [] }, { i: 1, w: [[0, 2]] }],
 }
+const disasterUnderwriting = {
+  schemaVersion: 1, seed: 'e2e', sumInsuredPerMu: 1250, targetTotalMu: 12000000,
+  villages: [{ code: '330382101001', name: '示例预警村', insuredAreaMu: 500, householdCount: 60, sumInsuredYuan: 625000, source: 'mock' }],
+}
+const disasterRiskModel = {
+  schemaVersion: 1,
+  riskLevelFromCumRainMm: [
+    { max: 50, level: 0, name: '无', coefficient: 0.2 },
+    { min: 50, max: 100, level: 1, name: '低', coefficient: 0.4 },
+    { min: 100, max: 150, level: 2, name: '中', coefficient: 0.7 },
+    { min: 150, level: 3, name: '高', coefficient: 1.0 },
+  ],
+  lossRateByWarningLevel: [
+    { level: 1, name: '低', lossRate: 0.03 },
+    { level: 2, name: '中', lossRate: 0.08 },
+    { level: 3, name: '高', lossRate: 0.15 },
+  ],
+  formula: '预估受灾面积 = Σ(预警村承保面积 × 村级风险系数 × 损失率)',
+}
+// 多节点 fixture（R2 播放 / R3 分级 / R4 数字 / R5 任务）
+const multiTrack = {
+  code: 200, no1: '3257931', no2: '2609', no3: '2609', no4: '', namecn: '巴威', nameen: 'BAVI', type: 'stop',
+  datas: [
+    { time_ymdh: '2026-07-09 00:00:00', lat: 28.1, lon: 121.2, intensity_text: '台风' },
+    { time_ymdh: '2026-07-10 12:00:00', lat: 28.3, lon: 121.0, intensity_text: '台风' },
+    { time_ymdh: '2026-07-11 00:00:00', lat: 28.6, lon: 120.9, intensity_text: '强台风' },
+  ],
+}
+const multiPrecip = {
+  schemaVersion: 1, model: 'ERA5 0.25° (Open-Meteo archive)', aggregateFrom: '2026-07-09 00:00:00',
+  nodeTimes: ['2026-07-09 00:00:00', '2026-07-10 12:00:00', '2026-07-11 00:00:00'],
+  grid: [
+    { lat: 28.084, lon: 121.220, cum: [0.0, 15.5, 98.0] },
+    { lat: 28.6, lon: 120.9, cum: [0.0, 5.0, 60.0] },
+  ],
+}
+const multiWarnings = {
+  schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
+  nodeTimes: ['2026-07-09 00:00:00', '2026-07-10 12:00:00', '2026-07-11 00:00:00'],
+  villages: [
+    { code: '330382101001', name: '甲村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.0, lat: 28.2, seatSource: 'seat' },
+    { code: '330382101002', name: '乙村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.05, lat: 28.25, seatSource: 'seat' },
+  ],
+  nodes: [
+    { i: 0, w: [] },
+    { i: 1, w: [[0, 1]] }, // 甲村低风险
+    { i: 2, w: [[0, 3], [1, 2]] }, // 甲村高风险 + 乙村中风险
+  ],
+}
+const multiUnderwriting = {
+  schemaVersion: 1, seed: 'e2e', sumInsuredPerMu: 1250, targetTotalMu: 12000000,
+  villages: [
+    { code: '330382101001', name: '甲村', insuredAreaMu: 500, householdCount: 60, sumInsuredYuan: 625000, source: 'mock' },
+    { code: '330382101002', name: '乙村', insuredAreaMu: 300, householdCount: 40, sumInsuredYuan: 375000, source: 'mock' },
+  ],
+}
+function makeCounty() {
+  return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330382', name: '乐清市' }, geometry: { type: 'Polygon', coordinates: [[[120.9, 28.1], [121.2, 28.1], [121.2, 28.4], [120.9, 28.4], [120.9, 28.1]]] } }] }
+}
 
-async function installFixtures(page: Page, options: { disasterDataMissing?: boolean } = {}) {
+async function installFixtures(page: Page, options: { disasterDataMissing?: boolean; useMulti?: boolean } = {}) {
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url())
     const p = url.pathname
     if (p === '/data/boundary/province.geojson') return route.fulfill({ json: province })
     if (p === '/data/boundary/city/330000.geojson') return route.fulfill({ json: makeCity() })
+    if (p === '/data/boundary/county/330300.geojson') return route.fulfill({ json: makeCounty() })
+    if (p === '/data/boundary/county/330200.geojson') return route.fulfill({ status: 404, body: '' })
     if (p === '/data/rs.json') return route.fulfill({ status: 404, body: '' })
     if (p.startsWith('/data/disaster/')) {
       // R2-18：降雨/轨迹/预警数据缺失 → 降级
       if (options.disasterDataMissing) return route.fulfill({ status: 404, body: '' })
-      if (p === '/data/disaster/track.json') return route.fulfill({ json: disasterTrack })
-      if (p === '/data/disaster/precip.json') return route.fulfill({ json: disasterPrecip })
-      if (p === '/data/disaster/warnings.json') return route.fulfill({ json: disasterWarnings })
+      const useMulti = options.useMulti ?? false
+      if (p === '/data/disaster/track.json') return route.fulfill({ json: useMulti ? multiTrack : disasterTrack })
+      if (p === '/data/disaster/precip.json') return route.fulfill({ json: useMulti ? multiPrecip : disasterPrecip })
+      if (p === '/data/disaster/warnings.json') return route.fulfill({ json: useMulti ? multiWarnings : disasterWarnings })
+      if (p === '/data/disaster/underwriting.json') return route.fulfill({ json: useMulti ? multiUnderwriting : disasterUnderwriting })
+      if (p === '/data/disaster/risk-model.json') return route.fulfill({ json: disasterRiskModel })
     }
     if (url.hostname.endsWith('tianditu.gov.cn')) return route.fulfill({ status: 204, body: '' })
     return route.continue()
@@ -127,4 +191,167 @@ test('R2-18 数据缺失降级：错误文案 + 灾损 0 + 预警空态 + 派发
   // 任务列表 tab：派发不可用
   await page.click('#dw-tab-tasks')
   await expect(page.locator('[data-test="dw-task-empty"]')).toContainText('派发不可用')
+})
+
+// ---------- R2 播放控制 ----------
+
+async function enterDisaster(page: Page, options: { useMulti?: boolean } = {}) {
+  await installFixtures(page, options)
+  await openDemoMenu(page)
+  await page.click('#demo-tool-menu .menu-action[title="进入受灾预警"]')
+  await expect(page.locator('.disaster-warning-panel')).toBeVisible()
+  await expect(page.locator('.disaster-warning-panel .panel-status')).toHaveCount(0)
+}
+
+// 循环播放 150ms/节点太快：反复「暂停→校验→未命中则继续」直到停在目标节点时间（如 7月11日0时）
+async function holdAtNode(page: Page, targetLabel: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await page.waitForFunction(
+      (label) => document.querySelector('[data-test="dw-node-time"]')?.textContent === label,
+      targetLabel,
+      { timeout: 4000 },
+    )
+    await page.locator('[data-test="dw-play-toggle"]').click() // 暂停
+    await page.waitForTimeout(40)
+    const current = await page.locator('[data-test="dw-node-time"]').textContent()
+    if (current === targetLabel) return true
+    await page.locator('[data-test="dw-play-toggle"]').click() // 未命中：继续播放重试
+  }
+  return false
+}
+
+test('R2-1/R2-2/R2-3/R2-4 播放：自动播放 + 迷你浮窗（播放/暂停/节点时间/关闭，无时间轴）+ 循环', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  // 迷你浮窗可见（R2-2）：播放/暂停 + 节点时间 + 关闭，无时间轴
+  const widget = page.locator('[data-test="dw-playback"]')
+  await expect(widget).toBeVisible()
+  await expect(widget.locator('[data-test="dw-play-toggle"]')).toBeVisible()
+  await expect(widget.locator('[data-test="dw-node-time"]')).toHaveText(/7月\d+日\d+时/)
+  await expect(widget.locator('[data-test="dw-playback-close"]')).toBeVisible()
+  await expect(widget.locator('.timeline, [role="slider"]')).toHaveCount(0) // 无时间轴
+  // 进入即自动播放（R2-3）：播放按钮呈「暂停」态，节点时间随时间推进
+  await expect(widget.locator('.play-button')).toHaveClass(/playing/)
+  // 暂停（R2-4）：画面停在当前节点
+  await widget.locator('[data-test="dw-play-toggle"]').click()
+  await expect(widget.locator('.play-button')).not.toHaveClass(/playing/)
+  const pausedTime = await widget.locator('[data-test="dw-node-time"]').textContent()
+  await page.waitForTimeout(400)
+  await expect(widget.locator('[data-test="dw-node-time"]')).toHaveText(pausedTime ?? '')
+  // 继续
+  await widget.locator('[data-test="dw-play-toggle"]').click()
+  await expect(widget.locator('.play-button')).toHaveClass(/playing/)
+})
+
+test('R2-5 关闭按钮直接退出受灾预警模式（清理状态）', async ({ page }) => {
+  await enterDisaster(page)
+  await page.locator('[data-test="dw-playback-close"]').click()
+  await expect(page.locator('.disaster-warning-panel')).toHaveCount(0)
+  await expect(page.locator('[data-test="dw-playback"]')).toHaveCount(0)
+  await expect(page.locator('.crumb.active')).toHaveText('浙江省')
+})
+
+// ---------- R3 预警监测 tab ----------
+
+test('R3-1/R3-2/R3-9/R3-12/R3-13 预警监测列表：全省卡片 + 概览 + 状态标签 + 排序 + 前10条', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  // 播放推进到节点2（甲村高风险 + 乙村中风险）并暂停固定（R3-1/R3-2）
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true)
+  const cards = page.locator('[data-test="dw-warning-card"]')
+  await expect(cards).toHaveCount(2)
+  // 概览（R3-12）
+  await expect(page.locator('[data-test="dw-warning-overview"]')).toContainText('预警村')
+  await expect(page.locator('[data-test="dw-warning-overview"]')).toContainText('高')
+  // 卡片状态标签（R3-13）：高风险=待处理、中风险=待处理
+  const firstStatus = await cards.first().locator('.wc-status').textContent()
+  expect(firstStatus).toBe('待处理')
+  // 等级色点存在
+  await expect(cards.first().locator('.wc-level-dot')).toBeVisible()
+})
+
+test('R3-14/R3-15 卡片 AI 文案 + 派发任务按钮生成任务（YJ-）并变已派发', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  // 等节点推进到 2（甲高+乙中）并暂停固定画面（循环快，holdAtNode 重试直到停在目标节点）
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true)
+  const firstCard = page.locator('[data-test="dw-warning-card"]').first()
+  await expect(firstCard).toBeVisible({ timeout: 6000 })
+  // AI 建议（R3-14）
+  await expect(firstCard.locator('.ai-chip')).toBeVisible()
+  // 派发任务（R3-15 → R5-1）：生成 YJ- 任务
+  await firstCard.locator('[data-test="dw-dispatch-village"]').click()
+  await expect(firstCard.locator('[data-test="dw-dispatched"]')).toHaveText('已派发')
+  // 任务列表 tab 出现 YJ- 任务
+  await page.click('#dw-tab-tasks')
+  await expect(page.locator('[data-test="dw-task-row"]').first()).toBeVisible()
+  await expect(page.locator('[data-test="dw-task-row"] .task-eyebrow').first()).toHaveText(/YJ-2026-\d{4}/)
+})
+
+test('R3-16/R3-17/R3-18 一键派发 + 查看全部抽屉', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true) // 暂停固定节点2
+  // 一键派发（R3-16）：对中/高风险村批量生成
+  await page.locator('[data-test="dw-batch-dispatch"]').click()
+  await page.click('#dw-tab-tasks')
+  await expect(page.locator('[data-test="dw-task-row"]')).toHaveCount(3) // 甲高2条 + 乙中1条
+})
+
+test('R3-10 点击卡片进入村级视角（下钻聚焦该村）', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  const firstCard = page.locator('[data-test="dw-warning-card"]').first()
+  await expect(firstCard).toBeVisible({ timeout: 6000 })
+  await firstCard.click()
+  await expect(page.locator('.crumb.active')).toHaveText('甲村')
+})
+
+// ---------- R4 灾损预估 tab ----------
+
+test('R4-1/R4-6 灾损预估：三项数字 + 预估标注 + 标题行（层级·截至节点时间）', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  // 默认灾损预估 tab
+  await expect(page.locator('[data-test="dw-loss-title"]')).toContainText('浙江省 · 截至')
+  await expect(page.locator('[data-test="dw-loss-pane"] .est-tag')).toHaveText('预估')
+  // 播放推进后三项数字刷新（R4-2 终值）
+  await expect(page.locator('[data-test="dw-loss-area"]')).not.toHaveText('0', { timeout: 6000 })
+})
+
+test('R4-7 村级风险分布色带 + 明细行', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await expect(page.locator('[data-test="dw-risk-band"]')).toBeVisible({ timeout: 6000 })
+  await expect(page.locator('.band-detail-row').first()).toBeVisible()
+})
+
+// ---------- R5 任务列表 tab ----------
+
+test('R5-12/R5-13 任务列表：状态筛选 + 详情（预警等级/关联预警/变化记录）', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true) // 暂停固定节点2
+  const firstCard = page.locator('[data-test="dw-warning-card"]').first()
+  await expect(firstCard).toBeVisible({ timeout: 6000 })
+  await firstCard.locator('[data-test="dw-dispatch-village"]').click()
+  await page.click('#dw-tab-tasks')
+  // 打开任务详情
+  await page.locator('[data-test="dw-task-row"]').first().click()
+  await expect(page.locator('.task-detail .detail-title')).toHaveText(/YJ-2026/)
+  // 预警等级行 + 关联预警行
+  await expect(page.locator('.task-detail .detail-meta')).toContainText('预警等级')
+  await expect(page.locator('.task-detail .detail-meta')).toContainText('关联预警')
+  // 变化记录区（R5-5）
+  await expect(page.locator('[data-test="dw-task-history"]')).toBeVisible()
+})
+
+test('R6-1/R6-2 证据：未完成任务显示待取证；任务状态流转后已完成挂证据', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true) // 暂停固定节点2
+  const firstCard = page.locator('[data-test="dw-warning-card"]').first()
+  await expect(firstCard).toBeVisible({ timeout: 6000 })
+  await firstCard.locator('[data-test="dw-dispatch-village"]').click()
+  await page.click('#dw-tab-tasks')
+  await page.locator('[data-test="dw-task-row"]').first().click()
+  // 刚派发 → 待领取，证据区显示「待取证」（R6-2）
+  await expect(page.locator('[data-test="dw-evidence-pending"]')).toContainText('待取证')
 })
