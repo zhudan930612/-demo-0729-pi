@@ -127,10 +127,10 @@ def calibration_report(raw: np.ndarray, fut: np.ndarray, node_times: list, thres
         "nodeCount": len(node_times),
         "future24MaxMm": round(float(fut.max()), 1),
         "baseline": {
-            "peakNodeTime": "2026-07-11 06:00:00", "peakVillageTotal": 4823,
-            "peakHi": 281, "peakMid": 1031, "peakLow": 3511,
-            "highRiskPeak": 444, "nodesWithWarning": 27,
-            "everTier": {"high": 444, "mid": 1918, "low": 2525},
+            "peakNodeTime": "2026-07-11 08:00:00", "peakVillageTotal": 1036,
+            "peakHi": 444, "peakMid": 217, "peakLow": 375,
+            "highRiskPeak": 444, "nodesWithWarning": 17,
+            "everTier": {"high": 444, "mid": 217, "low": 412},
             "future24MaxMm": 191.8,
         },
     }

@@ -154,23 +154,23 @@ def main() -> int:
     if calib is not None:
         bl = calib.get("baseline", {})
         checks = [
-            ("R3-5 峰值节点 07-11 06时", calib.get("peakNodeTime") == bl.get("peakNodeTime"),
+            ("R3-5 峰值节点 07-11 08时", calib.get("peakNodeTime") == bl.get("peakNodeTime"),
              f"实际 {calib.get('peakNodeTime')}"),
-            ("R3-5 峰值预警村 ≈4823", abs(calib.get("peakVillageTotal", 0) - bl.get("peakVillageTotal", 0)) <= 2,
+            ("R3-5 峰值预警村 ≈1036", abs(calib.get("peakVillageTotal", 0) - bl.get("peakVillageTotal", 0)) <= 2,
              f"实际 {calib.get('peakVillageTotal')}"),
-            ("R3-5 峰值 高≈281/中≈1031/低≈3511",
+            ("R3-5 峰值 高≈444/中≈217/低≈375",
              abs(calib.get("peakHi", 0) - bl.get("peakHi", 0)) <= 2
              and abs(calib.get("peakMid", 0) - bl.get("peakMid", 0)) <= 2
              and abs(calib.get("peakLow", 0) - bl.get("peakLow", 0)) <= 2,
              f"实际 {calib.get('peakHi')}/{calib.get('peakMid')}/{calib.get('peakLow')}"),
             ("R3-5 高风险峰值 ≈444", abs(calib.get("highRiskPeak", 0) - bl.get("highRiskPeak", 0)) <= 2,
              f"实际 {calib.get('highRiskPeak')}"),
-            ("R3-5 曾达档位 高444/中1918/低2525",
+            ("R3-5 曾达档位 高444/中217/低412",
              calib.get("everTier", {}).get("high") == bl.get("everTier", {}).get("high")
              and calib.get("everTier", {}).get("mid") == bl.get("everTier", {}).get("mid")
              and calib.get("everTier", {}).get("low") == bl.get("everTier", {}).get("low"),
              f"实际 {calib.get('everTier')}"),
-            ("R3-5 有预警节点 ≈27/71",
+            ("R3-5 有预警节点 ≈17/71",
              abs(calib.get("nodesWithWarning", 0) - bl.get("nodesWithWarning", 0)) <= 1,
              f"实际 {calib.get('nodesWithWarning')}/{calib.get('nodeCount')}"),
             ("R3-5 未来24h全窗口最大值 ≈191.8mm",

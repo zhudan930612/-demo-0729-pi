@@ -36,8 +36,8 @@ LAT_MIN, LAT_MAX, LAT_STEP = 27.0, 31.5, 0.25
 ARCHIVE_START, ARCHIVE_END = "2026-07-09", "2026-07-13"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
-# 预警分级阈值（形态预检拍板方案 C，用户确认；勿改，校准留档见需求 C3）
-THRESHOLDS = {"low": 130.0, "mid": 160.0, "high": 185.0}
+# 预警分级阈值（形态预检拍板：三档分明 + 峰值约1036村的方案 A，用户确认；校准留档见需求 C3）
+THRESHOLDS = {"low": 170.0, "mid": 175.0, "high": 180.0}
 # 滞回防抖：降级需连续 N 个节点低于当前档阈值才生效（升级立即生效）
 HYSTERESIS_NODES = 2
 

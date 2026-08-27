@@ -17,7 +17,7 @@ const precip: DisasterPrecip = {
   nodeTimes: ['2026-07-09 00:00:00'], grid: [{ lat: 28.084, lon: 121.220, cum: [0.0] }],
 }
 const warnings: DisasterWarnings = {
-  schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
+  schemaVersion: 1, thresholds: { low: 170, mid: 175, high: 180 }, hysteresisNodes: 2,
   nodeTimes: ['2026-07-09 00:00:00'], villages: [], nodes: [{ i: 0, w: [] }],
 }
 const underwriting: DisasterUnderwriting = {
@@ -133,7 +133,7 @@ describe('结构校验函数（契约 §6）', () => {
     expect(isValidWarnings(warnings)).toBe(true)
     expect(isValidWarnings(null)).toBe(false)
     expect(isValidWarnings({ ...warnings, villages: undefined as never })).toBe(false)
-    expect(isValidWarnings({ ...warnings, thresholds: { low: 'a' as never, mid: 160, high: 185 } })).toBe(false)
+    expect(isValidWarnings({ ...warnings, thresholds: { low: 'a' as never, mid: 175, high: 180 } })).toBe(false)
   })
   it('isValidUnderwriting：villages 非空', () => {
     expect(isValidUnderwriting(underwriting)).toBe(true)

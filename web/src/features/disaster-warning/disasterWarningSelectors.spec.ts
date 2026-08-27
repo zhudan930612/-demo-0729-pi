@@ -13,7 +13,7 @@ const villages = [
 ]
 
 const warnings: DisasterWarnings = {
-  schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
+  schemaVersion: 1, thresholds: { low: 170, mid: 175, high: 180 }, hysteresisNodes: 2,
   nodeTimes: ['2026-07-09 02:00:00', '2026-07-09 05:00:00'],
   villages,
   nodes: [

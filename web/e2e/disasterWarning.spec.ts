@@ -19,7 +19,7 @@ const disasterPrecip = {
   grid: [{ lat: 28.084, lon: 121.220, cum: [0.0, 15.5] }],
 }
 const disasterWarnings = {
-  schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
+  schemaVersion: 1, thresholds: { low: 170, mid: 175, high: 180 }, hysteresisNodes: 2,
   nodeTimes: ['2026-07-09 00:00:00', '2026-07-10 12:00:00'],
   villages: [{ code: '330382101001', name: '示例预警村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.0, lat: 28.2, seatSource: 'centroid' }],
   nodes: [{ i: 0, w: [] }, { i: 1, w: [[0, 2]] }],
@@ -61,7 +61,7 @@ const multiPrecip = {
   ],
 }
 const multiWarnings = {
-  schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
+  schemaVersion: 1, thresholds: { low: 170, mid: 175, high: 180 }, hysteresisNodes: 2,
   nodeTimes: ['2026-07-09 00:00:00', '2026-07-10 12:00:00', '2026-07-11 00:00:00'],
   villages: [
     { code: '330382101001', name: '甲村', cityCode: '330300', countyCode: '330382', townshipCode: '330382101000', lon: 121.0, lat: 28.2, seatSource: 'seat' },
