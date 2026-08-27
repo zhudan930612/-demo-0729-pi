@@ -195,16 +195,31 @@ test('R2-18 数据缺失降级：错误文案 + 灾损 0 + 预警空态 + 派发
 
 // ---------- R2 播放控制 ----------
 
-async function enterDisaster(page: Page, options: { useMulti?: boolean } = {}) {
+async function enterDisaster(page: Page, options: { useMulti?: boolean; autoPlay?: boolean } = {}) {
   await installFixtures(page, options)
   await openDemoMenu(page)
   await page.click('#demo-tool-menu .menu-action[title="进入受灾预警"]')
   await expect(page.locator('.disaster-warning-panel')).toBeVisible()
   await expect(page.locator('.disaster-warning-panel .panel-status')).toHaveCount(0)
+  // 测试便利：默认自动点 ▶ 启动播放（R2-3 应用为默认不自动播放；为触达预警/任务节点需点一下），R2-1 用例传 autoPlay:false 验证默认不播放
+  if (options.autoPlay !== false) {
+    await page.locator('[data-test="dw-play-toggle"]').click()
+    await page.waitForTimeout(80)
+  }
 }
 
-// 循环播放 150ms/节点太快：反复「暂停→校验→未命中则继续」直到停在目标节点时间（如 7月11日0时）
+// R2-3 变更：进入受灾预警默认不自动播放；等待推进前先确保正在播放
+async function ensurePlaying(page: Page): Promise<void> {
+  const isPlaying = await page.locator('[data-test="dw-play-toggle"]').evaluate((el) => el.classList.contains('playing'))
+  if (!isPlaying) {
+    await page.locator('[data-test="dw-play-toggle"]').click()
+    await page.waitForTimeout(60)
+  }
+}
+
+// 循环播放太快：反复「暂停→校验→未命中则继续」直到停在目标节点时间（如 7月11日0时）
 async function holdAtNode(page: Page, targetLabel: string): Promise<boolean> {
+  await ensurePlaying(page)
   for (let attempt = 0; attempt < 30; attempt++) {
     await page.waitForFunction(
       (label) => document.querySelector('[data-test="dw-node-time"]')?.textContent === label,
@@ -220,8 +235,8 @@ async function holdAtNode(page: Page, targetLabel: string): Promise<boolean> {
   return false
 }
 
-test('R2-1/R2-2/R2-3/R2-4 播放：自动播放 + 迷你浮窗（播放/暂停/节点时间/关闭，无时间轴）+ 循环', async ({ page }) => {
-  await enterDisaster(page, { useMulti: true })
+test('R2-1/R2-2/R2-3/R2-4 播放：默认不自动播放 + 迷你浮窗（播放/暂停/节点时间/关闭，无时间轴）+ 点播放启动/循环', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true, autoPlay: false })
   // 迷你浮窗可见（R2-2）：播放/暂停 + 节点时间 + 关闭，无时间轴
   const widget = page.locator('[data-test="dw-playback"]')
   await expect(widget).toBeVisible()
@@ -229,7 +244,10 @@ test('R2-1/R2-2/R2-3/R2-4 播放：自动播放 + 迷你浮窗（播放/暂停/�
   await expect(widget.locator('[data-test="dw-node-time"]')).toHaveText(/7月\d+日\d+时/)
   await expect(widget.locator('[data-test="dw-playback-close"]')).toBeVisible()
   await expect(widget.locator('.timeline, [role="slider"]')).toHaveCount(0) // 无时间轴
-  // 进入即自动播放（R2-3）：播放按钮呈「暂停」态，节点时间随时间推进
+  // 进入后默认不自动播放（R2-3 变更）：播放按钮呈「播放」态（非 playing），停在首帧
+  await expect(widget.locator('.play-button')).not.toHaveClass(/playing/)
+  // 点 ▶ 启动播放（R2-3）：按钮呈「暂停」态
+  await widget.locator('[data-test="dw-play-toggle"]').click()
   await expect(widget.locator('.play-button')).toHaveClass(/playing/)
   // 暂停（R2-4）：画面停在当前节点
   await widget.locator('[data-test="dw-play-toggle"]').click()
