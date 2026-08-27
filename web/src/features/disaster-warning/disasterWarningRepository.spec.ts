@@ -4,7 +4,7 @@ vi.mock('../../api/data', () => ({ fetchJSON: vi.fn() }))
 
 import { fetchJSON } from '../../api/data'
 import { loadDisasterWarningData, isValidTrack, isValidPrecip, isValidWarnings, isValidUnderwriting, isValidRiskModel, DISASTER_DATA_DIR } from './disasterWarningRepository'
-import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel } from './types'
+import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel, DisasterPanel } from './types'
 
 const mockFetch = vi.mocked(fetchJSON)
 
@@ -30,6 +30,11 @@ const riskModel: DisasterRiskModel = {
   lossRateByWarningLevel: [{ level: 1, name: '低', lossRate: 0.03 }],
   formula: 'x',
 }
+const panel: DisasterPanel = {
+  schemaVersion: 1,
+  nodeTimes: ['2026-07-09 00:00:00'],
+  perNode: [{ i: 0, time: '2026-07-09 00:00:00', loss: { areaWanMu: 0, households: 0, amountWanYuan: 0 }, sorted: [], byIdx: {} }],
+}
 
 function mockAll(mock: typeof mockFetch) {
   mock.mockImplementation(async (url: string) => {
@@ -38,14 +43,16 @@ function mockAll(mock: typeof mockFetch) {
     if (url.endsWith('/warnings.json')) return warnings
     if (url.endsWith('/underwriting.json')) return underwriting
     if (url.endsWith('/risk-model.json')) return riskModel
+    if (url.endsWith('/panel.json')) return panel
+      if (url.endsWith('/panel.json')) return panel
     throw new Error(`${url} -> 404`)
   })
 }
 
-describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => {
+describe('loadDisasterWarningData · 六份静态产物（契约 §6）', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('五份产物齐全且结构合法 → 返回组合数据', async () => {
+  it('六份产物齐全且结构合法 → 返回组合数据', async () => {
     mockAll(mockFetch)
     const data = await loadDisasterWarningData()
     expect(data.track.datas).toHaveLength(1)
@@ -53,6 +60,7 @@ describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => 
     expect(data.warnings.nodes).toHaveLength(1)
     expect(data.underwriting.villages).toHaveLength(1)
     expect(data.riskModel.riskLevelFromCumRainMm).toHaveLength(1)
+    expect(data.panel.perNode).toHaveLength(1)
   })
 
   it('R2-18 任一文件 404 → 整体失败（拒绝）', async () => {
@@ -62,6 +70,7 @@ describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => 
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     await expect(loadDisasterWarningData()).rejects.toThrow()
@@ -74,6 +83,7 @@ describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => 
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     await expect(loadDisasterWarningData()).rejects.toThrow('巴威轨迹数据缺失')
@@ -86,6 +96,7 @@ describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => 
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     await expect(loadDisasterWarningData()).rejects.toThrow('历史降雨网格数据缺失')
@@ -98,6 +109,7 @@ describe('loadDisasterWarningData · 五份静态产物（契约 §6）', () => 
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return { ...underwriting, villages: [] }
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     await expect(loadDisasterWarningData()).rejects.toThrow('承保数据缺失')

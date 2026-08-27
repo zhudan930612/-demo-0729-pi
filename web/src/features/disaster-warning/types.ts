@@ -142,12 +142,51 @@ export interface DisasterRiskModel {
   formula: string
 }
 
+// ---- 面板静态数据（panel.json，离线预算省市级查表，ADR-0009） ----
+
+export interface DisasterPanelVillage {
+  idx: number
+  /** 预警等级 1=低 2=中 3=高 */
+  level: number
+  /** 未来 24h 预报雨量（mm） */
+  future24: number
+  /** 该节点过程累计雨量（mm，风险系数口径） */
+  cumRain: number
+  /** 村级风险系数（过程累计分档） */
+  coefficient: number
+  /** 损失率（预警等级 mock） */
+  lossRate: number
+  /** 预估受灾面积（亩） */
+  areaMu: number
+  /** 预估赔偿金额（元） */
+  amountYuan: number
+  households: number
+}
+
+export interface DisasterPanelNode {
+  i: number
+  time: string
+  /** 省级灾损三项 */
+  loss: { areaWanMu: number; households: number; amountWanYuan: number }
+  /** 预警村索引（按等级→未来24h 预排序） */
+  sorted: number[]
+  /** 按村索引的面板字段（下钻时 filter 出当前层级村即读） */
+  byIdx: Record<string, DisasterPanelVillage>
+}
+
+export interface DisasterPanel {
+  schemaVersion: number
+  nodeTimes: string[]
+  perNode: DisasterPanelNode[]
+}
+
 export interface DisasterWarningData {
   track: DisasterTrack
   precip: DisasterPrecip
   warnings: DisasterWarnings
   underwriting: DisasterUnderwriting
   riskModel: DisasterRiskModel
+  panel: DisasterPanel
 }
 
 // ---- 灾损预估（R4） ----

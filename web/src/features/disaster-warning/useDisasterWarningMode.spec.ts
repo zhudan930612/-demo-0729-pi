@@ -61,6 +61,10 @@ const riskModel = {
   lossRateByWarningLevel: [{ level: 1 as const, name: '低', lossRate: 0.03 }],
   formula: 'x',
 }
+const panel = {
+  schemaVersion: 1, nodeTimes: ['2026-07-09 00:00:00'],
+  perNode: [{ i: 0, time: '2026-07-09 00:00:00', loss: { areaWanMu: 0, households: 0, amountWanYuan: 0 }, sorted: [], byIdx: {} }],
+}
 
 function makeCtx(overrides: Partial<Parameters<typeof useDisasterWarningMode>[0]> = {}) {
   const exits = {
@@ -102,6 +106,7 @@ describe('useDisasterWarningMode · 模式互斥与进入/退出（R1-2/R1-4）'
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     const { ctx } = makeCtx()
@@ -174,6 +179,7 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
       if (url.endsWith('/warnings.json')) return warnings
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       if (url.includes('/data/boundary/county/')) return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330382', name: '乐清市' }, geometry: { type: 'Polygon', coordinates: [[[120.9, 28.1], [121.2, 28.1], [121.2, 28.4], [120.9, 28.4], [120.9, 28.1]]] } }] }
       throw new Error(`${url} -> 404`)
     })
@@ -294,6 +300,7 @@ describe('useDisasterWarningMode · T9 任务派发联动（R5-1~R5-11）', () =
       if (url.endsWith('/warnings.json')) return warnWithVillages
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
+      if (url.endsWith('/panel.json')) return panel
       throw new Error(`${url} -> 404`)
     })
     const { ctx } = makeCtx()

@@ -1,11 +1,11 @@
 // 受灾预警静态数据加载：web/public/data/disaster/（ADR-0009 静态固化，运行期零网络依赖）。
 import { fetchJSON } from '../../api/data'
-import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel, DisasterWarningData } from './types'
+import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel, DisasterPanel, DisasterWarningData } from './types'
 
 export const DISASTER_DATA_DIR = '/data/disaster'
 
 /**
- * 并发加载受灾预警全部静态产物（轨迹/降雨/预警/承保/风险模型）。
+ * 并发加载受灾预警全部静态产物（轨迹/降雨/预警/承保/风险模型/面板）。
  * 任一加载失败（404/解析错误/结构不完整）即整体失败 → 由 mode 进入 error 态（R2-18 降级）。
  */
 export function loadDisasterWarningData(): Promise<DisasterWarningData> {
@@ -15,13 +15,15 @@ export function loadDisasterWarningData(): Promise<DisasterWarningData> {
     fetchJSON<DisasterWarnings>(`${DISASTER_DATA_DIR}/warnings.json`),
     fetchJSON<DisasterUnderwriting>(`${DISASTER_DATA_DIR}/underwriting.json`),
     fetchJSON<DisasterRiskModel>(`${DISASTER_DATA_DIR}/risk-model.json`),
-  ]).then(([track, precip, warnings, underwriting, riskModel]) => {
+    fetchJSON<DisasterPanel>(`${DISASTER_DATA_DIR}/panel.json`),
+  ]).then(([track, precip, warnings, underwriting, riskModel, panel]) => {
     if (!isValidTrack(track)) throw new Error('巴威轨迹数据缺失或格式不正确')
     if (!isValidPrecip(precip)) throw new Error('历史降雨网格数据缺失或格式不正确')
     if (!isValidWarnings(warnings)) throw new Error('预警村清单数据缺失或格式不正确')
     if (!isValidUnderwriting(underwriting)) throw new Error('承保数据缺失或格式不正确')
     if (!isValidRiskModel(riskModel)) throw new Error('风险模型数据缺失或格式不正确')
-    return { track, precip, warnings, underwriting, riskModel }
+    if (!isValidPanel(panel)) throw new Error('面板静态数据缺失或格式不正确')
+    return { track, precip, warnings, underwriting, riskModel, panel }
   })
 }
 
@@ -51,4 +53,10 @@ export function isValidRiskModel(riskModel: DisasterRiskModel | null | undefined
   return !!riskModel
     && Array.isArray(riskModel.riskLevelFromCumRainMm) && riskModel.riskLevelFromCumRainMm.length > 0
     && Array.isArray(riskModel.lossRateByWarningLevel) && riskModel.lossRateByWarningLevel.length > 0
+}
+
+export function isValidPanel(panel: DisasterPanel | null | undefined): boolean {
+  return !!panel
+    && Array.isArray(panel.perNode) && panel.perNode.length > 0
+    && panel.perNode.every((n) => n && typeof n.loss?.areaWanMu === 'number' && Array.isArray(n.sorted) && n.byIdx)
 }

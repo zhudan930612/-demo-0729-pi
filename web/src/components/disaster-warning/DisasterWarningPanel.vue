@@ -238,9 +238,8 @@ import { useRollingNumber } from '../../features/disaster-warning/useRollingNumb
 import { DISASTER_WARNING_TABS, type DisasterWarningTab } from '../../features/disaster-warning/types'
 import type { DisasterWarningPhase } from '../../stores/disasterWarning'
 import {
-  warnedVillagesAtNode, sortWarnedVillages, warningOverview, future24RainByGrid,
-  WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel, computeLossSummary,
-  cumulativeRainByGrid,
+  warnedVillagesAtNode, warningOverview,
+  WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel,
 } from '../../features/disaster-warning/disasterWarningSelectors'
 import { DISASTER_TASK_STATUSES, type DisasterDispatchMode } from '../../stores/disasterWarning'
 import type { DisasterWarningLevel as DWLevel } from '../../features/disaster-warning/types'
@@ -274,14 +273,27 @@ const closeLabel = computed(() => '退出受灾预警')
 
 // ---- 预警监测（R3-9~R3-18） ----
 const nodeIndex = computed(() => store.nodeIndex)
+// ---- 面板静态数据：按节点查表（省市级零计算，ADR-0009） ----
+const panelNode = computed(() => {
+  if (!store.panel) return null
+  return store.panel.perNode.find((n) => n.i === nodeIndex.value) ?? null
+})
+// 当前节点预警村（原始 w 顺序），village 从 warnings.villages 取
 const warningEntries = computed(() => {
   if (!store.warnings) return []
   return warnedVillagesAtNode(store.warnings, nodeIndex.value)
 })
-const sortedWarnings = computed(() => sortWarnedVillages(warningEntries.value, (idx) => {
-  const village = store.warnings?.villages[idx]
-  return village ? future24RainByGrid(store.precip!, village.lon, village.lat, nodeIndex.value) : 0
-}))
+// 预警村（已按 等级高→低 + 未来24h降序 预排序，直接查表，不再 sortWarnedVillages）
+const sortedWarnings = computed(() => {
+  const pn = panelNode.value
+  const warnings = store.warnings
+  if (!pn || !warnings) return []
+  return pn.sorted.map((idx) => {
+    const village = warnings.villages[idx]
+    const pv = pn.byIdx[String(idx)]
+    return village ? { villageIndex: idx, village, level: (pv?.level ?? 1) as DWLevel } : null
+  }).filter((e) => e !== null) as Array<{ villageIndex: number; village: (typeof warnings.villages)[number]; level: DWLevel }>
+})
 const overview = computed(() => warningOverview(warningEntries.value))
 const overviewText = computed(() => `预警村 ${overview.value.total}（高 ${overview.value.high} · 中 ${overview.value.mid} · 低 ${overview.value.low}）`)
 const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
@@ -292,10 +304,11 @@ function statusLabel(level: number): string { return WARNING_STATUS_LABEL[level 
 function levelColor(level: number): string { return WARNING_LEVEL_COLOR[level as DWLevel] ?? '#94a3b8' }
 function levelText(level: number): string { return level === 3 ? '高风险' : level === 2 ? '中风险' : level === 1 ? '低风险' : '—' }
 function aiAdvice(level: number): string { return aiAdviceForLevel(level as DWLevel) }
-function future24Text(entry: { village: { code: string; lon: number; lat: number } }): string {
-  if (!store.precip) return ''
-  const mm = future24RainByGrid(store.precip, entry.village.lon, entry.village.lat, nodeIndex.value)
-  return `未来24h ${mm.toFixed(0)}mm`
+// 未来 24h 预报雨量：直接查表（panel byIdx[idx].future24），不再实时 future24RainByGrid
+function future24Text(entry: { villageIndex: number; village: { code: string } }): string {
+  const pn = panelNode.value
+  const pv = pn?.byIdx[String(entry.villageIndex)]
+  return pv ? `未来24h ${pv.future24.toFixed(0)}mm` : ''
 }
 function isDispatched(code: string): boolean { return store.isDispatched(code) }
 
@@ -317,18 +330,31 @@ const lossTitle = computed(() => {
   return `${props.regionName} · 截至 ${time}`
 })
 const lossSummary = computed(() => {
-  if (store.phase !== 'ready' || !store.precip || !store.underwriting || !store.riskModel) return { areaWanMu: 0, households: 0, amountWanYuan: 0 }
+  if (store.phase !== 'ready' || !store.panel) return { areaWanMu: 0, households: 0, amountWanYuan: 0 }
+  const pn = panelNode.value
+  if (!pn) return { areaWanMu: 0, households: 0, amountWanYuan: 0 }
   // 按当前层级过滤预警村（R4-3）
   const level = props.currentLevel
   const code = props.currentCode
-  const entries = warningEntries.value.filter((e) => {
-    if (!level || level === 'province') return true
-    if (level === 'city') return e.village.cityCode === code
-    if (level === 'county') return e.village.countyCode === code
-    if (level === 'township') return e.village.townshipCode === code
-    return e.village.code === code
-  })
-  return computeLossSummary({ entries, precip: store.precip, underwriting: store.underwriting, riskModel: store.riskModel, nodeIndex: nodeIndex.value })
+  // 省级：直接查表（已预算好的省级灾损三项）
+  if (!level || level === 'province') return pn.loss
+  // 下钻市/县/乡/村：从 byIdx 按层级 filter 出该片区村，累计其已预算的 areaMu/amountYuan/households
+  let areaMu = 0
+  let households = 0
+  let amountYuan = 0
+  for (const idx of pn.sorted) {
+    const pv = pn.byIdx[String(idx)]
+    const v = store.warnings?.villages[idx]
+    if (!pv || !v) continue
+    if (level === 'city') { if (v.cityCode !== code) continue }
+    else if (level === 'county') { if (v.countyCode !== code) continue }
+    else if (level === 'township') { if (v.townshipCode !== code) continue }
+    else { if (v.code !== code) continue }
+    areaMu += pv.areaMu
+    households += pv.households
+    amountYuan += pv.amountYuan
+  }
+  return { areaWanMu: areaMu / 10000, households, amountWanYuan: amountYuan / 10000 }
 })
 const lossAreaText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingArea.value))
 const lossHouseholdsText = computed(() => props.phase === 'error' ? '0' : String(Math.round(rollingHouseholds.value)))
@@ -373,28 +399,21 @@ const riskBand = computed(() => {
     totalArea += v.insuredAreaMu
     const warned = warningEntries.value.find((e) => e.village.code === v.code)
     if (!warned) { buckets[0]!.count += 1; buckets[0]!.area += v.insuredAreaMu; continue }
-    const lon = store.warnings?.villages.find((x) => x.code === v.code)?.lon ?? 0
-    const lat = store.warnings?.villages.find((x) => x.code === v.code)?.lat ?? 0
-    const cumRain = cumulativeRainAt({ lon, lat })
-    const riskLevel = riskLevelForCum(cumRain)
+    // 预警村：从 panel byIdx 读累计雨量/风险等级（免实时算格点）
+    const riskLevel = riskLevelForCum(warned.villageIndex)
     buckets[riskLevel]!.count += 1
     buckets[riskLevel]!.area += v.insuredAreaMu
   }
   return buckets.map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
 })
 
-function cumulativeRainAt(village: { lon: number; lat: number }): number {
-  if (!store.precip) return 0
-  return cumulativeRainByGrid(store.precip, village.lon, village.lat, store.nodeIndex)
-}
-function riskLevelForCum(cumRain: number): 0 | 1 | 2 | 3 {
-  if (!store.riskModel) return 0
-  const band = store.riskModel.riskLevelFromCumRainMm.find((b) => {
-    const belowMax = b.max === undefined || cumRain < b.max
-    const aboveMin = b.min === undefined || cumRain >= b.min
-    return belowMax && aboveMin
-  })
-  return band?.level ?? 0
+function riskLevelForCum(idx: number): 0 | 1 | 2 | 3 {
+  const pv = panelNode.value?.byIdx[String(idx)]
+  if (!pv) return 0
+  if (pv.cumRain >= 150) return 3
+  if (pv.cumRain >= 100) return 2
+  if (pv.cumRain >= 50) return 1
+  return 0
 }
 function formatWan(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'
@@ -459,36 +478,31 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
   width: 380px; max-width: calc(100% - 24px); box-sizing: border-box;
   display: flex; flex-direction: column; overflow: hidden;
   max-height: min(calc(100vh - 160px), 65vh);
-  border: 1px solid rgba(148, 163, 184, 0.34); border-radius: 10px;
-  background: rgba(248, 250, 252, 0.96);
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(8px);
+  border: 5px solid #2563eb; border-radius: 10px;
+  background: #2563eb;
+  box-shadow: 0 7px 22px rgba(15, 23, 42, 0.24);
   color: #0f172a; font-size: 12px;
 }
 .panel-header {
-  height: 34px; flex: none; display: flex; align-items: stretch; justify-content: space-between; gap: 8px; padding: 0 4px 0 8px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.34);
+  height: 34px; flex: none; display: flex; align-items: stretch; justify-content: space-between; gap: 8px; padding: 0 4px 0 0; color: #fff;
 }
-.tab-list { display: flex; flex: 1; align-items: stretch; gap: 2px; min-width: 0; }
+.tab-list { display: flex; flex: 1; align-items: stretch; gap: 2px; padding: 3px 2px 0; min-width: 0; }
 .tab-list button {
-  height: 100%; min-width: 64px; padding: 0 10px; border: 0; border-radius: 0;
-  background: transparent; color: #475569; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  position: relative; transition: color 0.15s ease, background-color 0.15s ease;
+  height: 100%; min-width: 64px; padding: 0 12px; border: 0; border-radius: 6px 6px 0 0;
+  background: transparent; color: #bfdbfe; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.tab-list button:hover:not([aria-selected='true']) { color: #1d4ed8; background: #eff6ff; }
-.tab-list button[aria-selected='true'] { color: #1d4ed8; font-weight: 700; }
-.tab-list button[aria-selected='true']::after {
-  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: #2563eb;
-}
-.tab-list button:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: -2px; }
+.tab-list button:hover:not([aria-selected='true']) { color: #fff; background: rgba(255,255,255,0.1); }
+.tab-list button[aria-selected='true'] { background: #fff; color: #1d4ed8; font-weight: 700; }
+.tab-list button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .close-button {
   width: 28px; height: 28px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px;
-  background: transparent; color: #475569; cursor: pointer; align-self: center;
+  background: transparent; color: #bfdbfe; cursor: pointer;
 }
-.close-button:hover { background: #e2e8f0; color: #0f172a; }
-.close-button:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: -2px; }
+.close-button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+.close-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .close-button svg { width: 15px; height: 15px; }
-.panel-body { flex: 1 1 auto; min-height: 0; padding: 10px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow-y: auto; overflow-x: hidden; background: #fff; display: flex; flex-direction: column; }
 .panel-status { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; background: #f1f5f9; color: #64748b; font-size: 11px; }
 .panel-status.error { background: #fef2f2; color: #991b1b; }
 .tab-pane { display: flex; flex-direction: column; gap: 8px; min-height: 0; }

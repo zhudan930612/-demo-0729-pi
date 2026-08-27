@@ -80,6 +80,25 @@ const multiUnderwriting = {
     { code: '330382101002', name: '乙村', insuredAreaMu: 300, householdCount: 40, sumInsuredYuan: 375000, source: 'mock' },
   ],
 }
+
+// 面板静态数据（与上述 warnings/underwriting 匹配，索引一致）
+const disasterPanel = {
+  schemaVersion: 1,
+  nodeTimes: disasterWarnings.nodeTimes,
+  perNode: [
+    { i: 0, time: disasterWarnings.nodeTimes[0]!, loss: { areaWanMu: 0, households: 0, amountWanYuan: 0 }, sorted: [], byIdx: {} },
+    { i: 1, time: disasterWarnings.nodeTimes[1]!, loss: { areaWanMu: 0.15, households: 60, amountWanYuan: 19.5 }, sorted: [0], byIdx: { '0': { idx: 0, level: 2, future24: 160, cumRain: 15.5, coefficient: 0.4, lossRate: 0.08, areaMu: 16, amountYuan: 20000, households: 60 } } },
+  ],
+}
+const multiPanel = {
+  schemaVersion: 1,
+  nodeTimes: multiWarnings.nodeTimes,
+  perNode: [
+    { i: 0, time: multiWarnings.nodeTimes[0]!, loss: { areaWanMu: 0, households: 0, amountWanYuan: 0 }, sorted: [], byIdx: {} },
+    { i: 1, time: multiWarnings.nodeTimes[1]!, loss: { areaWanMu: 0.06, households: 60, amountWanYuan: 7.5 }, sorted: [0], byIdx: { '0': { idx: 0, level: 1, future24: 150, cumRain: 15.5, coefficient: 0.4, lossRate: 0.03, areaMu: 6, amountYuan: 7500, households: 60 } } },
+    { i: 2, time: multiWarnings.nodeTimes[2]!, loss: { areaWanMu: 0.75, households: 100, amountWanYuan: 104.5 }, sorted: [0, 1], byIdx: { '0': { idx: 0, level: 3, future24: 200, cumRain: 98, coefficient: 0.7, lossRate: 0.15, areaMu: 52.5, amountYuan: 65625, households: 60 }, '1': { idx: 1, level: 2, future24: 180, cumRain: 60, coefficient: 0.4, lossRate: 0.08, areaMu: 9.6, amountYuan: 12000, households: 40 } } },
+  ],
+}
 function makeCounty() {
   return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330382', name: '乐清市' }, geometry: { type: 'Polygon', coordinates: [[[120.9, 28.1], [121.2, 28.1], [121.2, 28.4], [120.9, 28.4], [120.9, 28.1]]] } }] }
 }
@@ -102,6 +121,7 @@ async function installFixtures(page: Page, options: { disasterDataMissing?: bool
       if (p === '/data/disaster/warnings.json') return route.fulfill({ json: useMulti ? multiWarnings : disasterWarnings })
       if (p === '/data/disaster/underwriting.json') return route.fulfill({ json: useMulti ? multiUnderwriting : disasterUnderwriting })
       if (p === '/data/disaster/risk-model.json') return route.fulfill({ json: disasterRiskModel })
+      if (p === '/data/disaster/panel.json') return route.fulfill({ json: useMulti ? multiPanel : disasterPanel })
     }
     if (url.hostname.endsWith('tianditu.gov.cn')) return route.fulfill({ status: 204, body: '' })
     return route.continue()

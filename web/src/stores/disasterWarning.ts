@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type {
-  DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel,
+  DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel, DisasterPanel,
   DisasterWarningTab, DisasterTask, DisasterTaskStatus, DisasterTaskType,
 } from '../features/disaster-warning/types'
 
@@ -13,6 +13,7 @@ export interface DisasterWarningSnapshot {
   warnings: DisasterWarnings
   underwriting: DisasterUnderwriting
   riskModel: DisasterRiskModel
+  panel?: DisasterPanel
 }
 
 export const DISASTER_TASK_TYPES: ReadonlyArray<{ key: DisasterTaskType; name: string }> = [
@@ -59,6 +60,7 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
     warnings: null as DisasterWarnings | null,
     underwriting: null as DisasterUnderwriting | null,
     riskModel: null as DisasterRiskModel | null,
+    panel: null as DisasterPanel | null,
     // ---- 播放（R2） ----
     nodeIndex: 0,
     playing: false,
@@ -117,6 +119,7 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
       this.warnings = snapshot.warnings
       this.underwriting = snapshot.underwriting
       this.riskModel = snapshot.riskModel
+      this.panel = snapshot.panel ?? null
       this.nodeIndex = 0
       this.phase = 'ready'
       this.errorMessage = ''
