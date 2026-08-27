@@ -15,7 +15,10 @@ vi.mock('leaflet', () => {
   return {
     default: {
       divIcon: vi.fn(() => ({})),
-      marker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
+      marker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setZIndexOffset: vi.fn(), on: vi.fn(), setLatLng: vi.fn() })),
+      polyline: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLngs: vi.fn(), setStyle: vi.fn(), on: vi.fn() })),
+      circleMarker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLng: vi.fn(), setRadius: vi.fn(), on: vi.fn() })),
+      svgOverlay: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
       GridLayer: FakeGridLayer,
       layerGroup: () => ({ addTo: vi.fn(), remove: vi.fn(), clearLayers: vi.fn() }),
       latLngBounds: () => ({ isValid: () => true }),
@@ -188,23 +191,33 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
     on: vi.fn(), off: vi.fn(),
   } as never
 
-  it('init 装配三图层控制器并自动开始播放（R2-3 进入即自动播放）', async () => {
+  it('init 装配三图层控制器并渲染首帧；默认不自动播放（R2-3 变更）', async () => {
     const { mode, store } = readyMode()
     mode.init(fakeMap)
     await mode.enter()
     await vi.waitFor(() => expect(store.phase).toBe('ready'))
-    // 播放已启动（R2-3 进入即自动播放）
-    expect(store.playing).toBe(true)
+    // 默认不自动播放（R2-3 变更）：进入后停在首帧、playing=false
+    expect(store.playing).toBe(false)
     expect(store.nodeIndex).toBe(0)
+    // 点 ▶ 启动播放
+    mode.togglePlay()
+    expect(store.playing).toBe(true)
   })
 
-  it('togglePlay 暂停/继续；closePlayback 退出受灾预警（R2-4/R2-5）', async () => {
+  it('togglePlay 启动/暂停/继续；closePlayback 退出受灾预警（R2-3变更/R2-4/R2-5）', async () => {
     const { mode, store } = readyMode()
     mode.init(fakeMap)
     await mode.enter()
     await vi.waitFor(() => expect(store.phase).toBe('ready'))
+    // R2-3 变更：进入后默认不播放
+    expect(store.playing).toBe(false)
+    // 第一次 togglePlay 启动播放（R2-3：点 ▶ 启动）
+    mode.togglePlay()
+    expect(store.playing).toBe(true)
+    // 第二次 togglePlay 暂停（R2-4）
     mode.togglePlay()
     expect(store.playing).toBe(false)
+    // 第三次 togglePlay 继续（R2-4）
     mode.togglePlay()
     expect(store.playing).toBe(true)
     mode.closePlayback()
@@ -322,9 +335,9 @@ describe('useDisasterWarningMode · T9 任务派发联动（R5-1~R5-11）', () =
     mode.init(fakeMap)
     await mode.enter()
     await vi.waitFor(() => expect(store.phase).toBe('ready'))
-    // 播放已启动（startPlayback 在 enter 内同步调用）；首个 onStep 150ms 后触发
+    // R2-3 变更：进入不自动播放；这里显式点 ▶ 启动，onStep 150ms 后推进到节点1
     store.setDispatchMode('auto') // open() 会重置为 manual，须在 enter 完成后设置
-    // 等到播放推进到节点1（onStep → autoDispatch 生成任务）
+    mode.togglePlay() // 启动
     await vi.waitFor(() => expect(store.tasks.length).toBeGreaterThan(0), { timeout: 5000 })
     // 节点1 = 甲村中风险 + 乙村高风险 → 3 条任务
     expect(store.tasks).toHaveLength(3)

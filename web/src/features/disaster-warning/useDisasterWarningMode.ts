@@ -65,6 +65,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   const store = useDisasterWarningStore()
 
   let map: L.Map | null = null
+  let playbackStarted = false
   let typhoonController: TyphoonLayerController | null = null
   let precipController: PrecipitationLayerController | null = null
   let warningController: DisasterWarningLayerController | null = null
@@ -343,6 +344,14 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function startPlayback() {
     const count = store.nodeCount
     if (!playback || count <= 0 || !map) return
+    store.setPlaying(true)
+    playback.start(count, { onStep, onLoopRestart })
+  }
+
+  /** 进入受灾预警时：挂载图层并渲染首帧，但不自动启动播放（R2-3 变更：默认不自动播放，用户点 ▶ 启动）。 */
+  function renderInitialFrame() {
+    const count = store.nodeCount
+    if (!map || count <= 0) return
     // 进入受灾预警才挂载降水/预警图层（不常驻地图）
     precipController?.destroy()
     // 受灾预警播放时每帧重绘降水热力图（高频），用较小 renderSize 降低每帧瓦片插值成本；降水模式仍用默认 64
@@ -358,14 +367,17 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     renderTyphoonLayer(0)
     renderPrecipFrame(0)
     renderWarningLayer(0)
-    store.setPlaying(true)
-    playback.start(count, { onStep, onLoopRestart })
+    store.setPlaying(false)
   }
 
   function togglePlay() {
     if (!playback || store.phase !== 'ready') return
     if (playback.isPlaying()) { playback.pause(); store.setPlaying(false) }
-    else { store.setPlaying(true); playback.resume() }
+    else {
+      store.setPlaying(true)
+      // 首次播放：播放器未启动则 start；暂停后继续则 resume
+      if (playbackStarted) { playback.resume() } else { playbackStarted = true; startPlayback() }
+    }
   }
 
   function closePlayback() {
@@ -441,12 +453,13 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     await ctx.resetToProvince()
     void ctx.render()
     await loadAll()
-    // 数据就绪后自动开始播放（R2-3 进入即自动播放）
-    if (store.phase === 'ready') startPlayback()
+    // 数据就绪后渲染首帧（R2-3 变更：默认不自动播放，用户点 ▶ 启动）
+    if (store.phase === 'ready') renderInitialFrame()
   }
 
   function exit() {
     playback?.pause()
+    playbackStarted = false
     store.close()
     // 移除受灾预警专属图层（不常驻地图，避免与降水模式共用 pane 冲突）
     precipController?.destroy()
@@ -486,8 +499,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
         typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'wind', typhoonId, nodeId, grade })
       },
     })
-    // 播放控制器（R2-3/R2-4 循环）；降水/预警图层在 startPlayback 时创建并 mount（不常驻地图）
-    playback = createDisasterPlaybackController({})
+    // 播放控制器（R2-3/R2-4 循环）——intervalMs 设为 1000ms/节点：演示更从容，避免高频重绘三图层导致主线程饱和（用户建议放慢）
+    playback = createDisasterPlaybackController({ intervalMs: 1000 })
     // 地图空白点击清除钉住的浮窗
     target.getContainer().addEventListener('pointermove', () => {
       typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)
