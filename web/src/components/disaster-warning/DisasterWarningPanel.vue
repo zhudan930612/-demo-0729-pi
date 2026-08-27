@@ -500,10 +500,10 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .close-button:hover { background: rgba(255,255,255,0.16); color: #fff; }
 .close-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .close-button svg { width: 15px; height: 15px; }
-.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow-y: auto; overflow-x: hidden; background: #fff; display: flex; flex-direction: column; }
+.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
 .panel-status { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; background: #f1f5f9; color: #64748b; font-size: 11px; }
 .panel-status.error { background: #fef2f2; color: #991b1b; }
-.tab-pane { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.tab-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
 .loss-title-row { display: flex; align-items: center; gap: 6px; }
 .loss-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .loss-subtitle { color: #64748b; font-size: 11px; }
@@ -513,7 +513,11 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .loss-metric-value { font-size: 18px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.05; }
 .loss-metric-unit { color: #94a3b8; font-size: 10px; white-space: nowrap; }
 .loss-hint { margin: 0; color: #94a3b8; font-size: 11px; }
-.empty-state { padding: 24px 0; text-align: center; color: #94a3b8; font-size: 11px; }
+.empty-state { display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
+/* 灾损预估：标题/指标/风险分布为概况区，说明文字跟内容自然流（不悬空置底） */
+.loss-pane { gap: 12px; }
+/* 预警监测：表头概况区（flex:none）+ 列表滚动区 */
+.warning-pane { gap: 0; }
 /* 风险分布色带（R4-7） */
 .loss-band-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
 .band-caption { font-size: 10px; color: #475569; }
@@ -526,7 +530,6 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .risk-count { flex: 1; color: #64748b; }
 .risk-area { font-variant-numeric: tabular-nums; }
 /* 预警监测（R3-9~R3-18） */
-.warning-pane { gap: 0; }
 .warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
 .warning-head-row { display: flex; align-items: center; gap: 8px; }
 .warning-overview { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: 1; }
@@ -559,7 +562,7 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
 .view-all-bottom:hover { background: #eef2f7; }
 /* 任务列表（R5-12） */
-.task-list-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.task-list-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .status-filter { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; padding-left: 2px; }
 .sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
 .sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
