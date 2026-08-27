@@ -32,9 +32,9 @@
         </div>
         <div v-if="phase === 'ready'" class="loss-subtitle" data-test="dw-loss-title">{{ lossTitle }}</div>
         <div class="loss-metrics">
-          <div class="loss-metric"><span class="loss-metric-label">预估受灾面积</span><span class="loss-metric-value" data-test="dw-loss-area">{{ lossAreaText }}</span><span class="loss-metric-unit">万亩</span></div>
-          <div class="loss-metric"><span class="loss-metric-label">预估涉及户数</span><span class="loss-metric-value" data-test="dw-loss-households">{{ lossHouseholdsText }}</span><span class="loss-metric-unit">户</span></div>
-          <div class="loss-metric"><span class="loss-metric-label">预估赔偿金额</span><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
+          <div class="loss-metric"><span class="loss-metric-label">受灾面积</span><span class="loss-metric-value" data-test="dw-loss-area">{{ lossAreaText }}</span><span class="loss-metric-unit">万亩</span></div>
+          <div class="loss-metric"><span class="loss-metric-label">涉及户数</span><span class="loss-metric-value" data-test="dw-loss-households">{{ lossHouseholdsText }}</span><span class="loss-metric-unit">户</span></div>
+          <div class="loss-metric"><span class="loss-metric-label">赔偿金额</span><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
         </div>
         <!-- 村级风险分布：占比色带 + 色点明细行（R4-7） -->
         <div v-if="phase === 'ready' && riskBand.length > 0" class="loss-band-wrap" data-test="dw-risk-band">
@@ -366,7 +366,7 @@ const rollingAmount = computed(() => lossSummary.value.amountWanYuan)
 const lossHint = computed(() => {
   if (props.phase === 'error') return '数据缺失，灾损预估不可用'
   if (props.phase === 'loading') return '加载中…'
-  return '灾损预估随台风播放与村级预警联动刷新；数字为演示预估值'
+  return '灾损预估随台风播放与村级预警联动刷新'
 })
 
 // 村级风险分布（R4-7）：分母 = 当前层级全部承保面积（含无风险村）
