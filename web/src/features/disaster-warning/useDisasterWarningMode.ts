@@ -103,6 +103,9 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
       })
       await Promise.all(jobs)
       countySeats.value = seats
+      // 徽标落点就绪后重置图层渲染缓存，强制用真实落点重渲一次
+      lastWarnedRenderKey = ''
+      renderWarningLayer(store.nodeIndex)
       return seats
     })()
     return countySeatsLoading
@@ -222,11 +225,19 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   }
 
   /** 村级预警图层：按层级过滤后渲染（R3-6/R3-19/R3-22） */
+  // 图层标记重建节流：预警标记/徽标在集合未变时无需每帧 clearLayers+重建（预警村爆发时每帧重建几百 marker 是主卡顿之一）
+  let lastWarnedRenderKey = ''
+
   function renderWarningLayer(nodeIndex: number) {
     const warnings = store.warnings
     if (!warningController || !warnings) return
-    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图（仅列表）
     const level = ctx.store.current.level
+    const code = ctx.store.current.code
+    // R2-3 变更为 1s/步：标记集合在多数相邻节点未变；仅当 节点+层级+区划 都未变时跳过重建
+    const key = `${nodeIndex}|${level}|${code}`
+    if (key === lastWarnedRenderKey) return
+    lastWarnedRenderKey = key
+    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图（仅列表）
     let filtered = entries
     if (level === 'county') {
       const countyCode = ctx.store.current.code
