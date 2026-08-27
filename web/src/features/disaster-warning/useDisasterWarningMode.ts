@@ -180,7 +180,6 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     const precip = store.precip
     if (!precipController || !precip) return
     const time = precip.nodeTimes[nodeIndex] ?? ''
-    const day = 'd1' as const
     const snapshot = {
       grid: precip.grid.map((g) => ({ lat: g.lat, lon: g.lon, values: { d1: g.cum[nodeIndex] ?? 0, d2: g.cum[nodeIndex] ?? 0, d3: g.cum[nodeIndex] ?? 0, d4: g.cum[nodeIndex] ?? 0, d5: g.cum[nodeIndex] ?? 0, d6: g.cum[nodeIndex] ?? 0, d7: g.cum[nodeIndex] ?? 0 } })),
       days: [time, time, time, time, time, time, time],
@@ -190,7 +189,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
       aggregateFrom: precip.aggregateFrom,
     }
     precipController.setSnapshot(snapshot as never)
-    precipController.setDay(day)
+    // 注：setSnapshot 内部已把 currentDay 重置为 d1 并 rebuildGrid；无需再 setDay（否则降水瓦片每帧被重绘两次，单帧成本翻倍）
   }
 
   /** 村级预警图层：按层级过滤后渲染（R3-6/R3-19/R3-22） */
