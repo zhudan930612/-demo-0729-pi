@@ -23,6 +23,16 @@ const warnings = {
   schemaVersion: 1, thresholds: { low: 130, mid: 160, high: 185 }, hysteresisNodes: 2,
   nodeTimes: ['2026-07-09 00:00:00'], villages: [], nodes: [{ i: 0, w: [] }],
 }
+const underwriting = {
+  schemaVersion: 1, seed: 'x', sumInsuredPerMu: 1250, targetTotalMu: 100000,
+  villages: [{ code: '330382101001', name: '示例村', insuredAreaMu: 100, householdCount: 10, sumInsuredYuan: 125000, source: 'mock' }],
+}
+const riskModel = {
+  schemaVersion: 1,
+  riskLevelFromCumRainMm: [{ max: 50, level: 0, name: '无', coefficient: 0.2 }],
+  lossRateByWarningLevel: [{ level: 1, name: '低', lossRate: 0.03 }],
+  formula: 'x',
+}
 
 function makeCtx(overrides: Partial<Parameters<typeof useDisasterWarningMode>[0]> = {}) {
   const exits = {
@@ -62,6 +72,8 @@ describe('useDisasterWarningMode · 模式互斥与进入/退出（R1-2/R1-4）'
       if (url.endsWith('/track.json')) return track
       if (url.endsWith('/precip.json')) return precip
       if (url.endsWith('/warnings.json')) return warnings
+      if (url.endsWith('/underwriting.json')) return underwriting
+      if (url.endsWith('/risk-model.json')) return riskModel
       throw new Error(`${url} -> 404`)
     })
     const { ctx } = makeCtx()

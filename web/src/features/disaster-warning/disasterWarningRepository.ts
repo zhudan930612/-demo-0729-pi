@@ -1,11 +1,11 @@
 // 受灾预警静态数据加载：web/public/data/disaster/（ADR-0009 静态固化，运行期零网络依赖）。
 import { fetchJSON } from '../../api/data'
-import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterWarningData } from './types'
+import type { DisasterTrack, DisasterPrecip, DisasterWarnings, DisasterUnderwriting, DisasterRiskModel, DisasterWarningData } from './types'
 
 export const DISASTER_DATA_DIR = '/data/disaster'
 
 /**
- * 并发加载受灾预警三份静态产物。
+ * 并发加载受灾预警全部静态产物（轨迹/降雨/预警/承保/风险模型）。
  * 任一加载失败（404/解析错误/结构不完整）即整体失败 → 由 mode 进入 error 态（R2-18 降级）。
  */
 export function loadDisasterWarningData(): Promise<DisasterWarningData> {
@@ -13,11 +13,15 @@ export function loadDisasterWarningData(): Promise<DisasterWarningData> {
     fetchJSON<DisasterTrack>(`${DISASTER_DATA_DIR}/track.json`),
     fetchJSON<DisasterPrecip>(`${DISASTER_DATA_DIR}/precip.json`),
     fetchJSON<DisasterWarnings>(`${DISASTER_DATA_DIR}/warnings.json`),
-  ]).then(([track, precip, warnings]) => {
+    fetchJSON<DisasterUnderwriting>(`${DISASTER_DATA_DIR}/underwriting.json`),
+    fetchJSON<DisasterRiskModel>(`${DISASTER_DATA_DIR}/risk-model.json`),
+  ]).then(([track, precip, warnings, underwriting, riskModel]) => {
     if (!isValidTrack(track)) throw new Error('巴威轨迹数据缺失或格式不正确')
     if (!isValidPrecip(precip)) throw new Error('历史降雨网格数据缺失或格式不正确')
     if (!isValidWarnings(warnings)) throw new Error('预警村清单数据缺失或格式不正确')
-    return { track, precip, warnings }
+    if (!isValidUnderwriting(underwriting)) throw new Error('承保数据缺失或格式不正确')
+    if (!isValidRiskModel(riskModel)) throw new Error('风险模型数据缺失或格式不正确')
+    return { track, precip, warnings, underwriting, riskModel }
   })
 }
 
@@ -37,4 +41,14 @@ export function isValidWarnings(warnings: DisasterWarnings | null | undefined): 
     && Array.isArray(warnings.villages)
     && Array.isArray(warnings.nodes)
     && typeof warnings.thresholds?.low === 'number' && typeof warnings.thresholds?.mid === 'number' && typeof warnings.thresholds?.high === 'number'
+}
+
+export function isValidUnderwriting(underwriting: DisasterUnderwriting | null | undefined): boolean {
+  return !!underwriting && Array.isArray(underwriting.villages) && underwriting.villages.length > 0
+}
+
+export function isValidRiskModel(riskModel: DisasterRiskModel | null | undefined): boolean {
+  return !!riskModel
+    && Array.isArray(riskModel.riskLevelFromCumRainMm) && riskModel.riskLevelFromCumRainMm.length > 0
+    && Array.isArray(riskModel.lossRateByWarningLevel) && riskModel.lossRateByWarningLevel.length > 0
 }
