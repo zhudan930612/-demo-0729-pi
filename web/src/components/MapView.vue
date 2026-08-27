@@ -83,6 +83,16 @@
       :viewport-height="mapViewport.height"
     />
 
+    <!-- 受灾预警：台风节点/风圈悬停浮窗（复用 TyphoonHoverPopup，R2-11/R2-12） -->
+    <TyphoonHoverPopup
+      v-if="disasterWarningStore.isOpen"
+      :model="disasterWarningHoverModel"
+      :x="disasterWarningHoverPosition.x"
+      :y="disasterWarningHoverPosition.y"
+      :viewport-width="mapViewport.width"
+      :viewport-height="mapViewport.height"
+    />
+
     <TyphoonTimelineDrawer
       v-if="disasterActive"
       :open="typhoonStore.timelineOpen"
@@ -115,8 +125,17 @@
       :active-tab="disasterWarningStore.activeTab"
       :error-message="disasterWarningStore.errorMessage"
       :region-name="store.current.name"
+      :current-level="store.current.level"
+      :current-code="store.current.code"
       @close="exitDisasterWarning"
       @select-tab="(tab) => disasterWarningMode.setTab(tab)"
+      @select-village="(code) => void disasterWarningMode.selectVillage(code)"
+      @dispatch-village="(code) => disasterWarningMode.dispatchVillage(code)"
+      @dispatch-all="disasterWarningMode.dispatchAllPending"
+      @set-dispatch-mode="(m) => disasterWarningStore.setDispatchMode(m)"
+      @open-warning-drawer="disasterWarningStore.openWarningDrawer"
+      @close-warning-drawer="disasterWarningStore.closeWarningDrawer"
+      @open-task-drawer="disasterWarningStore.openTaskDrawer"
     />
 
     <!-- 农情监测：右上角 tab 面板 + 底部居中多日期浮窗 -->
@@ -145,6 +164,17 @@
       @toggle-play="toggleAgriPlay"
       @set-opacity="setAgriOpacity"
       @refresh="agriMode.refresh"
+    />
+
+    <!-- 受灾预警：底部居中迷你播放浮窗（R2-2，无时间轴） -->
+    <DisasterPlaybackWidget
+      v-if="disasterWarningStore.isOpen && disasterWarningStore.phase === 'ready'"
+      :playing="disasterWarningStore.playing"
+      :node-index="disasterWarningStore.nodeIndex"
+      :node-count="disasterWarningStore.nodeCount"
+      :node-time-label="disasterWarningStore.nodeTimeLabel"
+      @toggle-play="disasterWarningMode.togglePlay"
+      @close="exitDisasterWarning"
     />
 
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
@@ -338,6 +368,7 @@ import { useAgriMonitoringStore } from '../stores/agriMonitoring'
 import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS, LEVEL_THRESHOLDS, type GrowthLevel } from '../features/agri-monitoring/agriMonitoringTypes'
 import AgriMonitoringPanel from './agri-monitoring/AgriMonitoringPanel.vue'
 import DisasterWarningPanel from './disaster-warning/DisasterWarningPanel.vue'
+import DisasterPlaybackWidget from './disaster-warning/DisasterPlaybackWidget.vue'
 import AgriDateControl from './agri-monitoring/AgriDateControl.vue'
 import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
 import LodgingParcelDrawer from './lodging/LodgingParcelDrawer.vue'
@@ -645,6 +676,8 @@ const disasterWarningMode = useDisasterWarningMode({
 })
 function enterDisasterWarning() { void disasterWarningMode.enter() }
 function exitDisasterWarning() { disasterWarningMode.exit() }
+const disasterWarningHoverModel = disasterWarningMode.typhoonHoverModel
+const disasterWarningHoverPosition = disasterWarningMode.typhoonHoverPosition
 
 function agriRange(lv: GrowthLevel): string {
   const t = LEVEL_THRESHOLDS
