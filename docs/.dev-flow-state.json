@@ -4,7 +4,7 @@
   "requirementDoc": "docs/requirements/受灾预警-V1需求.md",
   "acceptanceChecklist": "docs/requirements/受灾预警-V1验收清单.md",
   "branch": "feat/disaster-warning",
-  "phase": "coding",
+  "phase": "artifact-precheck",
   "_phase取值": "form-precheck(形态预检) | coding(编码) | artifact-precheck(产物目视预检) | acceptance(验收) | judging(判断) | quality-review(质量审查) | done(完成) | escalated(升级)",
   "formPrecheck": {
     "status": "user-confirmed",
@@ -22,10 +22,31 @@
       "docs/plans/受灾预警-V1-实施.md 第0节/第6节"
     ]
   },
-  "ticketMap": ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"],
+  "ticketMap": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "T8",
+    "T9",
+    "T10"
+  ],
   "codingWaves": {
-    "wave1": { "status": "running", "runId": "19417b15-e731-4413-b531-dca3765eff52", "agents": ["w1=T1+T2(scripts/,server/)", "w2=T3(web/src/,web/e2e/)"] },
-    "wave2": { "status": "pending", "agents": ["T4→T5→T6→T7→T8→T9→T10 串行"] }
+    "wave1": {
+      "status": "done",
+      "artifacts": {
+        "validator": "43/43",
+        "baseline": "峰值4823 高281中1031低3511 高风险峰值444 节点27/71 最大191.8mm",
+        "preExistingNote": "e2e/agriMonitoring R1/R4 两用例失败为既有 stale spec（面板 tab 已改名为「异常监测」，spec 仍断言「异常top」），基线上即失败，与本需求无关"
+      }
+    },
+    "wave2": {
+      "status": "launching",
+      "tickets": "T4→T5→T6→T7→T8→T9→T10 串行"
+    }
   },
   "iteration": 0,
   "maxIterations": 3,
@@ -35,5 +56,9 @@
     "formPrecheckRequired": true,
     "formPrecheckReason": "R3 预警村清单/阈值校准、R4 承保造数与灾损数字、R2 每节点雨量网格均为『用户可见产物形态由数据决定』，按 AGENTS.md 工作闭环第 7 条与 dev-flow 步骤 2 必须先出可目视形态样例并经用户确认，再进入编码。",
     "concurrentSessionWarning": "2026-08-27 本会话早期看到的 3 个 commit（6a41e7a/9b37b6f/1c19720）已被并发会话用 20 个更完整的 docs commit（7b75f6f..cf71f61）替换。以当前 HEAD cf71f61 为事实来源。"
+  },
+  "artifactPrecheck": {
+    "status": "passed",
+    "evidence": "渲染实际生成 warnings.json 峰值(2026-07-11 06:00) 4823村(高281中1031低3511), 空间形态为沿巴威真实轨迹的雨带+登陆高风险核心, 与形态预检方案C一致"
   }
 }
