@@ -3,7 +3,7 @@
     <!-- 演示模式入口（顶层）：农情监测 / 受灾预警 / 受灾评估 -->
     <div class="tool-entry" @mouseenter="openDemoMenu" @mouseleave="scheduleCloseMenus" @focusin="openDemoMenu">
       <button
-        type="button" class="icon-btn demo-btn" :class="{ active: demoMenuOpen || agriMonitoringActive }"
+        type="button" class="icon-btn demo-btn" :class="{ active: demoMenuOpen || agriMonitoringActive || disasterWarningActive }"
         :aria-label="demoTip" aria-haspopup="true" :aria-expanded="demoMenuOpen" aria-controls="demo-tool-menu" @click="openDemoMenu"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h20M4 3v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V3M9 12v3a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-3M12 3v8"/></svg>
@@ -15,15 +15,16 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V10"/><path d="M6 14c-1.5 0-3-1.5-3-3.5S5 6 8 6c1.5 0 3 .8 4 2 1-1.2 2.5-2 4-2 3 0 5 2.5 5 4.5S19.5 14 18 14"/></svg>
             <span>农情监测</span>
           </button>
-          <button type="button" class="menu-action" disabled title="即将上线">
+          <button type="button" class="menu-action" :class="{ selected: disasterWarningActive }" :title="disasterWarningActive ? '退出受灾预警' : '进入受灾预警'" @click="chooseDemo('disaster')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3.5 7.4v5.2c0 4.5 3.2 7.4 8.5 8.9 5.3-1.5 8.5-4.4 8.5-8.9V7.4L12 3Z"/></svg>
-            <span>受灾预警 <small style="color:#94a3b8">(即将上线)</small></span>
+            <span>受灾预警</span>
           </button>
           <button type="button" class="menu-action" disabled title="即将上线">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/></svg>
             <span>受灾评估 <small style="color:#94a3b8">(即将上线)</small></span>
           </button>
           <button v-if="agriMonitoringActive" type="button" class="menu-action" @click="emit('exit-agri-monitoring')"><span>✕ 退出农情监测</span></button>
+          <button v-if="disasterWarningActive" type="button" class="menu-action" @click="emit('exit-disaster-warning')"><span>✕ 退出受灾预警</span></button>
         </div>
       </Transition>
     </div>
@@ -157,8 +158,8 @@ import type { ParcelMode } from '../../features/parcels/parcelTypes'
 import type { ParcelVisualMode } from '../../features/parcels/parcelVisualMode'
 import type { BasemapKey } from '../../api/tianditu'
 type WeatherModule = 'alerts' | 'current' | 'precipitation'
-const props = defineProps<{ basemap:BasemapKey; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean; agriMonitoringActive:boolean }>()
-const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[]; 'open-agri-monitoring':[]; 'exit-agri-monitoring':[] }>()
+const props = defineProps<{ basemap:BasemapKey; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean; agriMonitoringActive:boolean; disasterWarningActive:boolean }>()
+const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[]; 'open-agri-monitoring':[]; 'exit-agri-monitoring':[]; 'open-disaster-warning':[]; 'exit-disaster-warning':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false),lodgingMenuOpen=ref(false),demoMenuOpen=ref(false)
@@ -167,7 +168,7 @@ const weatherTip=computed(()=>props.weatherActive?`当前：${props.weatherModul
 const parcelTip=computed(()=>props.weatherActive?'天气查看中可查看地块，编辑操作暂不可用':props.disasterActive?'灾害查看中可查看地块，编辑操作暂不可用':props.mode!=='idle'?'操作地块时不能切换工具':'地块工具')
 const layerTip=computed(()=>{const label=props.parcelVisualMode==='planting'?'种植':props.parcelVisualMode==='insurance'?'保险':'地块';return`地图图层：${label}`})
 const lodgingTip=computed(()=>props.lodgingAssessmentActive?'风险评估模式已开启':props.lodgingEntryReason?props.lodgingEntryReason:'水稻倒伏评估')
-const demoTip=computed(()=>props.agriMonitoringActive?'演示模式已开启':'演示模式')
+const demoTip=computed(()=>props.agriMonitoringActive||props.disasterWarningActive?'演示模式已开启':'演示模式')
 const basemapLabel=computed(()=>({img:'底图：卫星',vec:'底图：矢量',osm:'底图：OSM 标准',topo:'底图：OSM 地貌'})[props.basemap])
 defineExpose({focusWeather:()=>weatherButtonRef.value?.focus()})
 let closeHoverTimer:ReturnType<typeof setTimeout>|undefined
@@ -175,7 +176,7 @@ function cancelScheduledClose(){if(closeHoverTimer){clearTimeout(closeHoverTimer
 function scheduleCloseMenus(){if(closeHoverTimer)clearTimeout(closeHoverTimer);closeHoverTimer=setTimeout(closeMenus,180)}
 function closeMenus(){parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=false}
 function openDemoMenu(){cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=true}
-function chooseDemo(_type:'agri'){demoMenuOpen.value=false;emit('open-agri-monitoring')}
+function chooseDemo(type:'agri'|'disaster'){demoMenuOpen.value=false;if(type==='agri')emit('open-agri-monitoring');else emit('open-disaster-warning')}
 function openWeatherMenu(){if(props.weatherEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;lodgingMenuOpen.value=false;demoMenuOpen.value=false;weatherMenuOpen.value=true}
 function focusWeatherMenu(){openWeatherMenu();if(weatherMenuOpen.value)void nextTick(()=>firstWeatherActionRef.value?.focus())}
 function openLodgingMenu(){if(props.lodgingEntryDisabled)return;cancelScheduledClose();parcelMenuOpen.value=false;weatherMenuOpen.value=false;layerMenuOpen.value=false;basemapMenuOpen.value=false;demoMenuOpen.value=false;lodgingMenuOpen.value=true}

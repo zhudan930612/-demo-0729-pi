@@ -108,6 +108,17 @@
       @refresh="refreshPrecipitation"
     />
 
+    <!-- 受灾预警：右上角三 tab 面板（灾损预估 / 预警监测 / 任务列表） -->
+    <DisasterWarningPanel
+      v-if="disasterWarningStore.isOpen"
+      :phase="disasterWarningStore.phase"
+      :active-tab="disasterWarningStore.activeTab"
+      :error-message="disasterWarningStore.errorMessage"
+      :region-name="store.current.name"
+      @close="exitDisasterWarning"
+      @select-tab="(tab) => disasterWarningMode.setTab(tab)"
+    />
+
     <!-- 农情监测：右上角 tab 面板 + 底部居中多日期浮窗 -->
     <AgriMonitoringPanel
       v-if="agriMonitoringStore.isOpen"
@@ -262,6 +273,7 @@
       :lodging-assessment-active="lodgingMode.isActive.value"
       :lodging-demo-mode="lodgingMode.isDemoMode.value"
       :agri-monitoring-active="agriMonitoringStore.isOpen"
+      :disaster-warning-active="disasterWarningStore.isOpen"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
@@ -278,6 +290,8 @@
       @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
       @open-agri-monitoring="enterAgriMonitoring"
       @exit-agri-monitoring="exitAgriMonitoring"
+      @open-disaster-warning="enterDisasterWarning"
+      @exit-disaster-warning="exitDisasterWarning"
     />
   </div>
 </template>
@@ -318,9 +332,12 @@ import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import { useLodgingAssessmentMode } from '../features/lodging/useLodgingAssessmentMode'
 import { useAgriMonitoringMode } from '../features/agri-monitoring/useAgriMonitoringMode'
+import { useDisasterWarningMode } from '../features/disaster-warning/useDisasterWarningMode'
+import { useDisasterWarningStore } from '../stores/disasterWarning'
 import { useAgriMonitoringStore } from '../stores/agriMonitoring'
 import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS, LEVEL_THRESHOLDS, type GrowthLevel } from '../features/agri-monitoring/agriMonitoringTypes'
 import AgriMonitoringPanel from './agri-monitoring/AgriMonitoringPanel.vue'
+import DisasterWarningPanel from './disaster-warning/DisasterWarningPanel.vue'
 import AgriDateControl from './agri-monitoring/AgriDateControl.vue'
 import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
 import LodgingParcelDrawer from './lodging/LodgingParcelDrawer.vue'
@@ -607,6 +624,28 @@ const {
   clearTaskLocation: clearAgriTaskLocation,
 } = agriMode
 
+// 受灾预警模式（演示模式二级 · 阶段二 台风邻近预警期）
+const disasterWarningStore = useDisasterWarningStore()
+const disasterWarningMode = useDisasterWarningMode({
+  store,
+  disasterActive,
+  anyWeatherActive: () => anyWeatherActive.value,
+  hasUnsavedParcelWork: () => parcelHasUnsavedWork(),
+  exits: {
+    typhoon: (restoreView) => typhoonMode.exitTyphoonMode(restoreView),
+    weather: () => weatherMode.exitWeatherMode(),
+    nationalAlarms: () => weatherMode.exitNationalAlarms(),
+    precipitation: () => precipitationMode.exitPrecipitationMode(),
+    lodging: () => lodgingMode.exitAssessmentMode(),
+    agri: () => agriMode.exit(),
+  },
+  resetToProvince: () => store.resetToProvince(),
+  render: () => render(),
+  showNotice,
+})
+function enterDisasterWarning() { void disasterWarningMode.enter() }
+function exitDisasterWarning() { disasterWarningMode.exit() }
+
 function agriRange(lv: GrowthLevel): string {
   const t = LEVEL_THRESHOLDS
   const idx = GROWTH_LEVELS.indexOf(lv)
@@ -626,13 +665,17 @@ function handleAgriSelectChild(row: { code: string; name: string; geometry: unkn
   void store.drill({ level: row.level as Level, code: row.code, name: row.name, geometry: row.geometry as Feature['geometry'] })
 }
 
-// 模式互斥：当其他模式激活时，自动退出评估/农情监测模式
+// 模式互斥：当其他模式激活时，自动退出评估/农情监测/受灾预警模式
 watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen, () => lodgingMode.isActive.value], ([weather, typhoon, precip, lodging]) => {
   if (lodgingMode.isActive.value && (weather || typhoon || precip) && !agriMonitoringStore.isOpen) {
     lodgingMode.exitAssessmentMode()
   }
   if (agriMonitoringStore.isOpen && (weather || typhoon || precip || lodging)) {
     agriMode.exit()
+  }
+  // 受灾预警：其他模式（台风/天气/降水/倒伏评估/农情监测）激活时自动退出
+  if (disasterWarningStore.isOpen && (weather || typhoon || precip || lodging || agriMonitoringStore.isOpen)) {
+    disasterWarningMode.exit()
   }
 })
 
@@ -1098,6 +1141,7 @@ onMounted(async () => {
   typhoonMode.init(map)
   lodgingMode.init(map)
   agriMode.init(map)
+  disasterWarningMode.init(map)
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {
@@ -1139,6 +1183,8 @@ onBeforeUnmount(() => {
   precipitationMode.destroy()
   if (agriMonitoringStore.isOpen) agriMode.exit()
   agriMode.destroy()
+  if (disasterWarningStore.isOpen) disasterWarningMode.exit()
+  disasterWarningMode.destroy()
   parcelWorkbench.destroy()
   navigationController?.destroy()
   map?.remove()

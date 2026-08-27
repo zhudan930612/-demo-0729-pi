@@ -98,8 +98,8 @@ test('R1 演示模式入口 + R8 tab 切换 + R2 默认最近一期/开关', asy
   await page.click('.demo-btn')
   await expect(page.locator('#demo-tool-menu')).toBeVisible()
   await expect(page.locator('#demo-tool-menu .menu-action')).toHaveCount(3)
-  // R1-3：受灾预警/受灾评估 不可进入（disabled）
-  await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾预警")')).toBeDisabled()
+  // R1-3：受灾预警 已点亮可进入；受灾评估 仍不可进入（disabled）
+  await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾预警")')).toBeEnabled()
   await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾评估")')).toBeDisabled()
   // R1-2：选「农情监测」进入，地图回省级
   await page.click('#demo-tool-menu button:has-text("农情监测")')
