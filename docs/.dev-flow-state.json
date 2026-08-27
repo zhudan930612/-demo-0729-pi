@@ -4,8 +4,29 @@
   "requirementDoc": "docs/requirements/受灾预警-V1需求.md",
   "acceptanceChecklist": "docs/requirements/受灾预警-V1验收清单.md",
   "branch": "feat/disaster-warning",
-  "phase": "form-precheck",
+  "phase": "coding",
   "_phase取值": "form-precheck(形态预检) | coding(编码) | artifact-precheck(产物目视预检) | acceptance(验收) | judging(判断) | quality-review(质量审查) | done(完成) | escalated(升级)",
+  "formPrecheck": {
+    "status": "user-confirmed",
+    "confirmedAt": "2026-08-27",
+    "decisions": [
+      "阈值方案 C：低≥130 / 中≥160 / 高≥185 mm",
+      "16.1% 无驻地点的村用村面质心兜底并标 seatSource",
+      "承保造数锚定粮食播种面积（全省 1100~1300 万亩）"
+    ],
+    "artifacts": "C:/Users/zhudan/AppData/Local/Temp/disaster-warning-devflow/form-plans.png",
+    "recordedIn": [
+      "docs/requirements/受灾预警-V1需求.md A3/A4/B3/C3（commit 6f7fe72）",
+      "docs/requirements/受灾预警-V1验收清单.md R2-15/R2-16/R3-1/R3-2/R3-5 + 新增 R3-23/R4-8",
+      "CONTEXT.md 预警等级术语",
+      "docs/plans/受灾预警-V1-实施.md 第0节/第6节"
+    ]
+  },
+  "ticketMap": ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"],
+  "codingWaves": {
+    "wave1": { "status": "running", "runId": "19417b15-e731-4413-b531-dca3765eff52", "agents": ["w1=T1+T2(scripts/,server/)", "w2=T3(web/src/,web/e2e/)"] },
+    "wave2": { "status": "pending", "agents": ["T4→T5→T6→T7→T8→T9→T10 串行"] }
+  },
   "iteration": 0,
   "maxIterations": 3,
   "acceptanceReports": [],
