@@ -209,11 +209,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useDisasterWarningStore } from '../../stores/disasterWarning'
+import { useRollingNumber } from '../../features/disaster-warning/useRollingNumber'
 import { DISASTER_WARNING_TABS, type DisasterWarningTab } from '../../features/disaster-warning/types'
 import type { DisasterWarningPhase } from '../../stores/disasterWarning'
 import {
   warnedVillagesAtNode, sortWarnedVillages, warningOverview, future24RainByGrid,
-  WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel,
+  WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel, computeLossSummary,
+  cumulativeRainByGrid,
 } from '../../features/disaster-warning/disasterWarningSelectors'
 import { DISASTER_TASK_STATUSES, type DisasterDispatchMode } from '../../stores/disasterWarning'
 import type { DisasterWarningLevel as DWLevel } from '../../features/disaster-warning/types'
@@ -301,22 +303,16 @@ const lossSummary = computed(() => {
     if (level === 'township') return e.village.townshipCode === code
     return e.village.code === code
   })
-  const area = { areaWanMu: 0, households: 0, amountWanYuan: 0 }
-  for (const entry of entries) {
-    const uw = store.underwriting.villages.find((v) => v.code === entry.village.code)
-    if (!uw) continue
-    const cumRain = cumulativeRainAt(entry.village)
-    const coeff = riskCoefficient(cumRain)
-    const lossRate = lossRateFor(entry.level)
-    area.areaWanMu += (uw.insuredAreaMu * coeff * lossRate) / 10000
-    area.households += uw.householdCount
-    area.amountWanYuan += (uw.sumInsuredYuan * coeff * lossRate) / 10000
-  }
-  return area
+  return computeLossSummary({ entries, precip: store.precip, underwriting: store.underwriting, riskModel: store.riskModel, nodeIndex: nodeIndex.value })
 })
-const lossAreaText = computed(() => props.phase === 'error' ? '0' : formatWan(lossSummary.value.areaWanMu))
-const lossHouseholdsText = computed(() => props.phase === 'error' ? '0' : String(Math.round(lossSummary.value.households)))
-const lossAmountText = computed(() => props.phase === 'error' ? '0' : formatWan(lossSummary.value.amountWanYuan))
+const lossAreaText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingArea.value))
+const lossHouseholdsText = computed(() => props.phase === 'error' ? '0' : String(Math.round(rollingHouseholds.value)))
+const lossAmountText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingAmount.value))
+// R4-2 数字滚动动效：播放推进导致预警村新增/升级/解除时，预评估数字旧值滚动过渡到新值
+const rollingArea = useRollingNumber(computed(() => lossSummary.value.areaWanMu))
+const rollingHouseholds = useRollingNumber(computed(() => lossSummary.value.households))
+const rollingAmount = useRollingNumber(computed(() => lossSummary.value.amountWanYuan))
+
 const lossHint = computed(() => {
   if (props.phase === 'error') return '数据缺失，灾损预估不可用'
   if (props.phase === 'loading') return '加载中…'
@@ -364,25 +360,7 @@ const riskBand = computed(() => {
 
 function cumulativeRainAt(village: { lon: number; lat: number }): number {
   if (!store.precip) return 0
-  let best = 0
-  let bestDist = Infinity
-  for (let i = 0; i < store.precip.grid.length; i++) {
-    const g = store.precip.grid[i]!
-    const dx = (g.lon - village.lon) * 0.88
-    const dy = g.lat - village.lat
-    const d = dx * dx + dy * dy
-    if (d < bestDist) { bestDist = d; best = i }
-  }
-  return store.precip.grid[best]!.cum[store.nodeIndex] ?? 0
-}
-function riskCoefficient(cumRain: number): number {
-  if (!store.riskModel) return 0.2
-  const band = store.riskModel.riskLevelFromCumRainMm.find((b) => {
-    const belowMax = b.max === undefined || cumRain < b.max
-    const aboveMin = b.min === undefined || cumRain >= b.min
-    return belowMax && aboveMin
-  })
-  return band?.coefficient ?? 0.2
+  return cumulativeRainByGrid(store.precip, village.lon, village.lat, store.nodeIndex)
 }
 function riskLevelForCum(cumRain: number): 0 | 1 | 2 | 3 {
   if (!store.riskModel) return 0
@@ -392,10 +370,6 @@ function riskLevelForCum(cumRain: number): 0 | 1 | 2 | 3 {
     return belowMax && aboveMin
   })
   return band?.level ?? 0
-}
-function lossRateFor(level: number): number {
-  if (!store.riskModel) return 0
-  return store.riskModel.lossRateByWarningLevel.find((r) => r.level === level)?.lossRate ?? 0
 }
 function formatWan(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'
