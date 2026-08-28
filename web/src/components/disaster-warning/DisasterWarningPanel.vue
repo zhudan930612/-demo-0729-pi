@@ -471,9 +471,10 @@ const riskPieSegs = computed(() => {
 })
 const riskTotalCount = computed(() => riskBand.value.reduce((sum, b) => sum + b.count, 0))
 function riskDotColor(level: number): string {
-  if (level === 3) return '#b91c1c'
-  if (level === 2) return '#ca8a04'
-  if (level === 1) return '#166534'
+  // 与农情监测 5 级色带保持一致（agriMonitoringTypes LEVEL_COLORS）：高=较差橙 / 中=正常黄 / 低=较好绿
+  if (level === 3) return '#ea580c'
+  if (level === 2) return '#facc15'
+  if (level === 1) return '#22c55e'
   return '#94a3b8'
 }
 
