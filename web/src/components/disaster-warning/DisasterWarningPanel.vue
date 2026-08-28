@@ -387,7 +387,7 @@ const lossHint = computed(() => {
   return '灾损预估随台风播放与村级预警联动刷新'
 })
 
-// 村级风险分布（R4-7）：分母 = 当前层级全部承保面积；非预警村默认低风险，预警村按预警等级低/中/高分类；无单独「无风险」档
+// 村级风险分布（R4-7）：分母 = 当前层级已触发预警村的承保面积；无风险村保留数据但前端不展示（默认无风险，触发后才显示）；仅按 预警等级（低/中/高）分类展示
 // 村码即层级编码：city=code[0:4]+'00'、county=code[0:6]、township=code[0:9]+'000'（与 check-codes 口径一致）
 function adminCodesOf(code: string): { city: string; county: string; township: string } {
   return { city: `${code.slice(0, 4)}00`, county: code.slice(0, 6), township: `${code.slice(0, 9)}000` }
@@ -410,13 +410,14 @@ const riskBand = computed(() => {
     if (level === 'township') return admin.township === code
     return v.code === code
   }
-  // R4-7 变更：无单独「无风险」档——非预警村默认低风险；预警村按 预警等级（低/中/高）分类
+  // R4-7 口径：无风险村保留在数据中（默认=无风险），但前端风险分布不展示；仅展示已触发预警的村（按 预警等级 低/中/高 分类）
   const warnedByCode = new Map<string, number>() // 村码 -> 预警等级（1低/2中/3高）
   for (const e of warningEntries.value) warnedByCode.set(e.village.code, e.level)
   for (const v of store.underwriting.villages) {
     if (!inRegion(v)) continue
+    const warnLevel = warnedByCode.get(v.code)
+    if (warnLevel === undefined) continue // 无风险村：保留数据，前端不展示（默认无风险，触发后才显示）
     totalArea += v.insuredAreaMu
-    const warnLevel = warnedByCode.get(v.code) ?? 1 // 未触发预警：默认低风险
     const bucket = buckets[Math.min(3, Math.max(1, warnLevel)) - 1]!
     bucket.count += 1
     bucket.area += v.insuredAreaMu
