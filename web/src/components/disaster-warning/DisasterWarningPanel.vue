@@ -106,19 +106,19 @@
             <div class="wc-head">
               <span class="wc-name">{{ entry.village.name }}</span>
               <span class="wc-status" :class="entry.level >= 2 ? 'todo' : 'observe'">{{ statusLabel(entry.level) }}</span>
-              <span class="wc-meta"><span class="wc-level-dot" :style="{ background: levelColor(entry.level) }"></span><span class="wc-rain">{{ future24Text(entry) }}</span></span>
+              <span class="wc-level-dot" :style="{ background: levelColor(entry.level) }"></span>
+              <span class="wc-action">
+                <button
+                  v-if="!isDispatched(entry.village.code)"
+                  type="button"
+                  class="dispatch-btn"
+                  data-test="dw-dispatch-village"
+                  @click.stop="emit('dispatch-village', entry.village.code)"
+                >派发任务</button>
+                <button v-else type="button" class="dispatch-btn done" disabled data-test="dw-dispatched">已派发</button>
+              </span>
             </div>
-            <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(entry.level) }}</span></div>
-            <div class="wc-actions">
-              <button
-                v-if="!isDispatched(entry.village.code)"
-                type="button"
-                class="dispatch-btn"
-                data-test="dw-dispatch-village"
-                @click.stop="emit('dispatch-village', entry.village.code)"
-              >派发任务</button>
-              <button v-else type="button" class="dispatch-btn done" disabled data-test="dw-dispatched">已派发</button>
-            </div>
+            <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(entry) }}</span></div>
           </div>
           <button v-if="sortedWarnings.length > PAGE_SIZE" type="button" class="view-all-bottom" data-test="dw-view-all" @click="emit('open-warning-drawer')">查看全部预警（{{ sortedWarnings.length }}）</button>
         </div>
@@ -330,7 +330,14 @@ const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !
 function statusLabel(level: number): string { return WARNING_STATUS_LABEL[level as DWLevel] ?? '—' }
 function levelColor(level: number): string { return WARNING_LEVEL_COLOR[level as DWLevel] ?? '#94a3b8' }
 function levelText(level: number): string { return level === 3 ? '高风险' : level === 2 ? '中风险' : level === 1 ? '低风险' : '—' }
-function aiAdvice(level: number): string { return aiAdviceForLevel(level as DWLevel) }
+function aiAdvice(entry: { villageIndex: number; level: number }): string {
+  const level = entry.level as DWLevel
+  const advice = aiAdviceForLevel(level)
+  // 触发规则文案并入 AI 建议：未来24h预报雨量 + 等级触发说明
+  const pv = panelNode.value?.byIdx[String(entry.villageIndex)]
+  const rule = pv ? `未来24h预报雨量${pv.future24.toFixed(0)}mm（${levelText(level)}触发）。` : ''
+  return `${rule}${advice}`
+}
 // 未来 24h 预报雨量：直接查表（panel byIdx[idx].future24），不再实时 future24RainByGrid
 function future24Text(entry: { villageIndex: number; village: { code: string } }): string {
   const pn = panelNode.value
@@ -624,12 +631,10 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .wc-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
 .wc-status.todo { background: #fde8e8; color: #b91c1c; }
 .wc-status.observe { background: #e6f1fb; color: #0369a1; }
-.wc-meta { margin-left: auto; display: flex; align-items: center; gap: 5px; flex: none; min-width: 0; }
 .wc-level-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.wc-rain { flex: none; color: #64748b; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wc-action { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
 .ai-chip { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: #6366f1; border-radius: 4px; padding: 1px 5px; line-height: 1.5; align-self: flex-start; }
 .ai-text { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
-.wc-actions { display: flex; justify-content: flex-end; }
 .dispatch-btn { padding: 4px 12px; border: 1px solid #2563eb; border-radius: 7px; background: #fff; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
 .dispatch-btn:hover { background: #2563eb; color: #fff; }
 .dispatch-btn.done { border: 1px solid #94a3b8; background: #fff; color: #475569; cursor: not-allowed; }
