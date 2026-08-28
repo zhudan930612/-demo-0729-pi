@@ -15,13 +15,31 @@ vi.mock('leaflet', () => {
   return {
     default: {
       divIcon: vi.fn(() => ({})),
-      marker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setZIndexOffset: vi.fn(), on: vi.fn(), setLatLng: vi.fn() })),
-      polyline: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLngs: vi.fn(), setStyle: vi.fn(), on: vi.fn() })),
-      circleMarker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLng: vi.fn(), setRadius: vi.fn(), on: vi.fn() })),
-      svgOverlay: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
-      geoJSON: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), on: vi.fn() })),
+      marker: vi.fn(() => {
+        const m = { addTo: vi.fn(() => m), remove: vi.fn(), setZIndexOffset: vi.fn(), on: vi.fn(), setLatLng: vi.fn() }
+        return m
+      }),
+      polyline: vi.fn(() => {
+        const p = { addTo: vi.fn(() => p), remove: vi.fn(), setLatLngs: vi.fn(), setStyle: vi.fn(), on: vi.fn() }
+        return p
+      }),
+      circleMarker: vi.fn(() => {
+        const c = { addTo: vi.fn(() => c), remove: vi.fn(), setLatLng: vi.fn(), setRadius: vi.fn(), on: vi.fn() }
+        return c
+      }),
+      svgOverlay: vi.fn(() => {
+        const s = { addTo: vi.fn(() => s), remove: vi.fn() }
+        return s
+      }),
+      geoJSON: vi.fn(() => {
+        const g = { addTo: vi.fn(() => g), remove: vi.fn(), on: vi.fn() }
+        return g
+      }),
       GridLayer: FakeGridLayer,
-      layerGroup: () => ({ addTo: vi.fn(), remove: vi.fn(), clearLayers: vi.fn() }),
+      layerGroup: () => {
+        const g = { addTo: vi.fn(() => g), remove: vi.fn(), clearLayers: vi.fn() }
+        return g
+      },
       latLngBounds: () => ({ isValid: () => true }),
       DomEvent: { stopPropagation: vi.fn() },
     },

@@ -521,7 +521,9 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function exit() {
     playback?.pause()
     store.close()
-    // 移除受灾预警专属图层（不常驻地图，避免与降水模式共用 pane 冲突）
+    // 移除受灾预警专属图层（不常驻地图，避免与降水/台风模式共用 pane 冲突）
+    // 台风图层也须清理：避免切换到台风模式时残留灾害模式渲染的历史台风轨迹
+    typhoonController?.clear()
     precipController?.destroy()
     precipController = null
     warningController?.destroy()
