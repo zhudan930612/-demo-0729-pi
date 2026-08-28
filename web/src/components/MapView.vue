@@ -319,9 +319,7 @@
       @exit-lodging-assessment="lodgingMode.exitAssessmentMode()"
       @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
       @open-agri-monitoring="enterAgriMonitoring"
-      @exit-agri-monitoring="exitAgriMonitoring"
       @open-disaster-warning="enterDisasterWarning"
-      @exit-disaster-warning="exitDisasterWarning"
     />
   </div>
 </template>

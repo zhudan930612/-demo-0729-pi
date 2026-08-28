@@ -23,8 +23,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/></svg>
             <span>受灾评估 <small style="color:#94a3b8">(即将上线)</small></span>
           </button>
-          <button v-if="agriMonitoringActive" type="button" class="menu-action" @click="emit('exit-agri-monitoring')"><span>✕ 退出农情监测</span></button>
-          <button v-if="disasterWarningActive" type="button" class="menu-action" @click="emit('exit-disaster-warning')"><span>✕ 退出受灾预警</span></button>
         </div>
       </Transition>
     </div>
@@ -159,7 +157,7 @@ import type { ParcelVisualMode } from '../../features/parcels/parcelVisualMode'
 import type { BasemapKey } from '../../api/tianditu'
 type WeatherModule = 'alerts' | 'current' | 'precipitation'
 const props = defineProps<{ basemap:BasemapKey; rsVisible:boolean; rsOn:boolean; parcelVisible:boolean; parcelOn:boolean; mode:ParcelMode; canZoomIn:boolean; canZoomOut:boolean; parcelToolsVisible:boolean; parcelToolsDisabled:boolean; hasFilterableParcels:boolean; disasterEntryDisabled:boolean; disasterActive:boolean; weatherEntryDisabled:boolean; weatherEntryReason:string; weatherActive:boolean; weatherModules:WeatherModule[]; parcelVisualModeVisible:boolean; parcelVisualMode:ParcelVisualMode; lodgingEntryDisabled:boolean; lodgingEntryReason:string; lodgingAssessmentActive:boolean; lodgingDemoMode:boolean; agriMonitoringActive:boolean; disasterWarningActive:boolean }>()
-const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[]; 'open-agri-monitoring':[]; 'exit-agri-monitoring':[]; 'open-disaster-warning':[]; 'exit-disaster-warning':[] }>()
+const emit = defineEmits<{ 'switch-basemap':[type:BasemapKey]; 'toggle-rs':[]; 'toggle-parcels':[]; 'start-manual':[]; 'start-filter':[]; 'open-typhoon':[]; 'open-weather':[module:WeatherModule]; 'close-weather':[module:WeatherModule]; 'zoom-in':[]; 'zoom-out':[]; 'set-visual-mode':[mode:ParcelVisualMode]; 'enter-lodging-assessment':[]; 'exit-lodging-assessment':[]; 'toggle-lodging-demo-mode':[]; 'open-agri-monitoring':[]; 'open-disaster-warning':[] }>()
 const controlStackRef=ref<HTMLElement|null>(null), weatherButtonRef=ref<HTMLButtonElement|null>(null)
 const firstParcelActionRef=ref<HTMLButtonElement|null>(null),firstWeatherActionRef=ref<HTMLButtonElement|null>(null)
 const parcelMenuOpen=ref(false),weatherMenuOpen=ref(false),layerMenuOpen=ref(false),basemapMenuOpen=ref(false),lodgingMenuOpen=ref(false),demoMenuOpen=ref(false)
