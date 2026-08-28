@@ -363,27 +363,6 @@ describe('useDisasterWarningMode · T9 任务派发联动（R5-1~R5-11）', () =
     expect(store.tasks.filter((t) => t.villageCode === '330382101001')).toHaveLength(1)
   })
 
-  it('autoDispatch 自动模式：中风险及以上自动生成任务（R5-11）', async () => {
-    const { mode, store } = readyWithWarnings()
-    const fakeMap = {
-      createPane: vi.fn(() => ({ style: {} })),
-      getPane: vi.fn(),
-      getContainer: () => ({ addEventListener: vi.fn() }),
-      latLngToContainerPoint: vi.fn(() => ({ x: 0, y: 0 })),
-      on: vi.fn(), off: vi.fn(),
-    } as never
-    mode.init(fakeMap)
-    await mode.enter()
-    await vi.waitFor(() => expect(store.phase).toBe('ready'))
-    // R2-3 变更：进入不自动播放；这里显式点 ▶ 启动，onStep 150ms 后推进到节点1
-    store.setDispatchMode('auto') // open() 会重置为 manual，须在 enter 完成后设置
-    mode.togglePlay() // 启动
-    await vi.waitFor(() => expect(store.tasks.length).toBeGreaterThan(0), { timeout: 5000 })
-    // 节点1 = 甲村中风险 + 乙村高风险 → 3 条任务
-    expect(store.tasks).toHaveLength(3)
-    expect(store.tasks.filter((t) => t.villageCode === '330382101002')).toHaveLength(2)
-  })
-
   it('dispatchAllPending 一键派发仅对待处理（中/高）村（R3-16）', () => {
     const { mode, store } = readyWithWarnings()
     store.open()

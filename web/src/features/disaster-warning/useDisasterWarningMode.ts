@@ -278,8 +278,6 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     renderWarningLayer(nodeIndex)
     // 任务状态三段流转（R5-6）
     store.advanceTaskStatuses(nodeIndex)
-    // 自动派发（R5-11）：预警达中风险及以上自动生成
-    if (store.dispatchMode === 'auto') autoDispatch(nodeIndex)
     // 预警升级/解除联动（R5-2/R5-3/R5-4）
     syncTaskWarningLinkage(nodeIndex)
   }
@@ -368,14 +366,6 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     const entries = warnedVillagesAtNode(store.warnings!, store.nodeIndex)
     for (const entry of entries) {
       if (entry.level >= 2 && !store.isDispatched(entry.village.code)) createTasksForVillage(entry.village.code, store.nodeIndex)
-    }
-  }
-
-  function autoDispatch(nodeIndex: number) {
-    if (store.phase !== 'ready') return
-    const entries = warnedVillagesAtNode(store.warnings!, nodeIndex)
-    for (const entry of entries) {
-      if (entry.level >= 2 && !store.isDispatched(entry.village.code)) createTasksForVillage(entry.village.code, nodeIndex)
     }
   }
 

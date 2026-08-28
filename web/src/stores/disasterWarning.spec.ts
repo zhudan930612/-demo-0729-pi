@@ -45,7 +45,6 @@ describe('disasterWarning store', () => {
     expect(store.isOpen).toBe(true)
     expect(store.phase).toBe('loading')
     expect(store.activeTab).toBe('loss')
-    expect(store.dispatchMode).toBe('manual') // R5-9 默认人工
   })
 
   it('receive 置 ready 并填充数据；generation 不匹配时拒绝', () => {

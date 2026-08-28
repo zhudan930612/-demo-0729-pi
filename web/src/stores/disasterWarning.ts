@@ -5,7 +5,6 @@ import type {
 } from '../features/disaster-warning/types'
 
 export type DisasterWarningPhase = 'closed' | 'loading' | 'ready' | 'error'
-export type DisasterDispatchMode = 'manual' | 'auto'
 
 export interface DisasterWarningSnapshot {
   track: DisasterTrack
@@ -64,8 +63,6 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
     // ---- 播放（R2） ----
     nodeIndex: 0,
     playing: false,
-    // ---- 派发（R5） ----
-    dispatchMode: 'manual' as DisasterDispatchMode,
     // ---- 任务（R5/R6） ----
     tasks: [] as DisasterTask[],
     taskSeq: 0,
@@ -112,7 +109,6 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
       this.isOpen = true
       this.activeTab = 'loss' // 默认灾损预估（R1-5）
       this.nodeIndex = 0
-      this.dispatchMode = 'manual' // 默认人工（R5-9）
     },
     receive(generation: number, snapshot: DisasterWarningSnapshot) {
       if (this.generation !== generation) return false
@@ -141,8 +137,6 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
       this.nodeIndex = Math.max(0, Math.min(count - 1, Math.floor(index)))
     },
     setPlaying(playing: boolean) { this.playing = playing },
-    // ---- 派发（R5-9~R5-11） ----
-    setDispatchMode(mode: DisasterDispatchMode) { this.dispatchMode = mode },
     // ---- 任务（R5/R6） ----
     createTask(input: {
       villageCode: string

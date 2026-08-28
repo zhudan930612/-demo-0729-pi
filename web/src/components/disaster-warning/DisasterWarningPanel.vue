@@ -87,14 +87,7 @@
             <span class="rule-info" data-test="dw-rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="触发规则说明">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
             </span>
-            <button v-if="dispatchMode === 'manual' && pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
-          </div>
-          <div class="warning-head-row dispatch-row">
-            <span class="dispatch-label">派发模式</span>
-            <div class="mode-switch" role="group" aria-label="派发模式" data-test="dw-mode-switch">
-              <button type="button" :class="{ active: dispatchMode === 'manual' }" data-test="dw-mode-manual" @click="emit('set-dispatch-mode', 'manual')">人工</button>
-              <button type="button" :class="{ active: dispatchMode === 'auto' }" data-test="dw-mode-auto" @click="emit('set-dispatch-mode', 'auto')">自动</button>
-            </div>
+            <button v-if="pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
           </div>
           <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
         </div>
@@ -263,7 +256,7 @@ import {
   warnedVillagesAtNode, warningOverview,
   WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel,
 } from '../../features/disaster-warning/disasterWarningSelectors'
-import { DISASTER_TASK_STATUSES, type DisasterDispatchMode } from '../../stores/disasterWarning'
+import { DISASTER_TASK_STATUSES } from '../../stores/disasterWarning'
 import type { DisasterWarningLevel as DWLevel } from '../../features/disaster-warning/types'
 
 const PAGE_SIZE = 10
@@ -283,7 +276,6 @@ const emit = defineEmits<{
   'select-village': [code: string]
   'dispatch-village': [code: string]
   'dispatch-all': []
-  'set-dispatch-mode': [mode: DisasterDispatchMode]
   'open-warning-drawer': []
   'close-warning-drawer': []
   'open-task-drawer': []
@@ -324,7 +316,6 @@ const sortedWarnings = computed(() => {
 const overview = computed(() => warningOverview(warningEntries.value.filter((e) => e.level >= 2)))
 const overviewText = computed(() => `预警村 ${overview.value.total}（高 ${overview.value.high} · 中 ${overview.value.mid}）`)
 const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
-const dispatchMode = computed(() => store.dispatchMode)
 const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !store.isDispatched(e.village.code)).length)
 
 function statusLabel(level: number): string { return WARNING_STATUS_LABEL[level as DWLevel] ?? '—' }
@@ -617,11 +608,6 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .rule-info svg { width: 15px; height: 15px; }
 .batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
 .batch-btn:hover { background: #1d4ed8; }
-.dispatch-row { justify-content: flex-end; }
-.dispatch-label { font-size: 11px; color: #64748b; }
-.mode-switch { display: inline-flex; border: 1px solid rgba(148, 163, 184, 0.4); border-radius: 999px; overflow: hidden; }
-.mode-switch button { padding: 2px 10px; border: 0; background: #fff; color: #64748b; font-size: 11px; cursor: pointer; }
-.mode-switch button.active { background: #2563eb; color: #fff; font-weight: 600; }
 .cell-tooltip { position: fixed; z-index: 1250; padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 11px; max-width: 260px; line-height: 1.5; }
 .warning-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
 .warning-card { padding: 15px 9px; border: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.13); border-radius: 0; background: transparent; cursor: pointer; transition: background 0.12s ease; }

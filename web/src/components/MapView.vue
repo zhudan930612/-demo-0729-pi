@@ -132,7 +132,6 @@
       @select-village="(code) => void disasterWarningMode.selectVillage(code)"
       @dispatch-village="(code) => disasterWarningMode.dispatchVillage(code)"
       @dispatch-all="disasterWarningMode.dispatchAllPending"
-      @set-dispatch-mode="(m) => disasterWarningStore.setDispatchMode(m)"
       @open-warning-drawer="disasterWarningStore.openWarningDrawer"
       @close-warning-drawer="disasterWarningStore.closeWarningDrawer"
       @open-task-drawer="disasterWarningStore.openTaskDrawer"
