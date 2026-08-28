@@ -90,8 +90,14 @@
             <button v-if="pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
           </div>
           <div class="warning-stats" data-test="dw-warning-stats">
-            <span class="warning-stat ws-high"><em>高风险</em><b>{{ overview.high }}</b></span>
-            <span class="warning-stat ws-mid"><em>中风险</em><b>{{ overview.mid }}</b></span>
+            <div class="warning-stat ws-high">
+              <span class="stat-label">高风险</span>
+              <span class="stat-value">{{ overview.high }}</span>
+            </div>
+            <div class="warning-stat ws-mid">
+              <span class="stat-label">中风险</span>
+              <span class="stat-value">{{ overview.mid }}</span>
+            </div>
           </div>
           <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
         </div>
@@ -607,12 +613,13 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
 .warning-head-row { display: flex; align-items: center; gap: 8px; }
 .warning-overview { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: 1; }
-.warning-stats { display: flex; align-items: baseline; gap: 16px; margin-top: 4px; }
-.warning-stat { display: inline-flex; align-items: baseline; gap: 6px; }
-.warning-stat em { font-style: normal; font-size: 12px; color: #64748b; }
-.warning-stat b { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.ws-high b { color: #b91c1c; }
-.ws-mid b { color: #ca8a04; }
+.warning-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 8px; padding: 10px 2px; background: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 10px; }
+.warning-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.warning-stat + .warning-stat { border-left: 1px solid rgba(148, 163, 184, 0.22); }
+.stat-label { font-size: 11px; font-weight: 600; color: #64748b; white-space: nowrap; }
+.stat-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.ws-high .stat-value { color: #b91c1c; }
+.ws-mid .stat-value { color: #ca8a04; }
 .rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
 .rule-info svg { width: 15px; height: 15px; }
 .batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
