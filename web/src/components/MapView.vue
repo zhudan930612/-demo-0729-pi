@@ -638,6 +638,7 @@ const agriMode = useAgriMonitoringMode({
     nationalAlarms: () => weatherMode.exitNationalAlarms(),
     precipitation: () => precipitationMode.exitPrecipitationMode(),
     lodging: () => lodgingMode.exitAssessmentMode(),
+    disasterWarning: () => disasterWarningMode.exit(),
   },
   resetToProvince: () => store.resetToProvince(),
   render: () => render(),

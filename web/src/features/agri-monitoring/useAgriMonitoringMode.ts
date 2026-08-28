@@ -23,6 +23,7 @@ export interface AgriMonitoringContext {
     nationalAlarms(): void
     precipitation(): void
     lodging(): void
+    disasterWarning(): void
   }
   resetToProvince: () => Promise<boolean>
   render: () => Promise<void>
@@ -82,6 +83,7 @@ export function useAgriMonitoringMode(ctx: AgriMonitoringContext): AgriMonitorin
     if (ctx.disasterActive.value) ctx.exits.typhoon()
     ctx.exits.precipitation()
     ctx.exits.lodging()
+    ctx.exits.disasterWarning()
     store.open()
     layer = layer ?? createAgriLayerController()
     layer.mount(map!)
