@@ -285,8 +285,6 @@
       :parcel-visible="parcelVisible"
       :parcel-on="parcelOn"
       :mode="parcelMode"
-      :can-zoom-in="canZoomIn"
-      :can-zoom-out="canZoomOut"
       :parcel-tools-visible="store.current.level === 'village' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
       :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
       :has-filterable-parcels="hasFilterableParcels"
@@ -313,8 +311,6 @@
       @open-typhoon="enterTyphoonMode"
       @open-weather="enterWeatherMode"
       @close-weather="closeWeatherFromToolbar"
-      @zoom-in="zoomIn"
-      @zoom-out="zoomOut"
       @enter-lodging-assessment="lodgingMode.enterAssessmentMode()"
       @exit-lodging-assessment="lodgingMode.exitAssessmentMode()"
       @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
@@ -455,8 +451,6 @@ const rsHint = ref('')
 const rsOn = ref(true)
 const currentZoom = ref(DEFAULT_MIN_ZOOM)
 const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
-const canZoomIn = computed(() => currentZoom.value < 19)
-const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
 const basemap = ref<BasemapKey>('img')
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
@@ -843,14 +837,6 @@ function toggleRs() {
 function onLegendToggleCategory(category: string) {
   if (parcelVisualMode.value === 'planting') togglePlantingCategory(category)
   else if (parcelVisualMode.value === 'insurance') toggleInsuranceCategory(category)
-}
-
-function zoomIn() {
-  if (canZoomIn.value) map.zoomIn()
-}
-
-function zoomOut() {
-  if (canZoomOut.value) map.zoomOut()
 }
 
 function showNotice(message: string, error = false) {
