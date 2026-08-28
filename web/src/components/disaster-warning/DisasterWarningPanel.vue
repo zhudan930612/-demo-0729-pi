@@ -37,7 +37,7 @@
           <div class="loss-metric"><span class="loss-metric-label">赔偿金额</span><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
         </div>
         <!-- 村级风险分布：占比色带 + 色点明细行（R4-7） -->
-        <div v-if="phase === 'ready' && riskBand.length > 0" class="loss-band-wrap" data-test="dw-risk-band">
+        <div v-if="phase === 'ready' && riskBand.some((b) => b.count > 0)" class="loss-band-wrap" data-test="dw-risk-band">
           <div class="band-caption">村级风险分布（按承保面积）</div>
           <div class="detail-band">
             <div v-for="seg in riskBand" :key="seg.level" class="band-seg" :style="bandSegStyle(seg)" :title="`${seg.name} ${seg.pct}%`"></div>
@@ -379,7 +379,7 @@ const lossHint = computed(() => {
   return '灾损预估随台风播放与村级预警联动刷新'
 })
 
-// 村级风险分布（R4-7）：分母 = 当前层级已触发预警且过程累计达低风险（≥50mm）村的承保面积；移除无风险村数据
+// 村级风险分布（R4-7）：分母 = 当前层级已触发预警村的承保面积；仅统计预警村（按预警等级低/中/高分类），移除无风险村（未触发预警）
 // 村码即层级编码：city=code[0:4]+'00'、county=code[0:6]、township=code[0:9]+'000'（与 check-codes 口径一致）
 function adminCodesOf(code: string): { city: string; county: string; township: string } {
   return { city: `${code.slice(0, 4)}00`, county: code.slice(0, 6), township: `${code.slice(0, 9)}000` }
@@ -402,34 +402,21 @@ const riskBand = computed(() => {
     if (level === 'township') return admin.township === code
     return v.code === code
   }
-  // R4-7 变更：移除「无风险」村数据——仅纳入当前节点已触发预警的村，且过程累计达低风险（≥50mm）才入带
-  const warnedIdxByCode = new Map<string, number>()
-  for (const e of warningEntries.value) warnedIdxByCode.set(e.village.code, e.villageIndex)
+  // R4-7 变更：移除「无风险」村数据（未触发预警的村不计入）；仅统计当前节点已触发预警的村，按 预警等级（低/中/高）分类
+  const warnedByCode = new Map<string, number>() // 村码 -> 预警等级（1低/2中/3高）
+  for (const e of warningEntries.value) warnedByCode.set(e.village.code, e.level)
   for (const v of store.underwriting.villages) {
     if (!inRegion(v)) continue
-    const warnedIdx = warnedIdxByCode.get(v.code)
-    if (warnedIdx === undefined) continue // 未触发预警：无风险村，不计入分布
-    // 预警村：从 panel byIdx 读累计雨量/风险等级（免实时算格点）
-    const riskLevel = riskLevelForCum(warnedIdx)
-    if (riskLevel < 1) continue // 过程累计 <50mm：无风险档，移除
+    const warnLevel = warnedByCode.get(v.code)
+    if (warnLevel === undefined) continue // 无风险村（未触发预警）：不计入分布
     totalArea += v.insuredAreaMu
-    const bucket = buckets[riskLevel - 1]!
+    const bucket = buckets[Math.min(3, Math.max(1, warnLevel)) - 1]!
     bucket.count += 1
     bucket.area += v.insuredAreaMu
   }
-  return buckets
-    .map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
-    .filter((b) => b.count > 0)
+  return buckets.map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
 })
 
-function riskLevelForCum(idx: number): 0 | 1 | 2 | 3 {
-  const pv = panelNode.value?.byIdx[String(idx)]
-  if (!pv) return 0
-  if (pv.cumRain >= 150) return 3
-  if (pv.cumRain >= 100) return 2
-  if (pv.cumRain >= 50) return 1
-  return 0
-}
 function formatWan(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'
   if (value < 0.01) return value.toFixed(2)
