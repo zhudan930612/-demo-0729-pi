@@ -109,10 +109,10 @@ test('R1 演示模式入口 + R8 tab 切换 + R2 默认最近一期/开关', asy
   // R8-1：右上角三个 tab
   await expect(page.locator('.agri-panel .tab-list button')).toHaveCount(3)
   await expect(page.locator('.agri-panel .tab-list button').nth(0)).toHaveText('农情概况')
-  await expect(page.locator('.agri-panel .tab-list button').nth(1)).toHaveText('异常top')
+  await expect(page.locator('.agri-panel .tab-list button').nth(1)).toHaveText('异常监测')
   await expect(page.locator('.agri-panel .tab-list button').nth(2)).toHaveText('任务列表')
   // R8-3：切换 tab 时热力图保留（日期控制仍在）
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly')).toBeVisible()
   await expect(page.locator('.agri-date-control')).toBeVisible()
   // R2-1：默认显示最近一期（最后日期 07-27）
@@ -151,11 +151,11 @@ test('R3 农情概况：顶部概况 + 下一级列表（默认 tab）', async (
   await page.waitForTimeout(200)
 })
 
-test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => {
+test('R4 异常监测 + R6 一键转任务 + R5 任务列表', async ({ page }) => {
   await installFixtures(page)
   await enterAgri(page)
-  // R4-1：异常top 列表只列超标村，按占比降序
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  // R4-1：异常监测 列表只列超标村，按占比降序
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly')).toBeVisible()
   const rows = page.locator('.agri-anomaly .anomaly-row')
   await expect(rows).toHaveCount(2) // 龙江村65% + 新南村70%（大钱村不超标不列）
@@ -177,7 +177,7 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   await expect(page.locator('.agri-tasks')).toBeVisible() // 切到任务列表 tab
   await expect(page.locator('.agri-tasks .task-list')).toContainText('龙江村核查异常长势')
   // R6-3：重复点击不重复生成（回异常 top，详情仍打开，按钮已禁用）
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly .anomaly-detail')).toBeVisible()
   await expect(page.locator('.agri-anomaly .detail-actions .convert-btn')).toBeDisabled()
   // R5-1：任务列表行字段（名称/类型/状态/村/时间，不含 SOP）
