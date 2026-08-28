@@ -1,19 +1,20 @@
 import L from 'leaflet'
 import type { Level } from '../stores/drilldown'
 import type { DisasterWarningLevel, DisasterWarningVillage } from '../features/disaster-warning/types'
-import { WARNING_LEVEL_COLOR, WARNING_LEVEL_TEXT, WARNING_MARKER_RADIUS } from '../features/disaster-warning/disasterWarningSelectors'
+import { WARNING_LEVEL_COLOR } from '../features/disaster-warning/disasterWarningSelectors'
+import { fetchJSON } from '../api/data'
+import type { FeatureCollection } from 'geojson'
 
 /**
- * 受灾预警村级标记图层（R3-6~R3-8、R3-19/R3-20/R3-22）。
- * - 县/乡镇级视角：展开为村级**水波纹脉冲标记**（实心点 + 圆环逐层向外扩散渐隐循环，
- *   各等级频率一致、与等级同色，尺寸 高=基础1.5×、中=基础）；**低风险不上图、也不进预警监测列表**（预警监测仅显示中/高风险村）。
+ * 受灾预警村级图层（R3-6~R3-8、R3-19/R3-20/R3-22）。
+ * - 县/乡镇/村级视角：**移除放射点脉冲标记**，改为按预警等级给**村边界**（面）上色高亮；
+ *   村界几何来自 /data/villages/{townshipCode}.geojson（复用下钻村界数据，非村点伪造）；低风险不上图。
  * - 省/市级视角：按区县聚合为**预警徽标**（⚠ + 中/高风险村数，底色=该县最高等级色，落政府驻地/边界质心）。
- * - 村级视角：显示本村及同乡镇预警村（R3-22）。
- * - 点击徽标 = 下钻该区县；点击村脉冲 = 进入村级视角。
+ * - 点击徽标 = 下钻该区县；点击村边界 = 进入村级视角。
  * - pane 层级低于天地图文字注记（<450），不遮挡行政边界。
  */
 export const DISASTER_WARNING_PANES = {
-  pulse: { name: 'disasterWarningPulsePane', zIndex: 440 },
+  boundary: { name: 'disasterWarningBoundaryPane', zIndex: 438 },
   badge: { name: 'disasterWarningBadgePane', zIndex: 445 },
 } as const
 
@@ -44,31 +45,12 @@ export interface DisasterWarningLayerController {
 }
 
 let styleInjected = false
-/** 水波纹脉冲动效样式：实心点 + 圆环逐层向外扩散渐隐循环（各等级同频） */
-function ensurePulseStyle() {
+/** 预警徽标样式（放射点脉冲样式已随边界高亮方案移除） */
+function ensureBadgeStyle() {
   if (styleInjected) return
   styleInjected = true
   const style = document.createElement('style')
   style.textContent = `
-.dw-pulse { position: relative; width: 0; height: 0; }
-.dw-pulse-dot {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 10px; height: 10px; border-radius: 50%; background: currentColor;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
-}
-.dw-pulse-ring {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: 10px; height: 10px; border-radius: 50%;
-  border: 2px solid currentColor; box-sizing: border-box;
-  animation: dw-pulse-wave 1.6s ease-out infinite;
-}
-.dw-pulse-ring.r2 { animation-delay: 0.53s; }
-.dw-pulse-ring.r3 { animation-delay: 1.06s; }
-@keyframes dw-pulse-wave {
-  0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
-  70%  { opacity: 0;   transform: translate(-50%, -50%) scale(3.4); }
-  100% { opacity: 0;   transform: translate(-50%, -50%) scale(3.4); }
-}
 .dw-badge {
   display: flex; align-items: center; gap: 4px;
   padding: 4px 9px; border-radius: 999px;
@@ -95,27 +77,17 @@ function stop(event: L.LeafletEvent) {
 
 export function createDisasterWarningLayerController(callbacks: DisasterWarningLayerCallbacks = {}): DisasterWarningLayerController {
   let map: L.Map | null = null
-  let pulseLayer: L.LayerGroup | null = null
+  let boundaryLayer: L.LayerGroup | null = null
   let badgeLayer: L.LayerGroup | null = null
   let rendered: DisasterWarningLayerSnapshot | null = null
+  // 乡镇村界缓存：key=townshipCode（村界几何静态不变，跨节点复用，不重复取）
+  const boundaryCache = new Map<string, FeatureCollection>()
 
   function ensurePanes(target: L.Map) {
     for (const pane of Object.values(DISASTER_WARNING_PANES)) {
       const element = target.getPane(pane.name) ?? target.createPane(pane.name)
       element.style.zIndex = String(pane.zIndex)
     }
-  }
-
-  function pulseIcon(level: DisasterWarningLevel): L.DivIcon {
-    const scale = level === 3 ? 1.5 : 1 // 高=基础1.5×、中=基础（R3-6）
-    const size = Math.max(14, WARNING_MARKER_RADIUS[level] * 2 * scale)
-    const color = WARNING_LEVEL_COLOR[level]
-    return L.divIcon({
-      className: 'dw-pulse',
-      html: `<span class="dw-pulse-dot" style="color:${color}"></span><span class="dw-pulse-ring" style="color:${color}"></span><span class="dw-pulse-ring r2" style="color:${color}"></span><span class="dw-pulse-ring r3" style="color:${color}"></span>`,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
-    })
   }
 
   function badgeIcon(count: number, maxLevel: 2 | 3): L.DivIcon {
@@ -161,24 +133,50 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
     }
   }
 
-  /** 县/乡镇/村级：村级脉冲（R3-6/R3-22） */
-  function renderPulses(snapshot: DisasterWarningLayerSnapshot) {
-    if (!map || !pulseLayer) return
-    pulseLayer.clearLayers()
-    // R3-6 低风险不上图、也不进预警监测列表；mode 已过滤层级，这里防御性再剔除
+  /** 拉取某乡镇村界（缓存；同乡镇只取一次）。 */
+  async function loadTownshipBoundary(townshipCode: string) {
+    if (boundaryCache.has(townshipCode)) return
+    try {
+      const fc = await fetchJSON<FeatureCollection>(`/data/villages/${townshipCode}.geojson`)
+      boundaryCache.set(townshipCode, fc ?? ({ type: 'FeatureCollection', features: [] } as FeatureCollection))
+    } catch {
+      // 村界数据缺失：该乡镇无村界可高亮（不影响其它乡镇/徽标）
+      boundaryCache.set(townshipCode, { type: 'FeatureCollection', features: [] } as FeatureCollection)
+    }
+  }
+
+  /** 县/乡镇/村级：按预警等级给村边界面上色（R3-6/R3-22）。 */
+  function drawBoundaries(snapshot: DisasterWarningLayerSnapshot) {
+    if (!map || !boundaryLayer) return
+    boundaryLayer.clearLayers()
+    // R3-6 低风险不上图；mode 已过滤层级，这里防御性再剔除
     for (const entry of snapshot.entries) {
       if (entry.level < 2) continue
-      const icon = pulseIcon(entry.level)
-      const marker = L.marker([entry.village.lat, entry.village.lon], {
-        pane: DISASTER_WARNING_PANES.pulse.name,
-        icon,
-        keyboard: true,
-        title: `${entry.village.name}（${WARNING_LEVEL_TEXT[entry.level]}风险）`,
-        alt: `${entry.village.name}`,
+      const fc = boundaryCache.get(entry.village.townshipCode)
+      if (!fc) continue
+      const feature = fc.features.find((f) => String(f.properties?.code) === entry.village.code)
+      if (!feature) continue
+      const color = WARNING_LEVEL_COLOR[entry.level]
+      L.geoJSON(feature, {
+        pane: DISASTER_WARNING_PANES.boundary.name,
+        style: { color, weight: 3, opacity: 1, fillColor: color, fillOpacity: 0.3 },
         bubblingMouseEvents: false,
-      }).addTo(pulseLayer)
-      marker.on('click', (event) => { stop(event); callbacks.onVillageClick?.(entry.village.code, pointerPosition(map!, event)) })
+        onEachFeature: (_feature, layer) => {
+          layer.on('click', (event) => {
+            stop(event)
+            callbacks.onVillageClick?.(entry.village.code, pointerPosition(map!, event))
+          })
+        },
+      }).addTo(boundaryLayer)
     }
+  }
+
+  async function ensureAndDrawBoundaries(snapshot: DisasterWarningLayerSnapshot) {
+    // 该视图涉及的乡镇可能跨多个，逐乡镇确保村界已加载后再统一绘制
+    const townshipCodes = [...new Set(snapshot.entries.map((e) => e.village.townshipCode))]
+    await Promise.all(townshipCodes.map(loadTownshipBoundary))
+    if (rendered !== snapshot) return // 已用更新的快照重渲，丢弃过期结果
+    drawBoundaries(snapshot)
   }
 
   return {
@@ -186,8 +184,8 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
       if (map) return
       map = target
       ensurePanes(target)
-      ensurePulseStyle()
-      pulseLayer = L.layerGroup().addTo(target)
+      ensureBadgeStyle()
+      boundaryLayer = L.layerGroup().addTo(target)
       badgeLayer = L.layerGroup().addTo(target)
       if (rendered) this.render(rendered)
     },
@@ -196,23 +194,25 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
       if (!map) return
       const provinceCity = snapshot.level === 'province' || snapshot.level === 'city'
       if (provinceCity) {
-        pulseLayer?.clearLayers()
+        boundaryLayer?.clearLayers()
         renderBadges(snapshot)
       } else {
         badgeLayer?.clearLayers()
-        renderPulses(snapshot)
+        void ensureAndDrawBoundaries(snapshot)
       }
     },
     clear() {
-      pulseLayer?.clearLayers()
+      boundaryLayer?.clearLayers()
       badgeLayer?.clearLayers()
+      boundaryCache.clear()
       rendered = null
     },
     destroy() {
-      pulseLayer?.remove()
+      boundaryLayer?.remove()
       badgeLayer?.remove()
-      pulseLayer = null
+      boundaryLayer = null
       badgeLayer = null
+      boundaryCache.clear()
       map = null
       rendered = null
     },

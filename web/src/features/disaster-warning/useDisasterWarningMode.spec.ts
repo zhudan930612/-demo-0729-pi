@@ -19,6 +19,7 @@ vi.mock('leaflet', () => {
       polyline: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLngs: vi.fn(), setStyle: vi.fn(), on: vi.fn() })),
       circleMarker: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), setLatLng: vi.fn(), setRadius: vi.fn(), on: vi.fn() })),
       svgOverlay: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn() })),
+      geoJSON: vi.fn(() => ({ addTo: vi.fn(), remove: vi.fn(), on: vi.fn() })),
       GridLayer: FakeGridLayer,
       layerGroup: () => ({ addTo: vi.fn(), remove: vi.fn(), clearLayers: vi.fn() }),
       latLngBounds: () => ({ isValid: () => true }),
