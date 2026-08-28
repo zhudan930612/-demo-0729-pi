@@ -232,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useDisasterWarningStore } from '../../stores/disasterWarning'
 import { DISASTER_WARNING_TABS, type DisasterWarningTab } from '../../features/disaster-warning/types'
 import type { DisasterWarningPhase } from '../../stores/disasterWarning'
@@ -368,10 +368,18 @@ const lossSummary = computed(() => {
 const lossAreaText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingArea.value))
 const lossHouseholdsText = computed(() => props.phase === 'error' ? '0' : String(Math.round(rollingHouseholds.value)))
 const lossAmountText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingAmount.value))
-// R4-2 数字随播放刷新：直接读预算好的 lossSummary（不做滚动动效——rAF 逐帧动画在数据变大时反复触发、每帧驱动模板重渲染，是卡顿主因之一）
-const rollingArea = computed(() => lossSummary.value.areaWanMu)
-const rollingHouseholds = computed(() => lossSummary.value.households)
-const rollingAmount = computed(() => lossSummary.value.amountWanYuan)
+// R4-2 峰值口径（变更）：三个灾损统计数字播放中只增不减，取到访节点最大值（按区域各自记录），预警解除致数字回落时不往下掉
+const regionKey = computed(() => `${props.currentLevel}|${props.currentCode}`)
+// 展示值 = max(该区域已存峰值, 当前节点预估值)；峰值由 watch 单调写入 store.lossPeakByRegion
+const rollingArea = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.areaWanMu ?? 0, lossSummary.value.areaWanMu))
+const rollingHouseholds = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.households ?? 0, lossSummary.value.households))
+const rollingAmount = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.amountWanYuan ?? 0, lossSummary.value.amountWanYuan))
+// 区域或节点变化时更新峰值存储（trackLossPeak 内部仅写入增大值，单调不减）
+watch(
+  [() => regionKey.value, () => lossSummary.value.areaWanMu, () => lossSummary.value.households, () => lossSummary.value.amountWanYuan],
+  () => store.trackLossPeak(regionKey.value, lossSummary.value),
+  { immediate: true },
+)
 
 const lossHint = computed(() => {
   if (props.phase === 'error') return '数据缺失，灾损预估不可用'

@@ -76,6 +76,8 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
     // 全部任务抽屉
     taskDrawerOpen: false,
     warningDrawerOpen: false,
+    // R4-2 峰值口径：三个灾损统计数字播放中只增不减，记录到访节点最大值；循环回起点清零；按区域各自记录（key=`${level}|${code}`）
+    lossPeakByRegion: {} as Record<string, { areaWanMu: number; households: number; amountWanYuan: number }>,
   }),
   getters: {
     isReady: (s) => s.phase === 'ready',
@@ -193,13 +195,26 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
       this.tasks = []
       this.taskSeq = 0
       this.dispatchedKeys = []
+      this.lossPeakByRegion = {}
       this.nodeIndex = 0
       this.taskDetailOpen = false
       this.openTaskId = null
       this.taskDrawerOpen = false
       this.warningDrawerOpen = false
     },
-    // ---- 任务详情/抽屉（R5-12~R5-14） ----
+    /** 峰值口径（R4-2 变更）：仅当新区间值大于已存峰值时更新（单调不减），key=`${level}|${code}` */
+    trackLossPeak(regionKey: string, values: { areaWanMu: number; households: number; amountWanYuan: number }) {
+      const stored = this.lossPeakByRegion[regionKey] ?? { areaWanMu: 0, households: 0, amountWanYuan: 0 }
+      const next = {
+        areaWanMu: Math.max(stored.areaWanMu, values.areaWanMu),
+        households: Math.max(stored.households, values.households),
+        amountWanYuan: Math.max(stored.amountWanYuan, values.amountWanYuan),
+      }
+      if (next.areaWanMu !== stored.areaWanMu || next.households !== stored.households || next.amountWanYuan !== stored.amountWanYuan) {
+        this.lossPeakByRegion = { ...this.lossPeakByRegion, [regionKey]: next }
+      }
+    },
+    /** 任务详情/抽屉（R5-12~R5-14） ---- */
     openTask(id: string) { this.openTaskId = id; this.taskDetailOpen = true },
     closeTask() { this.openTaskId = null; this.taskDetailOpen = false },
     openTaskDrawer() { this.taskDrawerOpen = true },

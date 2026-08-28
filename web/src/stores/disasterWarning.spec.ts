@@ -167,4 +167,22 @@ describe('disasterWarning store', () => {
     expect(store.nodeIndex).toBe(0)
     expect(store.dispatchedKeys.length).toBe(0)
   })
+
+  it('trackLossPeak 峰值只增不减 + 按区域记录 + resetRound 清零（R4-2）', () => {
+    const store = useDisasterWarningStore()
+    store.open()
+    // 省级：两轮升高
+    store.trackLossPeak('province|330000', { areaWanMu: 0.2, households: 100, amountWanYuan: 50 })
+    store.trackLossPeak('province|330000', { areaWanMu: 0.64, households: 39164, amountWanYuan: 804.88 })
+    // 回落（预警解除）：只增不减，保持峰值不回退
+    store.trackLossPeak('province|330000', { areaWanMu: 0.4, households: 20000, amountWanYuan: 400 })
+    expect(store.lossPeakByRegion['province|330000']).toEqual({ areaWanMu: 0.64, households: 39164, amountWanYuan: 804.88 })
+    // 按区域各自记录：不同区域互不覆盖
+    store.trackLossPeak('county|330382', { areaWanMu: 0.1, households: 50, amountWanYuan: 30 })
+    expect(store.lossPeakByRegion['county|330382']).toEqual({ areaWanMu: 0.1, households: 50, amountWanYuan: 30 })
+    expect(store.lossPeakByRegion['province|330000'].areaWanMu).toBe(0.64)
+    // resetRound 循环回起点清零
+    store.resetRound()
+    expect(store.lossPeakByRegion).toEqual({})
+  })
 })
