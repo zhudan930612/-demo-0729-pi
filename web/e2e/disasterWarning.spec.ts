@@ -355,10 +355,9 @@ test('R4-1/R4-6 灾损预估：三项数字 + 预估标注 + 标题行（层级�
   await expect(page.locator('[data-test="dw-loss-area"]')).not.toHaveText('0', { timeout: 6000 })
 })
 
-test('R4-7 村级风险分布色带 + 明细行', async ({ page }) => {
-  await enterDisaster(page, { useMulti: true })
-  // 锁定节点2（甲高+乙中预警），确保无风险村移除后仍有风险村入带（R4-7 变更：无风险村不计入分布）
-  await expect(await holdAtNode(page, '7月11日00时')).toBe(true)
+test('R4-7 村级风险分布色带 + 明细行（无风险村时也固定显示，值为0）', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true, autoPlay: false })
+  // 首帧节点0 无预警村：风险分布仍固定显示（低/中/高 = 0），不整块消失
   await expect(page.locator('[data-test="dw-risk-band"]')).toBeVisible({ timeout: 6000 })
   await expect(page.locator('.band-detail-row').first()).toBeVisible()
 })

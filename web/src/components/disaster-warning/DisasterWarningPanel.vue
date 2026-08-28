@@ -37,7 +37,7 @@
           <div class="loss-metric"><span class="loss-metric-label">赔偿金额</span><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
         </div>
         <!-- 村级风险分布：占比色带 + 色点明细行（R4-7） -->
-        <div v-if="phase === 'ready' && riskBand.some((b) => b.count > 0)" class="loss-band-wrap" data-test="dw-risk-band">
+        <div v-if="phase === 'ready'" class="loss-band-wrap" data-test="dw-risk-band">
           <div class="band-caption">村级风险分布（按承保面积）</div>
           <div class="detail-band">
             <div v-for="seg in riskBand" :key="seg.level" class="band-seg" :style="bandSegStyle(seg)" :title="`${seg.name} ${seg.pct}%`"></div>
