@@ -31,26 +31,50 @@
           <span class="est-tag">预估</span>
         </div>
         <div v-if="phase === 'ready'" class="loss-subtitle" data-test="dw-loss-title">{{ lossTitle }}</div>
+
         <div class="loss-metrics">
-          <div class="loss-metric"><span class="loss-metric-label">受灾面积</span><span class="loss-metric-value" data-test="dw-loss-area">{{ lossAreaText }}</span><span class="loss-metric-unit">万亩</span></div>
-          <div class="loss-metric"><span class="loss-metric-label">涉及户数</span><span class="loss-metric-value" data-test="dw-loss-households">{{ lossHouseholdsText }}</span><span class="loss-metric-unit">户</span></div>
-          <div class="loss-metric"><span class="loss-metric-label">赔偿金额</span><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
-        </div>
-        <!-- 村级风险分布：占比色带 + 色点明细行（R4-7） -->
-        <div v-if="phase === 'ready'" class="loss-band-wrap" data-test="dw-risk-band">
-          <div class="band-caption">村级风险分布（按承保面积）</div>
-          <div class="detail-band">
-            <div v-for="seg in riskBand" :key="seg.level" class="band-seg" :style="bandSegStyle(seg)" :title="`${seg.name} ${seg.pct}%`"></div>
+          <div class="loss-metric">
+            <span class="loss-metric-label">受灾面积</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-area">{{ lossAreaText }}</span><span class="loss-metric-unit">万亩</span></div>
           </div>
-          <div class="band-detail-rows">
-            <div v-for="seg in riskBand" :key="seg.level" class="band-detail-row">
-              <i class="risk-dot" :style="{ background: riskDotColor(seg.level) }"></i>
-              <span class="risk-name">{{ seg.name }}</span>
-              <span class="risk-count">{{ seg.count }} 村</span>
-              <span class="risk-area">{{ seg.areaText }}</span>
+          <div class="loss-metric">
+            <span class="loss-metric-label">涉及户数</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-households">{{ lossHouseholdsText }}</span><span class="loss-metric-unit">户</span></div>
+          </div>
+          <div class="loss-metric">
+            <span class="loss-metric-label">赔偿金额</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
+          </div>
+        </div>
+
+        <!-- 村级风险分布：左侧饼图 + 右侧明细（R4-7） -->
+        <div v-if="phase === 'ready'" class="loss-band-wrap" data-test="dw-risk-band">
+          <div class="band-caption">村级风险分布<span class="band-caption-sub">按承保面积</span></div>
+          <div class="risk-layout">
+            <div class="risk-pie-wrap" aria-hidden="true">
+              <svg class="risk-pie" viewBox="0 0 100 100">
+                <circle class="risk-pie-track" cx="50" cy="50" r="40" fill="none" stroke="rgba(148, 163, 184, 0.16)" stroke-width="13"></circle>
+                <circle v-for="seg in riskPieSegs" :key="seg.level" class="risk-pie-seg"
+                  cx="50" cy="50" r="40" fill="none"
+                  :stroke="riskDotColor(seg.level)" stroke-width="13" pathLength="100"
+                  :stroke-dasharray="`${seg.pct} ${100 - seg.pct}`"
+                  :stroke-dashoffset="`${-seg.start}`"
+                  transform="rotate(-90 50 50)"></circle>
+                <text class="risk-pie-center" x="50" y="50" text-anchor="middle" dominant-baseline="central">{{ riskTotalCount }}</text>
+                <text class="risk-pie-center-label" x="50" y="66" text-anchor="middle">预警村</text>
+              </svg>
+            </div>
+            <div class="risk-legend">
+              <div v-for="seg in riskPieSegs" :key="seg.level" class="band-detail-row" :style="{ '--risk-color': riskDotColor(seg.level) }">
+                <span class="risk-colorbar"></span>
+                <span class="risk-name">{{ seg.name }}</span>
+                <span class="risk-count">{{ seg.count }} 村</span>
+                <span class="risk-area">{{ seg.areaText }}</span>
+              </div>
             </div>
           </div>
         </div>
+
         <p class="loss-hint" data-test="dw-loss-hint">{{ lossHint }}</p>
       </section>
 
@@ -435,9 +459,17 @@ function formatArea(mu: number): string {
   if (mu >= 10000) return `${(mu / 10000).toFixed(1)} 万亩`
   return `${Math.round(mu).toLocaleString('zh-CN')} 亩`
 }
-function bandSegStyle(seg: { level: number; pct: number }) {
-  return { background: riskDotColor(seg.level), flex: `0 0 ${Math.max(0, seg.pct)}%` }
-}
+// 风险分布饼图分段（R4-7）：按承保面积占比，累加起始偏移用于 SVG 环形弧
+const riskPieSegs = computed(() => {
+  const segs = riskBand.value
+  let cum = 0
+  return segs.map((seg) => {
+    const start = cum
+    cum += seg.pct
+    return { level: seg.level, name: seg.name, count: seg.count, areaText: seg.areaText, pct: seg.pct, start }
+  })
+})
+const riskTotalCount = computed(() => riskBand.value.reduce((sum, b) => sum + b.count, 0))
 function riskDotColor(level: number): string {
   if (level === 3) return '#b91c1c'
   if (level === 2) return '#ca8a04'
@@ -520,28 +552,56 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .loss-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
 .est-tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; color: #1d4ed8; background: #dbeafe; border-radius: 999px; padding: 1px 8px; }
 .loss-subtitle { color: #64748b; font-size: 11px; }
-.loss-metrics { display: flex; align-items: baseline; gap: 20px; margin: 10px 0 14px; }
-.loss-metric { display: flex; align-items: baseline; gap: 5px; }
-.loss-metric-label { color: #64748b; font-size: 10px; white-space: nowrap; }
-.loss-metric-value { font-size: 18px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.05; }
-.loss-metric-unit { color: #94a3b8; font-size: 10px; white-space: nowrap; }
+/* 三项统计：值前置卡片——数值突出（22px/700 等宽）、标签在上、列间细分隔 */
+.loss-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 2px 0 4px;
+  padding: 11px 4px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+}
+.loss-metric { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0 6px; min-width: 0; }
+.loss-metric + .loss-metric { border-left: 1px solid rgba(148, 163, 184, 0.22); }
+.loss-metric-label { color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+.loss-metric-main { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.loss-metric-value { font-size: 22px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.loss-metric-unit { color: #94a3b8; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .loss-hint { margin: 0; color: #94a3b8; font-size: 11px; }
 .empty-state { display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 灾损预估：标题/指标/风险分布为概况区，说明文字跟内容自然流（不悬空置底） */
-.loss-pane { gap: 12px; }
+.loss-pane { gap: 10px; }
 /* 预警监测：表头概况区（flex:none）+ 列表滚动区 */
 .warning-pane { gap: 0; }
-/* 风险分布色带（R4-7） */
-.loss-band-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
-.band-caption { font-size: 10px; color: #475569; }
-.detail-band { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: rgba(148, 163, 184, 0.14); }
-.band-seg { transition: flex-basis 0.3s ease; }
-.band-detail-rows { display: flex; flex-direction: column; gap: 6px; }
-.band-detail-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #334155; }
-.risk-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.risk-name { width: 48px; flex: none; }
-.risk-count { flex: 1; color: #64748b; }
-.risk-area { font-variant-numeric: tabular-nums; }
+/* 风险分布（R4-7）：色带 + 明细行卡片化，色条与色带同色联动、行间细分隔 */
+.loss-band-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+}
+.band-caption { font-size: 11px; font-weight: 600; color: #334155; display: flex; align-items: baseline; gap: 6px; }
+.band-caption-sub { font-size: 10px; font-weight: 500; color: #94a3b8; }
+/* 左右分布：左饼图（承保面积占比）+ 右明细 */
+.risk-layout { display: flex; align-items: center; gap: 14px; }
+.risk-pie-wrap { flex: none; width: 88px; height: 88px; }
+.risk-pie { width: 100%; height: 100%; display: block; }
+.risk-pie-track, .risk-pie-seg { }
+.risk-pie-seg { transition: stroke-dasharray 0.3s ease; }
+.risk-pie-center { font-size: 16px; font-weight: 700; fill: #0f172a; font-variant-numeric: tabular-nums; }
+.risk-pie-center-label { font-size: 9px; font-weight: 500; fill: #94a3b8; }
+.risk-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.band-detail-row { display: flex; align-items: center; gap: 9px; padding: 7px 2px; border-bottom: 1px solid rgba(148, 163, 184, 0.16); }
+.band-detail-row:last-child { border-bottom: 0; }
+.risk-colorbar { flex: none; width: 4px; height: 14px; border-radius: 2px; background: var(--risk-color, #94a3b8); }
+.risk-name { flex: none; width: 38px; font-size: 12px; font-weight: 600; color: #334155; }
+.risk-count { flex: 1; font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
+.risk-area { flex: none; font-size: 12px; font-weight: 650; color: #0f172a; font-variant-numeric: tabular-nums; }
 /* 预警监测（R3-9~R3-18） */
 .warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
 .warning-head-row { display: flex; align-items: center; gap: 8px; }
