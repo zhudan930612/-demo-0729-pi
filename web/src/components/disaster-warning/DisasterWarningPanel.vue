@@ -106,8 +106,7 @@
             <div class="wc-head">
               <span class="wc-name">{{ entry.village.name }}</span>
               <span class="wc-status" :class="entry.level >= 2 ? 'todo' : 'observe'">{{ statusLabel(entry.level) }}</span>
-              <span class="wc-level-dot" :style="{ background: levelColor(entry.level) }"></span>
-              <span class="wc-rain">{{ future24Text(entry) }}</span>
+              <span class="wc-meta"><span class="wc-level-dot" :style="{ background: levelColor(entry.level) }"></span><span class="wc-rain">{{ future24Text(entry) }}</span></span>
             </div>
             <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(entry.level) }}</span></div>
             <div class="wc-actions">
@@ -620,13 +619,14 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .warning-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
 .warning-card { padding: 15px 9px; border: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.13); border-radius: 0; background: transparent; cursor: pointer; transition: background 0.12s ease; }
 .warning-card:hover { background: #f8fafc; }
-.wc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.wc-name { font-weight: 650; color: #0f172a; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wc-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.wc-status.todo { background: #fee2e2; color: #b91c1c; }
-.wc-status.observe { background: #dcfce7; color: #166534; }
+.wc-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.wc-name { font-weight: 650; color: #0f172a; font-size: 14px; }
+.wc-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.wc-status.todo { background: #fde8e8; color: #b91c1c; }
+.wc-status.observe { background: #e6f1fb; color: #0369a1; }
+.wc-meta { margin-left: auto; display: flex; align-items: center; gap: 5px; flex: none; min-width: 0; }
 .wc-level-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.wc-rain { flex: none; color: #64748b; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wc-rain { flex: none; color: #64748b; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ai-chip { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: #6366f1; border-radius: 4px; padding: 1px 5px; line-height: 1.5; align-self: flex-start; }
 .ai-text { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
 .wc-actions { display: flex; justify-content: flex-end; }
