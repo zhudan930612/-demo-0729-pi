@@ -83,11 +83,15 @@
         <!-- 表头：概览 + ⓘ + 一键派发 + 自动/人工开关（固定，列表区内滚） -->
         <div class="warning-head">
           <div class="warning-head-row">
-            <span class="warning-overview" data-test="dw-warning-overview">{{ overviewText }}</span>
+            <span class="warning-overview" data-test="dw-warning-overview">预警村</span>
             <span class="rule-info" data-test="dw-rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="触发规则说明">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
             </span>
             <button v-if="pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
+          </div>
+          <div class="warning-stats" data-test="dw-warning-stats">
+            <span class="warning-stat"><i class="ws-dot" :style="{ background: levelColor(3) }"></i><em>高</em><b>{{ overview.high }}</b></span>
+            <span class="warning-stat"><i class="ws-dot" :style="{ background: levelColor(2) }"></i><em>中</em><b>{{ overview.mid }}</b></span>
           </div>
           <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
         </div>
@@ -314,7 +318,6 @@ const sortedWarnings = computed(() => {
   return out
 })
 const overview = computed(() => warningOverview(warningEntries.value.filter((e) => e.level >= 2)))
-const overviewText = computed(() => `预警村 ${overview.value.total}（高 ${overview.value.high} · 中 ${overview.value.mid}）`)
 const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
 const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !store.isDispatched(e.village.code)).length)
 
@@ -604,6 +607,11 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
 .warning-head-row { display: flex; align-items: center; gap: 8px; }
 .warning-overview { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: 1; }
+.warning-stats { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+.warning-stat { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.ws-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.warning-stat em { font-style: normal; color: #64748b; }
+.warning-stat b { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
 .rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
 .rule-info svg { width: 15px; height: 15px; }
 .batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }

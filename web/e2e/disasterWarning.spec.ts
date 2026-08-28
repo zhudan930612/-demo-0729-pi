@@ -297,9 +297,10 @@ test('R3-1/R3-2/R3-9/R3-12/R3-13 预警监测列表：全省卡片 + 概览 + �
   await expect(await holdAtNode(page, '7月11日00时')).toBe(true)
   const cards = page.locator('[data-test="dw-warning-card"]')
   await expect(cards).toHaveCount(2)
-  // 概览（R3-12）
+  // 概览（R3-12）：标题「预警村」，高/中统计在标题下方统一样式
   await expect(page.locator('[data-test="dw-warning-overview"]')).toContainText('预警村')
-  await expect(page.locator('[data-test="dw-warning-overview"]')).toContainText('高')
+  await expect(page.locator('[data-test="dw-warning-stats"]')).toContainText('高')
+  await expect(page.locator('[data-test="dw-warning-stats"]')).toContainText('中')
   // 卡片状态标签（R3-13）：高风险=待处理、中风险=待处理
   const firstStatus = await cards.first().locator('.wc-status').textContent()
   expect(firstStatus).toBe('待处理')
