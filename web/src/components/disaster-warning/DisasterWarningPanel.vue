@@ -28,6 +28,7 @@
       <section v-if="activeTab === 'loss'" class="tab-pane loss-pane" data-test="dw-loss-pane">
         <div class="loss-title-row">
           <span class="loss-title">{{ regionName }} · 灾损预估</span>
+          <span class="est-tag">预估</span>
         </div>
         <div v-if="phase === 'ready'" class="loss-subtitle" data-test="dw-loss-title">{{ lossTitle }}</div>
         <div class="loss-metrics">
@@ -71,7 +72,7 @@
               <button type="button" :class="{ active: dispatchMode === 'auto' }" data-test="dw-mode-auto" @click="emit('set-dispatch-mode', 'auto')">自动</button>
             </div>
           </div>
-          <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">未来 24h 预报雨量触发：≥130mm 低风险 / ≥160mm 中风险 / ≥185mm 高风险；升级立即生效，降级需连续 2 节点低于阈值</div>
+          <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
         </div>
         <!-- 卡片列表（前 10 条，超高内滚） -->
         <div v-if="phase === 'error'" class="empty-state" data-test="dw-warning-empty">暂无预警村（数据缺失）</div>
@@ -282,21 +283,26 @@ const warningEntries = computed(() => {
   return warnedVillagesAtNode(store.warnings, nodeIndex.value)
 })
 // 预警村（已按 等级高→低 + 未来24h降序 预排序，直接查表，不再 sortWarnedVillages）
+// R3-6 变更：预警监测仅显示中/高风险村；低风险村不上图、也不进预警监测列表
 const sortedWarnings = computed(() => {
   const pn = panelNode.value
   const warnings = store.warnings
   if (!pn || !warnings) return []
-  return pn.sorted.map((idx) => {
-    const village = warnings.villages[idx]
+  const out: Array<{ villageIndex: number; village: (typeof warnings.villages)[number]; level: DWLevel }> = []
+  for (const idx of pn.sorted) {
     const pv = pn.byIdx[String(idx)]
-    return village ? { villageIndex: idx, village, level: (pv?.level ?? 1) as DWLevel } : null
-  }).filter((e) => e !== null) as Array<{ villageIndex: number; village: (typeof warnings.villages)[number]; level: DWLevel }>
+    if (!pv || (pv.level ?? 0) < 2) continue // 仅中/高风险
+    const village = warnings.villages[idx]
+    if (!village) continue
+    out.push({ villageIndex: idx, village, level: pv.level as DWLevel })
+  }
+  return out
 })
-const overview = computed(() => warningOverview(warningEntries.value))
-const overviewText = computed(() => `预警村 ${overview.value.total}（高 ${overview.value.high} · 中 ${overview.value.mid} · 低 ${overview.value.low}）`)
+const overview = computed(() => warningOverview(warningEntries.value.filter((e) => e.level >= 2)))
+const overviewText = computed(() => `预警村 ${overview.value.total}（高 ${overview.value.high} · 中 ${overview.value.mid}）`)
 const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
 const dispatchMode = computed(() => store.dispatchMode)
-const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => e.level >= 2 && !store.isDispatched(e.village.code)).length)
+const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !store.isDispatched(e.village.code)).length)
 
 function statusLabel(level: number): string { return WARNING_STATUS_LABEL[level as DWLevel] ?? '—' }
 function levelColor(level: number): string { return WARNING_LEVEL_COLOR[level as DWLevel] ?? '#94a3b8' }
@@ -320,6 +326,11 @@ function hideRuleTip() { ruleTip.value = null }
 const tipStyle = computed(() => {
   if (!ruleTip.value) return {}
   return { left: `${ruleTip.value.left}px`, top: `${Math.max(0, ruleTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
+// 触发规则全文：阈值从实际加载的 warnings.json 读取（方案A：低≥170/中≥175/高≥180，避免与数据校准脱节）
+const ruleTipText = computed(() => {
+  const th = store.warnings?.thresholds ?? { low: 170, mid: 175, high: 180 }
+  return `未来 24h 预报雨量触发：≥${th.low}mm 低风险 / ≥${th.mid}mm 中风险 / ≥${th.high}mm 高风险；升级立即生效，降级需连续 2 节点低于阈值`
 })
 
 // ---- 灾损预估（R4） ----
@@ -368,7 +379,7 @@ const lossHint = computed(() => {
   return '灾损预估随台风播放与村级预警联动刷新'
 })
 
-// 村级风险分布（R4-7）：分母 = 当前层级全部承保面积（含无风险村）
+// 村级风险分布（R4-7）：分母 = 当前层级已触发预警且过程累计达低风险（≥50mm）村的承保面积；移除无风险村数据
 // 村码即层级编码：city=code[0:4]+'00'、county=code[0:6]、township=code[0:9]+'000'（与 check-codes 口径一致）
 function adminCodesOf(code: string): { city: string; county: string; township: string } {
   return { city: `${code.slice(0, 4)}00`, county: code.slice(0, 6), township: `${code.slice(0, 9)}000` }
@@ -379,10 +390,9 @@ const riskBand = computed(() => {
   const code = props.currentCode
   let totalArea = 0
   const buckets = [
-    { level: 0 as const, name: '无风险', count: 0, area: 0, coeff: 0.2 },
-    { level: 1 as const, name: '低', count: 0, area: 0, coeff: 0.4 },
-    { level: 2 as const, name: '中', count: 0, area: 0, coeff: 0.7 },
-    { level: 3 as const, name: '高', count: 0, area: 0, coeff: 1.0 },
+    { level: 1 as const, name: '低', count: 0, area: 0 },
+    { level: 2 as const, name: '中', count: 0, area: 0 },
+    { level: 3 as const, name: '高', count: 0, area: 0 },
   ]
   const inRegion = (v: { code: string }) => {
     const admin = adminCodesOf(v.code)
@@ -392,17 +402,24 @@ const riskBand = computed(() => {
     if (level === 'township') return admin.township === code
     return v.code === code
   }
+  // R4-7 变更：移除「无风险」村数据——仅纳入当前节点已触发预警的村，且过程累计达低风险（≥50mm）才入带
+  const warnedIdxByCode = new Map<string, number>()
+  for (const e of warningEntries.value) warnedIdxByCode.set(e.village.code, e.villageIndex)
   for (const v of store.underwriting.villages) {
     if (!inRegion(v)) continue
-    totalArea += v.insuredAreaMu
-    const warned = warningEntries.value.find((e) => e.village.code === v.code)
-    if (!warned) { buckets[0]!.count += 1; buckets[0]!.area += v.insuredAreaMu; continue }
+    const warnedIdx = warnedIdxByCode.get(v.code)
+    if (warnedIdx === undefined) continue // 未触发预警：无风险村，不计入分布
     // 预警村：从 panel byIdx 读累计雨量/风险等级（免实时算格点）
-    const riskLevel = riskLevelForCum(warned.villageIndex)
-    buckets[riskLevel]!.count += 1
-    buckets[riskLevel]!.area += v.insuredAreaMu
+    const riskLevel = riskLevelForCum(warnedIdx)
+    if (riskLevel < 1) continue // 过程累计 <50mm：无风险档，移除
+    totalArea += v.insuredAreaMu
+    const bucket = buckets[riskLevel - 1]!
+    bucket.count += 1
+    bucket.area += v.insuredAreaMu
   }
-  return buckets.map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
+  return buckets
+    .map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
+    .filter((b) => b.count > 0)
 })
 
 function riskLevelForCum(idx: number): 0 | 1 | 2 | 3 {
@@ -506,6 +523,7 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .tab-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
 .loss-title-row { display: flex; align-items: center; gap: 6px; }
 .loss-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.est-tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; color: #1d4ed8; background: #dbeafe; border-radius: 999px; padding: 1px 8px; }
 .loss-subtitle { color: #64748b; font-size: 11px; }
 .loss-metrics { display: flex; align-items: baseline; gap: 20px; margin: 10px 0 14px; }
 .loss-metric { display: flex; align-items: baseline; gap: 5px; }

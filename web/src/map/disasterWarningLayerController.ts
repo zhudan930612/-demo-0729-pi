@@ -6,7 +6,7 @@ import { WARNING_LEVEL_COLOR, WARNING_LEVEL_TEXT, WARNING_MARKER_RADIUS } from '
 /**
  * 受灾预警村级标记图层（R3-6~R3-8、R3-19/R3-20/R3-22）。
  * - 县/乡镇级视角：展开为村级**水波纹脉冲标记**（实心点 + 圆环逐层向外扩散渐隐循环，
- *   各等级频率一致、与等级同色，尺寸 高=基础1.5×、中=基础）；**低风险不上图**（仅列表）。
+ *   各等级频率一致、与等级同色，尺寸 高=基础1.5×、中=基础）；**低风险不上图、也不进预警监测列表**（预警监测仅显示中/高风险村）。
  * - 省/市级视角：按区县聚合为**预警徽标**（⚠ + 中/高风险村数，底色=该县最高等级色，落政府驻地/边界质心）。
  * - 村级视角：显示本村及同乡镇预警村（R3-22）。
  * - 点击徽标 = 下钻该区县；点击村脉冲 = 进入村级视角。
@@ -165,7 +165,7 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
   function renderPulses(snapshot: DisasterWarningLayerSnapshot) {
     if (!map || !pulseLayer) return
     pulseLayer.clearLayers()
-    // R3-6 低风险不上图（仅列表）；mode 已过滤层级，这里防御性再剔除
+    // R3-6 低风险不上图、也不进预警监测列表；mode 已过滤层级，这里防御性再剔除
     for (const entry of snapshot.entries) {
       if (entry.level < 2) continue
       const icon = pulseIcon(entry.level)

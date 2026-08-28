@@ -99,7 +99,7 @@ export interface CountyBadge {
 export function buildCountyBadges(entries: WarnedVillageEntry[], countySeats: Map<string, [number, number]>): CountyBadge[] {
   const byCounty = new Map<string, { name: string; count: number; maxLevel: 2 | 3 }>()
   for (const entry of entries) {
-    if (entry.level < 2) continue // 低风险不上图（R3-6 仅列表）
+    if (entry.level < 2) continue // 低风险不上图、也不进预警监测列表（R3-6 变更）
     const code = entry.village.countyCode
     const current = byCounty.get(code)
     if (current) {

@@ -245,7 +245,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     if (sig === lastWarnedRenderKey) return
     lastWarnedRenderKey = sig
 
-    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图（仅列表）
+    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图、也不进预警监测列表（R3-6 变更）
     let filtered = entries
     if (level === 'county') {
       const countyCode = ctx.store.current.code
