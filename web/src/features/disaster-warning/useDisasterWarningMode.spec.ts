@@ -230,6 +230,20 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
     expect(store.isOpen).toBe(false)
   })
 
+  it('seekNode 选中节点即暂停并跳到该节点；togglePlay 从选中节点开始（R2-6b）', async () => {
+    const { mode, store } = readyMode()
+    mode.init(fakeMap)
+    await mode.enter()
+    await vi.waitFor(() => expect(store.phase).toBe('ready'))
+    // 选中节点：暂停 + 跳到该节点（单节点 track → nodeIndex 0）
+    mode.seekNode(0)
+    expect(store.nodeIndex).toBe(0)
+    expect(store.playing).toBe(false)
+    // 点播放：从当前选中节点开始
+    mode.togglePlay()
+    expect(store.playing).toBe(true)
+  })
+
   it('selectVillage 补齐完整路径下钻到村（R3-7/R3-10）', async () => {
     const { ctx, mode, store } = readyMode()
     store.open()

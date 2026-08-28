@@ -47,6 +47,8 @@ export interface DisasterWarningMode {
   togglePlay(): void
   /** 迷你浮窗：退出受灾预警（R2-5） */
   closePlayback(): void
+  /** 选择台风节点：点击地图台风路径节点 → 台风中心显示到该节点位置并暂停（R2-6a） */
+  seekNode(index: number): void
   /** 点击脉冲/卡片 → 进入村级视角（R3-7/R3-10） */
   selectVillage(code: string): void
   /** 点击聚合徽标 → 下钻该区县（R3-20） */
@@ -65,7 +67,6 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   const store = useDisasterWarningStore()
 
   let map: L.Map | null = null
-  let playbackStarted = false
   let typhoonController: TyphoonLayerController | null = null
   let precipController: PrecipitationLayerController | null = null
   let warningController: DisasterWarningLayerController | null = null
@@ -175,16 +176,17 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   // ---- 图层渲染 ----
 
-  /** 台风轨迹 + 当前位置风圈（R2-10~R2-12）：复用 typhoonLayerController，visibleObservationCount 驱动动画 */
+  /** 台风轨迹 + 当前位置风圈（R2-10~R2-12）：复用 typhoonLayerController，完整路径 + 台风中心显示到选中节点 */
   function renderTyphoonLayer(nodeIndex: number) {
     if (noTyphoon) return
     if (!typhoonController || !typhoonDetail) return
-    const count = nodeIndex + 1 // 已播节点数（含当前帧）
+    // 节点 = 当前选中节点；省略 visibleObservationCount → 完整展示整条路径（渐进式改为完整路径，R2-6a）
     const node = typhoonDetail.observationsAsc[nodeIndex]
     typhoonController.render({
       realtime: [],
-      historical: [{ detail: typhoonDetail, visibleObservationCount: count }],
+      historical: [{ detail: typhoonDetail }],
       focusedTyphoonId: typhoonDetail.id,
+      // 选中节点：台风中心 + 风圈显示到该节点位置
       selectedNodeByTyphoon: node ? { [typhoonDetail.id]: node.id } : {},
     })
   }
@@ -383,7 +385,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     const count = store.nodeCount
     if (!playback || count <= 0 || !map) return
     store.setPlaying(true)
-    playback.start(count, { onStep, onLoopRestart })
+    // R2-6b 播放从当前选中节点开始（选中节点后，点播放从该节点起）
+    playback.start(count, { onStep, onLoopRestart }, store.nodeIndex)
   }
 
   // 隔离诊断开关：临时置 true —— 完全隐藏/不加载降雨热力图（只留台风+预警标记+面板），定位卡顿是否来自热力图。
@@ -417,16 +420,25 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     if (!noPrecip) renderPrecipFrame(0)
     renderWarningLayer(0)
     store.setPlaying(false)
+    // R2-6a 完整台风路径：进入后适配地图视野到台风轨迹，保证整条路径可见可选中
+    if (typhoonDetail && typhoonController) typhoonController.fitBoundsForTyphoon(typhoonDetail.id, { padding: [48, 48] })
   }
 
   function togglePlay() {
     if (!playback || store.phase !== 'ready') return
     if (playback.isPlaying()) { playback.pause(); store.setPlaying(false) }
     else {
-      store.setPlaying(true)
-      // 首次播放：播放器未启动则 start；暂停后继续则 resume
-      if (playbackStarted) { playback.resume() } else { playbackStarted = true; startPlayback() }
+      // R2-6b 点播放始终从当前选中节点开始（首次 / 暂停后继续 / 选中节点后再播放）
+      startPlayback()
     }
+  }
+
+  /** 手动选择台风节点（R2-6a）：暂停自动播放，直接跳到目标节点，台风中心显示到该位置，各图层/面板同步刷新。 */
+  function seekNode(index: number) {
+    if (store.phase !== 'ready') return
+    playback?.pause()
+    store.setPlaying(false)
+    onStep(index)
   }
 
   function closePlayback() {
@@ -508,7 +520,6 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   function exit() {
     playback?.pause()
-    playbackStarted = false
     store.close()
     // 移除受灾预警专属图层（不常驻地图，避免与降水模式共用 pane 冲突）
     precipController?.destroy()
@@ -526,6 +537,11 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     map = target
     // 台风图层控制器创建时不依赖 track；typhoonDetail 在 loadAll→receive 后由 syncTyphoonDetail 适配（R2-10~R2-12）
     typhoonController = createTyphoonLayerController(target, {
+      onNodeClick: ({ nodeId }) => {
+        // R2-6a 选择台风节点：点击路径节点 → 台风中心/风圈显示到该位置，各图层与面板同步到该节点
+        const idx = typhoonDetail?.observationsAsc.findIndex((n) => n.id === nodeId) ?? -1
+        if (idx >= 0) seekNode(idx)
+      },
       onNodeEnter: ({ typhoonId, nodeId, containerPoint }) => {
         typhoonPopupState.value = hoverPopup(typhoonPopupState.value, { kind: 'center', typhoonId, nodeId })
         typhoonHoverPosition.value = containerPoint
@@ -575,6 +591,7 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     setTab,
     togglePlay,
     closePlayback,
+    seekNode,
     selectVillage,
     selectCounty,
     dispatchVillage,

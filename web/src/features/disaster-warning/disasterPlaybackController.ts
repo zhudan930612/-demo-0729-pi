@@ -21,7 +21,8 @@ export interface DisasterPlaybackOptions {
 }
 
 export interface DisasterPlaybackController {
-  start(nodeCount: number, callbacks: DisasterPlaybackCallbacks): boolean
+  /** 开始播放；可选 startIndex 指定从哪个节点开始（默认 0 = 从头，R2-6b）。 */
+  start(nodeCount: number, callbacks: DisasterPlaybackCallbacks, startIndex?: number): boolean
   pause(): void
   resume(): void
   isPlaying(): boolean
@@ -53,11 +54,12 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
   }
 
   return {
-    start(count: number, cb: DisasterPlaybackCallbacks): boolean {
+    start(count: number, cb: DisasterPlaybackCallbacks, startIndex = 0): boolean {
       if (count <= 0) return false
       nodeCount = count
       callbacks = cb
-      nodeIndex = 0
+      // R2-6b 从选中节点开始播放（默认 0 = 从头）
+      nodeIndex = Math.max(0, Math.min(count - 1, Math.floor(Number.isFinite(startIndex) ? startIndex : 0)))
       playing = true
       if (timer !== null) unschedule(timer)
       timer = schedule(advance, intervalMs)

@@ -31,6 +31,18 @@ describe('createDisasterPlaybackController · 受灾预警播放语义（R2-1~R2
     expect(steps).toEqual([1, 2])
   })
 
+  it('start 支持从指定节点开始播放（R2-6b）', () => {
+    const { setTimeoutImpl, clearTimeoutImpl, tick } = fakeTimers()
+    const ctl = createDisasterPlaybackController({ setTimeout: setTimeoutImpl as unknown as typeof setTimeout, clearTimeout: clearTimeoutImpl as unknown as typeof clearTimeout, intervalMs: 150 })
+    const steps: number[] = []
+    // 从节点 2 开始：第一步推进到 3
+    expect(ctl.start(5, { onStep: (i) => steps.push(i), onLoopRestart: () => {} }, 2)).toBe(true)
+    tick(1)
+    expect(steps).toEqual([3])
+    tick(1)
+    expect(steps).toEqual([3, 4])
+  })
+
   it('播到末节点自动回起点循环，不自动停止（R2-4）', () => {
     const { setTimeoutImpl, clearTimeoutImpl, tick } = fakeTimers()
     const ctl = createDisasterPlaybackController({ setTimeout: setTimeoutImpl as unknown as typeof setTimeout, clearTimeout: clearTimeoutImpl as unknown as typeof clearTimeout, intervalMs: 150 })
