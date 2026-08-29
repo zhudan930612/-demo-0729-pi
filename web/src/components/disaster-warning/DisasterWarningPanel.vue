@@ -83,21 +83,14 @@
         <!-- 表头：概览 + ⓘ + 一键派发 + 自动/人工开关（固定，列表区内滚） -->
         <div class="warning-head">
           <div class="warning-head-row">
-            <span class="warning-overview" data-test="dw-warning-overview">预警村</span>
+            <span class="warning-overview" data-test="dw-warning-overview">
+              <span class="warning-title">预警村</span>
+              <span class="warning-counts">{{ overviewCountsText }}</span>
+            </span>
             <span class="rule-info" data-test="dw-rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="触发规则说明">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
             </span>
             <button v-if="pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
-          </div>
-          <div class="warning-stats" data-test="dw-warning-stats">
-            <div class="warning-stat ws-high">
-              <span class="stat-label">高风险</span>
-              <span class="stat-value">{{ overview.high }}</span>
-            </div>
-            <div class="warning-stat ws-mid">
-              <span class="stat-label">中风险</span>
-              <span class="stat-value">{{ overview.mid }}</span>
-            </div>
           </div>
           <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
         </div>
@@ -324,6 +317,7 @@ const sortedWarnings = computed(() => {
   return out
 })
 const overview = computed(() => warningOverview(warningEntries.value.filter((e) => e.level >= 2)))
+const overviewCountsText = computed(() => `${overview.value.total}（高风险 ${overview.value.high} · 中风险 ${overview.value.mid}）`)
 const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
 const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !store.isDispatched(e.village.code)).length)
 
@@ -612,17 +606,12 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 /* 预警监测（R3-9~R3-18） */
 .warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
 .warning-head-row { display: flex; align-items: center; gap: 8px; }
-.warning-overview { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: 1; }
-.warning-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin-top: 8px; padding: 10px 2px; background: #f8fafc; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 10px; }
-.warning-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.warning-stat + .warning-stat { border-left: 1px solid rgba(148, 163, 184, 0.22); }
-.stat-label { font-size: 11px; font-weight: 600; color: #64748b; white-space: nowrap; }
-.stat-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
-.ws-high .stat-value { color: #b91c1c; }
-.ws-mid .stat-value { color: #ca8a04; }
+.warning-overview { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 0 1 auto; }
+.warning-title { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: none; }
+.warning-counts { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
 .rule-info svg { width: 15px; height: 15px; }
-.batch-btn { flex: none; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.batch-btn { flex: none; margin-left: auto; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
 .batch-btn:hover { background: #1d4ed8; }
 .cell-tooltip { position: fixed; z-index: 1250; padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 11px; max-width: 260px; line-height: 1.5; }
 .warning-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
