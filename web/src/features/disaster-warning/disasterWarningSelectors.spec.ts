@@ -3,7 +3,7 @@ import type { DisasterWarnings, DisasterPrecip, DisasterUnderwriting, DisasterRi
 import {
   warnedVillagesAtNode, sortWarnedVillages, warningOverview, buildCountyBadges,
   future24RainByGrid, cumulativeRainByGrid, riskCoefficient, lossRateForLevel,
-  computeLossSummary, aiAdviceForLevel, WARNING_STATUS_LABEL,
+  computeLossSummary, aiAdviceForLevel, warningRenderSignature, WARNING_STATUS_LABEL,
 } from './disasterWarningSelectors'
 
 const villages = [
@@ -104,6 +104,12 @@ describe('disasterWarningSelectors', () => {
     expect(b382.maxLevel).toBe(3)
     expect(b382.lon).toBe(121.03)
     expect(badges.find((b) => b.countyCode === '330282')).toBeUndefined()
+  })
+
+  it('warningRenderSignature 在预警村集合不变但等级变化时不同', () => {
+    const high = [{ villageIndex: 0, village: villages[0]!, level: 3 as const }]
+    const mid = [{ villageIndex: 0, village: villages[0]!, level: 2 as const }]
+    expect(warningRenderSignature(high)).not.toBe(warningRenderSignature(mid))
   })
 
   it('riskCoefficient / lossRateForLevel 按口径映射（R4-5）', () => {

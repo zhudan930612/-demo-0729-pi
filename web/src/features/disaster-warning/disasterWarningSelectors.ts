@@ -63,6 +63,18 @@ export function warningOverview(entries: WarnedVillageEntry[]): { total: number;
   return overview
 }
 
+/**
+ * 地图预警层重绘签名：仅中/高风险上图，但等级也是视觉状态的一部分。
+ * 相邻节点村集合不变而等级升降时，签名必须变化以触发徽标和村标记重绘。
+ */
+export function warningRenderSignature(entries: WarnedVillageEntry[]): string {
+  return entries
+    .filter((entry) => entry.level >= 2)
+    .map((entry) => `${entry.village.code}:${entry.level}`)
+    .sort()
+    .join(',')
+}
+
 // ---------- 未来 24h 预报雨量（R3-9 列表显示；口径 cum[i+24]-cum[i]，见计划 §6.2） ----------
 
 /** 村级未来 24h 预报雨量（mm）：村庄吸附到最近 ERA5 格点后查表。 */

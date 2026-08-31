@@ -15,7 +15,7 @@ import type { TyphoonDetail } from '../typhoon/typhoonTypes'
 import type { FeatureCollection, Geometry } from 'geojson'
 import { fetchJSON } from '../../api/data'
 import { childrenUrl } from '../../stores/drilldown'
-import { warnedVillagesAtNode } from './disasterWarningSelectors'
+import { warnedVillagesAtNode, warningRenderSignature } from './disasterWarningSelectors'
 import { TASK_TYPES_BY_WARNING_LEVEL } from '../../stores/disasterWarning'
 
 export interface DisasterWarningContext {
@@ -237,17 +237,13 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     if (!warningController || !warnings) return
     const level = ctx.store.current.level
     const code = ctx.store.current.code
-    // 预警标记集合是否变化（而非 nodeIndex——后者每帧都变，缓存形同虚设）：
-    // 用当前节点中/高预警村的 (code) 串做签名；相邻节点若预警集合不变则跳过重建
-    const node = warnings.nodes.find((n) => n.i === nodeIndex)
-    const midHighCode = node && warnings.villages
-      ? node.w.filter(([_, lvl]) => lvl >= 2).map(([vi]) => warnings.villages[vi]!.code).sort().join(',')
-      : ''
-    const sig = `${level}|${code}|${midHighCode}`
+    // 预警图层状态未变化时跳过重建。村编码和风险等级共同决定徽标颜色/村标记，
+    // 因此不能只比较村集合：中↔高变化也必须重绘。
+    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((entry) => entry.level >= 2)
+    const sig = `${level}|${code}|${warningRenderSignature(entries)}`
     if (sig === lastWarnedRenderKey) return
     lastWarnedRenderKey = sig
 
-    const entries = warnedVillagesAtNode(warnings, nodeIndex).filter((e) => e.level >= 2) // 低风险不上图、也不进预警监测列表（R3-6 变更）
     let filtered = entries
     if (level === 'county') {
       const countyCode = ctx.store.current.code
