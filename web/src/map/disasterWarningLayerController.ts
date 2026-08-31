@@ -82,6 +82,8 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
   let rendered: DisasterWarningLayerSnapshot | null = null
   // 乡镇村界缓存：key=townshipCode（村界几何静态不变，跨节点复用，不重复取）
   const boundaryCache = new Map<string, FeatureCollection>()
+  // 已绘制村界：风险升级/降级只改样式，新增/解除才增删图层。
+  const renderedBoundaries = new Map<string, { level: 2 | 3; layer: L.GeoJSON }>()
 
   function ensurePanes(target: L.Map) {
     for (const pane of Object.values(DISASTER_WARNING_PANES)) {
@@ -148,16 +150,32 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
   /** 县/乡镇/村级：按预警等级给村边界面上色（R3-6/R3-22）。 */
   function drawBoundaries(snapshot: DisasterWarningLayerSnapshot) {
     if (!map || !boundaryLayer) return
-    boundaryLayer.clearLayers()
-    // R3-6 低风险不上图；mode 已过滤层级，这里防御性再剔除
-    for (const entry of snapshot.entries) {
-      if (entry.level < 2) continue
+    const next = new Map(snapshot.entries.filter((entry) => entry.level >= 2)
+      .map((entry) => [entry.village.code, entry] as const))
+
+    for (const [code, current] of renderedBoundaries) {
+      const desired = next.get(code)
+      if (!desired) {
+        boundaryLayer.removeLayer(current.layer)
+        renderedBoundaries.delete(code)
+      } else {
+        if (current.level !== desired.level) {
+          const color = WARNING_LEVEL_COLOR[desired.level]
+          current.layer.setStyle({ color, weight: 3, opacity: 1, fillColor: color, fillOpacity: 0.3 })
+          current.level = desired.level as 2 | 3
+        }
+        next.delete(code)
+      }
+    }
+
+    // 仅为新增中/高风险村创建图层，低风险不上图。
+    for (const entry of next.values()) {
       const fc = boundaryCache.get(entry.village.townshipCode)
       if (!fc) continue
       const feature = fc.features.find((f) => String(f.properties?.code) === entry.village.code)
       if (!feature) continue
       const color = WARNING_LEVEL_COLOR[entry.level]
-      L.geoJSON(feature, {
+      const layer = L.geoJSON(feature, {
         pane: DISASTER_WARNING_PANES.boundary.name,
         style: { color, weight: 3, opacity: 1, fillColor: color, fillOpacity: 0.3 },
         bubblingMouseEvents: false,
@@ -168,6 +186,7 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
           })
         },
       }).addTo(boundaryLayer)
+      renderedBoundaries.set(entry.village.code, { level: entry.level as 2 | 3, layer })
     }
   }
 
@@ -195,6 +214,7 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
       const provinceCity = snapshot.level === 'province' || snapshot.level === 'city'
       if (provinceCity) {
         boundaryLayer?.clearLayers()
+        renderedBoundaries.clear()
         renderBadges(snapshot)
       } else {
         badgeLayer?.clearLayers()
@@ -205,6 +225,7 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
       boundaryLayer?.clearLayers()
       badgeLayer?.clearLayers()
       boundaryCache.clear()
+      renderedBoundaries.clear()
       rendered = null
     },
     destroy() {
@@ -213,6 +234,7 @@ export function createDisasterWarningLayerController(callbacks: DisasterWarningL
       boundaryLayer = null
       badgeLayer = null
       boundaryCache.clear()
+      renderedBoundaries.clear()
       map = null
       rendered = null
     },

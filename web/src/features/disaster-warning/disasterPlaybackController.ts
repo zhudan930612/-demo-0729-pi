@@ -18,6 +18,8 @@ export interface DisasterPlaybackOptions {
   setTimeout?: typeof globalThis.setTimeout
   clearTimeout?: typeof globalThis.clearTimeout
   intervalMs?: number
+  /** 按即将进入的节点决定等待时间；用于风险窗口外快速播放。 */
+  intervalForNode?: (nodeIndex: number) => number
 }
 
 export interface DisasterPlaybackController {
@@ -33,11 +35,17 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
   const schedule = options.setTimeout ?? globalThis.setTimeout
   const unschedule = options.clearTimeout ?? globalThis.clearTimeout
   const intervalMs = options.intervalMs ?? 150
+  const intervalForNode = options.intervalForNode ?? (() => intervalMs)
   let timer: ReturnType<typeof setTimeout> | null = null
   let playing = false
   let nodeIndex = 0
   let nodeCount = 0
   let callbacks: DisasterPlaybackCallbacks | null = null
+
+  function scheduleAdvance() {
+    const nextIndex = nodeCount > 0 ? (nodeIndex + 1) % nodeCount : 0
+    timer = schedule(advance, intervalForNode(nextIndex))
+  }
 
   function advance() {
     if (!playing || !callbacks) return
@@ -50,7 +58,7 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
       callbacks.onLoopRestart(nodeIndex)
     }
     callbacks.onStep(nodeIndex)
-    if (playing) timer = schedule(advance, intervalMs)
+    if (playing) scheduleAdvance()
   }
 
   return {
@@ -62,7 +70,7 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
       nodeIndex = Math.max(0, Math.min(count - 1, Math.floor(Number.isFinite(startIndex) ? startIndex : 0)))
       playing = true
       if (timer !== null) unschedule(timer)
-      timer = schedule(advance, intervalMs)
+      scheduleAdvance()
       return true
     },
     pause() {
@@ -73,7 +81,7 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
       if (playing || nodeCount <= 0 || !callbacks) return
       playing = true
       if (timer !== null) unschedule(timer)
-      timer = schedule(advance, intervalMs)
+      scheduleAdvance()
     },
     isPlaying() { return playing },
     destroy() {

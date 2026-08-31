@@ -552,8 +552,12 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
         typhoonPopupState.value = leavePopup(typhoonPopupState.value, { kind: 'wind', typhoonId, nodeId, grade })
       },
     })
-    // 播放控制器（R2-3/R2-4 循环）——intervalMs 设为 1000ms/节点：演示更从容，避免高频重绘三图层导致主线程饱和（用户建议放慢）
-    playback = createDisasterPlaybackController({ intervalMs: 1000 })
+    // 巴威风险窗口为 26/71～43/71（0 基 25～42）：窗口外快速通过，
+    // 窗口内维持 1 秒以便讲解风险迁移，并避免全程等待约 25 秒才出现预警。
+    playback = createDisasterPlaybackController({
+      intervalMs: 1000,
+      intervalForNode: (nodeIndex) => nodeIndex >= 25 && nodeIndex <= 42 ? 1000 : 250,
+    })
     // 地图空白点击清除钉住的浮窗
     target.getContainer().addEventListener('pointermove', () => {
       typhoonPopupState.value = clearPinnedWindPopupOnMove(typhoonPopupState.value)

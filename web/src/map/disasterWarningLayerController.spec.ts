@@ -8,11 +8,11 @@ const h = vi.hoisted(() => {
     return marker
   })
   const createGeoJSON = vi.fn((_geojson: unknown, _opts: unknown) => {
-    const layer = { addTo: () => layer, on: vi.fn(), remove: vi.fn() }
+    const layer = { addTo: () => layer, on: vi.fn(), remove: vi.fn(), setStyle: vi.fn() }
     return layer
   })
   const makeLayerGroup = () => {
-    const group = { clearLayers: h.layerGroupClear, addTo: () => group, remove: h.layerGroupRemove }
+    const group = { clearLayers: h.layerGroupClear, removeLayer: vi.fn(), addTo: () => group, remove: h.layerGroupRemove }
     return group
   }
   // 最小 document stub（ensureBadgeStyle/ensurePanes 会 document.createElement）
@@ -119,6 +119,19 @@ describe('createDisasterWarningLayerController · 村级预警标记（R3-6/R3-1
     ctl.render({ level: 'village', entries: [{ village: v2, level: 2 }, { village: v3, level: 3 }] })
     await vi.waitFor(() => expect(geoJsonMock.mock.calls.length).toBeGreaterThan(0))
     expect(geoJsonMock.mock.calls.length).toBe(2) // 本村 + 同乡镇预警村
+  })
+
+  it('县乡级等级变化只更新受影响村界，不清空并重建全部图层', async () => {
+    mockFetch.mockResolvedValue(townshipFC() as never)
+    const ctl = createDisasterWarningLayerController({})
+    ctl.mount(fakeMap())
+    ctl.render({ level: 'county', entries: [{ village: v2, level: 2 }] })
+    await vi.waitFor(() => expect(geoJsonMock).toHaveBeenCalledTimes(1))
+    const firstLayer = geoJsonMock.mock.results[0]!.value
+
+    ctl.render({ level: 'county', entries: [{ village: v2, level: 3 }, { village: v3, level: 2 }] })
+    await vi.waitFor(() => expect(geoJsonMock).toHaveBeenCalledTimes(2))
+    expect(firstLayer.setStyle).toHaveBeenCalledWith(expect.objectContaining({ color: WARNING_LEVEL_COLOR[3] }))
   })
 
   it('村界缺失：跳过不绘制（不崩溃）', async () => {
