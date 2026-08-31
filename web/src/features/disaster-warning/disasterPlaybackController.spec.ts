@@ -43,22 +43,22 @@ describe('createDisasterPlaybackController · 受灾预警播放语义（R2-1~R2
     expect(steps).toEqual([3, 4])
   })
 
-  it('按下一节点所在时段切换播放节奏，风险窗口外快速通过', () => {
+  it('所有节点均使用同一播放间隔，不因风险状态加速', () => {
     const { setTimeoutImpl, clearTimeoutImpl, tick } = fakeTimers()
     const ctl = createDisasterPlaybackController({
       setTimeout: setTimeoutImpl as unknown as typeof setTimeout,
       clearTimeout: clearTimeoutImpl as unknown as typeof clearTimeout,
       intervalMs: 1000,
-      intervalForNode: (nodeIndex) => nodeIndex >= 2 && nodeIndex <= 3 ? 1000 : 250,
-    })
+      intervalForNode: (nodeIndex: number) => nodeIndex >= 2 && nodeIndex <= 3 ? 1000 : 250,
+    } as any)
     ctl.start(5, { onStep: () => {}, onLoopRestart: () => {} })
-    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 250) // 下一个节点 1，非风险段
+    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000)
     tick(1)
-    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000) // 下一个节点 2，风险段
+    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000)
     tick(1)
-    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000) // 下一个节点 3，风险段
+    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000)
     tick(1)
-    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 250) // 下一个节点 4，非风险段
+    expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000)
   })
 
   it('播到末节点自动回起点循环，不自动停止（R2-4）', () => {

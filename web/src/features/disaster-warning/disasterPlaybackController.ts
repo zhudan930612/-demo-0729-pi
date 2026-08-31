@@ -18,8 +18,6 @@ export interface DisasterPlaybackOptions {
   setTimeout?: typeof globalThis.setTimeout
   clearTimeout?: typeof globalThis.clearTimeout
   intervalMs?: number
-  /** 按即将进入的节点决定等待时间；用于风险窗口外快速播放。 */
-  intervalForNode?: (nodeIndex: number) => number
 }
 
 export interface DisasterPlaybackController {
@@ -35,7 +33,6 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
   const schedule = options.setTimeout ?? globalThis.setTimeout
   const unschedule = options.clearTimeout ?? globalThis.clearTimeout
   const intervalMs = options.intervalMs ?? 150
-  const intervalForNode = options.intervalForNode ?? (() => intervalMs)
   let timer: ReturnType<typeof setTimeout> | null = null
   let playing = false
   let nodeIndex = 0
@@ -43,8 +40,7 @@ export function createDisasterPlaybackController(options: DisasterPlaybackOption
   let callbacks: DisasterPlaybackCallbacks | null = null
 
   function scheduleAdvance() {
-    const nextIndex = nodeCount > 0 ? (nodeIndex + 1) % nodeCount : 0
-    timer = schedule(advance, intervalForNode(nextIndex))
+    timer = schedule(advance, intervalMs)
   }
 
   function advance() {
