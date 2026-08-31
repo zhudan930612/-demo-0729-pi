@@ -150,10 +150,20 @@ def main() -> int:
         check("R3-23 真实驻地合计 ≈83.9%", abs(real_src / total * 100 - 83.9) <= 1.5,
               f"实际 {real_src / total * 100:.1f}%")
 
-    # ---- R3-5 校准基线 ----
+    # ---- R3-5 / 巴威情景校准 ----
     if calib is not None:
-        bl = calib.get("baseline", {})
-        checks = [
+        if calib.get("mode") == "bavi-demo-v1":
+            active = calib.get("activeNodeRange", {})
+            check("巴威情景仅影响 18 个节点", active.get("startIndex") == 25
+                  and active.get("endIndex") == 42 and active.get("count") == 18,
+                  f"实际 {active}")
+            check("巴威情景中高风险峰值不超过 600 村", calib.get("midHighPeak", 601) <= 600,
+                  f"实际 {calib.get('midHighPeak')}")
+            check("巴威情景覆盖全部 18 个受影响节点", calib.get("nodesWithWarning") == 18,
+                  f"实际 {calib.get('nodesWithWarning')}/{calib.get('nodeCount')}")
+        else:
+            bl = calib.get("baseline", {})
+            checks = [
             ("R3-5 峰值节点 07-11 08时", calib.get("peakNodeTime") == bl.get("peakNodeTime"),
              f"实际 {calib.get('peakNodeTime')}"),
             ("R3-5 峰值预警村 ≈1036", abs(calib.get("peakVillageTotal", 0) - bl.get("peakVillageTotal", 0)) <= 2,
@@ -176,9 +186,9 @@ def main() -> int:
             ("R3-5 未来24h全窗口最大值 ≈191.8mm",
              abs(calib.get("future24MaxMm", 0) - bl.get("future24MaxMm", 0)) <= 0.5,
              f"实际 {calib.get('future24MaxMm')}mm"),
-        ]
-        for name, cond, detail in checks:
-            check(name, cond, detail)
+            ]
+            for name, cond, detail in checks:
+                check(name, cond, detail)
 
     # ---- R3-21 滞回（从 warnings 抽查验证滞回属性）----
     if warnings is not None and calib is not None:
@@ -199,6 +209,24 @@ def main() -> int:
         hy = apply_hysteresis(seq, 2)
         ok_hy = hy[1] == 3 and hy[2] == 3 and hy[3] == 2 and hy[4] == 3 and hy[6] == 2 and hy[8] == 1
         check("R3-21 滞回行为（升级立即/2 节点降级/逐级降）", ok_hy, f"seq={seq} -> {hy}")
+        if warnings.get("scenario", {}).get("mode") == "bavi-demo-v1":
+            mid_high = [sum(1 for _, level in node["w"] if level >= 2)
+                        for node in warnings.get("nodes", [])]
+            active = [i for i, count in enumerate(mid_high) if count]
+            signatures = [tuple(tuple(pair) for pair in node["w"])
+                          for node in warnings.get("nodes", [])
+                          if any(level >= 2 for _, level in node["w"])]
+            max_repeat = 0
+            repeat = 0
+            previous = None
+            for signature in signatures:
+                repeat = repeat + 1 if signature == previous else 1
+                max_repeat = max(max_repeat, repeat)
+                previous = signature
+            check("巴威情景中高风险节点范围正确", active == list(range(25, 43)), f"实际 {active}")
+            check("巴威情景至少 12 个不同村级状态", len(set(signatures)) >= 12,
+                  f"实际 {len(set(signatures))}")
+            check("巴威情景相同村级状态最多连续 2 帧", max_repeat <= 2, f"实际 {max_repeat}")
 
     # ---- R4-8 承保规模 ----
     if under is not None:
@@ -238,8 +266,13 @@ def main() -> int:
         ca = np.array([v["centerLat"] for v in vs], dtype=np.float64)
         gi = _gen.nearest_grid_index(cl, ca, glon, glat)
         fut = _gen.build_future24_matrix(precip["grid"], node_times, gi)
-        res = _gen.compute_warnings(fut)
-        recomputed = _gen.build_warnings_json(vs, node_times, res["hysteresis"])
+        scenario = warnings.get("scenario", {}) if warnings else {}
+        if scenario.get("mode") == "bavi-demo-v1":
+            levels = _gen.build_bavi_demo_levels(vs, node_times)
+            recomputed = _gen.build_warnings_json(vs, node_times, levels, scenario)
+        else:
+            res = _gen.compute_warnings(fut)
+            recomputed = _gen.build_warnings_json(vs, node_times, res["hysteresis"])
         same = json.dumps(recomputed, ensure_ascii=False, sort_keys=True) == \
             json.dumps(warnings, ensure_ascii=False, sort_keys=True)
         check("确定性 warnings.json 重算一致", same)

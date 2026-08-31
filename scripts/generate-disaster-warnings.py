@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -98,6 +99,52 @@ def compute_warnings(fut: np.ndarray, thresholds=None, hysteresis_nodes=None) ->
     return {"raw": raw, "hysteresis": hy, "future24": fut}
 
 
+# 巴威演示情景：1-based 26/71 ~ 43/71 对应数组 25 ~ 42。每项为
+# (低风险数，中风险数，高风险数，中心经度，中心纬度)。中心由南向北移动，
+# 风险村按与中心的距离排序；哈希仅用于同距离时稳定打散，保证离线重算一致。
+BAVI_DEMO_PLAN = (
+    (36, 60, 20, 120.55, 27.70), (63, 100, 40, 120.75, 27.95),
+    (101, 150, 75, 120.95, 28.22), (144, 200, 120, 121.15, 28.52),
+    (176, 240, 150, 121.35, 28.78), (207, 270, 190, 121.50, 29.03),
+    (230, 290, 220, 121.62, 29.28), (252, 310, 250, 121.72, 29.52),
+    (270, 320, 280, 121.60, 29.76), (261, 300, 280, 121.47, 29.97),
+    (239, 270, 260, 121.30, 30.14), (207, 240, 220, 121.12, 30.27),
+    (176, 220, 170, 120.94, 30.36), (144, 200, 120, 120.78, 30.43),
+    (117, 180, 80, 120.66, 30.48), (90, 150, 50, 120.58, 30.51),
+    (63, 110, 30, 120.52, 30.54), (36, 70, 10, 120.47, 30.57),
+)
+
+
+def build_bavi_demo_levels(villages: list, node_times: list) -> np.ndarray:
+    """生成巴威的确定性情景风险矩阵，避免各节点复用同一批演示村。
+
+    仅在 18 个受影响节点布设风险；中高风险峰值固定为 600 村，村级中心
+    随台风北移。此函数不替代原始降雨计算，降雨仍用于面板雨量和灾损指标。
+    """
+    if len(node_times) < 43:
+        raise ValueError("巴威情景需要至少 43 个轨迹节点")
+    if not villages:
+        return np.zeros((0, len(node_times)), dtype=np.int8)
+    lon = np.array([v["centerLon"] for v in villages], dtype=np.float64)
+    lat = np.array([v["centerLat"] for v in villages], dtype=np.float64)
+    tie_break = np.array([
+        int.from_bytes(hashlib.sha256(v["code"].encode("utf-8")).digest()[:8], "big") / 2**64
+        for v in villages
+    ])
+    levels = np.zeros((len(villages), len(node_times)), dtype=np.int8)
+    for offset, (low, mid, high, center_lon, center_lat) in enumerate(BAVI_DEMO_PLAN):
+        distance = ((lon - center_lon) * 0.88) ** 2 + (lat - center_lat) ** 2
+        order = np.lexsort((tie_break, distance))
+        high_end = min(high, len(order))
+        mid_end = min(high + mid, len(order))
+        low_end = min(high + mid + low, len(order))
+        node_index = 25 + offset
+        levels[order[:high_end], node_index] = 3
+        levels[order[high_end:mid_end], node_index] = 2
+        levels[order[mid_end:low_end], node_index] = 1
+    return levels
+
+
 def ever_tier_counts(raw: np.ndarray) -> dict:
     """全窗口每村曾达最高档（无滞回，校准口径 R3-5）。"""
     vmax = raw.max(axis=1)
@@ -136,7 +183,7 @@ def calibration_report(raw: np.ndarray, fut: np.ndarray, node_times: list, thres
     }
 
 
-def build_warnings_json(villages: list, node_times: list, hy: np.ndarray) -> dict:
+def build_warnings_json(villages: list, node_times: list, hy: np.ndarray, scenario: dict | None = None) -> dict:
     """契约 6.3：只含全窗口曾预警村；nodes[i].w = [村索引, 等级]（等级已含滞回）。"""
     ever = (hy > 0).any(axis=1)
     idx_of = {i: k for k, i in enumerate(np.nonzero(ever)[0].tolist())}
@@ -145,8 +192,32 @@ def build_warnings_json(villages: list, node_times: list, hy: np.ndarray) -> dic
     for k, t in enumerate(node_times):
         w = [[idx_of[v], int(hy[v, k])] for v in idx_of if hy[v, k] > 0]
         nodes_out.append({"i": k, "w": w})
-    return {"schemaVersion": 1, "thresholds": THRESHOLDS, "hysteresisNodes": HYSTERESIS_NODES,
-            "nodeTimes": node_times, "villages": vs, "nodes": nodes_out}
+    out = {"schemaVersion": 2 if scenario else 1, "thresholds": THRESHOLDS,
+           "hysteresisNodes": HYSTERESIS_NODES, "nodeTimes": node_times,
+           "villages": vs, "nodes": nodes_out}
+    if scenario:
+        out["scenario"] = scenario
+    return out
+
+
+def scenario_calibration_report(levels: np.ndarray, node_times: list, fut: np.ndarray) -> dict:
+    """为演示情景留档：风险人数由情景计划决定，雨量指标仍源自真实降雨输入。"""
+    total = (levels > 0).sum(axis=0)
+    mid_high = (levels >= 2).sum(axis=0)
+    peak_k = int(np.argmax(mid_high))
+    vmax = levels.max(axis=1)
+    return {
+        "mode": "bavi-demo-v1", "nodeCount": len(node_times),
+        "activeNodeRange": {"startIndex": 25, "endIndex": 42, "count": 18},
+        "peakNodeTime": node_times[peak_k], "peakVillageTotal": int(total[peak_k]),
+        "peakHi": int((levels[:, peak_k] == 3).sum()),
+        "peakMid": int((levels[:, peak_k] == 2).sum()),
+        "peakLow": int((levels[:, peak_k] == 1).sum()),
+        "midHighPeak": int(mid_high.max()), "nodesWithWarning": int((total > 0).sum()),
+        "everTier": {"high": int((vmax == 3).sum()), "mid": int((vmax == 2).sum()),
+                     "low": int((vmax == 1).sum()), "none": int((vmax == 0).sum())},
+        "future24MaxMm": round(float(fut.max()), 1),
+    }
 
 
 def main(argv=None) -> int:
@@ -156,6 +227,7 @@ def main(argv=None) -> int:
     parser.add_argument("--seats", default=str(DISASTER_DIR / "village-seats.json"))
     parser.add_argument("--out", default=str(DISASTER_DIR / "warnings.json"))
     parser.add_argument("--calib-out", default=str(DISASTER_DIR / "calibration.json"))
+    parser.add_argument("--scenario", choices=("bavi-demo-v1", "threshold-v1"), default="bavi-demo-v1")
     args = parser.parse_args(argv)
 
     track = load_json(Path(args.track))
@@ -173,19 +245,28 @@ def main(argv=None) -> int:
     fut = build_future24_matrix(precip["grid"], node_times, gi)
     res = compute_warnings(fut)
     raw, hy = res["raw"], res["hysteresis"]
-
-    calib = calibration_report(raw, fut, node_times)
+    scenario = None
+    if args.scenario == "bavi-demo-v1":
+        hy = build_bavi_demo_levels(villages, node_times)
+        calib = scenario_calibration_report(hy, node_times, fut)
+        scenario = {
+            "mode": "bavi-demo-v1", "activeNodeRange": {"startIndex": 25, "endIndex": 42},
+            "midHighPeakLimit": 600, "selection": "deterministic-spatial-migration",
+        }
+    else:
+        calib = calibration_report(raw, fut, node_times)
     # 基线核对（R3-5）：报告允许 ±2 村 / ±1 节点容差（浮点舍入）；超过则在留档里标 mismatch
-    bl = calib["baseline"]
-    dev = {}
-    for k, tol in [("peakVillageTotal", 2), ("peakHi", 2), ("peakMid", 2), ("peakLow", 2),
-                   ("highRiskPeak", 2), ("nodesWithWarning", 1)]:
-        diff = calib[k] - bl[k]
-        if abs(diff) > tol:
-            dev[k] = {"got": calib[k], "baseline": bl[k], "diff": diff}
-    calib["baselineCheck"] = {"ok": not dev, "deviation": dev}
+    if args.scenario == "threshold-v1":
+        bl = calib["baseline"]
+        dev = {}
+        for k, tol in [("peakVillageTotal", 2), ("peakHi", 2), ("peakMid", 2), ("peakLow", 2),
+                       ("highRiskPeak", 2), ("nodesWithWarning", 1)]:
+            diff = calib[k] - bl[k]
+            if abs(diff) > tol:
+                dev[k] = {"got": calib[k], "baseline": bl[k], "diff": diff}
+        calib["baselineCheck"] = {"ok": not dev, "deviation": dev}
 
-    warnings = build_warnings_json(villages, node_times, hy)
+    warnings = build_warnings_json(villages, node_times, hy, scenario)
 
     out = Path(args.out)
     save_json(out, warnings)
@@ -196,7 +277,9 @@ def main(argv=None) -> int:
           f"(高{calib['peakHi']}·中{calib['peakMid']}·低{calib['peakLow']})")
     print(f"   曾达档位: 高{calib['everTier']['high']} 中{calib['everTier']['mid']} "
           f"低{calib['everTier']['low']} 无{calib['everTier']['none']}")
-    if calib["baselineCheck"]["ok"]:
+    if args.scenario == "bavi-demo-v1":
+        print(f"   ✅ 情景推演：影响节点={calib['activeNodeRange']['count']} 中高风险峰值={calib['midHighPeak']}")
+    elif calib["baselineCheck"]["ok"]:
         print("   ✅ 与 R3-5 基线一致（容差内）")
     else:
         print(f"   ⚠️  与 R3-5 基线偏差: {json.dumps(calib['baselineCheck']['deviation'], ensure_ascii=False)}")

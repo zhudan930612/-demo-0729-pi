@@ -100,6 +100,13 @@ export interface DisasterWarnings {
   schemaVersion: number
   thresholds: { low: number; mid: number; high: number }
   hysteresisNodes: number
+  /** 演示情景元数据；缺失时兼容旧版阈值预警产物。 */
+  scenario?: {
+    mode: 'bavi-demo-v1'
+    activeNodeRange: { startIndex: number; endIndex: number }
+    midHighPeakLimit: number
+    selection: 'deterministic-spatial-migration'
+  }
   nodeTimes: string[]
   /** 只含全窗口曾经触发预警的村 */
   villages: DisasterWarningVillage[]

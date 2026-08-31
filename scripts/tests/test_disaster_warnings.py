@@ -18,6 +18,7 @@ _spec = importlib.util.spec_from_file_location("generate_disaster_warnings", SCR
 _gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gen)
 build_future24_matrix = _gen.build_future24_matrix
+build_bavi_demo_levels = _gen.build_bavi_demo_levels
 build_warnings_json = _gen.build_warnings_json
 calibration_report = _gen.calibration_report
 compute_warnings = _gen.compute_warnings
@@ -101,7 +102,7 @@ class TestFuture24(unittest.TestCase):
 class TestWarnings(unittest.TestCase):
     def test_tiers(self):
         # 未来24h 值直接驱动档位
-        fut = np.array([[129.0], [130.0], [160.0], [185.0], [50.0]])
+        fut = np.array([[169.0], [170.0], [175.0], [180.0], [50.0]])
         res = compute_warnings(fut)
         self.assertEqual(res["raw"][:, 0].tolist(), [0, 1, 2, 3, 0])
 
@@ -131,6 +132,29 @@ class TestWarningsJson(unittest.TestCase):
         self.assertEqual(out["nodes"][1]["w"], [[0, 1]])  # 村0 降到低
         self.assertEqual(out["nodes"][2]["w"], [])  # 都解除
         self.assertEqual(out["nodeTimes"], node_times)
+
+
+class TestBaviDemoScenario(unittest.TestCase):
+    def test_uses_eighteen_migrating_nodes_with_a_six_hundred_village_ceiling(self):
+        villages = [
+            {"code": f"V{i:04d}", "centerLon": 120.2 + (i % 35) * 0.06,
+             "centerLat": 27.4 + (i // 35) * 0.06}
+            for i in range(700)
+        ]
+        node_times = [f"n{i}" for i in range(71)]
+
+        levels = build_bavi_demo_levels(villages, node_times)
+        mid_high = (levels >= 2).sum(axis=0)
+        active = np.nonzero(mid_high)[0].tolist()
+        signatures = {tuple(levels[:, i].tolist()) for i in active}
+
+        self.assertEqual(active, list(range(25, 43)))
+        self.assertLessEqual(int(mid_high.max()), 600)
+        self.assertGreaterEqual(len(signatures), 12)
+        self.assertLessEqual(max(sum(1 for _ in group) for _, group in __import__("itertools").groupby(
+            tuple(levels[:, i].tobytes() for i in active))), 2)
+        self.assertGreater(int((levels[:, 25] > 0).sum()), 0)
+        self.assertGreater(int((levels[:, 42] > 0).sum()), 0)
 
 
 class TestCalibrationReport(unittest.TestCase):
