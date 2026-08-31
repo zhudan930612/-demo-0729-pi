@@ -383,6 +383,22 @@ test('R5-12/R5-13 任务列表：状态筛选 + 详情（预警等级/关联预�
   await expect(page.locator('[data-test="dw-task-history"]')).toBeVisible()
 })
 
+test('R5-14 查看全部任务：抽屉内选择任务后保留列表并展开详情', async ({ page }) => {
+  await enterDisaster(page, { useMulti: true })
+  await page.click('#dw-tab-warning')
+  await expect(await holdAtNode(page, '7月11日00时')).toBe(true)
+  await page.locator('[data-test="dw-batch-dispatch"]').click()
+  await page.click('#dw-tab-tasks')
+  await page.locator('[data-test="dw-view-all-tasks"]').click()
+
+  const drawer = page.locator('[data-test="dw-task-drawer"]')
+  await expect(drawer).toBeVisible()
+  await expect(drawer).toContainText('总任务')
+  await drawer.locator('[data-test="dw-task-drawer-row"]').first().click()
+  await expect(drawer).toBeVisible()
+  await expect(drawer.locator('[data-test="dw-task-drawer-detail"]')).toContainText('基础信息')
+})
+
 test('R6-1/R6-2 证据：未完成任务显示待取证；任务状态流转后已完成挂证据', async ({ page }) => {
   await enterDisaster(page, { useMulti: true })
   await page.click('#dw-tab-warning')

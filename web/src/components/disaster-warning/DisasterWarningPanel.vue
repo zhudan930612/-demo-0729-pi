@@ -216,23 +216,82 @@
     <!-- 全部任务抽屉（R5-14） -->
     <Teleport to="body">
       <Transition name="side-drawer">
-        <aside v-if="taskDrawerOpen" class="dw-drawer" aria-label="全部任务" data-test="dw-task-drawer">
-          <header class="dw-drawer-header">
-            <div><span class="dw-drawer-eyebrow">任务清单</span><h2 class="dw-drawer-title">全部任务</h2></div>
-            <button type="button" class="dw-drawer-close" aria-label="关闭" @click="closeTaskDrawer">×</button>
+        <aside v-if="taskDrawerOpen" class="dw-task-drawer" aria-label="全部任务" data-test="dw-task-drawer">
+          <header class="dw-task-drawer-header">
+            <div><span class="dw-task-drawer-eyebrow">任务清单</span><h2 class="dw-task-drawer-title">全部任务</h2></div>
+            <button type="button" class="dw-task-drawer-close" aria-label="关闭" @click="closeTaskDrawer">×</button>
           </header>
-          <div class="dw-drawer-tools">
-            <input v-model.trim="taskQuery" type="search" placeholder="搜索任务名称或村" />
-          </div>
-          <div class="dw-drawer-list">
-            <div v-if="filteredAllTasks.length === 0" class="empty-state">暂无任务</div>
-            <button v-for="t in filteredAllTasks" :key="t.id" type="button" class="dw-drawer-card" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
-              <span class="dc-main">
-                <span class="dc-name">{{ t.name }}</span>
-                <span class="dc-meta"><i class="task-level-dot" :style="{ background: t.warningLevel ? levelColor(t.warningLevel) : '#94a3b8' }"></i>{{ t.taskNo }} · {{ t.typeName }} · {{ t.villageName }}{{ t.released ? ' · ⚠ 关联预警已解除' : '' }}</span>
-              </span>
-              <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+
+          <section class="dw-task-drawer-summary" aria-label="任务状态统计">
+            <button v-for="s in drawerStatusFilters" :key="s" type="button" class="dw-ds-item" :class="[`dw-ds-${drawerSfKey(s)}`, { active: drawerStatus === s }]" @click="drawerStatus = s">
+              <span>{{ s }}</span><strong>{{ s === '总任务' ? store.tasks.length : taskStatusCount(s) }}</strong>
             </button>
+          </section>
+
+          <div class="dw-task-drawer-content" :class="{ 'has-detail': drawerTask }">
+            <section class="dw-task-drawer-list-pane">
+              <div class="dw-task-drawer-tools">
+                <input v-model.trim="taskQuery" type="search" placeholder="搜索任务名称或村" />
+              </div>
+              <div class="dw-task-drawer-cards">
+                <div v-if="drawerPageItems.length === 0" class="empty-state">暂无任务</div>
+                <button v-for="t in drawerPageItems" :key="t.id" type="button" class="dw-task-drawer-card" :class="{ active: drawerTaskId === t.id }" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
+                  <span class="dc-main">
+                    <span class="dc-eyebrow">{{ t.taskNo }}</span>
+                    <span class="dc-name">{{ t.name }}</span>
+                    <span class="dc-meta"><i class="task-level-dot" :style="{ background: t.warningLevel ? levelColor(t.warningLevel) : '#94a3b8' }"></i>{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+                    <span v-if="t.released" class="released-hint">⚠ 关联预警已解除</span>
+                  </span>
+                  <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+                </button>
+              </div>
+              <footer class="dw-task-drawer-pagination">
+                <button type="button" :disabled="drawerPage === 1" @click="drawerPage--">上一页</button>
+                <span>第 {{ drawerPage }} / {{ drawerTotalPages }} 页</span>
+                <button type="button" :disabled="drawerPage === drawerTotalPages" @click="drawerPage++">下一页</button>
+              </footer>
+            </section>
+
+            <section v-if="drawerTask" class="dw-task-drawer-detail-pane" data-test="dw-task-drawer-detail">
+              <header class="dw-task-drawer-detail-head">
+                <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeDrawerDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <span class="detail-title">{{ drawerTask.taskNo }}</span>
+              </header>
+              <div class="dw-task-detail-scroll">
+                <div class="detail-group">
+                  <div class="group-label">基础信息</div>
+                  <div class="detail-meta">
+                    <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(drawerTask.status)}`">{{ drawerTask.status }}</span></span></div>
+                    <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ drawerTask.typeName }}</span></div>
+                    <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ drawerTask.name }}</span></div>
+                    <div class="meta-row"><span class="meta-label">预警等级</span><span class="meta-value"><i class="task-level-dot" :style="{ background: drawerTask.warningLevel ? levelColor(drawerTask.warningLevel) : '#94a3b8' }"></i>{{ drawerTask.warningLevel ? levelText(drawerTask.warningLevel) : '—' }}</span></div>
+                    <div class="meta-row"><span class="meta-label">关联预警</span><span class="meta-value">{{ drawerTask.villageName }}{{ drawerTask.released ? '（已解除）' : '' }}</span></div>
+                    <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value">{{ drawerTask.location.name }}</span></div>
+                    <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ drawerTask.createdAt }}</span></div>
+                  </div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">处置说明</div>
+                  <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ drawerTask.sopAction }}</div></div>
+                  <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ drawerTask.requirement }}</div></div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">变化记录</div>
+                  <div v-if="drawerTask.history.length === 0" class="pending-evidence">暂无变化记录</div>
+                  <div v-else class="history-list">
+                    <div v-for="(h, idx) in drawerTask.history" :key="idx" class="history-row"><span class="history-time">{{ h.time }}</span><span class="history-text">{{ h.text }}</span></div>
+                  </div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">影像资料</div>
+                  <div v-if="drawerTask.status !== '已完成' || drawerTask.evidence.length === 0" class="sec-body pending-evidence">待取证</div>
+                  <div v-else class="ev-grid">
+                    <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)"><img :src="e.url" alt="证据缩略图" /><span class="ev-time">{{ e.time }}</span></button>
+                  </div>
+                  <p class="ev-demo-note">演示数据：占位图，仅用于演示取证流程</p>
+                </div>
+              </div>
+            </section>
           </div>
         </aside>
       </Transition>
@@ -502,17 +561,44 @@ function closeLightbox() { lightbox.value = null }
 // 全部任务抽屉（R5-14）
 const taskDrawerOpen = computed(() => store.taskDrawerOpen)
 const taskQuery = ref('')
+const drawerStatus = ref('总任务')
+const drawerStatusFilters = ['总任务', ...DISASTER_TASK_STATUSES]
+const drawerTaskId = ref<string | null>(null)
+const drawerPage = ref(1)
+const DRAWER_PAGE_SIZE = 8
 const filteredAllTasks = computed(() => {
   let tasks = store.tasks
+  if (drawerStatus.value !== '总任务') tasks = tasks.filter((t) => t.status === drawerStatus.value)
   const q = taskQuery.value.trim().toLowerCase()
   if (q) tasks = tasks.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(q)))
   return [...tasks].sort((a, b) => b.createdAtNode - a.createdAtNode)
 })
+const drawerTotalPages = computed(() => Math.max(1, Math.ceil(filteredAllTasks.value.length / DRAWER_PAGE_SIZE)))
+const drawerPageItems = computed(() => filteredAllTasks.value.slice((drawerPage.value - 1) * DRAWER_PAGE_SIZE, drawerPage.value * DRAWER_PAGE_SIZE))
+const drawerTask = computed(() => store.tasks.find((t) => t.id === drawerTaskId.value) ?? null)
+const drawerSfKey = (s: string) => (s === '总任务' ? 'all' : statusKey(s))
+const taskStatusCount = (s: string) => store.tasks.filter((t) => t.status === s).length
+watch([taskQuery, drawerStatus], () => { drawerPage.value = 1 })
+watch(drawerTotalPages, (total) => { if (drawerPage.value > total) drawerPage.value = total })
+watch(taskDrawerOpen, (open) => {
+  if (open) {
+    taskQuery.value = ''
+    drawerStatus.value = '总任务'
+    drawerTaskId.value = null
+    drawerPage.value = 1
+  }
+})
 function selectFromTaskDrawer(id: string) {
-  store.openTask(id)
+  drawerTaskId.value = id
+}
+function closeDrawerDetail() { drawerTaskId.value = null }
+function closeTaskDrawer() {
+  taskQuery.value = ''
+  drawerStatus.value = '总任务'
+  drawerTaskId.value = null
+  drawerPage.value = 1
   store.closeTaskDrawer()
 }
-function closeTaskDrawer() { store.closeTaskDrawer() }
 </script>
 
 <style scoped>
@@ -695,11 +781,53 @@ function closeTaskDrawer() { store.closeTaskDrawer() }
 .dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dc-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .dc-meta { font-size: 11px; color: #64748b; }
+/* 全部任务抽屉：沿用农情监测的统计筛选、双栏任务卡与详情布局 */
+.dw-task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1150; width: min(920px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); }
+.dw-task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.dw-task-drawer-eyebrow { display: block; color: #64748b; font-size: 11px; font-weight: 650; }
+.dw-task-drawer-title { margin: 4px 0 0; overflow-wrap: anywhere; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.dw-task-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
+.dw-task-drawer-close:hover { background: #cbd5e1; }
+.dw-task-drawer-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #e2e8f0; }
+.dw-ds-item { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 16px; border: 0; background: #fff; cursor: pointer; text-align: left; transition: background 0.12s ease; }
+.dw-ds-item.active { background: #eff6ff; }
+.dw-ds-item:hover { background: #f1f5f9; }
+.dw-ds-item span { font-size: 11px; }
+.dw-ds-item strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.dw-ds-all span { color: #64748b; } .dw-ds-all strong { color: #0f172a; }
+.dw-ds-claim span, .dw-ds-claim strong { color: #c2410c; }
+.dw-ds-doing span, .dw-ds-doing strong { color: #a16207; }
+.dw-ds-done span, .dw-ds-done strong { color: #166534; }
+.dw-task-drawer-content { flex: 1 1 auto; min-height: 0; display: flex; }
+.dw-task-drawer-list-pane { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.dw-task-drawer-content.has-detail .dw-task-drawer-list-pane { flex: 0 0 46%; border-right: 1px solid #e2e8f0; }
+.dw-task-drawer-tools { display: flex; align-items: center; padding: 14px 18px; }
+.dw-task-drawer-tools input { width: 280px; min-width: 0; max-width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; }
+.dw-task-drawer-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
+.dw-task-drawer-card { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; transition: background 0.12s ease, border-color 0.12s ease; }
+.dw-task-drawer-card.active { border-color: #bfdbfe; background: #eff6ff; }
+.dw-task-drawer-card:hover { background: #f1f5f9; }
+.dw-task-drawer-card .dc-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
+.dw-task-drawer-card .task-status { flex: none; }
+.dw-task-drawer-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+.dw-task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dw-task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
+.dw-task-drawer-pagination span { color: #64748b; font-size: 12px; }
+.dw-task-drawer-detail-pane { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.dw-task-drawer-detail-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.dw-task-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
 .lightbox-overlay { position: fixed; inset: 0; z-index: 1300; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; }
 .lightbox { position: relative; }
 .lightbox img { max-width: 78vw; max-height: 82vh; border-radius: 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.45); }
 .lb-count { position: absolute; bottom: -28px; left: 50%; transform: translateX(-50%); color: #e2e8f0; font-size: 12px; background: rgba(15,23,42,0.55); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .side-drawer-enter-active, .side-drawer-leave-active { transition: transform 0.25s ease; }
 .side-drawer-enter-from, .side-drawer-leave-to { transform: translateX(100%); }
+@media (max-width: 700px) {
+  .dw-task-drawer { width: calc(100vw - 16px); }
+  .dw-task-drawer-summary { grid-template-columns: repeat(2, 1fr); }
+  .dw-task-drawer-content.has-detail { display: block; overflow-y: auto; }
+  .dw-task-drawer-content.has-detail .dw-task-drawer-list-pane { min-height: 45%; border-right: 0; border-bottom: 1px solid #e2e8f0; }
+  .dw-task-drawer-detail-pane { min-height: 55%; }
+}
 @media (max-width: 560px) { .disaster-warning-panel { width: calc(100% - 12px); right: 6px; } }
 </style>
