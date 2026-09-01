@@ -215,6 +215,21 @@ export const useDisasterWarningStore = defineStore('disasterWarning', {
     closeTaskDrawer() { this.taskDrawerOpen = false },
     openWarningDrawer() { this.warningDrawerOpen = true },
     closeWarningDrawer() { this.warningDrawerOpen = false },
+    /** 一键派发演示：在当前节点预置任务进度，主面板与抽屉共用同一份历史和证据。 */
+    applyDemoTaskState(taskId: string, status: Exclude<DisasterTaskStatus, '待领取'>, time: string) {
+      const task = this.tasks.find((item) => item.id === taskId)
+      if (!task || task.status === '已完成') return
+      task.status = status
+      if (status === '进行中') {
+        task.history = [...task.history, { time, text: '任务进行中（演示）' }]
+        return
+      }
+      task.history = [...task.history, { time, text: '任务完成（演示证据已挂载）' }]
+      task.evidence = [
+        { url: '/data/agri/evidence/img_001.jpg', time: `${time} 现场取证` },
+        { url: '/data/agri/evidence/img_002.jpg', time: `${time} 现场取证` },
+      ]
+    },
     /** 任务状态推进（R5-6）：自生成节点起至播放窗口结束均分三段，第一段末→进行中、第二段末→已完成 */
     advanceTaskStatuses(nodeIndex: number) {
       const windowEnd = this.nodeCount - 1

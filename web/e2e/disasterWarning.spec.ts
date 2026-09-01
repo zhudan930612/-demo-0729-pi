@@ -326,7 +326,7 @@ test('R3-14/R3-15 卡片 AI 文案 + 派发任务按钮生成任务（YJ-）并�
   await expect(page.locator('[data-test="dw-task-row"] .task-eyebrow').first()).toHaveText(/YJ-2026-\d{4}/)
 })
 
-test('R3-16/R3-17/R3-18 一键派发 + 查看全部抽屉', async ({ page }) => {
+test('R3-16/R3-17/R3-18 一键派发生成混合状态任务', async ({ page }) => {
   await enterDisaster(page, { useMulti: true })
   await page.click('#dw-tab-warning')
   await expect(await holdAtNode(page, '7月11日00时')).toBe(true) // 暂停固定节点2
@@ -334,6 +334,10 @@ test('R3-16/R3-17/R3-18 一键派发 + 查看全部抽屉', async ({ page }) => 
   await page.locator('[data-test="dw-batch-dispatch"]').click()
   await page.click('#dw-tab-tasks')
   await expect(page.locator('[data-test="dw-task-row"]')).toHaveCount(3) // 甲高2条 + 乙中1条
+  await expect(page.locator('[data-test="dw-task-row"] .task-status')).toContainText(['待领取', '进行中', '已完成'])
+  await page.locator('[data-test="dw-task-row"]', { hasText: '已完成' }).click()
+  await expect(page.locator('[data-test="dw-task-history"]')).toContainText('任务完成（演示证据已挂载）')
+  await expect(page.locator('[data-test="dw-evidence"] img')).toHaveCount(2)
 })
 
 test('R3-10 点击卡片进入村级视角（下钻聚焦该村）', async ({ page }) => {

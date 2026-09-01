@@ -3,7 +3,7 @@ import L from 'leaflet'
 import type { useDrilldownStore, Level, Crumb } from '../../stores/drilldown'
 import { useDisasterWarningStore } from '../../stores/disasterWarning'
 import { loadDisasterWarningData } from './disasterWarningRepository'
-import type { DisasterPrecip, DisasterWarningTab } from './types'
+import type { DisasterPrecip, DisasterTask, DisasterWarningTab } from './types'
 import { createDisasterPlaybackController, type DisasterPlaybackController } from './disasterPlaybackController'
 import { createPrecipitationLayerController, type PrecipitationLayerController } from '../../map/precipitationLayerController'
 import { createTyphoonLayerController, type TyphoonLayerController } from '../../map/typhoonLayerController'
@@ -332,14 +332,15 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
 
   // ---- 派发（R3-15/R3-16/R5-10/R5-11） ----
 
-  function createTasksForVillage(villageCode: string, nodeIndex: number) {
-    if (!store.warnings) return
+  function createTasksForVillage(villageCode: string, nodeIndex: number): DisasterTask[] {
+    if (!store.warnings) return []
     const entry = warnedVillagesAtNode(store.warnings, nodeIndex).find((e) => e.village.code === villageCode)
-    if (!entry) return
+    if (!entry) return []
     const level = entry.level as 1 | 2 | 3
     const types = TASK_TYPES_BY_WARNING_LEVEL[level]
+    const created: DisasterTask[] = []
     for (const type of types) {
-      store.createTask({
+      const task = store.createTask({
         villageCode: entry.village.code,
         villageName: entry.village.name,
         type,
@@ -349,7 +350,23 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
         lon: entry.village.lon,
         lat: entry.village.lat,
       })
+      if (task) created.push(task)
     }
+    return created
+  }
+
+  /** 批量演示状态按创建顺序稳定分配，避免重复进入同一节点时状态跳变。 */
+  function demoStateOf(index: number, total: number): '待领取' | '进行中' | '已完成' {
+    if (total < 3) return '待领取'
+    // 首三条保证任意可批量派发节点立刻具备三态；之后每十条按 5/3/2 比例循环，
+    // 使风险村很多时，首屏列表与顶部汇总仍能直观看到进度差异。
+    if (index === 0) return '待领取'
+    if (index === 1) return '进行中'
+    if (index === 2) return '已完成'
+    const slot = (index - 3) % 10
+    if (slot < 5) return '待领取'
+    if (slot < 8) return '进行中'
+    return '已完成'
   }
 
   function dispatchVillage(code: string) {
@@ -360,8 +377,13 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
   function dispatchAllPending() {
     if (store.phase !== 'ready') return
     const entries = warnedVillagesAtNode(store.warnings!, store.nodeIndex)
+    const created: DisasterTask[] = []
     for (const entry of entries) {
-      if (entry.level >= 2 && !store.isDispatched(entry.village.code)) createTasksForVillage(entry.village.code, store.nodeIndex)
+      if (entry.level >= 2 && !store.isDispatched(entry.village.code)) created.push(...createTasksForVillage(entry.village.code, store.nodeIndex))
+    }
+    for (const [index, task] of created.entries()) {
+      const status = demoStateOf(index, created.length)
+      if (status !== '待领取') store.applyDemoTaskState(task.id, status, store.nodeTimeLabel)
     }
   }
 
@@ -442,6 +464,14 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
     return null
   }
 
+  /** 从预警村所属乡镇的既有村界文件取得真实几何，供地图精确聚焦。 */
+  async function loadVillageGeometry(townshipCode: string, villageCode: string): Promise<Geometry | null> {
+    try {
+      const fc = await fetchJSON<FeatureCollection>(`/data/villages/${townshipCode}.geojson`)
+      return fc.features.find((feature) => String(feature.properties?.code) === villageCode)?.geometry ?? null
+    } catch { return null }
+  }
+
   async function drillToVillageWithFullPath(village: { code: string; name: string; countyCode: string; townshipCode: string; lon: number; lat: number }) {
     const current = ctx.store.current
     if (current.level === 'village' && current.code === village.code) return
@@ -457,7 +487,8 @@ export function useDisasterWarningMode(ctx: DisasterWarningContext): DisasterWar
       if (!feature) break
       crumbs.push({ level: step.level, code: step.code, name: feature.name, geometry: feature.geometry })
     }
-    crumbs.push({ level: 'village', code: village.code, name: village.name })
+    const villageGeometry = await loadVillageGeometry(village.townshipCode, village.code)
+    crumbs.push({ level: 'village', code: village.code, name: village.name, geometry: villageGeometry ?? undefined })
     await ctx.store.navigateTo(crumbs)
     // 进入村级视角后重渲预警层（R3-22）
     renderWarningLayer(store.nodeIndex)

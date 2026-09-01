@@ -199,6 +199,10 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
       if (url.endsWith('/underwriting.json')) return underwriting
       if (url.endsWith('/risk-model.json')) return riskModel
       if (url.endsWith('/panel.json')) return panel
+      if (url.endsWith('/data/villages/330382101000.geojson')) return {
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', properties: { code: '330382101001', name: '示例村' }, geometry: { type: 'Polygon', coordinates: [[[120.98, 28.18], [121.02, 28.18], [121.02, 28.22], [120.98, 28.22], [120.98, 28.18]]] } }],
+      }
       if (url.includes('/data/boundary/county/')) return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: { code: '330382', name: '乐清市' }, geometry: { type: 'Polygon', coordinates: [[[120.9, 28.1], [121.2, 28.1], [121.2, 28.4], [120.9, 28.4], [120.9, 28.1]]] } }] }
       throw new Error(`${url} -> 404`)
     })
@@ -278,8 +282,10 @@ describe('useDisasterWarningMode · T5 图层装配与播放（R2-3/R2-4/R3-6/R3
     const navigateTo = ctx.store.navigateTo as ReturnType<typeof vi.fn>
     await mode.selectVillage('330382101001')
     expect(navigateTo).toHaveBeenCalled()
-    const crumbs = navigateTo.mock.calls[0]![0] as Array<{ level: string; code: string }>
-    expect(crumbs[crumbs.length - 1]).toMatchObject({ level: 'village', code: '330382101001' })
+    const crumbs = navigateTo.mock.calls[0]![0] as Array<{ level: string; code: string; geometry?: { type?: string } }>
+    const villageCrumb = crumbs.at(-1)!
+    expect(villageCrumb).toMatchObject({ level: 'village', code: '330382101001' })
+    expect(villageCrumb.geometry).toMatchObject({ type: 'Polygon' })
   })
 
   it('selectCounty 下钻到区县（R3-20）', async () => {
@@ -370,6 +376,8 @@ describe('useDisasterWarningMode · T9 任务派发联动（R5-1~R5-11）', () =
     store.setNode(1)
     mode.dispatchAllPending()
     expect(store.tasks).toHaveLength(3) // 甲1 + 乙2
+    expect(store.tasks.map((task) => task.status)).toEqual(expect.arrayContaining(['进行中', '已完成']))
+    expect(store.tasks.find((task) => task.status === '已完成')?.evidence).toHaveLength(2)
   })
 
   it('升级联动：高风险村自动补核查类任务（R5-3/R5-8）', () => {

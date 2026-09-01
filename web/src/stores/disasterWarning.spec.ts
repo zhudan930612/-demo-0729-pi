@@ -141,6 +141,26 @@ describe('disasterWarning store', () => {
     expect(store.tasks[0]!.evidence.length).toBeGreaterThan(0) // 已完成挂预生成证据（R6-1）
   })
 
+  it('演示状态写入进行中记录与已完成证据，重复完成不追加资料', () => {
+    const store = useDisasterWarningStore()
+    store.open()
+    store.receive(store.generation, snapshot)
+    const progressing = store.createTask({ villageCode: '330382101001', villageName: '示例村', type: 'prevent', nodeIndex: 0, nodeTimeLabel: '7月11日09时', warningLevel: 2, lon: 121, lat: 28.2 })!
+    const completed = store.createTask({ villageCode: '330382101002', villageName: '完成村', type: 'inspect', nodeIndex: 0, nodeTimeLabel: '7月11日09时', warningLevel: 3, lon: 121.1, lat: 28.3 })!
+
+    store.applyDemoTaskState(progressing.id, '进行中', '7月11日10时')
+    expect(store.taskById(progressing.id)?.history.at(-1)?.text).toBe('任务进行中（演示）')
+
+    store.applyDemoTaskState(completed.id, '已完成', '7月11日10时')
+    expect(store.taskById(completed.id)?.status).toBe('已完成')
+    expect(store.taskById(completed.id)?.evidence).toHaveLength(2)
+    expect(store.taskById(completed.id)?.history.at(-1)?.text).toBe('任务完成（演示证据已挂载）')
+
+    store.applyDemoTaskState(completed.id, '已完成', '7月11日11时')
+    expect(store.taskById(completed.id)?.evidence).toHaveLength(2)
+    expect(store.taskById(completed.id)?.history).toHaveLength(2)
+  })
+
   it('升级/解除联动：任务保留 + 追加记录（R5-2/R5-3/R5-5）', () => {
     const store = useDisasterWarningStore()
     store.open()
