@@ -125,8 +125,12 @@
         <div v-if="phase === 'error'" class="empty-state" data-test="dw-task-empty">暂无任务（派发不可用）</div>
         <template v-else-if="phase === 'ready'">
           <div v-if="!visibleTask" class="task-list-pane">
+            <div class="tasks-head">
+              <div class="tasks-title" data-test="dw-task-list-title">任务列表 <em>共 {{ filteredTasks.length }} 项</em></div>
+              <button v-if="filteredTasks.length > 0" type="button" class="view-top" data-test="dw-view-all-tasks" @click="emit('open-task-drawer')">查看全部任务</button>
+            </div>
             <div class="status-filter" aria-label="任务状态筛选">
-              <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
+              <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }} <strong>{{ taskListStatusCount(s) }}</strong></button>
             </div>
             <div v-if="filteredTasks.length === 0" class="empty-state">暂无任务</div>
             <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" data-test="dw-task-row" @click="openTask(t.id)">
@@ -141,7 +145,6 @@
               </span>
               <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
             </button>
-            <button v-if="filteredTasks.length > 0" type="button" class="view-all-bottom" data-test="dw-view-all-tasks" @click="emit('open-task-drawer')">查看全部任务</button>
           </div>
           <!-- 任务详情（R5-13/R6） -->
           <div v-else class="task-detail">
@@ -228,10 +231,38 @@
             </button>
           </section>
 
-          <div class="dw-task-drawer-content" :class="{ 'has-detail': drawerTask }">
+          <template v-if="!drawerTask">
+            <div class="dw-task-drawer-tools">
+              <input v-model.trim="taskQuery" type="search" aria-label="搜索任务名称或村" placeholder="搜索任务名称或村" />
+            </div>
+            <div class="dw-task-drawer-list">
+              <div v-if="drawerPageItems.length === 0" class="empty-state">暂无任务</div>
+              <table v-else data-test="dw-task-drawer-table">
+                <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
+                <tbody>
+                  <tr v-for="(t, index) in drawerPageItems" :key="t.id" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
+                    <td>{{ (drawerPage - 1) * DRAWER_PAGE_SIZE + index + 1 }}</td>
+                    <td class="drawer-task-no">{{ t.taskNo }}</td>
+                    <td class="drawer-task-name">{{ t.name }}</td>
+                    <td>{{ t.typeName }}</td>
+                    <td><span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span></td>
+                    <td>{{ t.villageName }}</td>
+                    <td class="drawer-task-time">{{ t.createdAt }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <footer class="dw-task-drawer-pagination">
+              <button type="button" :disabled="drawerPage === 1" @click="drawerPage--">上一页</button>
+              <span>第 {{ drawerPage }} / {{ drawerTotalPages }} 页</span>
+              <button type="button" :disabled="drawerPage === drawerTotalPages" @click="drawerPage++">下一页</button>
+            </footer>
+          </template>
+
+          <div v-else class="dw-task-drawer-content has-detail">
             <section class="dw-task-drawer-list-pane">
               <div class="dw-task-drawer-tools">
-                <input v-model.trim="taskQuery" type="search" placeholder="搜索任务名称或村" />
+                <input v-model.trim="taskQuery" type="search" aria-label="搜索任务名称或村" placeholder="搜索任务名称或村" />
               </div>
               <div class="dw-task-drawer-cards">
                 <div v-if="drawerPageItems.length === 0" class="empty-state">暂无任务</div>
@@ -548,6 +579,9 @@ const filteredTasks = computed(() => {
   return tasks
 })
 const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.createdAtNode - a.createdAtNode).slice(0, PAGE_SIZE))
+const taskListStatusCount = (status: string) => status === '全部'
+  ? store.tasks.length
+  : store.tasks.filter((task) => task.status === status).length
 const statusKey = (s: string) => (s === '待领取' ? 'claim' : s === '进行中' ? 'doing' : 'done')
 const sfKey = (s: string) => (s === '全部' ? 'all' : statusKey(s))
 function openTask(id: string) { store.openTask(id) }
@@ -565,7 +599,7 @@ const drawerStatus = ref('总任务')
 const drawerStatusFilters = ['总任务', ...DISASTER_TASK_STATUSES]
 const drawerTaskId = ref<string | null>(null)
 const drawerPage = ref(1)
-const DRAWER_PAGE_SIZE = 8
+const DRAWER_PAGE_SIZE = 12
 const filteredAllTasks = computed(() => {
   let tasks = store.tasks
   if (drawerStatus.value !== '总任务') tasks = tasks.filter((t) => t.status === drawerStatus.value)
@@ -719,8 +753,14 @@ function closeTaskDrawer() {
 .view-all-bottom:hover { background: #eef2f7; }
 /* 任务列表（R5-12） */
 .task-list-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.status-filter { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; padding-left: 2px; }
+.tasks-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 2px 0; }
+.tasks-title { min-width: 0; color: #0f172a; font-size: 14px; font-weight: 700; }
+.tasks-title em { color: #64748b; font-size: 11px; font-style: normal; font-weight: 600; }
+.view-top { flex: none; padding: 0; border: 0; background: transparent; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.view-top:hover { color: #1d4ed8; text-decoration: underline; }
+.status-filter { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 2px; padding-left: 2px; }
 .sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
+.sf-item strong { font-variant-numeric: tabular-nums; }
 .sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
 .sf-all { background: #e2e8f0; color: #475569; opacity: 0.75; }
 .sf-all.active { opacity: 1; }
@@ -803,6 +843,20 @@ function closeTaskDrawer() {
 .dw-task-drawer-content.has-detail .dw-task-drawer-list-pane { flex: 0 0 46%; border-right: 1px solid #e2e8f0; }
 .dw-task-drawer-tools { display: flex; align-items: center; padding: 14px 18px; }
 .dw-task-drawer-tools input { width: 280px; min-width: 0; max-width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; }
+.dw-task-drawer-list { flex: 1 1 auto; min-height: 0; overflow: auto; background: #fff; }
+.dw-task-drawer-list table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; }
+.dw-task-drawer-list th { position: sticky; top: 0; z-index: 1; padding: 14px 12px; border-bottom: 1px solid #dbe4ef; background: #f8fafc; color: #334155; font-weight: 700; text-align: left; white-space: nowrap; }
+.dw-task-drawer-list td { padding: 13px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: middle; white-space: nowrap; }
+.dw-task-drawer-list tbody tr { cursor: pointer; transition: background 0.12s ease; }
+.dw-task-drawer-list tbody tr:hover { background: #eff6ff; }
+.dw-task-drawer-list th:nth-child(1), .dw-task-drawer-list td:nth-child(1) { width: 42px; }
+.dw-task-drawer-list th:nth-child(2), .dw-task-drawer-list td:nth-child(2) { width: 112px; }
+.dw-task-drawer-list th:nth-child(4), .dw-task-drawer-list td:nth-child(4) { width: 120px; }
+.dw-task-drawer-list th:nth-child(5), .dw-task-drawer-list td:nth-child(5) { width: 84px; }
+.dw-task-drawer-list th:nth-child(6), .dw-task-drawer-list td:nth-child(6) { width: 88px; }
+.dw-task-drawer-list th:nth-child(7), .dw-task-drawer-list td:nth-child(7) { width: 144px; }
+.drawer-task-no, .drawer-task-time { color: #8295b1 !important; font-variant-numeric: tabular-nums; }
+.drawer-task-name { color: #0f172a !important; font-weight: 650; }
 .dw-task-drawer-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
 .dw-task-drawer-card { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; transition: background 0.12s ease, border-color 0.12s ease; }
 .dw-task-drawer-card.active { border-color: #bfdbfe; background: #eff6ff; }
