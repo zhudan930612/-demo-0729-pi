@@ -1,0 +1,887 @@
+<template>
+  <aside class="disaster-warning-panel" aria-label="受灾预警工作台">
+    <header class="panel-header">
+      <div class="tab-list" role="tablist" aria-label="受灾预警视图">
+        <button
+          v-for="t in tabs"
+          :id="`dw-tab-${t.key}`"
+          :key="t.key"
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === t.key"
+          :tabindex="activeTab === t.key ? 0 : -1"
+          @click="emit('select-tab', t.key)"
+        >{{ t.label }}</button>
+      </div>
+      <button type="button" class="close-button" :aria-label="closeLabel" :title="closeLabel" @click="emit('close')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      </button>
+    </header>
+
+    <div class="panel-body">
+      <div v-if="phase === 'loading'" class="panel-status" role="status" aria-live="polite">加载受灾预警数据…</div>
+      <div v-else-if="phase === 'error'" class="panel-status error" role="alert">
+        受灾预警数据加载失败{{ errorMessage ? `（${errorMessage}）` : '' }}，已降级：预警监测空态、灾损预估 0、派发不可用。
+      </div>
+
+      <!-- 灾损预估 tab（默认，R4） -->
+      <section v-if="activeTab === 'loss'" class="tab-pane loss-pane" data-test="dw-loss-pane">
+        <div class="loss-title-row">
+          <span class="loss-title">{{ regionName }} · 灾损预估</span>
+          <span class="est-tag">预估</span>
+        </div>
+        <div v-if="phase === 'ready'" class="loss-subtitle" data-test="dw-loss-title">{{ lossTitle }}</div>
+
+        <div class="loss-metrics">
+          <div class="loss-metric">
+            <span class="loss-metric-label">受灾面积</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-area">{{ lossAreaText }}</span><span class="loss-metric-unit">万亩</span></div>
+          </div>
+          <div class="loss-metric">
+            <span class="loss-metric-label">涉及户数</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-households">{{ lossHouseholdsText }}</span><span class="loss-metric-unit">户</span></div>
+          </div>
+          <div class="loss-metric">
+            <span class="loss-metric-label">赔偿金额</span>
+            <div class="loss-metric-main"><span class="loss-metric-value" data-test="dw-loss-amount">{{ lossAmountText }}</span><span class="loss-metric-unit">万元</span></div>
+          </div>
+        </div>
+
+        <!-- 村级风险分布：左侧饼图 + 右侧明细（R4-7） -->
+        <div v-if="phase === 'ready'" class="loss-band-wrap" data-test="dw-risk-band">
+          <div class="band-caption">村级风险分布<span class="band-caption-sub">按承保面积</span></div>
+          <div class="risk-layout">
+            <div class="risk-pie-wrap" aria-hidden="true">
+              <svg class="risk-pie" viewBox="0 0 100 100">
+                <circle class="risk-pie-track" cx="50" cy="50" r="40" fill="none" stroke="rgba(148, 163, 184, 0.16)" stroke-width="13"></circle>
+                <circle v-for="seg in riskPieSegs" :key="seg.level" class="risk-pie-seg"
+                  cx="50" cy="50" r="40" fill="none"
+                  :stroke="riskDotColor(seg.level)" stroke-width="13" pathLength="100"
+                  :stroke-dasharray="`${seg.pct} ${100 - seg.pct}`"
+                  :stroke-dashoffset="`${-seg.start}`"
+                  transform="rotate(-90 50 50)"></circle>
+                <text class="risk-pie-center" x="50" y="50" text-anchor="middle" dominant-baseline="central">{{ riskTotalCount }}</text>
+                <text class="risk-pie-center-label" x="50" y="66" text-anchor="middle">预警村</text>
+              </svg>
+            </div>
+            <div class="risk-legend">
+              <div v-for="seg in riskPieSegs" :key="seg.level" class="band-detail-row" :style="{ '--risk-color': riskDotColor(seg.level) }">
+                <span class="risk-colorbar"></span>
+                <span class="risk-name">{{ seg.name }}</span>
+                <span class="risk-count">{{ seg.count }} 村</span>
+                <span class="risk-area">{{ seg.areaText }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="loss-hint" data-test="dw-loss-hint">{{ lossHint }}</p>
+      </section>
+
+      <!-- 预警监测 tab（R3-9~R3-18） -->
+      <section v-if="activeTab === 'warning'" class="tab-pane warning-pane" data-test="dw-warning-pane">
+        <!-- 表头：概览 + ⓘ + 一键派发 + 自动/人工开关（固定，列表区内滚） -->
+        <div class="warning-head">
+          <div class="warning-head-row">
+            <span class="warning-overview" data-test="dw-warning-overview">
+              <span class="warning-title">预警村</span>
+              <span class="warning-counts">{{ overviewCountsText }}</span>
+            </span>
+            <span class="rule-info" data-test="dw-rule-info" @mouseenter="showRuleTip" @mouseleave="hideRuleTip" aria-label="触发规则说明">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+            </span>
+            <button v-if="pendingDispatchCount > 0" type="button" class="batch-btn" data-test="dw-batch-dispatch" @click="emit('dispatch-all')">一键派发</button>
+          </div>
+          <div v-if="ruleTip" class="cell-tooltip" :style="tipStyle">{{ ruleTipText }}</div>
+        </div>
+        <!-- 卡片列表（前 10 条，超高内滚） -->
+        <div v-if="phase === 'error'" class="empty-state" data-test="dw-warning-empty">暂无预警村（数据缺失）</div>
+        <div v-else-if="sortedWarnings.length === 0" class="empty-state" data-test="dw-warning-empty">暂无预警村</div>
+        <div v-else class="warning-list">
+          <div v-for="entry in listWarnings" :key="entry.village.code" class="warning-card" data-test="dw-warning-card" @click="emit('select-village', entry.village.code)">
+            <div class="wc-head">
+              <span class="wc-name">{{ entry.village.name }}</span>
+              <span class="wc-status" :class="entry.level >= 2 ? 'todo' : 'observe'">{{ statusLabel(entry.level) }}</span>
+              <span class="wc-level-dot" :style="{ background: levelColor(entry.level) }"></span>
+              <span class="wc-action">
+                <button
+                  v-if="!isDispatched(entry.village.code)"
+                  type="button"
+                  class="dispatch-btn"
+                  data-test="dw-dispatch-village"
+                  @click.stop="emit('dispatch-village', entry.village.code)"
+                >派发任务</button>
+                <button v-else type="button" class="dispatch-btn done" disabled data-test="dw-dispatched">已派发</button>
+              </span>
+            </div>
+            <div class="ai-text"><span class="ai-chip">AI</span><span>{{ aiAdvice(entry) }}</span></div>
+          </div>
+          <button v-if="sortedWarnings.length > PAGE_SIZE" type="button" class="view-all-bottom" data-test="dw-view-all" @click="emit('open-warning-drawer')">查看全部预警（{{ sortedWarnings.length }}）</button>
+        </div>
+      </section>
+
+      <!-- 任务列表 tab（R5-12~R5-14, R6） -->
+      <section v-if="activeTab === 'tasks'" class="tab-pane task-pane" data-test="dw-task-pane">
+        <div v-if="phase === 'error'" class="empty-state" data-test="dw-task-empty">暂无任务（派发不可用）</div>
+        <template v-else-if="phase === 'ready'">
+          <div v-if="!visibleTask" class="task-list-pane">
+            <div class="tasks-head">
+              <div class="tasks-title" data-test="dw-task-list-title">任务列表 <em>共 {{ filteredTasks.length }} 项</em></div>
+              <button v-if="filteredTasks.length > 0" type="button" class="view-top" data-test="dw-view-all-tasks" @click="emit('open-task-drawer')">查看全部任务</button>
+            </div>
+            <div class="status-filter" aria-label="任务状态筛选">
+              <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }} <strong>{{ taskListStatusCount(s) }}</strong></button>
+            </div>
+            <div v-if="filteredTasks.length === 0" class="empty-state">暂无任务</div>
+            <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" data-test="dw-task-row" @click="openTask(t.id)">
+              <span class="task-main">
+                <span class="task-eyebrow">{{ t.taskNo }}</span>
+                <span class="task-name">{{ t.name }}</span>
+                <span class="task-meta">
+                  <i class="task-level-dot" :style="{ background: t.warningLevel ? levelColor(t.warningLevel) : '#94a3b8' }"></i>
+                  {{ t.typeName }} · {{ t.villageName }}
+                </span>
+                <span v-if="t.released" class="released-hint" data-test="dw-task-released">⚠ 关联预警已解除</span>
+              </span>
+              <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+            </button>
+          </div>
+          <!-- 任务详情（R5-13/R6） -->
+          <div v-else class="task-detail">
+            <div class="detail-header">
+              <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeTask"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+              <span class="detail-title">{{ visibleTask.taskNo }}</span>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">基础信息</div>
+              <div class="detail-meta">
+                <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
+                <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
+                <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ visibleTask.name }}</span></div>
+                <div class="meta-row"><span class="meta-label">预警等级</span><span class="meta-value"><i class="task-level-dot" :style="{ background: visibleTask.warningLevel ? levelColor(visibleTask.warningLevel) : '#94a3b8' }"></i>{{ visibleTask.warningLevel ? levelText(visibleTask.warningLevel) : '—' }}</span></div>
+                <div class="meta-row"><span class="meta-label">关联预警</span><span class="meta-value">{{ visibleTask.villageName }}{{ visibleTask.released ? '（已解除）' : '' }}</span></div>
+                <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
+              </div>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">处置说明</div>
+              <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ visibleTask.sopAction }}</div></div>
+              <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ visibleTask.requirement }}</div></div>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">变化记录</div>
+              <div class="history-list" data-test="dw-task-history">
+                <div v-for="(h, idx) in visibleTask.history" :key="idx" class="history-row"><span class="history-time">{{ h.time }}</span><span class="history-text">{{ h.text }}</span></div>
+              </div>
+            </div>
+            <div class="detail-group">
+              <div class="group-label">影像资料</div>
+              <div v-if="visibleTask.status !== '已完成'" class="sec-body pending-evidence" data-test="dw-evidence-pending">待取证</div>
+              <template v-else>
+                <div v-if="visibleTask.evidence.length === 0" class="sec-body" data-test="dw-evidence-pending">待取证</div>
+                <div v-else class="ev-grid" data-test="dw-evidence">
+                  <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)">
+                    <img :src="e.url" alt="证据缩略图" />
+                    <span class="ev-time">{{ e.time }}</span>
+                  </button>
+                </div>
+              </template>
+              <p class="ev-demo-note">演示数据：占位图，仅用于演示取证流程</p>
+            </div>
+          </div>
+        </template>
+        <div v-else class="empty-state">暂无任务</div>
+      </section>
+    </div>
+
+    <!-- 全部预警抽屉（R3-18） -->
+    <Teleport to="body">
+      <Transition name="side-drawer">
+        <aside v-if="drawerOpen" class="dw-drawer" aria-label="全部预警" data-test="dw-drawer">
+          <header class="dw-drawer-header">
+            <div><span class="dw-drawer-eyebrow">预警村清单</span><h2 class="dw-drawer-title">全部预警</h2></div>
+            <button type="button" class="dw-drawer-close" aria-label="关闭" @click="emit('close-warning-drawer')">×</button>
+          </header>
+          <div class="dw-drawer-list">
+            <button v-for="entry in sortedWarnings" :key="entry.village.code" type="button" class="dw-drawer-card" @click="emit('select-village', entry.village.code)">
+              <span class="dc-main">
+                <span class="dc-name">{{ entry.village.name }}</span>
+                <span class="dc-meta">{{ entry.village.countyCode }} · 未来24h {{ future24Text(entry) }}</span>
+              </span>
+              <span class="wc-status" :class="entry.level >= 2 ? 'todo' : 'observe'">{{ statusLabel(entry.level) }}</span>
+              <i class="task-level-dot" :style="{ background: levelColor(entry.level) }"></i>
+            </button>
+          </div>
+        </aside>
+      </Transition>
+    </Teleport>
+
+    <!-- 全部任务抽屉（R5-14） -->
+    <Teleport to="body">
+      <Transition name="side-drawer">
+        <aside v-if="taskDrawerOpen" class="dw-task-drawer" aria-label="全部任务" data-test="dw-task-drawer">
+          <header class="dw-task-drawer-header">
+            <div><span class="dw-task-drawer-eyebrow">任务清单</span><h2 class="dw-task-drawer-title">全部任务</h2></div>
+            <button type="button" class="dw-task-drawer-close" aria-label="关闭" @click="closeTaskDrawer">×</button>
+          </header>
+
+          <section class="dw-task-drawer-summary" aria-label="任务状态统计">
+            <button v-for="s in drawerStatusFilters" :key="s" type="button" class="dw-ds-item" :class="[`dw-ds-${drawerSfKey(s)}`, { active: drawerStatus === s }]" @click="drawerStatus = s">
+              <span>{{ s }}</span><strong>{{ s === '总任务' ? store.tasks.length : taskStatusCount(s) }}</strong>
+            </button>
+          </section>
+
+          <template v-if="!drawerTask">
+            <div class="dw-task-drawer-tools">
+              <input v-model.trim="taskQuery" type="search" aria-label="搜索任务名称或村" placeholder="搜索任务名称或村" />
+            </div>
+            <div class="dw-task-drawer-list">
+              <div v-if="drawerPageItems.length === 0" class="empty-state">暂无任务</div>
+              <table v-else data-test="dw-task-drawer-table">
+                <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
+                <tbody>
+                  <tr v-for="(t, index) in drawerPageItems" :key="t.id" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
+                    <td>{{ (drawerPage - 1) * DRAWER_PAGE_SIZE + index + 1 }}</td>
+                    <td class="drawer-task-no">{{ t.taskNo }}</td>
+                    <td class="drawer-task-name">{{ t.name }}</td>
+                    <td>{{ t.typeName }}</td>
+                    <td><span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span></td>
+                    <td>{{ t.villageName }}</td>
+                    <td class="drawer-task-time">{{ t.createdAt }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <footer class="dw-task-drawer-pagination">
+              <button type="button" :disabled="drawerPage === 1" @click="drawerPage--">上一页</button>
+              <span>第 {{ drawerPage }} / {{ drawerTotalPages }} 页</span>
+              <button type="button" :disabled="drawerPage === drawerTotalPages" @click="drawerPage++">下一页</button>
+            </footer>
+          </template>
+
+          <div v-else class="dw-task-drawer-content has-detail">
+            <section class="dw-task-drawer-list-pane">
+              <div class="dw-task-drawer-tools">
+                <input v-model.trim="taskQuery" type="search" aria-label="搜索任务名称或村" placeholder="搜索任务名称或村" />
+              </div>
+              <div class="dw-task-drawer-cards">
+                <div v-if="drawerPageItems.length === 0" class="empty-state">暂无任务</div>
+                <button v-for="t in drawerPageItems" :key="t.id" type="button" class="dw-task-drawer-card" :class="{ active: drawerTaskId === t.id }" data-test="dw-task-drawer-row" @click="selectFromTaskDrawer(t.id)">
+                  <span class="dc-main">
+                    <span class="dc-eyebrow">{{ t.taskNo }}</span>
+                    <span class="dc-name">{{ t.name }}</span>
+                    <span class="dc-meta"><i class="task-level-dot" :style="{ background: t.warningLevel ? levelColor(t.warningLevel) : '#94a3b8' }"></i>{{ t.typeName }} · {{ t.villageName }} · {{ t.createdAt }}</span>
+                    <span v-if="t.released" class="released-hint">⚠ 关联预警已解除</span>
+                  </span>
+                  <span class="task-status" :class="`st-${statusKey(t.status)}`">{{ t.status }}</span>
+                </button>
+              </div>
+              <footer class="dw-task-drawer-pagination">
+                <button type="button" :disabled="drawerPage === 1" @click="drawerPage--">上一页</button>
+                <span>第 {{ drawerPage }} / {{ drawerTotalPages }} 页</span>
+                <button type="button" :disabled="drawerPage === drawerTotalPages" @click="drawerPage++">下一页</button>
+              </footer>
+            </section>
+
+            <section v-if="drawerTask" class="dw-task-drawer-detail-pane" data-test="dw-task-drawer-detail">
+              <header class="dw-task-drawer-detail-head">
+                <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeDrawerDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <span class="detail-title">{{ drawerTask.taskNo }}</span>
+              </header>
+              <div class="dw-task-detail-scroll">
+                <div class="detail-group">
+                  <div class="group-label">基础信息</div>
+                  <div class="detail-meta">
+                    <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(drawerTask.status)}`">{{ drawerTask.status }}</span></span></div>
+                    <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ drawerTask.typeName }}</span></div>
+                    <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ drawerTask.name }}</span></div>
+                    <div class="meta-row"><span class="meta-label">预警等级</span><span class="meta-value"><i class="task-level-dot" :style="{ background: drawerTask.warningLevel ? levelColor(drawerTask.warningLevel) : '#94a3b8' }"></i>{{ drawerTask.warningLevel ? levelText(drawerTask.warningLevel) : '—' }}</span></div>
+                    <div class="meta-row"><span class="meta-label">关联预警</span><span class="meta-value">{{ drawerTask.villageName }}{{ drawerTask.released ? '（已解除）' : '' }}</span></div>
+                    <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value">{{ drawerTask.location.name }}</span></div>
+                    <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ drawerTask.createdAt }}</span></div>
+                  </div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">处置说明</div>
+                  <div class="detail-sec"><div class="sec-label">SOP 动作</div><div class="sec-body">{{ drawerTask.sopAction }}</div></div>
+                  <div class="detail-sec"><div class="sec-label">执行要求</div><div class="sec-body">{{ drawerTask.requirement }}</div></div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">变化记录</div>
+                  <div v-if="drawerTask.history.length === 0" class="pending-evidence">暂无变化记录</div>
+                  <div v-else class="history-list">
+                    <div v-for="(h, idx) in drawerTask.history" :key="idx" class="history-row"><span class="history-time">{{ h.time }}</span><span class="history-text">{{ h.text }}</span></div>
+                  </div>
+                </div>
+                <div class="detail-group">
+                  <div class="group-label">影像资料</div>
+                  <div v-if="drawerTask.status !== '已完成' || drawerTask.evidence.length === 0" class="sec-body pending-evidence">待取证</div>
+                  <div v-else class="ev-grid">
+                    <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e)"><img :src="e.url" alt="证据缩略图" /><span class="ev-time">{{ e.time }}</span></button>
+                  </div>
+                  <p class="ev-demo-note">演示数据：占位图，仅用于演示取证流程</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </Transition>
+    </Teleport>
+
+    <!-- 大图浮窗（R6-1） -->
+    <Teleport to="body">
+      <div v-if="lightbox" class="lightbox-overlay" @click.self="closeLightbox">
+        <div class="lightbox">
+          <img :src="lightbox.url" alt="证据大图" />
+          <span class="lb-count">{{ lightbox.time }}</span>
+        </div>
+      </div>
+    </Teleport>
+  </aside>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { useDisasterWarningStore } from '../../stores/disasterWarning'
+import { DISASTER_WARNING_TABS, type DisasterWarningTab } from '../../features/disaster-warning/types'
+import type { DisasterWarningPhase } from '../../stores/disasterWarning'
+import {
+  warnedVillagesAtNode, warningOverview,
+  WARNING_STATUS_LABEL, WARNING_LEVEL_COLOR, aiAdviceForLevel,
+} from '../../features/disaster-warning/disasterWarningSelectors'
+import { DISASTER_TASK_STATUSES } from '../../stores/disasterWarning'
+import type { DisasterWarningLevel as DWLevel } from '../../features/disaster-warning/types'
+
+const PAGE_SIZE = 10
+
+const props = defineProps<{
+  phase: DisasterWarningPhase
+  activeTab: DisasterWarningTab
+  errorMessage: string
+  regionName: string
+  /** 当前下钻层级/编码（R4-3 灾损按层级刷新） */
+  currentLevel: string
+  currentCode: string
+}>()
+const emit = defineEmits<{
+  close: []
+  'select-tab': [tab: DisasterWarningTab]
+  'select-village': [code: string]
+  'dispatch-village': [code: string]
+  'dispatch-all': []
+  'open-warning-drawer': []
+  'close-warning-drawer': []
+  'open-task-drawer': []
+}>()
+
+const tabs = DISASTER_WARNING_TABS
+const store = useDisasterWarningStore()
+const closeLabel = computed(() => '退出受灾预警')
+
+// ---- 预警监测（R3-9~R3-18） ----
+const nodeIndex = computed(() => store.nodeIndex)
+// ---- 面板静态数据：按节点查表（省市级零计算，ADR-0009） ----
+const panelNode = computed(() => {
+  if (!store.panel) return null
+  return store.panel.perNode.find((n) => n.i === nodeIndex.value) ?? null
+})
+// 当前节点预警村（原始 w 顺序），village 从 warnings.villages 取
+const warningEntries = computed(() => {
+  if (!store.warnings) return []
+  return warnedVillagesAtNode(store.warnings, nodeIndex.value)
+})
+// 预警村（已按 等级高→低 + 未来24h降序 预排序，直接查表，不再 sortWarnedVillages）
+// R3-6 变更：预警监测仅显示中/高风险村；低风险村不上图、也不进预警监测列表
+const sortedWarnings = computed(() => {
+  const pn = panelNode.value
+  const warnings = store.warnings
+  if (!pn || !warnings) return []
+  const out: Array<{ villageIndex: number; village: (typeof warnings.villages)[number]; level: DWLevel }> = []
+  for (const idx of pn.sorted) {
+    const pv = pn.byIdx[String(idx)]
+    if (!pv || (pv.level ?? 0) < 2) continue // 仅中/高风险
+    const village = warnings.villages[idx]
+    if (!village) continue
+    out.push({ villageIndex: idx, village, level: pv.level as DWLevel })
+  }
+  return out
+})
+const overview = computed(() => warningOverview(warningEntries.value.filter((e) => e.level >= 2)))
+const overviewCountsText = computed(() => `${overview.value.total}（高风险 ${overview.value.high} · 中风险 ${overview.value.mid}）`)
+const listWarnings = computed(() => sortedWarnings.value.slice(0, PAGE_SIZE))
+const pendingDispatchCount = computed(() => sortedWarnings.value.filter((e) => !store.isDispatched(e.village.code)).length)
+
+function statusLabel(level: number): string { return WARNING_STATUS_LABEL[level as DWLevel] ?? '—' }
+function levelColor(level: number): string { return WARNING_LEVEL_COLOR[level as DWLevel] ?? '#94a3b8' }
+function levelText(level: number): string { return level === 3 ? '高风险' : level === 2 ? '中风险' : level === 1 ? '低风险' : '—' }
+function aiAdvice(entry: { villageIndex: number; level: number }): string {
+  const level = entry.level as DWLevel
+  const advice = aiAdviceForLevel(level)
+  // 触发规则文案并入 AI 建议：未来24h预报雨量 + 等级触发说明
+  const pv = panelNode.value?.byIdx[String(entry.villageIndex)]
+  const rule = pv ? `未来24h预报雨量${pv.future24.toFixed(0)}mm（${levelText(level)}触发）。` : ''
+  return `${rule}${advice}`
+}
+// 未来 24h 预报雨量：直接查表（panel byIdx[idx].future24），不再实时 future24RainByGrid
+function future24Text(entry: { villageIndex: number; village: { code: string } }): string {
+  const pn = panelNode.value
+  const pv = pn?.byIdx[String(entry.villageIndex)]
+  return pv ? `未来24h ${pv.future24.toFixed(0)}mm` : ''
+}
+function isDispatched(code: string): boolean { return store.isDispatched(code) }
+
+// 规则 ⓘ 提示
+const ruleTip = ref<{ top: number; left: number } | null>(null)
+function showRuleTip(e: MouseEvent) {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  ruleTip.value = { top: rect.bottom + 6, left: rect.left + rect.width / 2 }
+}
+function hideRuleTip() { ruleTip.value = null }
+const tipStyle = computed(() => {
+  if (!ruleTip.value) return {}
+  return { left: `${ruleTip.value.left}px`, top: `${Math.max(0, ruleTip.value.top)}px`, transform: 'translateX(-50%)' }
+})
+// 触发规则全文：阈值从实际加载的 warnings.json 读取（方案A：低≥170/中≥175/高≥180，避免与数据校准脱节）
+const ruleTipText = computed(() => {
+  const th = store.warnings?.thresholds ?? { low: 170, mid: 175, high: 180 }
+  return `未来 24h 预报雨量触发：≥${th.low}mm 低风险 / ≥${th.mid}mm 中风险 / ≥${th.high}mm 高风险；升级立即生效，降级需连续 2 节点低于阈值`
+})
+
+// ---- 灾损预估（R4） ----
+const lossTitle = computed(() => {
+  const time = store.nodeTimeLabel
+  return `${props.regionName} · 截至 ${time}`
+})
+const lossSummary = computed(() => {
+  if (store.phase !== 'ready' || !store.panel) return { areaWanMu: 0, households: 0, amountWanYuan: 0 }
+  const pn = panelNode.value
+  if (!pn) return { areaWanMu: 0, households: 0, amountWanYuan: 0 }
+  // 按当前层级过滤预警村（R4-3）
+  const level = props.currentLevel
+  const code = props.currentCode
+  // 省级：直接查表（已预算好的省级灾损三项）
+  if (!level || level === 'province') return pn.loss
+  // 下钻市/县/乡/村：从 byIdx 按层级 filter 出该片区村，累计其已预算的 areaMu/amountYuan/households
+  let areaMu = 0
+  let households = 0
+  let amountYuan = 0
+  for (const idx of pn.sorted) {
+    const pv = pn.byIdx[String(idx)]
+    const v = store.warnings?.villages[idx]
+    if (!pv || !v) continue
+    if (level === 'city') { if (v.cityCode !== code) continue }
+    else if (level === 'county') { if (v.countyCode !== code) continue }
+    else if (level === 'township') { if (v.townshipCode !== code) continue }
+    else { if (v.code !== code) continue }
+    areaMu += pv.areaMu
+    households += pv.households
+    amountYuan += pv.amountYuan
+  }
+  return { areaWanMu: areaMu / 10000, households, amountWanYuan: amountYuan / 10000 }
+})
+const lossAreaText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingArea.value))
+const lossHouseholdsText = computed(() => props.phase === 'error' ? '0' : String(Math.round(rollingHouseholds.value)))
+const lossAmountText = computed(() => props.phase === 'error' ? '0' : formatWan(rollingAmount.value))
+// R4-2 峰值口径（变更）：三个灾损统计数字播放中只增不减，取到访节点最大值（按区域各自记录），预警解除致数字回落时不往下掉
+const regionKey = computed(() => `${props.currentLevel}|${props.currentCode}`)
+// 展示值 = max(该区域已存峰值, 当前节点预估值)；峰值由 watch 单调写入 store.lossPeakByRegion
+const rollingArea = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.areaWanMu ?? 0, lossSummary.value.areaWanMu))
+const rollingHouseholds = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.households ?? 0, lossSummary.value.households))
+const rollingAmount = computed(() => Math.max(store.lossPeakByRegion[regionKey.value]?.amountWanYuan ?? 0, lossSummary.value.amountWanYuan))
+// 区域或节点变化时更新峰值存储（trackLossPeak 内部仅写入增大值，单调不减）
+watch(
+  [() => regionKey.value, () => lossSummary.value.areaWanMu, () => lossSummary.value.households, () => lossSummary.value.amountWanYuan],
+  () => store.trackLossPeak(regionKey.value, lossSummary.value),
+  { immediate: true },
+)
+
+const lossHint = computed(() => {
+  if (props.phase === 'error') return '数据缺失，灾损预估不可用'
+  if (props.phase === 'loading') return '加载中…'
+  return '灾损预估随台风播放与村级预警联动刷新'
+})
+
+// 村级风险分布（R4-7）：分母 = 当前层级已触发预警村的承保面积；无风险村保留数据但前端不展示（默认无风险，触发后才显示）；仅按 预警等级（低/中/高）分类展示
+// 村码即层级编码：city=code[0:4]+'00'、county=code[0:6]、township=code[0:9]+'000'（与 check-codes 口径一致）
+function adminCodesOf(code: string): { city: string; county: string; township: string } {
+  return { city: `${code.slice(0, 4)}00`, county: code.slice(0, 6), township: `${code.slice(0, 9)}000` }
+}
+const riskBand = computed(() => {
+  if (store.phase !== 'ready' || !store.underwriting) return []
+  const level = props.currentLevel
+  const code = props.currentCode
+  let totalArea = 0
+  const buckets = [
+    { level: 1 as const, name: '低', count: 0, area: 0 },
+    { level: 2 as const, name: '中', count: 0, area: 0 },
+    { level: 3 as const, name: '高', count: 0, area: 0 },
+  ]
+  const inRegion = (v: { code: string }) => {
+    const admin = adminCodesOf(v.code)
+    if (!level || level === 'province') return true
+    if (level === 'city') return admin.city === code
+    if (level === 'county') return admin.county === code
+    if (level === 'township') return admin.township === code
+    return v.code === code
+  }
+  // R4-7 口径：无风险村保留在数据中（默认=无风险），但前端风险分布不展示；仅展示已触发预警的村（按 预警等级 低/中/高 分类）
+  const warnedByCode = new Map<string, number>() // 村码 -> 预警等级（1低/2中/3高）
+  for (const e of warningEntries.value) warnedByCode.set(e.village.code, e.level)
+  for (const v of store.underwriting.villages) {
+    if (!inRegion(v)) continue
+    const warnLevel = warnedByCode.get(v.code)
+    if (warnLevel === undefined) continue // 无风险村：保留数据，前端不展示（默认无风险，触发后才显示）
+    totalArea += v.insuredAreaMu
+    const bucket = buckets[Math.min(3, Math.max(1, warnLevel)) - 1]!
+    bucket.count += 1
+    bucket.area += v.insuredAreaMu
+  }
+  return buckets.map((b) => ({ ...b, pct: totalArea > 0 ? (b.area / totalArea) * 100 : 0, areaText: formatArea(b.area) }))
+})
+
+function formatWan(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0'
+  if (value < 0.01) return value.toFixed(2)
+  if (value < 100) return value.toFixed(1)
+  return value.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+}
+function formatArea(mu: number): string {
+  if (mu >= 10000) return `${(mu / 10000).toFixed(1)} 万亩`
+  return `${Math.round(mu).toLocaleString('zh-CN')} 亩`
+}
+// 风险分布饼图分段（R4-7）：按承保面积占比，累加起始偏移用于 SVG 环形弧
+const riskPieSegs = computed(() => {
+  const segs = riskBand.value
+  let cum = 0
+  return segs.map((seg) => {
+    const start = cum
+    cum += seg.pct
+    return { level: seg.level, name: seg.name, count: seg.count, areaText: seg.areaText, pct: seg.pct, start }
+  })
+})
+const riskTotalCount = computed(() => riskBand.value.reduce((sum, b) => sum + b.count, 0))
+function riskDotColor(level: number): string {
+  // 与农情监测 5 级色带保持一致（agriMonitoringTypes LEVEL_COLORS）：高=较差橙 / 中=正常黄 / 低=较好绿
+  if (level === 3) return '#ea580c'
+  if (level === 2) return '#facc15'
+  if (level === 1) return '#22c55e'
+  return '#94a3b8'
+}
+
+// ---- 任务列表（R5-12~R5-14, R6） ----
+const drawerOpen = computed(() => store.warningDrawerOpen)
+const statusFilter = ref<string>('全部')
+const statusFilters = ['全部', ...DISASTER_TASK_STATUSES]
+const visibleTask = computed(() => store.visibleTask)
+const filteredTasks = computed(() => {
+  let tasks = store.tasks
+  if (statusFilter.value !== '全部') tasks = tasks.filter((t) => t.status === statusFilter.value)
+  return tasks
+})
+const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.createdAtNode - a.createdAtNode).slice(0, PAGE_SIZE))
+const taskListStatusCount = (status: string) => status === '全部'
+  ? store.tasks.length
+  : store.tasks.filter((task) => task.status === status).length
+const statusKey = (s: string) => (s === '待领取' ? 'claim' : s === '进行中' ? 'doing' : 'done')
+const sfKey = (s: string) => (s === '全部' ? 'all' : statusKey(s))
+function openTask(id: string) { store.openTask(id) }
+function closeTask() { store.closeTask() }
+
+// 证据大图
+const lightbox = ref<{ url: string; time: string } | null>(null)
+function openLightbox(e: { url: string; time: string }) { lightbox.value = e }
+function closeLightbox() { lightbox.value = null }
+
+// 全部任务抽屉（R5-14）
+const taskDrawerOpen = computed(() => store.taskDrawerOpen)
+const taskQuery = ref('')
+const drawerStatus = ref('总任务')
+const drawerStatusFilters = ['总任务', ...DISASTER_TASK_STATUSES]
+const drawerTaskId = ref<string | null>(null)
+const drawerPage = ref(1)
+const DRAWER_PAGE_SIZE = 12
+const filteredAllTasks = computed(() => {
+  let tasks = store.tasks
+  if (drawerStatus.value !== '总任务') tasks = tasks.filter((t) => t.status === drawerStatus.value)
+  const q = taskQuery.value.trim().toLowerCase()
+  if (q) tasks = tasks.filter((t) => [t.name, t.villageName, t.taskNo].some((f) => f.toLowerCase().includes(q)))
+  return [...tasks].sort((a, b) => b.createdAtNode - a.createdAtNode)
+})
+const drawerTotalPages = computed(() => Math.max(1, Math.ceil(filteredAllTasks.value.length / DRAWER_PAGE_SIZE)))
+const drawerPageItems = computed(() => filteredAllTasks.value.slice((drawerPage.value - 1) * DRAWER_PAGE_SIZE, drawerPage.value * DRAWER_PAGE_SIZE))
+const drawerTask = computed(() => store.tasks.find((t) => t.id === drawerTaskId.value) ?? null)
+const drawerSfKey = (s: string) => (s === '总任务' ? 'all' : statusKey(s))
+const taskStatusCount = (s: string) => store.tasks.filter((t) => t.status === s).length
+watch([taskQuery, drawerStatus], () => { drawerPage.value = 1 })
+watch(drawerTotalPages, (total) => { if (drawerPage.value > total) drawerPage.value = total })
+watch(taskDrawerOpen, (open) => {
+  if (open) {
+    taskQuery.value = ''
+    drawerStatus.value = '总任务'
+    drawerTaskId.value = null
+    drawerPage.value = 1
+  }
+})
+function selectFromTaskDrawer(id: string) {
+  drawerTaskId.value = id
+}
+function closeDrawerDetail() { drawerTaskId.value = null }
+function closeTaskDrawer() {
+  taskQuery.value = ''
+  drawerStatus.value = '总任务'
+  drawerTaskId.value = null
+  drawerPage.value = 1
+  store.closeTaskDrawer()
+}
+</script>
+
+<style scoped>
+.disaster-warning-panel {
+  position: absolute; top: 12px; right: 12px; z-index: 1010;
+  width: 380px; max-width: calc(100% - 24px); box-sizing: border-box;
+  display: flex; flex-direction: column; overflow: hidden;
+  max-height: min(calc(100vh - 160px), 65vh);
+  border: 5px solid #2563eb; border-radius: 10px;
+  background: #2563eb;
+  box-shadow: 0 7px 22px rgba(15, 23, 42, 0.24);
+  color: #0f172a; font-size: 12px;
+}
+.panel-header {
+  height: 34px; flex: none; display: flex; align-items: stretch; justify-content: space-between; gap: 8px; padding: 0 4px 0 0; color: #fff;
+}
+.tab-list { display: flex; flex: 1; align-items: stretch; gap: 2px; padding: 3px 2px 0; min-width: 0; }
+.tab-list button {
+  height: 100%; min-width: 64px; padding: 0 12px; border: 0; border-radius: 6px 6px 0 0;
+  background: transparent; color: #bfdbfe; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.tab-list button:hover:not([aria-selected='true']) { color: #fff; background: rgba(255,255,255,0.1); }
+.tab-list button[aria-selected='true'] { background: #fff; color: #1d4ed8; font-weight: 700; }
+.tab-list button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.close-button {
+  width: 28px; height: 28px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px;
+  background: transparent; color: #bfdbfe; cursor: pointer;
+}
+.close-button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+.close-button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.close-button svg { width: 15px; height: 15px; }
+.panel-body { flex: 1 1 auto; min-height: 0; padding: 8px 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.panel-status { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; background: #f1f5f9; color: #64748b; font-size: 11px; }
+.panel-status.error { background: #fef2f2; color: #991b1b; }
+.tab-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+.loss-title-row { display: flex; align-items: center; gap: 6px; }
+.loss-title { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.est-tag { flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; color: #1d4ed8; background: #dbeafe; border-radius: 999px; padding: 1px 8px; }
+.loss-subtitle { color: #64748b; font-size: 11px; }
+/* 三项统计：值前置卡片——数值突出（22px/700 等宽）、标签在上、列间细分隔 */
+.loss-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 2px 0 4px;
+  padding: 11px 4px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+}
+.loss-metric { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0 6px; min-width: 0; }
+.loss-metric + .loss-metric { border-left: 1px solid rgba(148, 163, 184, 0.22); }
+.loss-metric-label { color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+.loss-metric-main { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.loss-metric-value { font-size: 22px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.loss-metric-unit { color: #94a3b8; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.loss-hint { margin: 0; color: #94a3b8; font-size: 11px; }
+.empty-state { display: flex; align-items: center; justify-content: center; min-height: 120px; padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
+/* 灾损预估：标题/指标/风险分布为概况区，说明文字跟内容自然流（不悬空置底） */
+.loss-pane { gap: 10px; }
+/* 预警监测：表头概况区（flex:none）+ 列表滚动区 */
+.warning-pane { gap: 0; }
+/* 风险分布（R4-7）：色带 + 明细行卡片化，色条与色带同色联动、行间细分隔 */
+.loss-band-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 6px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+}
+.band-caption { font-size: 11px; font-weight: 600; color: #334155; display: flex; align-items: baseline; gap: 6px; }
+.band-caption-sub { font-size: 10px; font-weight: 500; color: #94a3b8; }
+/* 左右分布：左饼图（承保面积占比）+ 右明细 */
+.risk-layout { display: flex; align-items: center; gap: 14px; }
+.risk-pie-wrap { flex: none; width: 88px; height: 88px; }
+.risk-pie { width: 100%; height: 100%; display: block; }
+.risk-pie-track, .risk-pie-seg { }
+.risk-pie-seg { transition: stroke-dasharray 0.3s ease; }
+.risk-pie-center { font-size: 16px; font-weight: 700; fill: #0f172a; font-variant-numeric: tabular-nums; }
+.risk-pie-center-label { font-size: 9px; font-weight: 500; fill: #94a3b8; }
+.risk-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.band-detail-row { display: flex; align-items: center; gap: 9px; padding: 7px 2px; border-bottom: 1px solid rgba(148, 163, 184, 0.16); }
+.band-detail-row:last-child { border-bottom: 0; }
+.risk-colorbar { flex: none; width: 4px; height: 14px; border-radius: 2px; background: var(--risk-color, #94a3b8); }
+.risk-name { flex: none; width: 38px; font-size: 12px; font-weight: 600; color: #334155; }
+.risk-count { flex: 1; font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
+.risk-area { flex: none; font-size: 12px; font-weight: 650; color: #0f172a; font-variant-numeric: tabular-nums; }
+/* 预警监测（R3-9~R3-18） */
+.warning-head { flex: none; border-bottom: 1px solid rgba(148, 163, 184, 0.3); padding-bottom: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; background: inherit; }
+.warning-head-row { display: flex; align-items: center; gap: 8px; }
+.warning-overview { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 0 1 auto; }
+.warning-title { font-size: 15px; font-weight: 700; color: #1e3a8a; flex: none; }
+.warning-counts { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rule-info { display: inline-flex; align-items: center; color: #94a3b8; cursor: help; }
+.rule-info svg { width: 15px; height: 15px; }
+.batch-btn { flex: none; margin-left: auto; padding: 4px 12px; border: 0; border-radius: 7px; background: #2563eb; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+.batch-btn:hover { background: #1d4ed8; }
+.cell-tooltip { position: fixed; z-index: 1250; padding: 6px 10px; border-radius: 7px; background: rgba(15, 23, 42, 0.9); color: #fff; font-size: 11px; max-width: 260px; line-height: 1.5; }
+.warning-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.warning-card { padding: 15px 9px; border: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.13); border-radius: 0; background: transparent; cursor: pointer; transition: background 0.12s ease; }
+.warning-card:hover { background: #f8fafc; }
+.wc-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.wc-name { font-weight: 650; color: #0f172a; font-size: 14px; }
+.wc-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.wc-status.todo { background: #fde8e8; color: #b91c1c; }
+.wc-status.observe { background: #e6f1fb; color: #0369a1; }
+.wc-level-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.wc-action { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
+.ai-chip { flex: none; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; color: #fff; background: #6366f1; border-radius: 4px; padding: 1px 5px; line-height: 1.5; align-self: flex-start; }
+.ai-text { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 10px; }
+.dispatch-btn { padding: 4px 12px; border: 1px solid #2563eb; border-radius: 7px; background: #fff; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dispatch-btn:hover { background: #2563eb; color: #fff; }
+.dispatch-btn.done { border: 1px solid #94a3b8; background: #fff; color: #475569; cursor: not-allowed; }
+.view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
+.view-all-bottom:hover { background: #eef2f7; }
+/* 任务列表（R5-12） */
+.task-list-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.tasks-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 2px 0; }
+.tasks-title { min-width: 0; color: #0f172a; font-size: 14px; font-weight: 700; }
+.tasks-title em { color: #64748b; font-size: 11px; font-style: normal; font-weight: 600; }
+.view-top { flex: none; padding: 0; border: 0; background: transparent; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.view-top:hover { color: #1d4ed8; text-decoration: underline; }
+.status-filter { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 2px; padding-left: 2px; }
+.sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
+.sf-item strong { font-variant-numeric: tabular-nums; }
+.sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
+.sf-all { background: #e2e8f0; color: #475569; opacity: 0.75; }
+.sf-all.active { opacity: 1; }
+.sf-claim { background: #ffedd5; color: #c2410c; opacity: 0.6; }
+.sf-claim.active { opacity: 1; }
+.sf-doing { background: #fef9c3; color: #a16207; opacity: 0.6; }
+.sf-doing.active { opacity: 1; }
+.sf-done { background: #dcfce7; color: #166534; opacity: 0.6; }
+.sf-done.active { opacity: 1; }
+.task-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 18px 10px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
+.task-row:hover { background: #f8fafc; }
+.task-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.task-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
+.task-name { font-weight: 600; font-size: 14px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-meta { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-level-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block; }
+.released-hint { font-size: 10px; color: #b45309; }
+.task-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.st-claim { background: #ffedd5; color: #c2410c; }
+.st-doing { background: #fef9c3; color: #a16207; }
+.st-done { background: #dcfce7; color: #166534; }
+/* 任务详情（R5-13/R6） */
+.task-detail { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.detail-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; padding: 10px 0 12px; background: #fff; border-bottom: 1px solid rgba(148,163,184,0.2); margin-bottom: 14px; }
+.back-btn { width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #2563eb; cursor: pointer; }
+.back-btn:hover { background: #eff6ff; color: #1d4ed8; }
+.back-btn svg { width: 18px; height: 18px; }
+.detail-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-group { padding: 14px; border-radius: 10px; background: #f8fafc; margin-bottom: 12px; }
+.detail-group:last-child { margin-bottom: 0; }
+.group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 12px; letter-spacing: 0.02em; }
+.detail-meta { display: flex; flex-direction: column; gap: 12px; }
+.meta-row { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #334155; }
+.meta-label { width: 60px; flex: none; color: #64748b; }
+.meta-value { flex: 1; color: #0f172a; display: flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
+.detail-sec { margin-bottom: 16px; }
+.sec-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
+.sec-body { font-size: 12px; color: #334155; line-height: 1.65; white-space: pre-line; }
+.history-list { display: flex; flex-direction: column; gap: 6px; }
+.history-row { display: flex; gap: 8px; font-size: 11px; color: #475569; }
+.history-time { flex: none; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.pending-evidence { color: #94a3b8; font-style: italic; }
+.ev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ev-thumb { position: relative; border: 0; padding: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: #e2e8f0; }
+.ev-thumb img { width: 100%; height: 64px; object-fit: cover; display: block; }
+.ev-time { position: absolute; bottom: 0; left: 0; right: 0; font-size: 9px; color: #fff; background: rgba(0,0,0,0.6); padding: 2px 3px; }
+.ev-demo-note { margin: 6px 0 0; font-size: 10px; color: #94a3b8; }
+/* 全部预警抽屉（R3-18） */
+.dw-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1150; width: min(520px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); }
+.dw-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.dw-drawer-eyebrow { display: block; color: #64748b; font-size: 11px; font-weight: 650; }
+.dw-drawer-title { margin: 4px 0 0; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dw-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
+.dw-drawer-close:hover { background: #cbd5e1; }
+.dw-drawer-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px; }
+.dw-drawer-card { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; margin-bottom: 8px; transition: background 0.12s ease, border-color 0.12s ease; }
+.dw-drawer-card:hover { background: #f1f5f9; border-color: #bfdbfe; }
+.dc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dc-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.dc-meta { font-size: 11px; color: #64748b; }
+/* 全部任务抽屉：沿用农情监测的统计筛选、双栏任务卡与详情布局 */
+.dw-task-drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 1150; width: min(920px, calc(100vw - 104px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(148,163,184,0.35); border-right: 0; border-radius: 16px 0 0 16px; background: rgba(248,250,252,0.98); box-shadow: -10px 18px 48px rgba(15,23,42,0.22); color: #0f172a; backdrop-filter: blur(18px); }
+.dw-task-drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.dw-task-drawer-eyebrow { display: block; color: #64748b; font-size: 11px; font-weight: 650; }
+.dw-task-drawer-title { margin: 4px 0 0; overflow-wrap: anywhere; color: #0f172a; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.dw-task-drawer-close { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #e2e8f0; color: #334155; font-size: 24px; cursor: pointer; }
+.dw-task-drawer-close:hover { background: #cbd5e1; }
+.dw-task-drawer-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: #e2e8f0; }
+.dw-ds-item { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 16px; border: 0; background: #fff; cursor: pointer; text-align: left; transition: background 0.12s ease; }
+.dw-ds-item.active { background: #eff6ff; }
+.dw-ds-item:hover { background: #f1f5f9; }
+.dw-ds-item span { font-size: 11px; }
+.dw-ds-item strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.dw-ds-all span { color: #64748b; } .dw-ds-all strong { color: #0f172a; }
+.dw-ds-claim span, .dw-ds-claim strong { color: #c2410c; }
+.dw-ds-doing span, .dw-ds-doing strong { color: #a16207; }
+.dw-ds-done span, .dw-ds-done strong { color: #166534; }
+.dw-task-drawer-content { flex: 1 1 auto; min-height: 0; display: flex; }
+.dw-task-drawer-list-pane { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.dw-task-drawer-content.has-detail .dw-task-drawer-list-pane { flex: 0 0 46%; border-right: 1px solid #e2e8f0; }
+.dw-task-drawer-tools { display: flex; align-items: center; padding: 14px 18px; }
+.dw-task-drawer-tools input { width: 280px; min-width: 0; max-width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 12px; }
+.dw-task-drawer-list { flex: 1 1 auto; min-height: 0; overflow: auto; background: #fff; }
+.dw-task-drawer-list table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; }
+.dw-task-drawer-list th { position: sticky; top: 0; z-index: 1; padding: 14px 12px; border-bottom: 1px solid #dbe4ef; background: #f8fafc; color: #334155; font-weight: 700; text-align: left; white-space: nowrap; }
+.dw-task-drawer-list td { padding: 13px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: middle; white-space: nowrap; }
+.dw-task-drawer-list tbody tr { cursor: pointer; transition: background 0.12s ease; }
+.dw-task-drawer-list tbody tr:hover { background: #eff6ff; }
+.dw-task-drawer-list th:nth-child(1), .dw-task-drawer-list td:nth-child(1) { width: 42px; }
+.dw-task-drawer-list th:nth-child(2), .dw-task-drawer-list td:nth-child(2) { width: 112px; }
+.dw-task-drawer-list th:nth-child(4), .dw-task-drawer-list td:nth-child(4) { width: 120px; }
+.dw-task-drawer-list th:nth-child(5), .dw-task-drawer-list td:nth-child(5) { width: 84px; }
+.dw-task-drawer-list th:nth-child(6), .dw-task-drawer-list td:nth-child(6) { width: 88px; }
+.dw-task-drawer-list th:nth-child(7), .dw-task-drawer-list td:nth-child(7) { width: 144px; }
+.drawer-task-no, .drawer-task-time { color: #8295b1 !important; font-variant-numeric: tabular-nums; }
+.drawer-task-name { color: #0f172a !important; font-weight: 650; }
+.dw-task-drawer-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px; }
+.dw-task-drawer-card { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 8px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: #fff; cursor: pointer; text-align: left; transition: background 0.12s ease, border-color 0.12s ease; }
+.dw-task-drawer-card.active { border-color: #bfdbfe; background: #eff6ff; }
+.dw-task-drawer-card:hover { background: #f1f5f9; }
+.dw-task-drawer-card .dc-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
+.dw-task-drawer-card .task-status { flex: none; }
+.dw-task-drawer-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+.dw-task-drawer-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #2563eb; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.dw-task-drawer-pagination button:disabled { cursor: not-allowed; opacity: 0.45; }
+.dw-task-drawer-pagination span { color: #64748b; font-size: 12px; }
+.dw-task-drawer-detail-pane { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.dw-task-drawer-detail-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+.dw-task-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
+.lightbox-overlay { position: fixed; inset: 0; z-index: 1300; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; }
+.lightbox { position: relative; }
+.lightbox img { max-width: 78vw; max-height: 82vh; border-radius: 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.45); }
+.lb-count { position: absolute; bottom: -28px; left: 50%; transform: translateX(-50%); color: #e2e8f0; font-size: 12px; background: rgba(15,23,42,0.55); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.side-drawer-enter-active, .side-drawer-leave-active { transition: transform 0.25s ease; }
+.side-drawer-enter-from, .side-drawer-leave-to { transform: translateX(100%); }
+@media (max-width: 700px) {
+  .dw-task-drawer { width: calc(100vw - 16px); }
+  .dw-task-drawer-summary { grid-template-columns: repeat(2, 1fr); }
+  .dw-task-drawer-content.has-detail { display: block; overflow-y: auto; }
+  .dw-task-drawer-content.has-detail .dw-task-drawer-list-pane { min-height: 45%; border-right: 0; border-bottom: 1px solid #e2e8f0; }
+  .dw-task-drawer-detail-pane { min-height: 55%; }
+}
+@media (max-width: 560px) { .disaster-warning-panel { width: calc(100% - 12px); right: 6px; } }
+</style>

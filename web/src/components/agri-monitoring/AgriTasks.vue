@@ -3,11 +3,11 @@
     <!-- 列表 -->
     <div v-if="!visibleTask" class="task-list">
       <div class="tasks-head">
-        <span class="list-caption">任务列表</span>
-        <button type="button" class="view-top" @click="showAll = true">全部任务</button>
+        <span class="list-caption">任务列表 <em>共 {{ filteredTasks.length }} 项</em></span>
+        <button type="button" class="view-top" @click="showAll = true">查看全部任务</button>
       </div>
       <div class="status-filter" aria-label="任务状态筛选">
-        <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s">{{ s }}</button>
+        <button v-for="s in statusFilters" :key="s" type="button" class="sf-item" :class="[`sf-${sfKey(s)}`, { active: statusFilter === s }]" @click="statusFilter = s"><span>{{ s }}</span><strong>{{ listStatusCount(s) }}</strong></button>
       </div>
       <div v-if="listTasks.length === 0" class="empty">暂无任务</div>
       <button v-for="t in listTasks" :key="t.id" type="button" class="task-row" @click="openTask(t.id)">
@@ -26,6 +26,7 @@
       <div class="detail-header">
         <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeTask"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
         <span class="detail-title">{{ visibleTask.taskNo }}</span>
+        <span class="detail-status task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span>
       </div>
 
       <div class="detail-group">
@@ -34,8 +35,9 @@
           <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(visibleTask.status)}`">{{ visibleTask.status }}</span></span></div>
           <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ visibleTask.typeName }}</span></div>
           <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ visibleTask.name }}</span></div>
+          <div class="meta-row"><span class="meta-label">备注</span><span class="meta-value">{{ visibleTask.remark || '无' }}</span></div>
           <div class="meta-row"><span class="meta-label">关联保单</span><span class="meta-value">{{ visibleTask.policyNo ? `${visibleTask.policyNo} · ${visibleTask.policyInsuredName}` : '—' }}</span></div>
-          <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value">{{ visibleTask.villageName }}<button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', visibleTask.villageCode, visibleTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
+          <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value"><span>{{ visibleTask.location.name }} · {{ visibleTask.location.lat.toFixed(4) }}, {{ visibleTask.location.lon.toFixed(4) }}</span><button type="button" class="locate-icon locate-btn" aria-label="定位到地图" title="定位到地图" @click="emit('locate-task', visibleTask.villageCode, visibleTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
           <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ visibleTask.createdAt }}</span></div>
           <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ visibleTask.executor ? `${visibleTask.executor.role} · ${visibleTask.executor.name}` : '未分配' }}</span></div>
         </div>
@@ -54,7 +56,7 @@
           <div class="sec-label">提交时间</div>
           <div class="sec-body">{{ visibleTask.evidence.length > 0 ? visibleTask.evidence[0].time : '—' }}</div>
         </div>
-        <div v-if="visibleTask.evidence.length === 0" class="sec-body">暂无影像</div>
+        <div v-if="visibleTask.evidence.length === 0" class="sec-body pending-evidence">暂无影像</div>
         <div v-else class="ev-grid">
           <button v-for="e in visibleTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e, visibleTask.evidence)">
             <img :src="e.url" alt="影像缩略图" />
@@ -66,10 +68,10 @@
     <!-- 全部任务：分户清单抽屉样式 -->
     <Teleport to="body">
     <Transition name="side-drawer">
-    <aside v-if="showAll" class="task-drawer" aria-label="全部任务">
+    <aside v-if="showAll" class="task-drawer" aria-label="全部任务" data-test="agri-task-drawer">
       <header class="task-drawer-header">
         <div><span class="task-drawer-eyebrow">任务清单</span><h2 class="task-drawer-title">全部任务</h2></div>
-        <button type="button" class="task-drawer-close" aria-label="关闭" @click="showAll = false">×</button>
+        <button type="button" class="task-drawer-close" aria-label="关闭" @click="closeAllTasks">×</button>
       </header>
 
       <!-- 统计概况：可点击作为列表筛选 -->
@@ -102,10 +104,11 @@
             <button :disabled="page === totalPages" @click="page++">下一页</button>
           </footer>
         </section>
-        <section class="task-drawer-detail-pane">
+        <section class="task-drawer-detail-pane" data-test="agri-task-drawer-detail">
           <header class="task-drawer-detail-head">
             <button type="button" class="back-btn" aria-label="返回任务列表" @click="closeDrawerDetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
             <span class="detail-title">{{ drawerTask.taskNo }}</span>
+            <span class="detail-status task-status" :class="`st-${statusKey(drawerTask.status)}`">{{ drawerTask.status }}</span>
           </header>
           <div class="task-detail-scroll">
             <div class="detail-group">
@@ -114,8 +117,9 @@
                 <div class="meta-row"><span class="meta-label">状态</span><span class="meta-value"><span class="task-status" :class="`st-${statusKey(drawerTask.status)}`">{{ drawerTask.status }}</span></span></div>
                 <div class="meta-row"><span class="meta-label">任务类型</span><span class="meta-value">{{ drawerTask.typeName }}</span></div>
                 <div class="meta-row"><span class="meta-label">任务描述</span><span class="meta-value">{{ drawerTask.name }}</span></div>
+                <div class="meta-row"><span class="meta-label">备注</span><span class="meta-value">{{ drawerTask.remark || '无' }}</span></div>
                 <div class="meta-row"><span class="meta-label">关联保单</span><span class="meta-value">{{ drawerTask.policyNo ? `${drawerTask.policyNo} · ${drawerTask.policyInsuredName}` : '—' }}</span></div>
-                <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value">{{ drawerTask.villageName }}<button type="button" class="locate-icon" :aria-label="'定位到村'" :title="'定位到村'" @click="emit('locate-task', drawerTask.villageCode, drawerTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
+                <div class="meta-row"><span class="meta-label">任务定位</span><span class="meta-value loc-value"><span>{{ drawerTask.location.name }} · {{ drawerTask.location.lat.toFixed(4) }}, {{ drawerTask.location.lon.toFixed(4) }}</span><button type="button" class="locate-icon locate-btn" aria-label="定位到地图" title="定位到地图" @click="emit('locate-task', drawerTask.villageCode, drawerTask.id)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 1 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></button></span></div>
                 <div class="meta-row"><span class="meta-label">创建时间</span><span class="meta-value">{{ drawerTask.createdAt }}</span></div>
                 <div class="meta-row"><span class="meta-label">执行人</span><span class="meta-value">{{ drawerTask.executor ? `${drawerTask.executor.role} · ${drawerTask.executor.name}` : '未分配' }}</span></div>
               </div>
@@ -131,7 +135,7 @@
                 <div class="sec-label">提交时间</div>
                 <div class="sec-body">{{ drawerTask.evidence.length > 0 ? drawerTask.evidence[0]!.time : '—' }}</div>
               </div>
-              <div v-if="drawerTask.evidence.length === 0" class="sec-body">暂无影像</div>
+              <div v-if="drawerTask.evidence.length === 0" class="sec-body pending-evidence">暂无影像</div>
               <div v-else class="ev-grid">
                 <button v-for="e in drawerTask.evidence" :key="e.url" type="button" class="ev-thumb" @click="openLightbox(e, drawerTask.evidence)"><img :src="e.url" alt="影像缩略图" /></button>
               </div>
@@ -147,7 +151,7 @@
           </div>
         <div class="task-drawer-list">
           <div v-if="pageItems.length === 0" class="empty">暂无任务</div>
-          <table>
+          <table data-test="agri-task-table">
             <thead><tr><th>序号</th><th>任务编号</th><th>任务名称</th><th>类型</th><th>状态</th><th>村</th><th>创建时间</th></tr></thead>
             <tbody>
               <tr v-for="(t, idx) in pageItems" :key="t.id" @click="selectFromDrawer(t.id)">
@@ -260,6 +264,10 @@ const drawerTaskId = ref<string | null>(null)
 const drawerTask = computed<AgriTask | null>(() => drawerTaskId.value ? allTasks.value.find((t) => t.id === drawerTaskId.value) ?? null : null)
 function selectFromDrawer(id: string) { drawerTaskId.value = id }
 function closeDrawerDetail() { drawerTaskId.value = null }
+function closeAllTasks() {
+  drawerTaskId.value = null
+  showAll.value = false
+}
 watch(drawerTaskId, () => { if (showAll.value) setupDrawerRO() })  // 列表↔分栏切换时重测
 
 const visibleTask = computed<AgriTask | null>(() => {
@@ -274,12 +282,17 @@ const statusFilter = ref<string>('全部')
 const statusFilters = ['全部', ...TASK_STATUSES]
 const sfKey = (s: string) => (s === '全部' ? 'all' : statusKey(s as TaskStatus))
 // 与异常监测一致：非村层级显示全部村任务，进入某村显示该村任务；再按状态筛
+const scopedTasks = computed(() => currentLevel.value === 'village'
+  ? allTasks.value.filter((t) => t.villageCode === currentCode.value)
+  : allTasks.value)
 const filteredTasks = computed(() => {
-  let tasks = allTasks.value
-  if (currentLevel.value === 'village') tasks = tasks.filter((t) => t.villageCode === currentCode.value)
+  let tasks = scopedTasks.value
   if (statusFilter.value !== '全部') tasks = tasks.filter((t) => t.status === statusFilter.value)
   return tasks
 })
+function listStatusCount(s: string) {
+  return s === '全部' ? scopedTasks.value.length : scopedTasks.value.filter((t) => t.status === s).length
+}
 // 按日期倒序 + 只显示最近 10 条
 const listTasks = computed(() => [...filteredTasks.value].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10))
 
@@ -309,12 +322,14 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .tasks-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .view-top { border: 0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; padding: 2px 4px; cursor: pointer; }
 .view-top:hover { color: #1d4ed8; }
-.list-caption { font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.list-caption { display: inline-flex; align-items: baseline; gap: 5px; font-size: 15px; font-weight: 700; color: #1e3a8a; }
+.list-caption em { color: #64748b; font-size: 11px; font-style: normal; font-weight: 600; font-variant-numeric: tabular-nums; }
 .view-all-bottom { display: block; width: 100%; padding: 13px; border: 0; border-top: 1px solid #e2e8f0; background: transparent; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; }
 .view-all-bottom:hover { background: #eef2f7; }
 .view-all:hover { background: #eef2f7; }
 .status-filter { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; padding-left: 4px; }
-.sf-item { border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
+.sf-item { display: inline-flex; align-items: center; gap: 4px; border: 0; border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; transition: opacity 0.12s ease, box-shadow 0.12s ease, font-weight 0.12s ease; }
+.sf-item strong { font-variant-numeric: tabular-nums; }
 .sf-item.active { font-weight: 700; box-shadow: 0 0 0 1.5px #2563eb; }
 /* 与状态标签颜色对应 */
 .sf-all { background: #e2e8f0; color: #475569; opacity: 0.75; }
@@ -330,9 +345,9 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .empty { padding: 12px; text-align: center; color: #94a3b8; font-size: 11px; }
 /* 任务列表：内容滚动容器 */
 .task-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.task-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 18px 10px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
-.task-row:hover { background: #f8fafc; }
-.task-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.task-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 14px 10px; border: 0; border-bottom: 1px solid rgba(148,163,184,0.14); background: transparent; cursor: pointer; color: #334155; text-align: left; transition: background 0.12s ease; }
+.task-row:hover { background: #eff6ff; }
+.task-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .task-eyebrow { font-size: 10px; font-weight: 600; color: #94a3b8; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
 .task-name { font-weight: 600; font-size: 14px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-meta { font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -348,19 +363,20 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .back-btn:hover { background: #eff6ff; color: #1d4ed8; }
 .back-btn svg { width: 18px; height: 18px; }
 .detail-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #1e3a8a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.detail-status { flex: none; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.detail-status { flex: none; }
 /* 详情分组：白色信息块 + 蓝色 kicker 分区标题 + 标签/值两列 */
 .detail-group { padding: 14px; border-radius: 10px; background: #f8fafc; margin-bottom: 12px; }
 .detail-group:last-child { margin-bottom: 0; }
 .group-label { font-size: 11px; font-weight: 600; color: #2563eb; margin-bottom: 12px; letter-spacing: 0.02em; }
 .detail-meta { display: flex; flex-direction: column; gap: 12px; }
 .meta-row { display: flex; align-items: baseline; gap: 12px; font-size: 12px; color: #334155; }
-.meta-label { width: 60px; flex: none; color: #64748b; }
+.meta-label { width: 68px; flex: none; color: #64748b; }
 .meta-value { flex: 1; color: #0f172a; overflow-wrap: anywhere; }
 .detail-sec { margin-bottom: 16px; }
 .detail-sec:last-child { margin-bottom: 0; }
 .sec-label { font-size: 11px; color: #64748b; margin-bottom: 5px; }
 .sec-body { font-size: 12px; color: #334155; line-height: 1.65; white-space: pre-line; }
+.pending-evidence { padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; text-align: center; }
 .loc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .loc-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .loc-name { font-weight: 600; color: #0f172a; }
@@ -398,12 +414,14 @@ onUnmounted(() => window.removeEventListener('keydown', onLbKey))
 .task-drawer-tools span { color: #64748b; font-size: 12px; }
 .task-drawer-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .task-drawer-list table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; white-space: nowrap; }
+.task-drawer-list thead { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
 .task-drawer-list th, .task-drawer-list td { padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+.task-drawer-list th { color: #334155; font-weight: 700; }
 .task-drawer-list tbody tr { cursor: pointer; }
 .task-drawer-list tbody tr:hover { background: #ecfeff; }
-.task-drawer-list .t-no { color: #94a3b8; font-variant-numeric: tabular-nums; }
+.task-drawer-list .t-no { width: 42px; color: #94a3b8; font-variant-numeric: tabular-nums; }
 .task-drawer-list .t-name { font-weight: 600; color: #0f172a; }
-.task-drawer-list .t-time { color: #64748b; font-variant-numeric: tabular-nums; }
+.task-drawer-list .t-time { width: 150px; color: #64748b; font-variant-numeric: tabular-nums; }
 /* 左右分栏：左卡片列表 + 右详情 */
 .task-drawer-split { flex: 1 1 auto; min-height: 0; display: flex; }
 .task-drawer-list-pane { flex: 0 0 46%; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; }

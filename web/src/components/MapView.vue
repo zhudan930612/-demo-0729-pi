@@ -83,6 +83,16 @@
       :viewport-height="mapViewport.height"
     />
 
+    <!-- 受灾预警：台风节点/风圈悬停浮窗（复用 TyphoonHoverPopup，R2-11/R2-12） -->
+    <TyphoonHoverPopup
+      v-if="disasterWarningStore.isOpen"
+      :model="disasterWarningHoverModel"
+      :x="disasterWarningHoverPosition.x"
+      :y="disasterWarningHoverPosition.y"
+      :viewport-width="mapViewport.width"
+      :viewport-height="mapViewport.height"
+    />
+
     <TyphoonTimelineDrawer
       v-if="disasterActive"
       :open="typhoonStore.timelineOpen"
@@ -106,6 +116,25 @@
       @toggle-play="togglePrecipPlay"
       @set-opacity="setPrecipOpacity"
       @refresh="refreshPrecipitation"
+    />
+
+    <!-- 受灾预警：右上角三 tab 面板（灾损预估 / 预警监测 / 任务列表） -->
+    <DisasterWarningPanel
+      v-if="disasterWarningStore.isOpen"
+      :phase="disasterWarningStore.phase"
+      :active-tab="disasterWarningStore.activeTab"
+      :error-message="disasterWarningStore.errorMessage"
+      :region-name="store.current.name"
+      :current-level="store.current.level"
+      :current-code="store.current.code"
+      @close="exitDisasterWarning"
+      @select-tab="(tab) => disasterWarningMode.setTab(tab)"
+      @select-village="(code) => void disasterWarningMode.selectVillage(code)"
+      @dispatch-village="(code) => disasterWarningMode.dispatchVillage(code)"
+      @dispatch-all="disasterWarningMode.dispatchAllPending"
+      @open-warning-drawer="disasterWarningStore.openWarningDrawer"
+      @close-warning-drawer="disasterWarningStore.closeWarningDrawer"
+      @open-task-drawer="disasterWarningStore.openTaskDrawer"
     />
 
     <!-- 农情监测：右上角 tab 面板 + 底部居中多日期浮窗 -->
@@ -134,6 +163,17 @@
       @toggle-play="toggleAgriPlay"
       @set-opacity="setAgriOpacity"
       @refresh="agriMode.refresh"
+    />
+
+    <!-- 受灾预警：底部居中迷你播放浮窗（R2-2，无时间轴） -->
+    <DisasterPlaybackWidget
+      v-if="disasterWarningStore.isOpen && disasterWarningStore.phase === 'ready'"
+      :playing="disasterWarningStore.playing"
+      :node-index="disasterWarningStore.nodeIndex"
+      :node-count="disasterWarningStore.nodeCount"
+      :node-time-label="disasterWarningStore.nodeTimeLabel"
+      @toggle-play="disasterWarningMode.togglePlay"
+      @close="exitDisasterWarning"
     />
 
     <!-- 村级地块业务操作：入口位于右下角，进入模式后在右上角显示完整工具栏。 -->
@@ -244,8 +284,6 @@
       :parcel-visible="parcelVisible"
       :parcel-on="parcelOn"
       :mode="parcelMode"
-      :can-zoom-in="canZoomIn"
-      :can-zoom-out="canZoomOut"
       :parcel-tools-visible="store.current.level === 'village' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
       :parcel-tools-disabled="parcelMode !== 'idle' || disasterActive || anyWeatherActive || precipitationStore.isOpen"
       :has-filterable-parcels="hasFilterableParcels"
@@ -262,6 +300,7 @@
       :lodging-assessment-active="lodgingMode.isActive.value"
       :lodging-demo-mode="lodgingMode.isDemoMode.value"
       :agri-monitoring-active="agriMonitoringStore.isOpen"
+      :disaster-warning-active="disasterWarningStore.isOpen"
       @switch-basemap="switchBasemap"
       @toggle-rs="toggleRs"
       @toggle-parcels="toggleParcels"
@@ -271,13 +310,11 @@
       @open-typhoon="enterTyphoonMode"
       @open-weather="enterWeatherMode"
       @close-weather="closeWeatherFromToolbar"
-      @zoom-in="zoomIn"
-      @zoom-out="zoomOut"
       @enter-lodging-assessment="lodgingMode.enterAssessmentMode()"
       @exit-lodging-assessment="lodgingMode.exitAssessmentMode()"
       @toggle-lodging-demo-mode="lodgingMode.toggleDemoMode()"
       @open-agri-monitoring="enterAgriMonitoring"
-      @exit-agri-monitoring="exitAgriMonitoring"
+      @open-disaster-warning="enterDisasterWarning"
     />
   </div>
 </template>
@@ -318,9 +355,13 @@ import { weatherEntryState } from '../features/weather/weatherLifecycle'
 import type { WeatherModuleKind } from '../features/weather/weatherTypes'
 import { useLodgingAssessmentMode } from '../features/lodging/useLodgingAssessmentMode'
 import { useAgriMonitoringMode } from '../features/agri-monitoring/useAgriMonitoringMode'
+import { useDisasterWarningMode } from '../features/disaster-warning/useDisasterWarningMode'
+import { useDisasterWarningStore } from '../stores/disasterWarning'
 import { useAgriMonitoringStore } from '../stores/agriMonitoring'
 import { LEVEL_COLORS, LEVEL_LABELS, GROWTH_LEVELS, LEVEL_THRESHOLDS, type GrowthLevel } from '../features/agri-monitoring/agriMonitoringTypes'
 import AgriMonitoringPanel from './agri-monitoring/AgriMonitoringPanel.vue'
+import DisasterWarningPanel from './disaster-warning/DisasterWarningPanel.vue'
+import DisasterPlaybackWidget from './disaster-warning/DisasterPlaybackWidget.vue'
 import AgriDateControl from './agri-monitoring/AgriDateControl.vue'
 import LodgingAssessmentOverview from './lodging/LodgingAssessmentOverview.vue'
 import LodgingParcelDrawer from './lodging/LodgingParcelDrawer.vue'
@@ -409,8 +450,6 @@ const rsHint = ref('')
 const rsOn = ref(true)
 const currentZoom = ref(DEFAULT_MIN_ZOOM)
 const mapMinZoom = ref(DEFAULT_MIN_ZOOM)
-const canZoomIn = computed(() => currentZoom.value < 19)
-const canZoomOut = computed(() => currentZoom.value > mapMinZoom.value)
 const RS_OPACITY = 0.7
 const basemap = ref<BasemapKey>('img')
 // Canvas 渲染器: 百余个复杂多边形时比默认 SVG 渲染流畅一个量级
@@ -592,6 +631,7 @@ const agriMode = useAgriMonitoringMode({
     nationalAlarms: () => weatherMode.exitNationalAlarms(),
     precipitation: () => precipitationMode.exitPrecipitationMode(),
     lodging: () => lodgingMode.exitAssessmentMode(),
+    disasterWarning: () => disasterWarningMode.exit(),
   },
   resetToProvince: () => store.resetToProvince(),
   render: () => render(),
@@ -606,6 +646,30 @@ const {
   locateToVillage: locateAgriToVillage,
   clearTaskLocation: clearAgriTaskLocation,
 } = agriMode
+
+// 受灾预警模式（演示模式二级 · 阶段二 台风邻近预警期）
+const disasterWarningStore = useDisasterWarningStore()
+const disasterWarningMode = useDisasterWarningMode({
+  store,
+  disasterActive,
+  anyWeatherActive: () => anyWeatherActive.value,
+  hasUnsavedParcelWork: () => parcelHasUnsavedWork(),
+  exits: {
+    typhoon: (restoreView) => typhoonMode.exitTyphoonMode(restoreView),
+    weather: () => weatherMode.exitWeatherMode(),
+    nationalAlarms: () => weatherMode.exitNationalAlarms(),
+    precipitation: () => precipitationMode.exitPrecipitationMode(),
+    lodging: () => lodgingMode.exitAssessmentMode(),
+    agri: () => agriMode.exit(),
+  },
+  resetToProvince: () => store.resetToProvince(),
+  render: () => render(),
+  showNotice,
+})
+function enterDisasterWarning() { void disasterWarningMode.enter() }
+function exitDisasterWarning() { disasterWarningMode.exit() }
+const disasterWarningHoverModel = disasterWarningMode.typhoonHoverModel
+const disasterWarningHoverPosition = disasterWarningMode.typhoonHoverPosition
 
 function agriRange(lv: GrowthLevel): string {
   const t = LEVEL_THRESHOLDS
@@ -626,13 +690,17 @@ function handleAgriSelectChild(row: { code: string; name: string; geometry: unkn
   void store.drill({ level: row.level as Level, code: row.code, name: row.name, geometry: row.geometry as Feature['geometry'] })
 }
 
-// 模式互斥：当其他模式激活时，自动退出评估/农情监测模式
+// 模式互斥：当其他模式激活时，自动退出评估/农情监测/受灾预警模式
 watch([anyWeatherActive, disasterActive, () => precipitationStore.isOpen, () => lodgingMode.isActive.value], ([weather, typhoon, precip, lodging]) => {
   if (lodgingMode.isActive.value && (weather || typhoon || precip) && !agriMonitoringStore.isOpen) {
     lodgingMode.exitAssessmentMode()
   }
   if (agriMonitoringStore.isOpen && (weather || typhoon || precip || lodging)) {
     agriMode.exit()
+  }
+  // 受灾预警：其他模式（台风/天气/降水/倒伏评估/农情监测）激活时自动退出
+  if (disasterWarningStore.isOpen && (weather || typhoon || precip || lodging || agriMonitoringStore.isOpen)) {
+    disasterWarningMode.exit()
   }
 })
 
@@ -768,14 +836,6 @@ function toggleRs() {
 function onLegendToggleCategory(category: string) {
   if (parcelVisualMode.value === 'planting') togglePlantingCategory(category)
   else if (parcelVisualMode.value === 'insurance') toggleInsuranceCategory(category)
-}
-
-function zoomIn() {
-  if (canZoomIn.value) map.zoomIn()
-}
-
-function zoomOut() {
-  if (canZoomOut.value) map.zoomOut()
 }
 
 function showNotice(message: string, error = false) {
@@ -1098,6 +1158,7 @@ onMounted(async () => {
   typhoonMode.init(map)
   lodgingMode.init(map)
   agriMode.init(map)
+  disasterWarningMode.init(map)
   basemaps = createBasemaps()
   basemaps.img.addTo(map)
   const syncMapViewport = () => {
@@ -1139,6 +1200,8 @@ onBeforeUnmount(() => {
   precipitationMode.destroy()
   if (agriMonitoringStore.isOpen) agriMode.exit()
   agriMode.destroy()
+  if (disasterWarningStore.isOpen) disasterWarningMode.exit()
+  disasterWarningMode.destroy()
   parcelWorkbench.destroy()
   navigationController?.destroy()
   map?.remove()

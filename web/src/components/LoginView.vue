@@ -26,9 +26,17 @@ DIRECTION: 全屏统一过渡背景 · 左品牌声明 / 右登录浮窗
     <div class="brand-content">
       <div class="brand-head">
         <span class="brand-mark">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21c-3.8 0-6.5-2.7-6.5-6.3C5.5 10.5 9 6.8 12 3c3 3.8 6.5 7.5 6.5 11.7 0 3.6-2.7 6.3-6.5 6.3Z" />
-            <path d="M12 21v-6m0 0-2.2-2.2M12 15l2.2-2.2" />
+          <svg viewBox="0 -3 48 48" width="64" height="64" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="brand-mark-grad" gradientUnits="userSpaceOnUse" x1="10" y1="40" x2="44" y2="6">
+                <stop offset="0" stop-color="#34d399" />
+                <stop offset="1" stop-color="#22d3ee" />
+              </linearGradient>
+            </defs>
+            <path class="bm-leaf" d="M 14 38 C 7 24 16 9 36 6 C 39 22 31 36 14 38 Z" stroke="url(#brand-mark-grad)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1" />
+            <path class="bm-vein" d="M 16 35.5 C 21 27 27 17 33.5 8.5 M 21.5 28.5 C 25 27 28.5 24.5 31 21.5" stroke="url(#brand-mark-grad)" stroke-width="2" stroke-linecap="round" pathLength="1" />
+            <path class="bm-orbit" d="M 5 19 C 14 4 30 -1 43 7" stroke="url(#brand-mark-grad)" stroke-width="2" stroke-linecap="round" pathLength="1" />
+            <circle class="bm-sat" cx="43" cy="7" r="2.6" fill="#22d3ee" />
           </svg>
         </span>
         <h1 class="brand-title">农保云<span class="brand-accent">AI</span>智能风控管理平台</h1>
@@ -289,14 +297,61 @@ async function submit() {
 }
 .brand-head { display: flex; align-items: center; gap: 18px; }
 .brand-mark {
-  width: 54px; height: 54px; margin: 0;
+  width: 64px; height: 64px; margin: 0;
   display: flex; align-items: center; justify-content: center;
-  color: #d8ffe9;
-  background: linear-gradient(135deg, #2ea46a 0%, #0c6a4a 100%);
-  border: 1px solid rgba(120, 255, 190, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(46, 164, 106, 0.42);
+  filter: drop-shadow(0 6px 20px rgba(52, 211, 153, 0.35));
   flex-shrink: 0;
+}
+/* 品牌 mark 一次性 splash reveal（与 brand/p2m/motion.css 同一编排，1400ms 共享时钟）
+   dash 数学按 pixel2motion artifact 表：round cap 用 dasharray 1 1.2 + 起始 offset 1.1，避免 t=0 帽点伪影 */
+.brand-mark .bm-leaf,
+.brand-mark .bm-vein,
+.brand-mark .bm-orbit {
+  stroke-dasharray: 1 1.2;
+  stroke-dashoffset: 1.1;
+}
+.brand-mark .bm-leaf { animation: bm-leaf-draw 1400ms linear both; }
+.brand-mark .bm-vein { animation: bm-vein-draw 1400ms linear both; }
+.brand-mark .bm-orbit { animation: bm-orbit-draw 1400ms linear both; }
+.brand-mark .bm-sat {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bm-sat-pop 1400ms linear both;
+}
+@keyframes bm-leaf-draw {
+  0% { stroke-dashoffset: 1.1; }
+  8% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  52% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes bm-vein-draw {
+  0% { stroke-dashoffset: 1.1; }
+  40% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  62% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes bm-orbit-draw {
+  0% { stroke-dashoffset: 1.1; }
+  58% { stroke-dashoffset: 1.1; animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1); }
+  82% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes bm-sat-pop {
+  0% { opacity: 0; transform: scale(0); }
+  74% { opacity: 0; transform: scale(0); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  88% { opacity: 1; transform: scale(1.18); animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark .bm-leaf,
+  .brand-mark .bm-vein,
+  .brand-mark .bm-orbit,
+  .brand-mark .bm-sat {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: none;
+  }
 }
 .brand-title {
   margin: 0;
@@ -437,7 +492,8 @@ async function submit() {
 @media (max-width: 900px) {
   .login-view { flex-direction: column; }
   .brand-content { flex: none; min-height: 42vh; padding: 0 24px; justify-content: flex-end; padding-bottom: 22px; }
-  .brand-mark { width: 38px; height: 38px; margin: 0; border-radius: 11px; }
+  .brand-mark { width: 44px; height: 44px; margin: 0; }
+  .brand-mark svg { width: 44px; height: 44px; }
   .brand-title { font-size: 26px; }
   .brand-slogan { font-size: 15px; margin: 18px 0 0; }
   .brand-pillars { display: none; }

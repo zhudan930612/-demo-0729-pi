@@ -1,0 +1,80 @@
+{
+  "name": "受灾预警",
+  "version": "V1",
+  "requirementDoc": "docs/requirements/受灾预警-V1需求.md",
+  "acceptanceChecklist": "docs/requirements/受灾预警-V1验收清单.md",
+  "branch": "feat/disaster-warning",
+  "phase": "acceptance",
+  "_phase取值": "form-precheck(形态预检) | coding(编码) | artifact-precheck(产物目视预检) | acceptance(验收) | judging(判断) | quality-review(质量审查) | done(完成) | escalated(升级)",
+  "formPrecheck": {
+    "status": "user-confirmed",
+    "confirmedAt": "2026-08-27",
+    "decisions": [
+      "阈值方案 C：低≥130 / 中≥160 / 高≥185 mm",
+      "16.1% 无驻地点的村用村面质心兜底并标 seatSource",
+      "承保造数锚定粮食播种面积（全省 1100~1300 万亩）"
+    ],
+    "artifacts": "C:/Users/zhudan/AppData/Local/Temp/disaster-warning-devflow/form-plans.png",
+    "recordedIn": [
+      "docs/requirements/受灾预警-V1需求.md A3/A4/B3/C3（commit 6f7fe72）",
+      "docs/requirements/受灾预警-V1验收清单.md R2-15/R2-16/R3-1/R3-2/R3-5 + 新增 R3-23/R4-8",
+      "CONTEXT.md 预警等级术语",
+      "docs/plans/受灾预警-V1-实施.md 第0节/第6节"
+    ]
+  },
+  "ticketMap": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "T8",
+    "T9",
+    "T10"
+  ],
+  "codingWaves": {
+    "wave1": {
+      "status": "done"
+    },
+    "wave2": {
+      "status": "done",
+      "commits": [
+        "7ad7366",
+        "89ca5c5",
+        "08d0915",
+        "9d9f9c3",
+        "7f6daca",
+        "35d0fac",
+        "2657c4e"
+      ]
+    }
+  },
+  "iteration": 0,
+  "maxIterations": 3,
+  "acceptanceReports": [],
+  "status": "active",
+  "notes": {
+    "formPrecheckRequired": true,
+    "formPrecheckReason": "R3 预警村清单/阈值校准、R4 承保造数与灾损数字、R2 每节点雨量网格均为『用户可见产物形态由数据决定』，按 AGENTS.md 工作闭环第 7 条与 dev-flow 步骤 2 必须先出可目视形态样例并经用户确认，再进入编码。",
+    "concurrentSessionWarning": "2026-08-27 本会话早期看到的 3 个 commit（6a41e7a/9b37b6f/1c19720）已被并发会话用 20 个更完整的 docs commit（7b75f6f..cf71f61）替换。以当前 HEAD cf71f61 为事实来源。"
+  },
+  "artifactPrecheck": {
+    "status": "passed",
+    "evidence": "灾损预估 tab 标题/三项数字/风险色带结构正确；预警监测 tab 概览/状态标签/AI文案/派发/聚合徽标正确；任务 tab YJ-编号/四态/证据正确；真实数据峰值 R4=1.57万亩/185228户/1963万（业务上合理）；截图为 e2e fixture(甲村/乙村), 真实数据形态由 artifact-peak.png 复核"
+  },
+  "codingVerification": {
+    "build": "clean (0 TS errors)",
+    "unit": "76 files / 530 tests pass",
+    "disasterE2E": "14/14 pass",
+    "dataValidator": "43/43 pass",
+    "realLoss@peak": "面积1.57万亩/户数185228/赔偿1963.43万元（全村承保1200万亩）",
+    "preExistingFailures": {
+      "manualParcel basemap": "spec expects 底图：卫星（点击切换矢量）, source 底图：卫星 (MapControlStack:172); 标签变更来自 f1b73b6(OSM特性,HEAD祖先)->pre-existing",
+      "villageRisk:231": "spec 硬编码 1,363 vs 真实保单数据 1,423.2万; 数据来自真实 policy fixture 非本需求->pre-existing",
+      "precipitation:121": "weather 按钮被共用灾害风险 workbench(65vh)遮挡; 来自 b54a223/2f8892b(降水参保联动,祖先)->pre-existing",
+      "proof": "本分支 33c2f49^..HEAD 未触碰 DisasterWorkbenchPanel/precipitation/villageRisk"
+    }
+  }
+}

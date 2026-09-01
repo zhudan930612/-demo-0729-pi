@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="农保云 候选J 像素叶">
+  <rect width="96" height="96" rx="21" fill="#0b1510"/>
+  <!-- 叶盾轮廓（与 E 同族） -->
+  <path id="jOutline" pathLength="1" d="M48 10C29 21 17 38 20.5 55 23.5 69 35 80 48 86 61 80 72.5 69 75.5 55 79 38 67 21 48 10Z"
+        fill="none" stroke="#4be0b0" stroke-width="5" stroke-linejoin="round"/>
+  <!-- 叶内像素化：数字化正在发生 -->
+  <g id="jPixels" fill="#2ea46a">
+    <rect x="40.5" y="38.5" width="7" height="7" rx="1.8"/>
+    <rect x="48.5" y="32.5" width="7" height="7" rx="1.8"/>
+    <rect x="56.5" y="26.5" width="7" height="7" rx="1.8"/>
+  </g>
+  <!-- 数据溢出叶外：传输中 -->
+  <g id="jData" fill="#22d3ee">
+    <rect x="67" y="22.5" width="6" height="6" rx="1.6"/>
+    <rect x="75" y="15.5" width="6" height="6" rx="1.6"/>
+  </g>
+</svg>

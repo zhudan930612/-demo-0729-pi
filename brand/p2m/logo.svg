@@ -1,0 +1,12 @@
+<svg id="p2m-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 -3 48 48" width="192" height="192" fill="none">
+  <defs>
+    <linearGradient id="p2m-grad" gradientUnits="userSpaceOnUse" x1="10" y1="40" x2="44" y2="6">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <path id="leaf" d="M 14 38 C 7 24 16 9 36 6 C 39 22 31 36 14 38 Z" stroke="url(#p2m-grad)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+  <path id="vein" d="M 16 35.5 C 21 27 27 17 33.5 8.5 M 21.5 28.5 C 25 27 28.5 24.5 31 21.5" stroke="url(#p2m-grad)" stroke-width="2" stroke-linecap="round" pathLength="1"/>
+  <path id="orbit" d="M 5 19 C 14 4 30 -1 43 7" stroke="url(#p2m-grad)" stroke-width="2" stroke-linecap="round" pathLength="1"/>
+  <circle id="sat" cx="43" cy="7" r="2.6" fill="#22d3ee"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="农保云 候选K 火花苗">
+  <rect width="96" height="96" rx="21" fill="#0b1510"/>
+  <!-- 地平线 -->
+  <path id="kGround" pathLength="1" d="M38 72H58" fill="none" stroke="#2ea46a" stroke-width="5" stroke-linecap="round"/>
+  <!-- 茎 -->
+  <path id="kStem" pathLength="1" d="M48 68V48" fill="none" stroke="#4be0b0" stroke-width="5" stroke-linecap="round"/>
+  <!-- 左叶：真叶 -->
+  <path id="kLeaf" pathLength="1" d="M47 54C41.5 52 38.5 47.5 39 42" fill="none" stroke="#34d399" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- 右侧：AI 火花（数据叶），与茎留净距 -->
+  <path id="kSpark" d="M63 30C64 35.5 67.5 39 73 40 67.5 41 64 44.5 63 50 62 44.5 58.5 41 53 40 58.5 39 62 35.5 63 30Z" fill="#22d3ee"/>
+</svg>

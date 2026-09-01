@@ -37,7 +37,7 @@ vi.mock('./agriMonitoringData', () => {
 
 function makeCtx(overrides: Partial<Parameters<typeof useAgriMonitoringMode>[0]> = {}) {
   const exits = {
-    typhoon: vi.fn(), weather: vi.fn(), nationalAlarms: vi.fn(), precipitation: vi.fn(), lodging: vi.fn(),
+    typhoon: vi.fn(), weather: vi.fn(), nationalAlarms: vi.fn(), precipitation: vi.fn(), lodging: vi.fn(), disasterWarning: vi.fn(),
   }
   const ctx = {
     store: { current: { level: 'province', code: '330000', name: '浙江省' }, navigateTo: vi.fn(), resetToProvince: vi.fn(async () => true), back: vi.fn() } as never,
@@ -64,6 +64,7 @@ describe('useAgriMonitoringMode · 模式互斥', () => {
     expect(exits.lodging).toHaveBeenCalled()
     expect(exits.typhoon).not.toHaveBeenCalled()
     expect(exits.weather).not.toHaveBeenCalled()
+    expect(exits.disasterWarning).toHaveBeenCalled() // 互斥：进入农情退出受灾预警
   })
 
   it('R7-1 若处于天气/台风模式，进入时一并退出', async () => {
@@ -76,6 +77,7 @@ describe('useAgriMonitoringMode · 模式互斥', () => {
     expect(exits.weather).toHaveBeenCalled()
     expect(exits.nationalAlarms).toHaveBeenCalled()
     expect(exits.typhoon).toHaveBeenCalled()
+    expect(exits.disasterWarning).toHaveBeenCalled() // 互斥：进入农情退出受灾预警
   })
 
   it('进入时打开 store 并重渲染（省级视角）', async () => {

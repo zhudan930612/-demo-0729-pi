@@ -98,8 +98,8 @@ test('R1 演示模式入口 + R8 tab 切换 + R2 默认最近一期/开关', asy
   await page.click('.demo-btn')
   await expect(page.locator('#demo-tool-menu')).toBeVisible()
   await expect(page.locator('#demo-tool-menu .menu-action')).toHaveCount(3)
-  // R1-3：受灾预警/受灾评估 不可进入（disabled）
-  await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾预警")')).toBeDisabled()
+  // R1-3：受灾预警 已点亮可进入；受灾评估 仍不可进入（disabled）
+  await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾预警")')).toBeEnabled()
   await expect(page.locator('#demo-tool-menu .menu-action:has-text("受灾评估")')).toBeDisabled()
   // R1-2：选「农情监测」进入，地图回省级
   await page.click('#demo-tool-menu button:has-text("农情监测")')
@@ -109,10 +109,10 @@ test('R1 演示模式入口 + R8 tab 切换 + R2 默认最近一期/开关', asy
   // R8-1：右上角三个 tab
   await expect(page.locator('.agri-panel .tab-list button')).toHaveCount(3)
   await expect(page.locator('.agri-panel .tab-list button').nth(0)).toHaveText('农情概况')
-  await expect(page.locator('.agri-panel .tab-list button').nth(1)).toHaveText('异常top')
+  await expect(page.locator('.agri-panel .tab-list button').nth(1)).toHaveText('异常监测')
   await expect(page.locator('.agri-panel .tab-list button').nth(2)).toHaveText('任务列表')
   // R8-3：切换 tab 时热力图保留（日期控制仍在）
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly')).toBeVisible()
   await expect(page.locator('.agri-date-control')).toBeVisible()
   // R2-1：默认显示最近一期（最后日期 07-27）
@@ -151,11 +151,11 @@ test('R3 农情概况：顶部概况 + 下一级列表（默认 tab）', async (
   await page.waitForTimeout(200)
 })
 
-test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => {
+test('R4 异常监测 + R6 一键转任务 + R5 任务列表', async ({ page }) => {
   await installFixtures(page)
   await enterAgri(page)
-  // R4-1：异常top 列表只列超标村，按占比降序
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  // R4-1：异常监测 列表只列超标村，按占比降序
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly')).toBeVisible()
   const rows = page.locator('.agri-anomaly .anomaly-row')
   await expect(rows).toHaveCount(2) // 龙江村65% + 新南村70%（大钱村不超标不列）
@@ -177,7 +177,7 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   await expect(page.locator('.agri-tasks')).toBeVisible() // 切到任务列表 tab
   await expect(page.locator('.agri-tasks .task-list')).toContainText('龙江村核查异常长势')
   // R6-3：重复点击不重复生成（回异常 top，详情仍打开，按钮已禁用）
-  await page.click('.agri-panel .tab-list button:has-text("异常top")')
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
   await expect(page.locator('.agri-anomaly .anomaly-detail')).toBeVisible()
   await expect(page.locator('.agri-anomaly .detail-actions .convert-btn')).toBeDisabled()
   // R5-1：任务列表行字段（名称/类型/状态/村/时间，不含 SOP）
@@ -198,9 +198,35 @@ test('R4 异常top + R6 一键转任务 + R5 任务列表', async ({ page }) => 
   await page.locator('.agri-tasks .task-detail .back-btn').click()
   await expect(page.locator('.agri-tasks .task-detail')).toHaveCount(0)
   await expect(page.locator('.agri-loc-marker')).toHaveCount(0)
-  // R5-7：查看全部任务浮窗
-  await page.locator('.agri-tasks .view-all').click()
-  await expect(page.locator('.agri-tasks .all-panel')).toBeVisible()
+  // R5-7：查看全部任务抽屉
+  await page.locator('.agri-tasks .view-all-bottom').click()
+  await expect(page.locator('[aria-label="全部任务"]')).toBeVisible()
+})
+
+test('农情任务抽屉：默认表格、详情双栏与返回列表', async ({ page }) => {
+  await installFixtures(page)
+  await enterAgri(page)
+  await page.click('.agri-panel .tab-list button:has-text("异常监测")')
+  await page.locator('.agri-anomaly .anomaly-village .convert-btn').first().click()
+  await page.click('.agri-panel .tab-list button:has-text("任务列表")')
+
+  await page.locator('.agri-tasks .task-row').first().click()
+  const panelDetail = page.locator('.agri-tasks .task-detail')
+  await expect(panelDetail).toContainText('备注')
+  await expect(panelDetail.locator('.locate-btn')).toBeVisible()
+  await page.locator('.agri-tasks .task-detail .back-btn').click()
+
+  await page.locator('.agri-tasks .view-all-bottom').click()
+  const drawer = page.locator('[data-test="agri-task-drawer"]')
+  await expect(drawer).toBeVisible()
+  await expect(drawer.locator('[data-test="agri-task-table"] thead')).toBeVisible()
+  await drawer.locator('[data-test="agri-task-table"] tbody tr').first().click()
+  const drawerDetail = drawer.locator('[data-test="agri-task-drawer-detail"]')
+  await expect(drawerDetail).toBeVisible()
+  await expect(drawerDetail).toContainText('备注')
+  await expect(drawerDetail.locator('.locate-btn')).toBeVisible()
+  await drawer.getByRole('button', { name: '返回任务列表' }).click()
+  await expect(drawer.locator('[data-test="agri-task-table"]')).toBeVisible()
 })
 
 test('R3 下钻到村级：概况随层级刷新 + 村级保单列表（R3-4/R3-5/R3-6）', async ({ page }) => {

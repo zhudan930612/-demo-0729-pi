@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="农保云 候选I 信号苗">
+  <rect width="96" height="96" rx="21" fill="#0b1510"/>
+  <!-- 数据信号线：脉冲段一路画上来接入茎（单笔连续） -->
+  <path id="iLine" pathLength="1" d="M8 66H22L26 59 31 73 35 66H48V40"
+        fill="none" stroke="#4be0b0" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 苗叶 -->
+  <g id="iLeaves" fill="none" stroke="#34d399" stroke-width="4.5" stroke-linecap="round">
+    <path d="M47 47C41.5 45 38.5 40.5 39 35.5"/>
+    <path d="M49 47C54.5 45 57.5 40.5 57 35.5"/>
+  </g>
+  <!-- 信号源节点 -->
+  <circle id="iDot" cx="8" cy="66" r="3.4" fill="#22d3ee"/>
+</svg>

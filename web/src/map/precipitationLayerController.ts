@@ -95,6 +95,8 @@ export interface PrecipGridLayerOptions extends L.GridLayerOptions {
   valueGrid: PrecipValueGrid | null
   opacity: number
   stepPx: number
+  /** 瓦片渲染采样分辨率（每边像素）；受灾预警播放高频重绘用较小值换取流畅度（默认 64，降水模式不变） */
+  renderSize?: number
 }
 
 /**
@@ -108,6 +110,12 @@ let precipBoundary: Array<Array<[number, number]>> | null = null
 let precipBoundaryPromise: Promise<Array<Array<[number, number]>>> | null = null
 // 省界投影缓存：key = zoom（同 zoom 瓦片共享，避免每瓦片重复投影）
 const boundaryProjCache = new Map<number, Array<Array<[number, number]>>>()
+// 瓦片渲染用的离屏画布（模块级复用，避免每帧 createElement('canvas'）；惰性创建避免 Node/测试环境导入即抛 document 未定义）
+let scratchCanvas: HTMLCanvasElement | null = null
+function ensureScratchCanvas(): HTMLCanvasElement {
+  if (!scratchCanvas) scratchCanvas = document.createElement('canvas')
+  return scratchCanvas
+}
 
 /** 加载并提取浙江界 rings（失败返回空数组，降级为不裁剪）。 */
 export function ensurePrecipBoundary(fetchImpl: typeof fetch = globalThis.fetch): Promise<Array<Array<[number, number]>>> {
@@ -163,10 +171,35 @@ function boundaryProjected(map: L.Map, zoom: number): Array<Array<[number, numbe
   return proj
 }
 
+/** 顶点等距简化：大幅减少逐点 lineTo/closePath 的顶点量（1.5 万 → 每环 <=500），省界裁剪视觉几乎无差。 */
+function sampleRing(ring: Array<[number, number]>, maxPoints: number): Array<[number, number]> {
+  if (ring.length <= maxPoints) return ring
+  const out: Array<[number, number]> = []
+  const step = ring.length / maxPoints
+  for (let i = 0; i < maxPoints; i++) out.push(ring[Math.floor(i * step)]!)
+  // 闭合：补回首点
+  out.push(out[0]!)
+  return out
+}
+
+/** 简化后的省界投影（per zoom 缓存）：瓦片渲染逐点画路径时只遍历简化后顶点，大幅降低 closePath 成本。 */
+const boundaryProjSimplifiedCache = new Map<number, Array<Array<[number, number]>>>()
+
+function boundaryProjectedSimplified(map: L.Map, zoom: number): Array<Array<[number, number]>> | null {
+  let proj = boundaryProjSimplifiedCache.get(zoom)
+  if (proj) return proj
+  const full = boundaryProjected(map, zoom)
+  if (!full || full.length === 0) return null
+  const PER_RING = 500
+  proj = full.map((ring) => sampleRing(ring, PER_RING)).filter((ring) => ring.length >= 3)
+  boundaryProjSimplifiedCache.set(zoom, proj)
+  return proj
+}
+
 /** 渲染单个瓦片：64×64 低分辨率渲染（双线性插值 + 阈值渐变带）→ 高质量平滑放大。
  *  用浙江界 clip（evenodd 处理洞与岛屿），界外色斑不绘制，边界平滑抗锯齿。
  *  createTile 与 setData 复用（setData 直接重绘已有 canvas，避免 DOM 重建闪烁）。 */
-function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: PrecipValueGrid, map: L.Map): void {
+function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: PrecipValueGrid, map: L.Map, renderSize = 64): void {
   const tileSizeX = tile.width, tileSizeY = tile.height
   const ctx = tile.getContext('2d')
   if (!ctx) return
@@ -174,8 +207,8 @@ function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: Preci
   const southEast = map.unproject([(coords.x + 1) * tileSizeX, (coords.y + 1) * tileSizeY], coords.z)
   const north = northWest.lat, south = southEast.lat
   const west = northWest.lng, east = southEast.lng
-  const renderSize = 64
-  const off = document.createElement('canvas')
+  // 复用模块级离屏画布：播放/日期高频重绘时避免每瓦片 createElement('canvas') 造成临时分配与 GC 抖动
+  const off = ensureScratchCanvas()
   off.width = renderSize
   off.height = renderSize
   const octx = off.getContext('2d')
@@ -195,9 +228,9 @@ function renderPrecipTile(tile: HTMLCanvasElement, coords: L.Coords, grid: Preci
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   const originX = coords.x * tileSizeX, originY = coords.y * tileSizeY
-  const proj = boundaryProjected(map, coords.z)
+  const proj = boundaryProjectedSimplified(map, coords.z)
   if (proj && proj.length > 0) {
-    // 浙江界 clip（evenodd：外环+洞+岛屿正确），界外色斑不绘制
+    // 浙江界 clip（evenodd：外环+洞+岛屿正确），界外色斑不绘制；顶点已简化(~每环500)避免每帧重建 1.5 万顶点路径
     ctx.save()
     try {
       ctx.beginPath()
@@ -221,7 +254,7 @@ export class PrecipGridLayer extends L.GridLayer {
 
   constructor(options: Partial<PrecipGridLayerOptions>) {
     // fadeAnimation: false —— 缩放时新旧瓦片不做半透明叠加过渡，避免色斑颜色因叠加而漂移
-    super({ tileSize: 256, opacity: 1, stepPx: 1, fadeAnimation: false, ...options } as L.GridLayerOptions)
+    super({ tileSize: 256, opacity: 1, stepPx: 1, renderSize: 64, fadeAnimation: false, ...options } as L.GridLayerOptions)
   }
 
   createTile(coords: L.Coords): HTMLElement {
@@ -231,7 +264,7 @@ export class PrecipGridLayer extends L.GridLayer {
     tile.height = tileSize.y
     const grid = this.options.valueGrid
     if (!grid || !this._map) return tile
-    renderPrecipTile(tile, coords, grid, this._map)
+    renderPrecipTile(tile, coords, grid, this._map, this.options.renderSize)
     return tile
   }
 
@@ -245,7 +278,7 @@ export class PrecipGridLayer extends L.GridLayer {
     for (const key in tiles) {
       const tile = tiles[key]
       if (tile?.el instanceof HTMLCanvasElement && tile.coords) {
-        renderPrecipTile(tile.el, tile.coords, grid, this._map)
+        renderPrecipTile(tile.el, tile.coords, grid, this._map, this.options.renderSize)
         updated++
       }
     }
@@ -281,6 +314,8 @@ export class PrecipGridLayer extends L.GridLayer {
 export interface PrecipitationLayerOptions {
   opacity?: number
   stepPx?: number
+  /** 瓦片渲染采样分辨率（每边像素）；受灾预警高频更新可传较小值（如 32）以降低每帧重绘成本，默认 64 */
+  renderSize?: number
 }
 
 export interface PrecipitationLayerController {
@@ -325,6 +360,7 @@ function ensureHoverStyle() {
 export function createPrecipitationLayerController(options: PrecipitationLayerOptions = {}): PrecipitationLayerController {
   const initialOpacity = options.opacity ?? 1
   const stepPx = Math.max(2, Math.floor(options.stepPx ?? 4))
+  const renderSize = options.renderSize ?? 64
   let map: L.Map | null = null
   let layer: PrecipGridLayer | null = null
   let hoverEl: HTMLDivElement | null = null
@@ -390,7 +426,7 @@ export function createPrecipitationLayerController(options: PrecipitationLayerOp
       if (map) return
       map = target
       ensurePane(target)
-      layer = new PrecipGridLayer({ pane: PRECIP_PANES.grid.name, valueGrid, opacity: currentOpacity, stepPx })
+      layer = new PrecipGridLayer({ pane: PRECIP_PANES.grid.name, valueGrid, opacity: currentOpacity, stepPx, renderSize })
       layer.addTo(target)
       layer.setOpacityValue(currentOpacity)
       attachHover(target)

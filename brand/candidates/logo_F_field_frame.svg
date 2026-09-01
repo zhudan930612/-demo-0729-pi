@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="农保云 候选F 田格苗">
+  <rect width="96" height="96" rx="21" fill="#0b1510"/>
+  <!-- 地块边框：一笔画方 -->
+  <rect id="fFrame" pathLength="1" x="18" y="18" width="60" height="60" rx="16"
+        fill="none" stroke="#4be0b0" stroke-width="5"/>
+  <!-- 苗：茎 + 两叶 -->
+  <path id="fStem" pathLength="1" d="M48 68V48" fill="none" stroke="#4be0b0" stroke-width="5" stroke-linecap="round"/>
+  <g id="fLeaves" fill="none" stroke="#34d399" stroke-width="4.5" stroke-linecap="round">
+    <path d="M47 54C41 52 38 47 39 41.5"/>
+    <path d="M49 54C55 52 58 47 57 41.5"/>
+  </g>
+  <!-- AI 数据点 -->
+  <circle id="fDot" cx="48" cy="31" r="3.2" fill="#22d3ee"/>
+</svg>
