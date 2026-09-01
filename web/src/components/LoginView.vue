@@ -302,7 +302,7 @@ async function submit() {
   filter: drop-shadow(0 6px 20px rgba(52, 211, 153, 0.35));
   flex-shrink: 0;
 }
-/* 品牌 mark 一次性 splash reveal（与 brand/p2m/motion.css 同一编排，1400ms 共享时钟）
+/* 品牌 mark 一次性 splash reveal（与 docs/brand/p2m/motion.css 同一编排，1400ms 共享时钟）
    dash 数学按 pixel2motion artifact 表：round cap 用 dasharray 1 1.2 + 起始 offset 1.1，避免 t=0 帽点伪影 */
 .brand-mark .bm-leaf,
 .brand-mark .bm-vein,
