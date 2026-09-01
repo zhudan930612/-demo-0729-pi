@@ -23,6 +23,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --dir web --frozen-lockfile
+      - name: Lint
+        run: pnpm --dir web lint
       - name: Type-check + build
         run: pnpm --dir web build
       - name: Unit tests
