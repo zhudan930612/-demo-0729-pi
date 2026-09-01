@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createDisasterPlaybackController } from './disasterPlaybackController'
 
 function fakeTimers() {
-  let now = 0
+  const now = 0
   const queue = new Map<number, () => void>()
   let nextId = 1
   const setTimeoutImpl = vi.fn((fn: () => void, _ms: number) => {

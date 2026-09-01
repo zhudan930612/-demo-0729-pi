@@ -188,7 +188,7 @@ export function useLodgingAssessmentMode(ctx: LodgingModeContext): LodgingAssess
   let adminNameMap = new Map<string, string>()
   let partyNameByParcelId = new Map<string, string>()
   let evaluatedAt: string | null = null
-  let childFeatureMap = new Map<string, Feature>()
+  const childFeatureMap = new Map<string, Feature>()
 
   /** 加载行政边界名称（加载所有层级的所有可用文件） */
   async function loadAdminNames(): Promise<Map<string, string>> {

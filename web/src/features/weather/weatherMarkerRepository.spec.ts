@@ -55,7 +55,7 @@ describe('weather marker repository', () => {
   })
   it('定时刷新只作用于当前层级流，退出后停止', async () => {
     vi.useFakeTimers()
-    let visible: 'visible' | 'hidden' = 'visible'
+    const visible: 'visible' | 'hidden' = 'visible'
     const listeners = new Set<() => void>()
     const doc = {
       get visibilityState() { return visible },

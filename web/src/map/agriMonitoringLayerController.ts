@@ -43,8 +43,8 @@ export function interpolateAgri(grid: ValueGrid, lat: number, lon: number): numb
   // O(1) 索引：直接按网格间距求行/列（避免逐像素 while 线性搜索造成的 O(n) 卡顿）
   const latStep = lats[1] - lats[0]
   const lonStep = lons[1] - lons[0]
-  let i = Math.max(0, Math.min(lats.length - 2, Math.floor((lat - lats[0]) / latStep)))
-  let j = Math.max(0, Math.min(lons.length - 2, Math.floor((lon - lons[0]) / lonStep)))
+  const i = Math.max(0, Math.min(lats.length - 2, Math.floor((lat - lats[0]) / latStep)))
+  const j = Math.max(0, Math.min(lons.length - 2, Math.floor((lon - lons[0]) / lonStep)))
   const latFrac = latStep === 0 ? 0 : (lat - lats[i]) / latStep
   const lonFrac = lonStep === 0 ? 0 : (lon - lons[j]) / lonStep
   const v00 = values[i][j]; const v10 = values[i + 1][j]; const v01 = values[i][j + 1]; const v11 = values[i + 1][j + 1]
@@ -103,7 +103,7 @@ export class AgriGridLayer extends L.GridLayer {
     if (container) container.style.opacity = String(clamped)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   _updateOpacity = function (this: AgriGridLayer) {
     if (!this._map) return
     const container = this.getContainer()
