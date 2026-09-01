@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import type { VillageRiskOverviewModel } from '../../features/village-risk/villageRiskOverviewModel'
 
-const props = defineProps<{
+defineProps<{
   model: VillageRiskOverviewModel | null
   precipLoading: boolean
   snapshotError: boolean
