@@ -7,6 +7,10 @@
 # 参考截图（内部评审截图）不入库
 参考截图/
 
+# ---- 品牌设计产物（选型/QA 历史，非运行时资产；logo 源与动效源仍保留 brand/p2m 顶层文件） ----
+brand/candidates/
+brand/p2m/outputs/
+
 # ---- 预处理产物(可由 scripts/ 重新生成, 不入库) ----
 web/public/data/
 web/public/tiles/
