@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 源数据（01-行政区划/、05-遥感数据/）经 Git LFS 入库且体积大（约 2.1GB），
+          # build/test 用不到（前端运行时 fetch，不经 build 引入），关闭 LFS 避免 CI 拉取私有大文件
+          lfs: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --dir web --frozen-lockfile
+      - name: Lint
+        run: pnpm --dir web lint
+      - name: Type-check + build
+        run: pnpm --dir web build
+      - name: Unit tests
+        run: pnpm --dir web test
+      # e2e（playwright，需 fixture-server + Chrome）暂不在 CI 跑，保留本地全量回归：
+      #   pnpm --dir web test:e2e

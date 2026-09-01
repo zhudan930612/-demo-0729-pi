@@ -1,6 +1,6 @@
-const cache = new Map<string, Promise<any>>()
+const cache = new Map<string, Promise<unknown>>()
 
-export function fetchJSON<T = any>(url: string): Promise<T> {
+export function fetchJSON<T = unknown>(url: string): Promise<T> {
   if (!cache.has(url)) {
     cache.set(
       url,
@@ -10,7 +10,7 @@ export function fetchJSON<T = any>(url: string): Promise<T> {
       }),
     )
   }
-  return cache.get(url)!
+  return cache.get(url)! as Promise<T>
 }
 
 export interface RsInfo {

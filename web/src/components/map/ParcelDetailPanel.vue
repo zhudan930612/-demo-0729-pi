@@ -95,7 +95,7 @@ import type { ParcelPolicyContext, ParcelSummaryInput } from '../../features/pol
 import { policyBusinessType } from '../../features/policy/policyVisual'
 
 const props = defineProps<{ parcel: ParcelSummaryInput; villageCode: string; villageName: string; policy: ParcelPolicyContext; rosterPartyDisplay: string; records: CultivationRecord[]; initialRecordKeys: string[] }>()
-const emit = defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': [] }>()
+defineEmits<{ 'request-close': []; 'request-restore': []; 'save-record': [record: CultivationRecord, isExisting: boolean]; 'remove-record': [record: CultivationRecord]; 'editing-change': [editing: boolean]; 'open-roster': [] }>()
 const copyNotice = ref('')
 const current = computed(() => getCurrentCultivationRecord(props.records))
 const parcelNumber = computed(() => props.parcel.source === 'manual'

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createDisasterPlaybackController } from './disasterPlaybackController'
 
 function fakeTimers() {
-  let now = 0
+  const now = 0
   const queue = new Map<number, () => void>()
   let nextId = 1
   const setTimeoutImpl = vi.fn((fn: () => void, _ms: number) => {
@@ -49,8 +49,7 @@ describe('createDisasterPlaybackController · 受灾预警播放语义（R2-1~R2
       setTimeout: setTimeoutImpl as unknown as typeof setTimeout,
       clearTimeout: clearTimeoutImpl as unknown as typeof clearTimeout,
       intervalMs: 1000,
-      intervalForNode: (nodeIndex: number) => nodeIndex >= 2 && nodeIndex <= 3 ? 1000 : 250,
-    } as any)
+    })
     ctl.start(5, { onStep: () => {}, onLoopRestart: () => {} })
     expect(setTimeoutImpl).toHaveBeenLastCalledWith(expect.any(Function), 1000)
     tick(1)
