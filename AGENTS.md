@@ -102,8 +102,8 @@ python scripts/check-codes.py       # 修改编码归属逻辑时
 ## 当前缺口
 
 - 尚无独立全仓架构文档；当前架构以源码为准，历史实施决策见 `docs/archive/`，长期架构决策见 `docs/adr/`。
-- 尚无 CI；验证依赖本地命令。统一实施计划目录见 `docs/plans/`。
-- `scripts/` 尚无统一锁定的 Python 依赖文件；新增依赖时同步 `README.md`。
+- 已接入最小 CI（`.github/workflows/ci.yml`：web `lint` + `build` + `test`；`on.push` 监听 main、`pull_request` 触发；e2e 仍保留本地全量 `pnpm --dir web test:e2e`）。统一实施计划目录见 `docs/plans/`。
+- `scripts/` 依赖由 `scripts/requirements.txt` 声明（含版本区间）；完全复现可 `pip freeze` 生成 `requirements.lock.txt`；新增依赖时同步 `README.md`。
 
 ## 不应写在这里
 
