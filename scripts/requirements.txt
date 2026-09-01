@@ -1,0 +1,13 @@
+# scripts/ 数据处理依赖（Python 3.10+）
+# 用途：生成/校验地图边界、影像切片、地块与保单区划数据、农情/灾害业务数据。
+# 安装：pip install -r scripts/requirements.txt
+#
+# 说明：版本为兼容区间。若需完全可复现，请在已验证环境执行
+#   pip freeze > scripts/requirements.lock.txt
+# 并用后者锁定精确版本。执行环境如需追加，同步更新 README.md。
+
+pyshp>=2.3
+shapely>=2.0
+rasterio>=1.3
+Pillow>=10.0
+numpy>=1.26
