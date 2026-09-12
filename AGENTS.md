@@ -29,7 +29,7 @@
 
 ## 工作闭环
 
-1. 先从 `docs/README.md` 找到任务对应的 owner 文档和代码模块。
+1. 需求定位不明或跨模块任务，从 `docs/README.md` 找对应现役需求；已明确的局部改动直接定位目标。
 2. 改变用户可见行为、术语或验收条件时，同步对应现役需求。
 3. 改地图装配时沿用 `web/src/map/`、`web/src/features/` 和视图组件的现有职责，避免把逻辑重新堆回 `MapView.vue`。
 4. 改静态数据格式或路径时，同时检查生成脚本、`web/src/stores/drilldown.ts`、`web/src/api/data.ts` 和前端加载路径。
@@ -86,7 +86,7 @@ python scripts/check-codes.py       # 修改编码归属逻辑时
 
 - **简单**：改动只落在一个组件 / composable / 单图层 / 单域 → 定向层。
 - **大**：改动落到共享组件、`MapView`、下钻、多个域、静态数据格式 / 区划规则 → 全量层。
-- **拿不准就全量**（全量是兜底，不是默认）。
+- 范围不明时先定位影响面，再选择验证层级。
 
 ## 硬约束
 
@@ -104,9 +104,3 @@ python scripts/check-codes.py       # 修改编码归属逻辑时
 - 尚无独立全仓架构文档；当前架构以源码为准，历史实施决策见 `docs/archive/`，长期架构决策见 `docs/adr/`。
 - 已接入最小 CI（`.github/workflows/ci.yml`：web `lint` + `build` + `test`；`on.push` 监听 main、`pull_request` 触发；e2e 仍保留本地全量 `pnpm --dir web test:e2e`）。统一实施计划目录见 `docs/plans/`。
 - `scripts/` 依赖由 `scripts/requirements.txt` 声明（含版本区间）；完全复现可 `pip freeze` 生成 `requirements.lock.txt`；新增依赖时同步 `README.md`。
-
-## 不应写在这里
-
-- 详细产品规格、缩放阈值、模型参数或数据统计；放入 `docs/README.md` 路由的 owner 文档。
-- 临时任务进度、会话状态、一次性调试记录或未验证猜测。
-- 无法指向仓库文件、命令或检查器的空泛要求。

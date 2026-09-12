@@ -1,6 +1,6 @@
 ---
 name: commit-work
-description: "Create high-quality git commits: review/stage intended changes, split into logical commits, and write clear commit messages (including Conventional Commits). Triggered by: commit, 提交, 提交代码, stage, craft a commit message, or split work into multiple commits."
+description: "暂存改动、拆分提交或创建 Git 提交及提交说明。"
 ---
 
 # Commit work
@@ -59,4 +59,3 @@ Provide:
 - the final commit message(s)
 - a short summary per commit (what/why)
 - the commands used to stage/review (at minimum: `git diff --cached`, plus any tests run)
-
